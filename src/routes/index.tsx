@@ -5,6 +5,7 @@ import { listSpaces } from "#/server/spaces";
 export const Route = createFileRoute("/")({
   loader: () => listSpaces(),
   component: Home,
+  errorComponent: HomeError,
 });
 
 function Home() {
@@ -33,6 +34,16 @@ function Home() {
           ))}
         </ul>
       )}
+    </AppShell>
+  );
+}
+
+function HomeError() {
+  return (
+    <AppShell>
+      <p role="alert" className="rounded-lg border bg-surface p-6 text-center">
+        Não foi possível carregar os espaços. Tente novamente em instantes.
+      </p>
     </AppShell>
   );
 }
