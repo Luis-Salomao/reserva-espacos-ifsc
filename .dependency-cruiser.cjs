@@ -18,9 +18,9 @@ module.exports = {
     {
       name: "import-asc-is-pure",
       comment:
-        "src/import-asc só pode importar src/domain e a si mesmo (mais o parser XML fast-xml-parser): sem infra, server, UI, application nem módulos node:.",
+        "src/import-asc só pode importar src/domain e a si mesmo (mais o parser XML fast-xml-parser; arquivos *.test.ts ficam isentos, pois usam bun:test): sem infra, server, UI, application nem módulos node:.",
       severity: "error",
-      from: { path: "^src/import-asc/", pathNot: "\.test\.ts$" },
+      from: { path: "^src/import-asc/", pathNot: "\\.test\\.ts$" },
       to: {
         pathNot: ["^src/import-asc/", "^src/domain/", "node_modules/fast-xml-parser/"],
       },

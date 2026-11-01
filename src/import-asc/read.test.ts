@@ -107,8 +107,27 @@ describe("readAscXml", () => {
     expect(result.root.children[0]?.children.map((c) => c.attrs.period)).toEqual(["1", "2"]);
   });
 
-  test("não expande entidades em atributos", () => {
-    const result = readAscXml(enc.encode('<timetable name="A &amp; B"/>'));
-    expect(result.ok).toBe(true);
+  test("decodifica entidades predefinidas e referências numéricas em uma só passagem", () => {
+    const xml =
+      '<timetable a="A &amp; B" b="&#233;" c="&#xE9;" d="&amp;lt;" e="&foo;" f="&#0;" g="&#xD800;" h="&#1114112;" i="&lt;&gt;&quot;&apos;"/>';
+    const result = readAscXml(enc.encode(xml));
+    if (!result.ok) throw new Error("falhou");
+    const a = result.root.attrs;
+    expect(a.a).toBe("A & B");
+    expect(a.b).toBe("é");
+    expect(a.c).toBe("é");
+    expect(a.d).toBe("&lt;");
+    expect(a.e).toBe("&foo;");
+    expect(a.f).toBe("&#0;");
+    expect(a.g).toBe("&#xD800;");
+    expect(a.h).toBe("&#1114112;");
+    expect(a.i).toBe("<>\"'");
+  });
+
+  test("rejeita aninhamento acima do limite de profundidade", () => {
+    const deep = enc.encode(`<timetable>${"<a>".repeat(64)}${"</a>".repeat(64)}</timetable>`);
+    expect(failure(deep).code).toBe("malformed");
+    const ok = enc.encode(`<timetable>${"<a>".repeat(63)}${"</a>".repeat(63)}</timetable>`);
+    expect(readAscXml(ok).ok).toBe(true);
   });
 });
