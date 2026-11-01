@@ -5,7 +5,9 @@
   "entry": [
     "src/routes/**/*.{ts,tsx}",
     "src/server/**/*.ts",
-    "drizzle.config.ts",
+    "drizzle.d1.config.ts",
+    // Resolvido via alias #db-client no build cloudflare (Task 5).
+    "src/infra/db/client.cloudflare.ts",
     "cli/**/*.ts",
     "test/**/*.ts"
   ],
@@ -13,9 +15,7 @@
   "ignore": [
     // Primitivos shadcn e utilitários do scaffold: usados pelas telas da Fase 1+.
     "src/components/ui/**",
-    "src/lib/utils.ts",
-    // Substituído por src/infra/env.ts na Task 4.
-    "src/env.ts"
+    "src/lib/utils.ts"
   ],
   "ignoreDependencies": [
     // Referenciados apenas por CSS (@import / @plugin em src/styles.css), que o knip não segue.
@@ -28,10 +28,8 @@
     "tailwind-merge",
     "lucide-react",
     "radix-ui",
-    // Formulários (Fase 1+) e validação de env/entrada (Task 4).
-    "@tanstack/react-form",
-    "@t3-oss/env-core",
-    "zod"
+    // Formulários (Fase 1+).
+    "@tanstack/react-form"
   ],
   // Binário instalado fora do bun (winget/CI); chamado pelo script `secrets`.
   "ignoreBinaries": ["betterleaks"]

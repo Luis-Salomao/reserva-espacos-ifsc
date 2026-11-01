@@ -15,7 +15,8 @@ coveragePathIgnorePatterns = [
   "src/server/**",
   "src/router.tsx",
   "src/routeTree.gen.ts",
-  "src/env.ts",
+  # Depende de cloudflare:workers; só roda dentro do Worker.
+  "src/infra/db/client.cloudflare.ts",
   "cli/**",
   "drizzle/**",
   "**/*.test.ts",

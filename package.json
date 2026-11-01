@@ -7,7 +7,8 @@
     "bun": ">=1.4"
   },
   "imports": {
-    "#/*": "./src/*"
+    "#/*": "./src/*",
+    "#db-client": "./src/infra/db/client.local.ts"
   },
   "scripts": {
     "dev": "vite dev --port 3000",
@@ -23,7 +24,13 @@
     "deps": "depcruise src",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
-    "check": "bun run lint && bun run typecheck && bun run knip && bun run deps && bun run test:coverage && bun run secrets"
+    "check": "bun run lint && bun run typecheck && bun run knip && bun run deps && bun run test:coverage && bun run secrets",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "bun run cli/db-migrate.ts",
+    "db:studio": "drizzle-kit studio",
+    "db:migrate:d1:local": "wrangler d1 migrations apply DB --local",
+    "db:migrate:d1:remote": "wrangler d1 migrations apply DB --remote",
+    "db:studio:d1": "drizzle-kit studio --config=drizzle.d1.config.ts"
   },
   "dependencies": {
     "@t3-oss/env-core": "^0.13.10",
@@ -38,6 +45,7 @@
     "@tanstack/react-start": "1.169.4",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "drizzle-orm": "0.45",
     "lucide-react": "^0.577.0",
     "nitro": "3.0.260610-beta",
     "radix-ui": "^1.8.1",
@@ -50,6 +58,7 @@
   },
   "devDependencies": {
     "@biomejs/biome": "2.6.4",
+    "@cloudflare/workers-types": "^5.20261101.1",
     "@happy-dom/global-registrator": "21.0.4",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "0.8.6",
@@ -61,9 +70,11 @@
     "@types/react-dom": "^19.2.0",
     "@vitejs/plugin-react": "^6.0.1",
     "dependency-cruiser": "18.7.0",
+    "drizzle-kit": "0.31",
     "knip": "6.44.1",
     "lefthook": "^2.2.2",
     "typescript": "^6.0.2",
-    "vite": "^8.0.0"
+    "vite": "^8.0.0",
+    "wrangler": "^4.156.0"
   }
 }
