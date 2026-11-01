@@ -50,7 +50,7 @@ export function formatPreviewText(preview: ImportPreview): string {
       "Durações usadas",
       preview.termsUsed.length === 0
         ? ["Nenhuma"]
-        : preview.termsUsed.map((term) => `${term.label}: ${term.cards}`),
+        : preview.termsUsed.map((term) => `${term.label}: ${term.slots}`),
     ),
     ...section("Avisos", warningLines(preview)),
     ...section(

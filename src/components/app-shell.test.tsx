@@ -18,6 +18,16 @@ describe("AppShell", () => {
     expect(screen.getByRole("main").textContent).toBe("conteúdo");
   });
 
+  test("navegação leva a início e à importação da grade", () => {
+    render(<AppShell>x</AppShell>);
+    const nav = screen.getByRole("navigation", { name: "Principal" });
+    expect(screen.getByRole("link", { name: "Início" }).getAttribute("href")).toBe("/");
+    expect(screen.getByRole("link", { name: "Importar grade" }).getAttribute("href")).toBe(
+      "/importar",
+    );
+    expect(nav.querySelectorAll("a")).toHaveLength(2);
+  });
+
   test("alternar o tema muda data-theme e persiste a escolha", () => {
     document.documentElement.dataset.theme = "light";
     render(<AppShell>x</AppShell>);

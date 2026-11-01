@@ -52,7 +52,7 @@ describe("previewAscXml com complete.xml", () => {
     expect(labels).toContain("Semestre 1");
     const masks = preview.termsUsed.map((term) => term.mask);
     expect(masks).toEqual([...masks].sort());
-    expect(preview.termsUsed.reduce((sum, term) => sum + term.cards, 0)).toBe(preview.counts.slots);
+    expect(preview.termsUsed.reduce((sum, term) => sum + term.slots, 0)).toBe(preview.counts.slots);
   });
 
   test("sobreposições separadas em certas e possíveis", () => {
@@ -134,5 +134,16 @@ describe("previewAscXml com rejeição", () => {
     const result = previewAscXml(new TextEncoder().encode("<foo/>"));
     expect(result.ok).toBe(false);
     if (!result.ok) expect(result.error.code).toBe("not_timetable");
+  });
+});
+
+describe("previewAscXml com falha inesperada", () => {
+  test("converte exceções em internal_error sem expor a causa", () => {
+    const result = previewAscXml(null as unknown as Uint8Array);
+    expect(result.ok).toBe(false);
+    if (!result.ok) {
+      expect(result.error.code).toBe("internal_error");
+      expect(result.error.message).not.toContain("null");
+    }
   });
 });
