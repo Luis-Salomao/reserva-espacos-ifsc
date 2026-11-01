@@ -21,7 +21,7 @@ por terceiros**: código limpo, modular, fácil de manter, e nunca vazar segredo
   ordem diferente, IDs com prefixo, etc. Degradar com avisos, não com exceção. [Luis]
 - CLI de instalação (`init`) para os dois alvos. [Luis]
 - Qualidade automatizada desde o início, rodando localmente (sem GitHub Actions). [Luis]
-- Design system com tokens: claro inspirado no Google Agenda, escuro inspirado no Linear. [Luis]
+- Design system com tokens: claro (fundo branco, cinzas neutros frios, destaque azul) e escuro (grafite quase preto, bordas sutis, destaque índigo). [Luis]
 
 ### Must Have (matriz MoSCoW do TCC, 31/10/2026)
 
@@ -164,9 +164,9 @@ Diff de arquivo alterado (regra 6) é **Fase 1b**: implementado após o fluxo b�
 ## 8. Design system
 
 Tokens CSS (variáveis) em `light` e `dark`, consumidos por Tailwind/shadcn. Claro: fundo branco, cinzas
-neutros frios, destaque azul (clima Google Agenda). Escuro: grafite quase preto, bordas sutis, destaque
-índigo/violeta (clima Linear). Cores por estado de ocupação (livre, reservado, importado, conflito) com contraste
-AA nos dois temas. Mobile-first (360 px). Referência de clima, sem copiar marca.
+neutros frios, destaque azul. Escuro: grafite quase preto, bordas sutis, destaque
+índigo/violeta. Cores por estado de ocupação (livre, reservado, importado, conflito) com contraste
+AA nos dois temas. Mobile-first (360 px). Identidade visual própria.
 
 ## 9. Qualidade e segurança
 
