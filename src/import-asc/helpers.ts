@@ -17,13 +17,14 @@ export function text(node: XmlNode, name: string): string {
   return attr(node, name) ?? "";
 }
 
-/** "A, B," -> ["A", "B"] */
+/** "A, B,A" -> ["A", "B"]: sem vazios e sem repetidos (primeira ocorrência vence). */
 export function idList(value: string | undefined): string[] {
   if (value === undefined) return [];
-  return value
+  const parts = value
     .split(",")
     .map((part) => part.trim())
     .filter((part) => part !== "");
+  return [...new Set(parts)];
 }
 
 /** "8:00" -> "08:00"; `null` se inválido. */

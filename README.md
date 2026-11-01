@@ -97,6 +97,14 @@ docker run -p 3000:3000 -v reserva-data:/data reserva
 
 Use de preferência um volume nomeado em `/data`. Se montar uma pasta do host (bind mount), ela precisa ser gravável pelo uid do usuário `bun` da imagem (1000).
 
+## Prévia de importação do aSc Horários
+
+```bash
+bun run cli import-preview <arquivo.xml> [--json] [--full]
+```
+
+Lê o XML exportado pelo aSc Horários e imprime um resumo em português (contagens, horários semanais por situação de sala, sobreposições, durações usadas, avisos agrupados e salas). **Não grava nada** no banco. Com `--json` imprime a prévia sem a grade completa; `--full` inclui `timetable`, `slots` e `overlapsDetail`. O resumo não contém dados pessoais de docentes. Arquivos reais ficam em `data/real/` (fora do Git); o teste `src/import-asc/real-file.test.ts` os usa se existirem e imprime só contagens.
+
 ## Licença
 
 [MIT](LICENSE)
