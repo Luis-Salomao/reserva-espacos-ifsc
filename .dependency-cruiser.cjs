@@ -13,7 +13,17 @@ module.exports = {
       comment: "src/application depende de portas, nunca de infra nem de UI.",
       severity: "error",
       from: { path: "^src/application/" },
-      to: { path: "^src/(infra|routes|components)/" },
+      to: { path: "^src/(infra|server|routes|components)/" },
+    },
+    {
+      name: "import-asc-is-pure",
+      comment:
+        "src/import-asc só pode importar src/domain e a si mesmo (mais o parser XML fast-xml-parser): sem infra, server, UI, application nem módulos node:.",
+      severity: "error",
+      from: { path: "^src/import-asc/" },
+      to: {
+        pathNot: ["^src/import-asc/", "^src/domain/", "node_modules/fast-xml-parser/"],
+      },
     },
     {
       name: "ui-no-infra",

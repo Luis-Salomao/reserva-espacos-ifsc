@@ -1,7 +1,6 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   // Entradas além das detectadas pelos plugins (vite, vitest/bun, etc.).
-  // Caminhos que ainda não existem: drizzle.config.ts (T4), cli (T7).
   "entry": [
     "src/routes/**/*.{ts,tsx}",
     "src/server/**/*.ts",
@@ -11,23 +10,12 @@
     "cli/**/*.ts",
     "test/**/*.ts"
   ],
-  "project": ["src/**/*.{ts,tsx}", "cli/**/*.ts", "test/**/*.ts", "*.ts"],
+  "project": ["src/**/*.{ts,tsx,css}", "cli/**/*.ts", "test/**/*.ts", "*.ts"],
   "ignore": [
-    // Primitivos shadcn e utilitários do scaffold: usados pelas telas da Fase 1+.
-    "src/components/ui/**",
-    "src/lib/utils.ts"
+    // Primitivos shadcn: usados pelas telas da Fase 1+.
+    "src/components/ui/**"
   ],
   "ignoreDependencies": [
-    // Referenciados apenas por CSS (@import / @plugin em src/styles.css), que o knip não segue.
-    "tailwindcss",
-    "tw-animate-css",
-    "@tailwindcss/typography",
-    // Usados pelos primitivos shadcn (ignorados acima) e telas das próximas fases.
-    "class-variance-authority",
-    "clsx",
-    "tailwind-merge",
-    "lucide-react",
-    "radix-ui",
     // Formulários (Fase 1+).
     "@tanstack/react-form"
   ],

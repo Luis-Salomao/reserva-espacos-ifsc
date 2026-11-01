@@ -9,7 +9,7 @@
 
 ## Hooks
 
-- `pre-commit`: Betterleaks nos arquivos em stage (e o linter, quando configurado).
+- `pre-commit`: Betterleaks nos arquivos em stage (e o Biome).
 - `pre-push`: `bun run check`.
 
 Não use `--no-verify` para contornar os hooks.
