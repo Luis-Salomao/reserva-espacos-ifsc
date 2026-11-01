@@ -258,9 +258,44 @@ describe("sobreposição interna", () => {
     expect(two({}, { days: "01000" }).overlaps).toEqual([]);
   });
 
-  test("slots no_room e multiple_rooms são ignorados", () => {
+  test("slots no_room são ignorados", () => {
     expect(two({}, { classroomIds: [] }).overlaps).toEqual([]);
-    expect(two({ classroomIds: ["R1", "R2"] }, {}).overlaps).toEqual([]);
+  });
+
+  test("applicable x applicable é certain", () => {
+    expect(two({}, {}).overlaps[0]?.kind).toBe("certain");
+  });
+
+  test("multiple_rooms colide com applicable em uma de suas salas: possible", () => {
+    const result = two({ classroomIds: ["R2", "R1"] }, { period: 1 });
+    expect(result.overlaps).toHaveLength(1);
+    expect(result.overlaps[0]).toMatchObject({ kind: "possible", classroomId: "R1" });
+  });
+
+  test("multiple_rooms sem sala em comum não conflita", () => {
+    expect(two({ classroomIds: ["R2", "R3"] }, {}).overlaps).toEqual([]);
+  });
+
+  test("dois multiple_rooms com duas salas em comum geram um overlap por sala", () => {
+    const result = two({ classroomIds: ["R1", "R2"] }, { classroomIds: ["R2", "R1"] });
+    expect(result.overlaps.map((o) => [o.classroomId, o.kind])).toEqual([
+      ["R1", "possible"],
+      ["R2", "possible"],
+    ]);
+  });
+
+  test("ordem das salas não impede a mescla de cards consecutivos", () => {
+    const { slots } = buildWeeklySlots(
+      tt(
+        [lesson("L1")],
+        [
+          card("L1", { period: 1, classroomIds: ["R2", "R1"] }),
+          card("L1", { period: 2, classroomIds: ["R1", "R2"] }),
+        ],
+      ),
+    );
+    expect(slots).toHaveLength(1);
+    expect(slots[0]?.periodTo).toBe(2);
   });
 
   test("cada par é reportado uma vez, ordenado deterministicamente", () => {
