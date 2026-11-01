@@ -43,18 +43,33 @@ describe("getDb (local)", () => {
   });
 });
 
+describe("getDb sem DATABASE_PATH", () => {
+  const previous = { ...process.env };
+  afterAll(() => {
+    process.env = previous;
+    resetDbCache();
+  });
+
+  test("falha nomeando a variável", () => {
+    resetDbCache();
+    process.env.DEPLOY_TARGET = "local";
+    Reflect.deleteProperty(process.env, "DATABASE_PATH");
+    expect(() => getDb()).toThrow("DATABASE_PATH");
+  });
+});
+
 describe("getRuntimeEnv (local)", () => {
   const previous = { ...process.env };
   afterAll(() => {
     process.env = previous;
   });
 
-  test("assume DEPLOY_TARGET=local e DATABASE_PATH de desenvolvimento quando ausentes", () => {
+  test("assume DEPLOY_TARGET=local quando ausente, mas não inventa DATABASE_PATH", () => {
     Reflect.deleteProperty(process.env, "DEPLOY_TARGET");
     Reflect.deleteProperty(process.env, "DATABASE_PATH");
     const env = getRuntimeEnv();
     expect(env.DEPLOY_TARGET).toBe("local");
-    expect(env.DATABASE_PATH).toBe("./data/dev.sqlite");
+    expect(env.DATABASE_PATH).toBeUndefined();
   });
 
   test("respeita valores definidos", () => {
