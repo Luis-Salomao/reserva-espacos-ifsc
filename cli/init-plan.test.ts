@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { planInit } from "./init-plan.ts";
+import { planInit, validateAnswers } from "./init-plan.ts";
 
 describe("planInit", () => {
   test("alvo local gera .env e migra o banco", () => {
@@ -42,5 +42,45 @@ describe("planInit", () => {
         expect(file.content).not.toMatch(/TOKEN|SECRET|PASSWORD|API_KEY|CLOUDFLARE_/i);
       }
     }
+  });
+});
+
+describe("validateAnswers", () => {
+  const winSpaced = String.raw`C:\meus dados\a.sqlite`;
+  const winPlain = String.raw`C:\dados\a.sqlite`;
+
+  test("aceita respostas válidas", () => {
+    expect(
+      validateAnswers({ target: "local", databasePath: "./a.sqlite", timezone: "America/Manaus" }),
+    ).toEqual([]);
+  });
+
+  test("rejeita newline (injeção de linhas)", () => {
+    expect(validateAnswers({ target: "local", timezone: "UTC\nPUBLIC_READ=false" })).not.toEqual(
+      [],
+    );
+    expect(validateAnswers({ target: "local", databasePath: "a\nX=1" })).not.toEqual([]);
+    expect(() => planInit({ target: "local", databasePath: "a\rX=1" })).toThrow();
+  });
+
+  test("rejeita fuso inexistente e valores vazios", () => {
+    expect(validateAnswers({ target: "local", timezone: "Marte/Olimpo" })).not.toEqual([]);
+    expect(validateAnswers({ target: "local", databasePath: "  " })).not.toEqual([]);
+    expect(validateAnswers({ target: "cloudflare", timezone: "" })).not.toEqual([]);
+  });
+
+  test("rejeita aspas e cifrão", () => {
+    expect(validateAnswers({ target: "local", databasePath: 'a"b' })).not.toEqual([]);
+    expect(validateAnswers({ target: "local", databasePath: "a$HOME" })).not.toEqual([]);
+  });
+
+  test("rejeita barra invertida quando precisaria de aspas", () => {
+    expect(validateAnswers({ target: "local", databasePath: winSpaced })).not.toEqual([]);
+    expect(validateAnswers({ target: "local", databasePath: winPlain })).toEqual([]);
+  });
+
+  test("coloca entre aspas caminho com espaço ou #", () => {
+    const plan = planInit({ target: "local", databasePath: "./meus dados/a#1.sqlite" });
+    expect(plan.files[0]?.content).toContain('DATABASE_PATH="./meus dados/a#1.sqlite"\n');
   });
 });

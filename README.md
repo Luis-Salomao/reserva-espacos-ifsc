@@ -34,7 +34,7 @@ bun install
 bun run cli init
 ```
 
-Opções para uso não interativo: `--target local|cloudflare`, `--database-path`, `--timezone`, `--yes`, `--force` e `--dry-run` (apenas mostra o plano).
+Opções para uso não interativo: `--target local|cloudflare`, `--database-path`, `--timezone`, `--yes`, `--force` e `--dry-run` (apenas mostra o plano) e `--help` (lista todas as opções).
 
 ### Alvo local (Bun + SQLite)
 
