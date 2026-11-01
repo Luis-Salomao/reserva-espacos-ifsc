@@ -27,6 +27,8 @@ type SlotIssue = {
 type InternalOverlap = {
   classroomId: string;
   weekday: number;
+  /** `certain`: ambos `applicable`; `possible`: algum slot tem várias salas (semântica desconhecida). */
+  kind: "certain" | "possible";
   a: WeeklySlot;
   b: WeeklySlot;
 };
@@ -90,7 +92,7 @@ function cardSlots(
       end: period.end,
       periodFrom: period.number,
       periodTo: period.number,
-      classroomIds: [...classroomIds],
+      classroomIds: [...classroomIds].sort(),
       termsMask: card.terms || null,
       weeksMask: card.weeks || null,
       status: roomStatus(classroomIds.length),
@@ -161,15 +163,17 @@ function compareSlots(a: WeeklySlot, b: WeeklySlot): number {
   );
 }
 
+/** Indexa cada slot sob cada uma de suas salas; `no_room` fica de fora. */
 function groupByRoomAndDay(slots: WeeklySlot[]): Map<string, WeeklySlot[]> {
   const groups = new Map<string, WeeklySlot[]>();
   for (const slot of slots) {
-    const room = slot.classroomIds[0];
-    if (slot.status !== "applicable" || room === undefined) continue;
-    const key = `${room}\u0000${slot.weekday}`;
-    const group = groups.get(key);
-    if (group === undefined) groups.set(key, [slot]);
-    else group.push(slot);
+    if (slot.status === "no_room") continue;
+    for (const room of slot.classroomIds) {
+      const key = JSON.stringify([room, slot.weekday]);
+      const group = groups.get(key);
+      if (group === undefined) groups.set(key, [slot]);
+      else group.push(slot);
+    }
   }
   return groups;
 }
@@ -184,15 +188,19 @@ function conflicts(a: WeeklySlot, b: WeeklySlot): boolean {
   );
 }
 
+/** Um par de slots que compartilha N salas gera N overlaps (um por sala). */
 function findOverlaps(slots: WeeklySlot[]): InternalOverlap[] {
   const overlaps: InternalOverlap[] = [];
-  for (const group of groupByRoomAndDay(slots).values()) {
+  for (const [key, group] of groupByRoomAndDay(slots)) {
     group.sort(compareSlots);
+    const [classroomId = ""] = JSON.parse(key) as [string, number];
     group.forEach((a, i) => {
       for (const b of group.slice(i + 1)) {
         if (b.start >= a.end) break;
         if (conflicts(a, b)) {
-          overlaps.push({ classroomId: a.classroomIds[0] ?? "", weekday: a.weekday, a, b });
+          const kind =
+            a.status === "applicable" && b.status === "applicable" ? "certain" : "possible";
+          overlaps.push({ classroomId, weekday: a.weekday, kind, a, b });
         }
       }
     });
