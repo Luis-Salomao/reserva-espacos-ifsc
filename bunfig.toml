@@ -1,0 +1,23 @@
+[test]
+preload = ["./test/setup-dom.ts"]
+coverage = false
+coverageReporter = ["text", "lcov"]
+coverageThreshold = { lines = 0.9, functions = 0.9 }
+coverageSkipTestFiles = true
+# Escopo da cobertura: só domain, application, import-asc e infra (Task 4+).
+# Bun só mede arquivos carregados pelos testes; o resto é ignorado explicitamente.
+coveragePathIgnorePatterns = [
+  "test/**",
+  "src/components/**",
+  "src/routes/**",
+  "src/integrations/**",
+  "src/lib/**",
+  "src/server/**",
+  "src/router.tsx",
+  "src/routeTree.gen.ts",
+  "src/env.ts",
+  "cli/**",
+  "drizzle/**",
+  "**/*.test.ts",
+  "**/*.test.tsx",
+]
