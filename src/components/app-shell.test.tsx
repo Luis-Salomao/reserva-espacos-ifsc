@@ -23,12 +23,16 @@ describe("AppShell", () => {
     render(<AppShell>x</AppShell>);
     const toggle = screen.getByRole("button", { name: "Alternar tema" });
 
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
+
     fireEvent.click(toggle);
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem("theme")).toBe("dark");
+    expect(toggle.getAttribute("aria-pressed")).toBe("true");
 
     fireEvent.click(toggle);
     expect(document.documentElement.dataset.theme).toBe("light");
+    expect(toggle.getAttribute("aria-pressed")).toBe("false");
     expect(localStorage.getItem("theme")).toBe("light");
   });
 

@@ -22,3 +22,7 @@ Nunca commite dados reais (pasta `data/`), `.env`, `.dev.vars`, bancos SQLite, t
 
 - Use apenas Bun (sem npm, pnpm ou yarn).
 - Documentação e mensagens de commit em português; identificadores de código em inglês.
+
+## Dependências fixadas (overrides)
+
+`package.json` fixa `"overrides": {"tslib": "2.9.1"}`. O `@lhci/cli` (Lighthouse) depende de `tslib` 1.x; sem o override, o Bun o hoisteia na raiz e cria cópias aninhadas de `tslib` 2.x. No Windows, o build do Nitro copia todas para o mesmo destino em paralelo e falha com `EBUSY`. Remova o override quando o `@lhci/cli` passar a usar `tslib` 2.x (ou for removido) e `bun run build:local` funcionar sem ele após `rm -rf node_modules && bun install`.
