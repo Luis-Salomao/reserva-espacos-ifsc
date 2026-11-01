@@ -9,7 +9,7 @@ import { TermsList } from "#/components/import/terms-list";
 import { WarningList } from "#/components/import/warning-list";
 import { WeeklyGrid } from "#/components/import/weekly-grid";
 import { Label } from "#/components/ui/label";
-import { previewImport } from "#/server/import-preview";
+import type { PreviewImportResult } from "#/server/import-preview";
 import type { PreviewView } from "#/server/import-preview-view";
 
 export const Route = createFileRoute("/importar")({
@@ -29,7 +29,7 @@ function Section({ title, children }: { title: string; children: ReactNode }) {
 
 function RoomGrid({ view }: { view: PreviewView }) {
   const [roomId, setRoomId] = useState(view.rooms[0]?.id ?? "");
-  const room = view.rooms.find((candidate) => candidate.id === roomId);
+  const room = view.rooms.find((candidate) => candidate.id === roomId) ?? view.rooms[0];
   if (room === undefined) {
     return <p className="text-muted-foreground">Nenhuma sala encontrada no arquivo.</p>;
   }
@@ -94,9 +94,13 @@ function ImportPage() {
     setPending(true);
     setError(null);
     try {
-      const data = new FormData();
-      data.set("file", file);
-      const result = await previewImport({ data });
+      // O corpo é o próprio XML: o servidor confere o tamanho antes de ler o conteúdo.
+      const response = await fetch("/api/import-preview", {
+        method: "POST",
+        headers: { "Content-Type": "application/xml" },
+        body: file,
+      });
+      const result = (await response.json()) as PreviewImportResult;
       if (result.ok) setView(result.preview);
       else {
         setView(null);
@@ -117,14 +121,11 @@ function ImportPage() {
         Envie o XML exportado do aSc Horários para ver uma prévia. Nada é salvo nesta etapa.
       </p>
       <ImportUpload pending={pending} onSubmit={handleSubmit} />
-      <div aria-live="polite" className="mt-4">
-        {pending && <p>Processando o arquivo…</p>}
-        {error !== null && (
-          <p role="alert" className="rounded-lg border bg-occ-conflict p-4">
-            {error}
-          </p>
-        )}
-      </div>
+      {error !== null && (
+        <p role="alert" className="mt-4 rounded-lg border bg-occ-conflict p-4">
+          {error}
+        </p>
+      )}
       {view !== null && <PreviewResult view={view} />}
     </AppShell>
   );

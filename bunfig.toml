@@ -11,6 +11,7 @@ coveragePathIgnorePatterns = [
   "src/routes/**",
   "src/integrations/**",
   "src/lib/**",
+  # Server function que só delega ao repositório (ligado ao banco via #db-client); sem lógica própria.
   "src/server/spaces.ts",
   "src/router.tsx",
   "src/routeTree.gen.ts",

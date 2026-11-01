@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "#/components/theme-toggle";
 import { cn } from "#/lib/utils";
@@ -19,12 +20,12 @@ export function AppShell({ children, wide = false }: Props) {
           <span className="text-base font-semibold">Reserva de Espaços</span>
           <div className="flex items-center gap-1">
             <nav aria-label="Principal" className="flex items-center gap-1 text-sm">
-              <a href="/" className="rounded-md px-2 py-2 hover:bg-surface-2">
+              <Link to="/" className="rounded-md px-2 py-2 hover:bg-surface-2">
                 Início
-              </a>
-              <a href="/importar" className="rounded-md px-2 py-2 hover:bg-surface-2">
+              </Link>
+              <Link to="/importar" className="rounded-md px-2 py-2 hover:bg-surface-2">
                 Importar grade
-              </a>
+              </Link>
             </nav>
             <ThemeToggle />
           </div>

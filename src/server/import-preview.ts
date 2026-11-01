@@ -1,7 +1,7 @@
-import { createServerFn } from "@tanstack/react-start";
 import { previewAscXml } from "#/import-asc/index.ts";
 import { MAX_XML_BYTES } from "#/import-asc/read.ts";
 import { type PreviewView, toPreviewView } from "./import-preview-view.ts";
+import { checkContentLength, readBodyWithLimit, TOO_LARGE_MESSAGE } from "./upload-limit.ts";
 
 export type PreviewImportResult =
   | { ok: true; preview: PreviewView }
@@ -9,43 +9,29 @@ export type PreviewImportResult =
 
 const GENERIC_MESSAGE =
   "Não foi possível processar o arquivo. Verifique se ele é um XML exportado do aSc Horários.";
+const EMPTY_MESSAGE = "Selecione um arquivo XML para importar.";
 
-function fail(message: string): PreviewImportResult {
-  return { ok: false, message };
+function reply(result: PreviewImportResult, status = 200): Response {
+  return Response.json(result, { status });
 }
 
 /**
- * Lê o campo `file` do formulário e devolve a prévia. Não persiste nada e nunca registra o
- * conteúdo; em erro inesperado registra apenas o nome do erro.
+ * Trata o POST da prévia: o corpo da requisição é o próprio XML (sem multipart). O tamanho é
+ * verificado pelo `Content-Length` e novamente durante a leitura em pedaços, que é cancelada ao
+ * passar de 10 MB. Nada é gravado nem registrado; em erro inesperado só o nome do erro vai ao log.
  */
-export async function runPreviewImport(formData: FormData): Promise<PreviewImportResult> {
+export async function handlePreviewRequest(request: Request): Promise<Response> {
   try {
-    const file = formData.get("file");
-    if (!(file instanceof File) || file.size === 0) {
-      return fail("Selecione um arquivo XML para importar.");
-    }
-    if (file.size > MAX_XML_BYTES) return fail("O arquivo é maior que o limite de 10 MB.");
-    const result = previewAscXml(new Uint8Array(await file.arrayBuffer()));
-    if (!result.ok) return fail(result.error.message);
-    return { ok: true, preview: toPreviewView(result.preview) };
+    const length = checkContentLength(request.headers, MAX_XML_BYTES);
+    if (!length.ok) return reply({ ok: false, message: length.message }, length.status);
+    const bytes = await readBodyWithLimit(request.body, MAX_XML_BYTES);
+    if (bytes === null) return reply({ ok: false, message: TOO_LARGE_MESSAGE }, 413);
+    if (bytes.byteLength === 0) return reply({ ok: false, message: EMPTY_MESSAGE }, 400);
+    const result = previewAscXml(bytes);
+    if (!result.ok) return reply({ ok: false, message: result.error.message }, 422);
+    return reply({ ok: true, preview: toPreviewView(result.preview) });
   } catch (error) {
     console.error("[importar] falha inesperada:", error instanceof Error ? error.name : "erro");
-    return fail(GENERIC_MESSAGE);
+    return reply({ ok: false, message: GENERIC_MESSAGE }, 500);
   }
 }
-
-/** Valida a entrada do server fn: precisa ser um `FormData`. */
-export function parseUploadInput(data: unknown): FormData {
-  if (!(data instanceof FormData)) throw new Error("Envio inválido.");
-  return data;
-}
-
-/** Corpo do server fn, separado para ser testável fora do runtime do Start. */
-export function previewHandler({ data }: { data: FormData }): Promise<PreviewImportResult> {
-  return runPreviewImport(data);
-}
-
-/** Gera a prévia de um XML enviado pela tela (apenas em memória; nada é gravado). */
-export const previewImport = createServerFn({ method: "POST" })
-  .validator(parseUploadInput)
-  .handler(previewHandler);

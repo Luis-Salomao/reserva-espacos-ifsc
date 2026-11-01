@@ -22,7 +22,7 @@ export function WeeklyGrid({ room, periods }: Props) {
           const daySlots = room.slots.filter((slot) => slot.weekday === day);
           return (
             <section key={day} aria-label={weekdayName(day)} className="grid gap-1.5">
-              <h4 className="font-medium">{weekdayName(day)}</h4>
+              <h3 className="font-medium">{weekdayName(day)}</h3>
               {daySlots.length === 0 ? (
                 <p className="text-sm text-muted-foreground">Sem horários.</p>
               ) : (
@@ -63,6 +63,21 @@ export function WeeklyGrid({ room, periods }: Props) {
                         .filter((slot) => slot.weekday === day && slot.periodFrom === period.number)
                         .map((slot) => (
                           <SlotCard key={slot.key} slot={slot} />
+                        ))}
+                      {room.slots
+                        .filter(
+                          (slot) =>
+                            slot.weekday === day &&
+                            slot.periodFrom < period.number &&
+                            period.number <= slot.periodTo,
+                        )
+                        .map((slot) => (
+                          <p
+                            key={slot.key}
+                            className="rounded-md border border-dashed bg-occ-imported px-2 py-1 text-xs text-foreground"
+                          >
+                            continuação: {slot.subject} (até {slot.end})
+                          </p>
                         ))}
                     </div>
                   </td>
