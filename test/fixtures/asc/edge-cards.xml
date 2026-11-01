@@ -16,6 +16,7 @@
   </lessons>
   <cards columns="lessonid,classroomids,period,weeks,terms,days">
     <card lessonid="L1" classroomids="R1" period="1" weeks="" terms="1111" days="10000"/>
+    <card lessonid="L1" classroomids="R1" period="2" weeks="" terms="1111" days="10000"/>
     <card lessonid="L2" classroomids="R1" period="2" weeks="" terms="1100" days="10000"/>
     <card lessonid="L3" classroomids="R1" period="2" weeks="" terms="1111" days="01000"/>
     <card lessonid="L4" classroomids="R1" period="9" weeks="" terms="1111" days="01000"/>

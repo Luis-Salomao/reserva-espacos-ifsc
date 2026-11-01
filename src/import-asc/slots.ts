@@ -17,7 +17,7 @@ type WeeklySlot = {
 type SlotIssue = {
   code:
     | "missing_period"
-    | "period_overflow"
+    | "incomplete_block"
     | "invalid_days"
     | "lesson_without_cards"
     | "invalid_period";
@@ -63,21 +63,16 @@ function roomStatus(count: number): WeeklySlot["status"] {
   return count > 1 ? "multiple_rooms" : "applicable";
 }
 
+/** Cada card cobre apenas o próprio período; um card gera um slot por dia marcado. */
 function cardSlots(
   card: Card,
   lesson: Lesson,
   usable: Period[],
   issues: SlotIssue[],
 ): WeeklySlot[] {
-  const first = usable.findIndex((period) => period.number === card.period);
-  const start = usable[first];
-  if (start === undefined) {
+  const period = usable.find((candidate) => candidate.number === card.period);
+  if (period === undefined) {
     issues.push({ code: "missing_period", ref: card.lessonId });
-    return [];
-  }
-  const last = usable[first + Math.max(1, lesson.periodsPerCard) - 1];
-  if (last === undefined) {
-    issues.push({ code: "period_overflow", ref: card.lessonId });
     return [];
   }
   if (card.days === null || !DAYS_MASK.test(card.days)) {
@@ -91,17 +86,51 @@ function cardSlots(
     slots.push({
       lessonId: card.lessonId,
       weekday,
-      start: start.start,
-      end: last.end,
-      periodFrom: start.number,
-      periodTo: last.number,
+      start: period.start,
+      end: period.end,
+      periodFrom: period.number,
+      periodTo: period.number,
       classroomIds: [...classroomIds],
-      termsMask: card.terms,
-      weeksMask: card.weeks,
+      termsMask: card.terms || null,
+      weeksMask: card.weeks || null,
       status: roomStatus(classroomIds.length),
     });
   }
   return slots;
+}
+
+/** Junta slots da mesma lesson/dia/sala/terms/weeks cujos períodos são consecutivos entre os utilizáveis. */
+function mergeConsecutive(slots: WeeklySlot[], usable: Period[]): WeeklySlot[] {
+  const position = new Map(usable.map((period, index) => [period.number, index]));
+  const groups = new Map<string, WeeklySlot[]>();
+  for (const slot of slots) {
+    const key = JSON.stringify([
+      slot.lessonId,
+      slot.weekday,
+      slot.classroomIds,
+      slot.termsMask,
+      slot.weeksMask,
+    ]);
+    const group = groups.get(key);
+    if (group === undefined) groups.set(key, [slot]);
+    else group.push(slot);
+  }
+  const at = (number: number) => position.get(number) ?? -1;
+  const merged: WeeklySlot[] = [];
+  for (const group of groups.values()) {
+    group.sort((a, b) => at(a.periodFrom) - at(b.periodFrom));
+    let current: WeeklySlot | undefined;
+    for (const slot of group) {
+      if (current !== undefined && at(slot.periodFrom) === at(current.periodTo) + 1) {
+        current.end = slot.end;
+        current.periodTo = slot.periodTo;
+      } else {
+        current = { ...slot };
+        merged.push(current);
+      }
+    }
+  }
+  return merged;
 }
 
 function singleOverlap(a: string, b: string): boolean {
@@ -112,6 +141,7 @@ function singleOverlap(a: string, b: string): boolean {
   return false;
 }
 
+// exported for tests
 /** `null` significa "todos"; máscaras de tamanhos diferentes comparam o prefixo comum. */
 export function masksOverlap(a: string | null, b: string | null): boolean {
   if (a === null && b === null) return true;
@@ -146,6 +176,7 @@ function groupByRoomAndDay(slots: WeeklySlot[]): Map<string, WeeklySlot[]> {
 
 function conflicts(a: WeeklySlot, b: WeeklySlot): boolean {
   return (
+    a.lessonId !== b.lessonId &&
     a.start < b.end &&
     b.start < a.end &&
     masksOverlap(a.termsMask, b.termsMask) &&
@@ -183,12 +214,23 @@ export function buildWeeklySlots(timetable: AscTimetable): WeeklyGrid {
   const usable = usablePeriods(timetable.periods, issues);
   const lessons = new Map(timetable.lessons.map((lesson) => [lesson.id, lesson]));
   const withCards = new Set<string>();
-  const slots: WeeklySlot[] = [];
+  const raw: WeeklySlot[] = [];
   for (const card of timetable.cards) {
     const lesson = lessons.get(card.lessonId);
     if (lesson === undefined) continue;
     withCards.add(lesson.id);
-    slots.push(...cardSlots(card, lesson, usable, issues));
+    raw.push(...cardSlots(card, lesson, usable, issues));
+  }
+  const slots = mergeConsecutive(raw, usable);
+  const incomplete = new Set<string>();
+  const position = new Map(usable.map((period, index) => [period.number, index]));
+  for (const slot of slots) {
+    const needed = lessons.get(slot.lessonId)?.periodsPerCard ?? 1;
+    const span = (position.get(slot.periodTo) ?? 0) - (position.get(slot.periodFrom) ?? 0) + 1;
+    if (span < needed && !incomplete.has(slot.lessonId)) {
+      incomplete.add(slot.lessonId);
+      issues.push({ code: "incomplete_block", ref: slot.lessonId });
+    }
   }
   for (const lesson of timetable.lessons) {
     if (!withCards.has(lesson.id)) issues.push({ code: "lesson_without_cards", ref: lesson.id });

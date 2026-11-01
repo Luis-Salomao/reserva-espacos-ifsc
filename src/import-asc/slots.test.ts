@@ -82,19 +82,55 @@ describe("expansão de cards", () => {
     expect(slots.map((s) => s.weekday)).toEqual([6]);
   });
 
-  test("periodspercard=2 a partir do período 5 ocupa 5 e 6, não 7", () => {
-    const { slots } = buildWeeklySlots(
+  test("card não é expandido por periodsPerCard: cobre só o próprio período", () => {
+    const { slots, issues } = buildWeeklySlots(
       tt([lesson("L1", { periodsPerCard: 2 })], [card("L1", { period: 5 })]),
     );
-    expect(slots[0]).toMatchObject({ periodFrom: 5, periodTo: 6, start: "18:00", end: "22:00" });
+    expect(slots[0]).toMatchObject({ periodFrom: 5, periodTo: 5, start: "18:00", end: "19:50" });
+    expect(issues).toEqual([{ code: "incomplete_block", ref: "L1" }]);
   });
 
-  test("ultrapassar o último período gera period_overflow sem slot", () => {
-    const result = buildWeeklySlots(
-      tt([lesson("L1", { periodsPerCard: 2 })], [card("L1", { period: 7 })]),
+  test("cards consecutivos da mesma lesson viram um slot (5 e 6, nunca 7)", () => {
+    const { slots, issues } = buildWeeklySlots(
+      tt(
+        [lesson("L1", { periodsPerCard: 2 })],
+        [card("L1", { period: 6 }), card("L1", { period: 5 })],
+      ),
     );
-    expect(result.slots).toEqual([]);
-    expect(result.issues).toEqual([{ code: "period_overflow", ref: "L1" }]);
+    expect(slots).toHaveLength(1);
+    expect(slots[0]).toMatchObject({ periodFrom: 5, periodTo: 6, start: "18:00", end: "22:00" });
+    expect(issues).toEqual([]);
+  });
+
+  test("não mescla com dia, sala, terms ou weeks diferentes, nem períodos não consecutivos", () => {
+    const base = card("L1", { period: 1 });
+    for (const other of [
+      { period: 2, days: "01000" },
+      { period: 2, classroomIds: ["R2"] },
+      { period: 2, terms: "1100" },
+      { period: 2, weeks: "10" },
+      { period: 3 },
+    ]) {
+      const { slots } = buildWeeklySlots(tt([lesson("L1")], [base, card("L1", other)]));
+      expect(slots).toHaveLength(2);
+    }
+  });
+
+  test("lesson com ppc maior que o bloco gera incomplete_block mas mantém o slot", () => {
+    const result = buildWeeklySlots(
+      tt(
+        [lesson("L1", { periodsPerCard: 3 })],
+        [card("L1", { period: 1 }), card("L1", { period: 2 })],
+      ),
+    );
+    expect(result.slots).toHaveLength(1);
+    expect(result.slots[0]?.periodTo).toBe(2);
+    expect(result.issues).toEqual([{ code: "incomplete_block", ref: "L1" }]);
+  });
+
+  test("máscara de terms/weeks vazia equivale a null", () => {
+    const { slots } = buildWeeklySlots(tt([lesson("L1")], [card("L1", { terms: "", weeks: "" })]));
+    expect(slots[0]).toMatchObject({ termsMask: null, weeksMask: null });
   });
 
   test("período inexistente ou nulo gera missing_period", () => {
@@ -173,6 +209,26 @@ describe("sobreposição interna", () => {
   const two = (a: Partial<Card>, b: Partial<Card>) =>
     buildWeeklySlots(tt([lesson("L1"), lesson("L2")], [card("L1", a), card("L2", b)]));
 
+  test("fim == início (19:50 / 19:50) não conflita", () => {
+    const periods = [P(1, "18:00", "19:50"), P(2, "19:50", "21:00")];
+    const result = buildWeeklySlots(
+      tt(
+        [lesson("L1"), lesson("L2")],
+        [card("L1", { period: 1 }), card("L2", { period: 2 })],
+        periods,
+      ),
+    );
+    expect(result.overlaps).toEqual([]);
+  });
+
+  test("slots da mesma lesson nunca contam como sobreposição", () => {
+    const result = buildWeeklySlots(
+      tt([lesson("L1")], [card("L1", { period: 7 }), card("L1", { period: 5 })]),
+    );
+    expect(result.slots).toHaveLength(2);
+    expect(result.overlaps).toEqual([]);
+  });
+
   test("períodos adjacentes (09:50 / 10:10) não conflitam", () => {
     expect(two({ period: 1 }, { period: 2 }).overlaps).toEqual([]);
   });
@@ -181,7 +237,7 @@ describe("sobreposição interna", () => {
     const result = buildWeeklySlots(
       tt(
         [lesson("L1", { periodsPerCard: 2 }), lesson("L2")],
-        [card("L1", { period: 5 }), card("L2", { period: 7 })],
+        [card("L1", { period: 5 }), card("L1", { period: 6 }), card("L2", { period: 7 })],
       ),
     );
     expect(result.overlaps).toHaveLength(1);
@@ -228,15 +284,15 @@ describe("sobreposição interna", () => {
         [
           card("B", { days: "01000" }),
           card("B", { period: 2 }),
-          card("A", { period: 2 }),
+          card("A", { period: 3 }),
           card("A"),
         ],
       ),
     );
     expect(slots.map((s) => `${s.weekday}${s.start}${s.lessonId}`)).toEqual([
       "008:00A",
-      "010:10A",
       "010:10B",
+      "013:30A",
       "108:00B",
     ]);
   });
@@ -273,12 +329,12 @@ describe("fixtures", () => {
     expect(result.slots).toEqual([]);
   });
 
-  test("edge-cards.xml cobre estouro, período inexistente, dias vazios e conflito", async () => {
+  test("edge-cards.xml cobre bloco incompleto, período inexistente, dias vazios e conflito", async () => {
     const result = await fromFixture("edge-cards.xml");
     expect(result.issues.map((i) => `${i.code}:${i.ref}`).sort()).toEqual([
+      "incomplete_block:L3",
       "invalid_days:L5",
       "missing_period:L4",
-      "period_overflow:L3",
     ]);
     expect(result.overlaps).toHaveLength(1);
   });
