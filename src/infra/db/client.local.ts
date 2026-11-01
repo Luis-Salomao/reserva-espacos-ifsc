@@ -40,12 +40,9 @@ export function resetDbCache(): void {
 
 /**
  * Fonte das variáveis de ambiente neste alvo: o processo Bun. Como este módulo só existe no
- * alvo local, DEPLOY_TARGET e DATABASE_PATH têm padrão (útil em `bun run dev`).
+ * alvo local, DEPLOY_TARGET assume "local"; DATABASE_PATH é obrigatória e não tem padrão
+ * (`getEnv` falha nomeando a variável quando ela falta).
  */
 export function getRuntimeEnv(): Record<string, string | undefined> {
-  return {
-    ...process.env,
-    DEPLOY_TARGET: process.env.DEPLOY_TARGET || "local",
-    DATABASE_PATH: process.env.DATABASE_PATH || "./data/dev.sqlite",
-  };
+  return { ...process.env, DEPLOY_TARGET: process.env.DEPLOY_TARGET || "local" };
 }
