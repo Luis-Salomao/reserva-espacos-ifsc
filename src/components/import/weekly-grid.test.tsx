@@ -61,3 +61,12 @@ describe("WeeklyGrid", () => {
     expect(screen.getByText("Nenhum horário importado para esta sala.")).toBeTruthy();
   });
 });
+
+describe("WeeklyGrid, blocos de vários períodos", () => {
+  test("a linha do segundo período mostra a continuação até o fim do bloco", () => {
+    render(<WeeklyGrid room={room} periods={periods} />);
+    const rows = within(screen.getByRole("table")).getAllByRole("row");
+    expect(within(rows[2] as HTMLElement).getByText("continuação: Mat (até 09:40)")).toBeTruthy();
+    expect(within(rows[1] as HTMLElement).queryByText(/continuação/)).toBeNull();
+  });
+});
