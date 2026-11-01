@@ -14,8 +14,8 @@ describe("arquivo real de data/real", () => {
     test.skip("nenhum XML em data/real", () => {});
     return;
   }
-  for (const name of files) {
-    test(`prévia de ${name}`, () => {
+  files.forEach((name, index) => {
+    test(`prévia do arquivo real #${index + 1}`, () => {
       const result = previewAscXml(new Uint8Array(readFileSync(join(REAL_DIR, name))));
       expect(result.ok).toBe(true);
       if (!result.ok) return;
@@ -23,5 +23,5 @@ describe("arquivo real de data/real", () => {
       expect(counts.cards).toBeGreaterThan(0);
       console.log(JSON.stringify({ counts, slotsByStatus, overlaps }));
     });
-  }
+  });
 });

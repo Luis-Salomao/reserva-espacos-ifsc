@@ -1,4 +1,5 @@
 import type { AscTimetable, Period } from "#/domain/timetable.ts";
+import { rejection } from "./errors.ts";
 import { normalizeAsc } from "./normalize.ts";
 import { type ReadResult, readAscXml } from "./read.ts";
 import {
@@ -36,8 +37,8 @@ export type ImportPreview = {
   slotsByStatus: { applicable: number; no_room: number; multiple_rooms: number };
   warnings: WarningGroup[];
   overlaps: { certain: number; possible: number };
-  /** Uma entrada por `termsMask` distinta entre os slots; `cards` conta slots (cards consecutivos já mesclados). */
-  termsUsed: Array<{ mask: string; label: string; cards: number }>;
+  /** Uma entrada por `termsMask` distinta entre os slots; `slots` conta slots (cards consecutivos já mesclados). */
+  termsUsed: Array<{ mask: string; label: string; slots: number }>;
   periods: Period[];
   classrooms: Array<{ id: string; short: string; name: string; slots: number }>;
   timetable: AscTimetable;
@@ -96,14 +97,14 @@ function usedTerms(timetable: AscTimetable, slots: WeeklySlot[]): ImportPreview[
   }
   return [...counts.entries()]
     .sort(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
-    .map(([mask, cards]) => {
+    .map(([mask, count]) => {
       const def = timetable.terms.find((term) => term.masks.includes(mask));
       const label = mask === "" ? ALL_TERMS_LABEL : (def?.name ?? mask);
-      return { mask, label, cards };
+      return { mask, label, slots: count };
     });
 }
 
-/** Monta a prévia agregada a partir da grade normalizada. Pura; nunca lança. */
+/** Monta a prévia agregada a partir da grade normalizada. Pura. */
 export function buildImportPreview(
   timetable: AscTimetable,
   warnings: ImportWarning[],
@@ -144,13 +145,20 @@ export function buildImportPreview(
 
 type PreviewResult = Exclude<ReadResult, { ok: true }> | { ok: true; preview: ImportPreview };
 
-/** Lê, normaliza e agrega. Só rejeita o arquivo inteiro (ver `readAscXml`). */
+/**
+ * Lê, normaliza e agrega. Rejeita o arquivo inteiro apenas pelos motivos de `readAscXml`; qualquer
+ * falha inesperada vira `internal_error` (defesa em profundidade, sem expor a causa).
+ */
 export function previewAscXml(bytes: Uint8Array): PreviewResult {
-  const read = readAscXml(bytes);
-  if (!read.ok) return read;
-  const { timetable, warnings } = normalizeAsc(read.root);
-  return {
-    ok: true,
-    preview: buildImportPreview(timetable, warnings, buildWeeklySlots(timetable)),
-  };
+  try {
+    const read = readAscXml(bytes);
+    if (!read.ok) return read;
+    const { timetable, warnings } = normalizeAsc(read.root);
+    return {
+      ok: true,
+      preview: buildImportPreview(timetable, warnings, buildWeeklySlots(timetable)),
+    };
+  } catch {
+    return { ok: false, error: rejection("internal_error") };
+  }
 }
