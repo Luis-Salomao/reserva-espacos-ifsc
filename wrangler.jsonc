@@ -2,6 +2,7 @@
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "reserva-espacos-ifsc",
   "main": "@tanstack/react-start/server-entry",
+  // Limitada pelo workerd local (wrangler dev): datas além da suportada pelo binário falham.
   "compatibility_date": "2026-10-30",
   "compatibility_flags": ["nodejs_compat"],
   "d1_databases": [

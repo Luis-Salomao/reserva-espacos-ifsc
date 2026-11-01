@@ -2,7 +2,7 @@ import { afterAll, beforeEach, describe, expect, test } from "bun:test";
 import { existsSync, mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getDb, resetDbCache } from "#/infra/db/client.local";
+import { getDb, getRuntimeEnv, resetDbCache } from "#/infra/db/client.local";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 
 describe("getDb (local)", () => {
@@ -40,5 +40,26 @@ describe("getDb (local)", () => {
   test("respeita MIGRATIONS_DIR", () => {
     process.env.MIGRATIONS_DIR = join(tmp, "inexistente");
     expect(() => getDb()).toThrow();
+  });
+});
+
+describe("getRuntimeEnv (local)", () => {
+  const previous = { ...process.env };
+  afterAll(() => {
+    process.env = previous;
+  });
+
+  test("assume DEPLOY_TARGET=local e DATABASE_PATH de desenvolvimento quando ausentes", () => {
+    Reflect.deleteProperty(process.env, "DEPLOY_TARGET");
+    Reflect.deleteProperty(process.env, "DATABASE_PATH");
+    const env = getRuntimeEnv();
+    expect(env.DEPLOY_TARGET).toBe("local");
+    expect(env.DATABASE_PATH).toBe("./data/dev.sqlite");
+  });
+
+  test("respeita valores definidos", () => {
+    process.env.DEPLOY_TARGET = "local";
+    process.env.DATABASE_PATH = "/x/app.sqlite";
+    expect(getRuntimeEnv().DATABASE_PATH).toBe("/x/app.sqlite");
   });
 });

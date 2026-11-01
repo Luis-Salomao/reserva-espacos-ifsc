@@ -39,3 +39,20 @@ Dados reais (`data/`), arquivos `.env`, `.dev.vars` e bancos SQLite nunca entram
 bun install
 bun run dev   # http://localhost:3000
 ```
+
+### Alvo Cloudflare (Workers + D1) em desenvolvimento
+
+```bash
+bun run db:migrate:d1:local   # aplica as migrações no D1 local (miniflare); rode antes do dev:cf
+bun run dev:cf                # Vite + Workers
+bun run build:cf && bun run preview:cf   # build e wrangler dev
+```
+
+### Docker (alvo local)
+
+```bash
+docker build -t reserva .
+docker run -p 3000:3000 -v reserva-data:/data reserva
+```
+
+Use de preferência um volume nomeado em `/data`. Se montar uma pasta do host (bind mount), ela precisa ser gravável pelo uid do usuário `bun` da imagem (1000).
