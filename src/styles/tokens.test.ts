@@ -83,6 +83,9 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     expect(contrast(t["--text-muted"] as string, t["--surface"] as string)).toBeGreaterThanOrEqual(
       4.5,
     );
+    expect(
+      contrast(t["--text-muted"] as string, t["--surface-2"] as string),
+    ).toBeGreaterThanOrEqual(4.5);
   });
 
   test("texto sobre o destaque >= 4.5", () => {

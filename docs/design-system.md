@@ -31,14 +31,14 @@ As cores de ocupação são fundos suaves: o texto (`--text`) sobre elas tem con
 
 ## Contraste (WCAG)
 
-`src/styles/tokens.test.ts` lê o `tokens.css` e exige razão mínima de 4.5:1 para `text/bg`, `text-muted/bg`, `text-muted/surface`, `accent-contrast/accent` e `text` sobre cada `--occ-*`, e 3:1 para `--focus/bg`, nos dois temas. Também garante que o tema escuro por preferência do sistema é idêntico ao definido por atributo.
+`src/styles/tokens.test.ts` lê o `tokens.css` e exige razão mínima de 4.5:1 para `text/bg`, `text-muted/bg`, `text-muted/surface`, `text-muted/surface-2`, `accent-contrast/accent` e `text` sobre cada `--occ-*`, e 3:1 para `--focus/bg`, nos dois temas. Também garante que o tema escuro por preferência do sistema é idêntico ao definido por atributo.
 
 ## Tema claro/escuro
 
 1. Um script mínimo no `<head>` (`src/routes/__root.tsx`) define `data-theme` antes da primeira pintura, a partir de `localStorage["theme"]` ou de `prefers-color-scheme`.
 2. `ThemeToggle` alterna `data-theme` em `<html>` e grava a escolha (com `try/catch`, pois o armazenamento pode estar bloqueado).
 3. Sem JavaScript, `@media (prefers-color-scheme: dark)` aplica o tema escuro, a menos que `data-theme="light"` esteja definido.
-4. A variante `dark:` do Tailwind segue `data-theme="dark"`.
+4. A variante `dark:` do Tailwind aplica com `data-theme="dark"` ou, sem `data-theme="light"`, com `prefers-color-scheme: dark` (mesma regra dos tokens).
 
 ## Layout
 

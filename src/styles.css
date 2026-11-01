@@ -4,8 +4,18 @@
 
 @plugin "@tailwindcss/typography";
 
-/* Tema escuro: atributo data-theme ou, sem escolha explícita, preferência do sistema. */
-@custom-variant dark (&:where([data-theme="dark"], [data-theme="dark"] *));
+/* Tema escuro: data-theme="dark" ou, sem data-theme="light", a preferência do sistema. */
+@custom-variant dark {
+  &:where([data-theme="dark"], [data-theme="dark"] *) {
+    @slot;
+  }
+
+  @media (prefers-color-scheme: dark) {
+    &:where(:root:not([data-theme="light"]), :root:not([data-theme="light"]) *) {
+      @slot;
+    }
+  }
+}
 
 :root {
   --radius: 0.5rem;
