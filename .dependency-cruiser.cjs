@@ -31,6 +31,7 @@ module.exports = {
   ],
   options: {
     tsConfig: { fileName: "tsconfig.json" },
+    tsPreCompilationDeps: true,
     doNotFollow: { path: "node_modules" },
     exclude: { path: "routeTree.gen.ts$" },
     enhancedResolveOptions: {
