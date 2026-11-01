@@ -1,12 +1,12 @@
 {
   "$schema": "https://unpkg.com/knip@6/schema.json",
   // Entradas além das detectadas pelos plugins (vite, vitest/bun, etc.).
-  // Caminhos que ainda não existem: src/server (T5), drizzle.config.ts (T4), cli (T7).
+  // Caminhos que ainda não existem: drizzle.config.ts (T4), cli (T7).
   "entry": [
     "src/routes/**/*.{ts,tsx}",
     "src/server/**/*.ts",
     "drizzle.d1.config.ts",
-    // Resolvido via alias #db-client no build cloudflare (Task 5).
+    // Resolvido via alias #db-client no build cloudflare.
     "src/infra/db/client.cloudflare.ts",
     "cli/**/*.ts",
     "test/**/*.ts"

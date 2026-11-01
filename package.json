@@ -11,11 +11,11 @@
     "#db-client": "./src/infra/db/client.local.ts"
   },
   "scripts": {
-    "dev": "vite dev --port 3000",
-    "build:local": "vite build && bun run scripts/copy-migrations.ts",
+    "dev": "bunx --bun vite dev --port 3000",
+    "build:local": "bunx --bun vite build && bun run scripts/copy-migrations.ts",
     "build:cf": "DEPLOY_TARGET=cloudflare vite build",
     "build": "bun run build:local",
-    "start:local": "DEPLOY_TARGET=local MIGRATIONS_DIR=.output/drizzle bun .output/server/index.mjs",
+    "start:local": "MIGRATIONS_DIR=.output/drizzle bun .output/server/index.mjs",
     "dev:cf": "DEPLOY_TARGET=cloudflare vite dev",
     "preview:cf": "wrangler dev",
     "deploy:cf": "wrangler deploy",

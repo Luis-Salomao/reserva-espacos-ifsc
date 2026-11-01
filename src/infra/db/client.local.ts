@@ -12,13 +12,13 @@ let connection: Database | undefined;
 
 /** Pasta das migrações: MIGRATIONS_DIR (ex.: build Nitro) ou `drizzle/` na raiz do repositório. */
 function migrationsFolder(): string {
-  return process.env.MIGRATIONS_DIR ?? resolve(import.meta.dir, "../../../drizzle");
+  return process.env.MIGRATIONS_DIR ?? resolve(import.meta.dirname, "../../../drizzle");
 }
 
 /** Banco local (bun:sqlite). Cria a pasta, abre, configura e migra no primeiro uso. */
 export function getDb(): AppDb {
   if (cached) return cached;
-  const path = getEnv(process.env).DATABASE_PATH;
+  const path = getEnv(getRuntimeEnv()).DATABASE_PATH;
   if (path === undefined) throw new Error("Variáveis de ambiente inválidas: DATABASE_PATH");
   if (path !== ":memory:") mkdirSync(dirname(resolve(path)), { recursive: true });
   const sqlite = new Database(path, { create: true });
@@ -38,7 +38,14 @@ export function resetDbCache(): void {
   cached = undefined;
 }
 
-/** Fonte das variáveis de ambiente neste alvo: o processo Bun. */
+/**
+ * Fonte das variáveis de ambiente neste alvo: o processo Bun. Como este módulo só existe no
+ * alvo local, DEPLOY_TARGET e DATABASE_PATH têm padrão (útil em `bun run dev`).
+ */
 export function getRuntimeEnv(): Record<string, string | undefined> {
-  return process.env;
+  return {
+    ...process.env,
+    DEPLOY_TARGET: process.env.DEPLOY_TARGET || "local",
+    DATABASE_PATH: process.env.DATABASE_PATH || "./data/dev.sqlite",
+  };
 }

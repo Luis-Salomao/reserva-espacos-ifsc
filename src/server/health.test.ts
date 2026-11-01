@@ -19,3 +19,8 @@ afterAll(() => {
 test("devolve alvo local e zero espaços num banco novo", async () => {
   expect(await getHealth()).toEqual({ ok: true, target: "local", spaces: 0 });
 });
+
+test("devolve ok:false sem detalhes quando a configuração é inválida", async () => {
+  process.env.DEPLOY_TARGET = "invalido";
+  expect(await getHealth()).toEqual({ ok: false });
+});
