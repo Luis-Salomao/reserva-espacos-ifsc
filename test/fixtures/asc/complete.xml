@@ -1,0 +1,52 @@
+<?xml version="1.0" encoding="utf-8"?>
+<timetable ascttversion="2012.1" importtype="database">
+  <periods options="canadd,canremove" columns="period,name,short,starttime,endtime">
+    <period period="1" name="1" short="1" starttime="8:00" endtime="8:50"/>
+    <period period="2" name="2" short="2" starttime="8:50" endtime="9:40"/>
+    <period period="3" name="3" short="3" starttime="10:00" endtime="10:50"/>
+  </periods>
+  <breaks options="" columns="name,short,starttime,endtime"><break name="Intervalo" short="I" starttime="9:40" endtime="10:00"/></breaks>
+  <daysdefs options="canadd" columns="id,name,short,days">
+    <daysdef id="D1" name="Segunda" short="Seg" days="10000"/>
+    <daysdef id="D2" name="Seg e Qua" short="SQ" days="10000,00100"/>
+  </daysdefs>
+  <weeksdefs options="canadd" columns="id,name,short,weeks">
+    <weeksdef id="W1" name="Todas" short="T" weeks="1"/>
+  </weeksdefs>
+  <termsdefs options="canadd" columns="id,name,short,terms">
+    <termsdef id="T1" name="Semestre 1" short="S1" terms="1100"/>
+    <termsdef id="T2" name="Alternado" short="Alt" terms="1110,0111"/>
+  </termsdefs>
+  <subjects options="canadd" columns="id,name,short,partner_id">
+    <subject id="S1" name="Matemática" short="Mat" partner_id=""/>
+    <subject id="S2" name="Física" short="Fis" partner_id=""/>
+  </subjects>
+  <teachers options="canadd" columns="id,firstname,lastname,name,short,gender,color,email,mobile,partner_id">
+    <teacher id="P1" firstname="Fulano" lastname="Testador" name="Fulano Testador" short="FT" gender="M" color="#FF0000" email="fulano@exemplo.invalid" mobile="48999990000" partner_id=""/>
+    <teacher id="P2" firstname="Beltrana" lastname="Exemplo" name="Beltrana Exemplo" short="BE" gender="F" color="#00FF00" email="beltrana@exemplo.invalid" mobile="48988880000" partner_id=""/>
+  </teachers>
+  <buildings options="canadd" columns="id,name,short"><building id="B1" name="Bloco A" short="A"/></buildings>
+  <classrooms options="canadd" columns="id,name,short,capacity,buildingid,partner_id">
+    <classroom id="R1" name="Sala 101" short="101" capacity="30" buildingid="B1" partner_id=""/>
+    <classroom id="R2" name="Laboratório" short="LAB" capacity="*" buildingid="B1" partner_id=""/>
+  </classrooms>
+  <grades options="canadd" columns="grade,name,short"><grade grade="1" name="Primeira" short="1"/></grades>
+  <classes options="canadd" columns="id,name,short,teacherid,classroomids,grade,partner_id">
+    <class id="C1" name="Turma Um" short="T1" teacherid="P1" classroomids="R1" grade="1" partner_id=""/>
+    <class id="C2" name="Turma Dois" short="T2" teacherid="" classroomids="" grade="1" partner_id=""/>
+  </classes>
+  <groups options="canadd" columns="id,name,classid,studentids,entireclass,divisiontag">
+    <group id="G1" name="Grupo" classid="C1" studentids="ALUNO-SECRETO-1,ALUNO-SECRETO-2" entireclass="1" divisiontag="0"/>
+  </groups>
+  <students options="canadd" columns="id,name"><student id="ALUNO-SECRETO-1" name="Aluno Sintético Um"/></students>
+  <studentsubjects options="" columns="studentid,subjectid"><studentsubject studentid="ALUNO-SECRETO-1" subjectid="S1"/></studentsubjects>
+  <lessons options="canadd" columns="id,classids,subjectid,periodspercard,periodsperweek,teacherids,classroomids,groupids,seminargroup,termsdefid,weeksdefid,daysdefid,capacity,partner_id">
+    <lesson id="L1" classids="C1" subjectid="S1" periodspercard="2" periodsperweek="2" teacherids="P1" classroomids="R1" groupids="G1" seminargroup="" termsdefid="T1" weeksdefid="W1" daysdefid="D1" capacity="*" partner_id=""/>
+    <lesson id="L2" classids="C1,C2" subjectid="S2" periodspercard="1" periodsperweek="1" teacherids="P1,P2" classroomids="R1,R2" groupids="" seminargroup="" termsdefid="T2" weeksdefid="W1" daysdefid="D2" capacity="*" partner_id=""/>
+  </lessons>
+  <cards options="canadd" columns="lessonid,classroomids,period,weeks,terms,days">
+    <card lessonid="L1" classroomids="R1" period="1" weeks="1" terms="1100" days="10000"/>
+    <card lessonid="L2" classroomids="R1,R2" period="3" weeks="1" terms="1110" days="00100"/>
+  </cards>
+  <classroomsupervisions options="" columns="x"/>
+</timetable>

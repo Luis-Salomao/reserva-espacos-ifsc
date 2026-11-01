@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TimeTable>
+  <Periods>
+    <Period Period="1" Name="P1" Short="1" StartTime="8:00" EndTime="8:50"/>
+    <Period Period="2" Name="P2" Short="2" StartTime="25:00" EndTime="9:40"/>
+    <Period Period="x" Name="P3" Short="3" StartTime="9:40" EndTime="10:30"/>
+    <Period Period="4" Name="P4" Short="4" StartTime="10:30" EndTime="11:20"/>
+  </Periods>
+  <Classrooms>
+    <Classroom ID="R1" Name="Sala" Short="S" Capacity="30"/>
+    <Classroom ID="R1" Name="Duplicada" Short="D" Capacity="10"/>
+    <Classroom ID="R2" Name="Lab" Short="L" Capacity="*"/>
+    <Classroom Name="SemId" Short="X"/>
+    <Mystery foo="bar"/>
+  </Classrooms>
+  <Lessons>
+    <Lesson ID="L1" ClassIDs="A, B," SubjectID="" PeriodsPerCard="abc" TermsDefID="BAD" ClassroomIDs=" R1 , R2,"/>
+    <Lesson ID="L2"/>
+  </Lessons>
+  <DaysDefs><DaysDef ID="D1" Name="X" Short="x" Days="10000,abc, 0101"/></DaysDefs>
+  <TermsDefs><TermsDef ID="T1" Name="Y" Short="y" Terms="1x"/></TermsDefs>
+  <Cards>
+    <Card LessonID="L1" Period="2" Days="10000" ClassroomIDs="R1"/>
+    <Card LessonID="GHOST" Period="1"/>
+    <Card Period="1"/>
+  </Cards>
+  <Unknown/>
+</TimeTable>

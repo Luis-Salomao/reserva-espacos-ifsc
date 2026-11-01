@@ -20,7 +20,7 @@ function decodeReferences(value: string): string {
   );
 }
 
-type XmlNode = { name: string; attrs: Record<string, string>; children: XmlNode[] };
+export type XmlNode = { name: string; attrs: Record<string, string>; children: XmlNode[] };
 
 export type ReadResult = { ok: true; root: XmlNode } | { ok: false; error: ImportRejection };
 
