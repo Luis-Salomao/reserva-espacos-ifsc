@@ -31,6 +31,7 @@
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "check": "bun run lint && bun run typecheck && bun run knip && bun run deps && bun run test:coverage && bun run secrets",
+    "lighthouse": "lhci autorun",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "bun run cli/db-migrate.ts",
     "db:studio": "drizzle-kit studio",
@@ -67,6 +68,7 @@
     "@cloudflare/vite-plugin": "1.66.0",
     "@cloudflare/workers-types": "^5.20261101.1",
     "@happy-dom/global-registrator": "21.0.4",
+    "@lhci/cli": "0.15.1",
     "@tailwindcss/typography": "^0.5.16",
     "@tanstack/devtools-vite": "0.8.6",
     "@testing-library/dom": "10.4.2",
@@ -83,5 +85,8 @@
     "typescript": "^6.0.2",
     "vite": "^8.0.0",
     "wrangler": "^4.156.0"
+  },
+  "overrides": {
+    "tslib": "2.9.1"
   }
 }
