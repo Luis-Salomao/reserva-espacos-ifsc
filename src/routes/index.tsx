@@ -1,4 +1,5 @@
 import { createFileRoute } from "@tanstack/react-router";
+import { AppShell } from "#/components/app-shell";
 import { listSpaces } from "#/server/spaces";
 
 export const Route = createFileRoute("/")({
@@ -9,13 +10,29 @@ export const Route = createFileRoute("/")({
 function Home() {
   const spaces = Route.useLoaderData();
   return (
-    <div className="p-8">
-      <h1 className="text-4xl font-bold">Reserva de espaços</h1>
-      <p className="mt-4 text-lg">
-        {spaces.length === 0
-          ? "Nenhum espaço cadastrado."
-          : `${spaces.length} espaço(s) cadastrado(s).`}
-      </p>
-    </div>
+    <AppShell>
+      <h1 className="text-2xl font-semibold">Espaços</h1>
+      {spaces.length === 0 ? (
+        <p className="mt-4 rounded-lg border bg-surface p-6 text-center text-muted-foreground">
+          Nenhum espaço cadastrado
+        </p>
+      ) : (
+        <ul className="mt-4 grid gap-2">
+          {spaces.map((space) => (
+            <li
+              key={space.id}
+              className="flex items-center justify-between gap-4 rounded-lg border bg-surface px-4 py-3"
+            >
+              <span className="min-w-0 break-words font-medium">{space.name}</span>
+              {space.capacity !== null && (
+                <span className="shrink-0 text-sm text-muted-foreground">
+                  {space.capacity} lugares
+                </span>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
+    </AppShell>
   );
 }
