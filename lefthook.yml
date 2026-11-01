@@ -4,8 +4,8 @@ pre-commit:
     secrets:
       run: betterleaks git --staged --redact
     biome:
-      # Placeholder até a Task 3 (Biome ainda não instalado).
-      run: echo 'biome ainda não configurado'
+      glob: "*.{ts,tsx,js,cjs,json,jsonc,css}"
+      run: bunx biome check --staged --no-errors-on-unmatched
 
 pre-push:
   commands:
