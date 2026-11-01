@@ -6,6 +6,7 @@
     "includes": [
       "**",
       "!**/src/routeTree.gen.ts",
+      "!**/worker-configuration.d.ts",
       "!**/drizzle",
       "!**/src/styles.css",
       "!**/bun.lock",

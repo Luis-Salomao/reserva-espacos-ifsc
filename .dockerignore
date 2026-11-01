@@ -1,0 +1,17 @@
+node_modules
+.output
+.nitro
+.tanstack
+.wrangler
+dist
+coverage
+data
+.git
+.env
+.env.*
+!.env.example
+.dev.vars*
+*.sqlite
+*.sqlite-*
+.superpowers
+docs

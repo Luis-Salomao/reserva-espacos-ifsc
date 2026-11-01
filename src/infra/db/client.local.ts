@@ -37,3 +37,8 @@ export function resetDbCache(): void {
   connection = undefined;
   cached = undefined;
 }
+
+/** Fonte das variáveis de ambiente neste alvo: o processo Bun. */
+export function getRuntimeEnv(): Record<string, string | undefined> {
+  return process.env;
+}
