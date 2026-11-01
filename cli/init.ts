@@ -131,16 +131,27 @@ export async function runInit(argv: string[]): Promise<number> {
       if (target === "cloudflare" && index === 0) {
         if (values.yes) {
           console.log(
-            `\nCole o database_id no wrangler.jsonc e rode manualmente:\n${plan.commands
+            `\nO banco D1 foi criado. Cole o database_id no wrangler.jsonc e rode manualmente:\n${plan.commands
               .slice(1)
               .map((c) => `  $ ${c.join(" ")}`)
               .join("\n")}`,
           );
           return 0;
         }
-        await question(
-          "\nCole o database_id no wrangler.jsonc e pressione Enter para continuar...",
-        );
+        try {
+          await question(
+            "\nCole o database_id no wrangler.jsonc e pressione Enter para continuar...",
+          );
+        } catch (error) {
+          if (!(error instanceof StdinClosedError)) throw error;
+          console.error(
+            `\nO banco D1 já foi criado, mas stdin foi fechado antes de continuar.\nCole o database_id no wrangler.jsonc e rode manualmente:\n${plan.commands
+              .slice(1)
+              .map((c) => `  $ ${c.join(" ")}`)
+              .join("\n")}`,
+          );
+          return 1;
+        }
       }
     }
     console.log("\nInstalação concluída.");

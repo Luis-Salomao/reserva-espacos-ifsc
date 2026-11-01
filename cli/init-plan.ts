@@ -75,15 +75,20 @@ export function planInit(answers: InitAnswers): InitPlan {
 
   return {
     files: [{ path: ".dev.vars", content: `TIMEZONE=${timezone}\n` }],
+    // Ordem importa: o build precisa vir depois de colar o database_id (o Vite grava um
+    // snapshot do wrangler.jsonc em dist/server), e antes do deploy.
     commands: [
       ["bunx", "wrangler", "d1", "create", "reserva-espacos"],
+      ["bun", "run", "cf:check"],
+      ["bun", "run", "build:cf"],
       ["bun", "run", "db:migrate:d1:remote"],
-      ["bun", "run", "deploy:cf"],
+      ["bunx", "wrangler", "deploy"],
     ],
     notes: [
       "Após `wrangler d1 create`, copie o `database_id` exibido e cole em",
-      "wrangler.jsonc (d1_databases[0].database_id) ANTES de migrar e publicar.",
-      "Este CLI não edita o wrangler.jsonc: ele pausa após o primeiro comando para você colar o id.",
+      "wrangler.jsonc (d1_databases[0].database_id) ANTES de compilar, migrar e publicar.",
+      "Este CLI não edita o wrangler.jsonc: ele pausa após o primeiro comando para você colar o id,",
+      "e `cf:check` aborta se o id provisório (local-placeholder) ainda estiver lá.",
     ],
   };
 }

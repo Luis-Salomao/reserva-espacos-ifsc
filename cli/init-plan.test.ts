@@ -29,11 +29,22 @@ describe("planInit", () => {
     expect(plan.files).toEqual([{ path: ".dev.vars", content: "TIMEZONE=America/Sao_Paulo\n" }]);
     expect(plan.commands).toEqual([
       ["bunx", "wrangler", "d1", "create", "reserva-espacos"],
+      ["bun", "run", "cf:check"],
+      ["bun", "run", "build:cf"],
       ["bun", "run", "db:migrate:d1:remote"],
-      ["bun", "run", "deploy:cf"],
+      ["bunx", "wrangler", "deploy"],
     ]);
     expect(plan.notes.join("\n")).toContain("database_id");
     expect(plan.notes.join("\n")).toContain("wrangler.jsonc");
+  });
+
+  test("alvo cloudflare verifica o id, compila e só então migra e publica", () => {
+    const names = planInit({ target: "cloudflare" }).commands.map((c) => c.join(" "));
+    const at = (needle: string) => names.findIndex((n) => n.includes(needle));
+    expect(at("d1 create")).toBe(0);
+    expect(at("cf:check")).toBeLessThan(at("build:cf"));
+    expect(at("build:cf")).toBeLessThan(at("db:migrate:d1:remote"));
+    expect(at("build:cf")).toBeLessThan(at("wrangler deploy"));
   });
 
   test("nenhum arquivo gerado contém chave de segredo", () => {
