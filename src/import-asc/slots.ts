@@ -1,6 +1,6 @@
 import type { AscTimetable, Card, Lesson, Period } from "#/domain/timetable.ts";
 
-type WeeklySlot = {
+export type WeeklySlot = {
   lessonId: string;
   /** 0 = segunda-feira. */
   weekday: number;
@@ -14,7 +14,7 @@ type WeeklySlot = {
   status: "applicable" | "no_room" | "multiple_rooms";
 };
 
-type SlotIssue = {
+export type SlotIssue = {
   code:
     | "missing_period"
     | "incomplete_block"
@@ -24,7 +24,7 @@ type SlotIssue = {
   ref: string;
 };
 
-type InternalOverlap = {
+export type InternalOverlap = {
   classroomId: string;
   weekday: number;
   /** `certain`: ambos `applicable`; `possible`: algum slot tem várias salas (semântica desconhecida). */

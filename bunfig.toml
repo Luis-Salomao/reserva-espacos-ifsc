@@ -19,6 +19,7 @@ coveragePathIgnorePatterns = [
   # CLI: só a lógica pura (cli/init-plan.ts) é medida; o restante é IO (prompts, spawn, escrita).
   "cli/index.ts",
   "cli/init.ts",
+  "cli/import-preview.ts",
   "cli/db-migrate.ts",
   "cli/check-wrangler.ts",
   "cli/check-env.ts",
