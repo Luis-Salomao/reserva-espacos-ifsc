@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<timetable ascttversion="2012.1" importtype="database">
+  <periods columns="period,name,short,starttime,endtime">
+    <period period="1" name="1" short="1" starttime="8:00" endtime="9:50"/>
+  </periods>
+  <classrooms columns="id,name,short,capacity">
+    <classroom id="R1" name="Sala 1" short="S1" capacity="30"/>
+  </classrooms>
+  <lessons columns="id,classids,subjectid,periodspercard,teacherids,classroomids,termsdefid,weeksdefid,daysdefid">
+    <lesson id="L1" classids="" subjectid="" periodspercard="1" teacherids="" classroomids="R1" termsdefid="" weeksdefid="" daysdefid=""/>
+    <lesson id="L2" classids="" subjectid="" periodspercard="1" teacherids="" classroomids="R1" termsdefid="" weeksdefid="" daysdefid=""/>
+  </lessons>
+</timetable>
