@@ -16,7 +16,10 @@ coveragePathIgnorePatterns = [
   "src/routeTree.gen.ts",
   # Depende de cloudflare:workers; só roda dentro do Worker.
   "src/infra/db/client.cloudflare.ts",
-  "cli/**",
+  # CLI: só a lógica pura (cli/init-plan.ts) é medida; o restante é IO (prompts, spawn, escrita).
+  "cli/index.ts",
+  "cli/init.ts",
+  "cli/db-migrate.ts",
   "drizzle/**",
   "**/*.test.ts",
   "**/*.test.tsx",

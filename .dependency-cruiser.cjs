@@ -23,6 +23,13 @@ module.exports = {
       to: { path: "^src/infra/" },
     },
     {
+      name: "src-no-cli",
+      comment: "cli é adaptador de borda: pode usar src/infra, mas src nunca importa cli.",
+      severity: "error",
+      from: { path: "^src/" },
+      to: { path: "^cli/" },
+    },
+    {
       name: "no-circular",
       severity: "error",
       from: {},

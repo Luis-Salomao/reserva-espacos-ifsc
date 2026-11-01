@@ -6,6 +6,9 @@
   "engines": {
     "bun": ">=1.4"
   },
+  "bin": {
+    "reserva-espacos": "cli/index.ts"
+  },
   "imports": {
     "#/*": "./src/*",
     "#db-client": "./src/infra/db/client.local.ts"
@@ -27,7 +30,7 @@
     "lint:fix": "biome check --write .",
     "typecheck": "tsc --noEmit",
     "knip": "knip",
-    "deps": "depcruise src",
+    "deps": "depcruise src cli",
     "test": "bun test",
     "test:coverage": "bun test --coverage",
     "check": "bun run lint && bun run typecheck && bun run knip && bun run deps && bun run test:coverage && bun run secrets",
@@ -37,7 +40,8 @@
     "db:studio": "drizzle-kit studio",
     "db:migrate:d1:local": "wrangler d1 migrations apply DB --local",
     "db:migrate:d1:remote": "wrangler d1 migrations apply DB --remote",
-    "db:studio:d1": "drizzle-kit studio --config=drizzle.d1.config.ts"
+    "db:studio:d1": "drizzle-kit studio --config=drizzle.d1.config.ts",
+    "cli": "bun run cli/index.ts"
   },
   "dependencies": {
     "@t3-oss/env-core": "^0.13.10",
