@@ -1,0 +1,13 @@
+pre-commit:
+  parallel: true
+  commands:
+    secrets:
+      run: betterleaks git --staged --redact
+    biome:
+      # Placeholder até a Task 3 (Biome ainda não instalado).
+      run: echo 'biome ainda não configurado'
+
+pre-push:
+  commands:
+    check:
+      run: bun run check
