@@ -18,3 +18,8 @@ coverage/
 .lighthouseci/
 *.log
 .superpowers/
+.DS_Store
+dist-ssr/
+*.local
+__unconfig*
+todos.json

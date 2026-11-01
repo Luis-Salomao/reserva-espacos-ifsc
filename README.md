@@ -32,3 +32,10 @@ Dados reais (`data/`), arquivos `.env`, `.dev.vars` e bancos SQLite nunca entram
 ## Licença
 
 [MIT](LICENSE)
+
+## Desenvolvimento
+
+```bash
+bun install
+bun run dev   # http://localhost:3000
+```
