@@ -1,0 +1,21 @@
+{
+  "$schema": "node_modules/wrangler/config-schema.json",
+  "name": "reserva-espacos-ifsc",
+  "main": "@tanstack/react-start/server-entry",
+  "compatibility_date": "2026-10-30",
+  "compatibility_flags": ["nodejs_compat"],
+  "d1_databases": [
+    {
+      "binding": "DB",
+      "database_name": "reserva-espacos",
+      // Substitua pelo ID real ao criar o banco (wrangler d1 create reserva-espacos).
+      "database_id": "local-placeholder",
+      "migrations_dir": "drizzle"
+    }
+  ],
+  "vars": {
+    "DEPLOY_TARGET": "cloudflare",
+    "TIMEZONE": "America/Sao_Paulo",
+    "PUBLIC_READ": "true"
+  }
+}
