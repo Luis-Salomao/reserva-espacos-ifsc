@@ -22,7 +22,7 @@ describe("getEnv", () => {
   test("não vaza valores na mensagem de erro", () => {
     let message = "";
     try {
-      getEnv({ DEPLOY_TARGET: "x", SECRET: "s3cr3t" });
+      getEnv({ DEPLOY_TARGET: "s3cr3t" });
     } catch (error) {
       message = (error as Error).message;
     }

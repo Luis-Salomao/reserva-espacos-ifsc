@@ -1,17 +1,25 @@
-import { afterAll, beforeAll, describe, expect, test } from "bun:test";
-import { getDb } from "#/infra/db/client.local";
+import { afterAll, beforeEach, describe, expect, test } from "bun:test";
+import { existsSync, mkdtempSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { getDb, resetDbCache } from "#/infra/db/client.local";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 
 describe("getDb (local)", () => {
   const previous = { ...process.env };
+  const tmp = mkdtempSync(join(tmpdir(), "reserva-db-"));
 
-  beforeAll(() => {
+  beforeEach(() => {
+    resetDbCache();
     process.env.DEPLOY_TARGET = "local";
     process.env.DATABASE_PATH = ":memory:";
+    delete process.env.MIGRATIONS_DIR;
   });
 
   afterAll(() => {
     process.env = previous;
+    resetDbCache();
+    rmSync(tmp, { recursive: true, force: true });
   });
 
   test("migra no primeiro uso e reutiliza a conexão", async () => {
@@ -20,5 +28,17 @@ describe("getDb (local)", () => {
     const repo = createSpaceRepository(db);
     await repo.create({ name: "Sala 1", capacity: 20 });
     expect(await repo.list()).toHaveLength(1);
+  });
+
+  test("cria a pasta pai do arquivo ainda inexistente", () => {
+    const file = join(tmp, "novo", "sub", "app.sqlite");
+    process.env.DATABASE_PATH = file;
+    getDb();
+    expect(existsSync(file)).toBe(true);
+  });
+
+  test("respeita MIGRATIONS_DIR", () => {
+    process.env.MIGRATIONS_DIR = join(tmp, "inexistente");
+    expect(() => getDb()).toThrow();
   });
 });
