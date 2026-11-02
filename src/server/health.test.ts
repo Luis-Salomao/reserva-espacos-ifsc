@@ -20,6 +20,15 @@ test("devolve alvo local e zero espaços num banco novo", async () => {
   expect(await getHealth()).toEqual({ ok: true, target: "local", spaces: 0 });
 });
 
+test("com PUBLIC_READ=false não revela a quantidade de espaços", async () => {
+  process.env.PUBLIC_READ = "false";
+  try {
+    expect(await getHealth()).toEqual({ ok: true, target: "local" });
+  } finally {
+    Reflect.deleteProperty(process.env, "PUBLIC_READ");
+  }
+});
+
 test("devolve ok:false sem detalhes quando a configuração é inválida", async () => {
   process.env.DEPLOY_TARGET = "invalido";
   const spy = spyOn(console, "error").mockImplementation(() => {});
