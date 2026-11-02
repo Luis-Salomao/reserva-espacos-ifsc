@@ -298,6 +298,7 @@ export function createImportRepository(db: AppDb): ImportRepository {
           startsAt: occupations.startsAt,
           endsAt: occupations.endsAt,
           title: occupations.title,
+          batchId: occupations.batchId,
         })
         .from(occupations)
         .where(inArray(occupations.id, [...ids]));

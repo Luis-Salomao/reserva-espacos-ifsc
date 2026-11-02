@@ -130,6 +130,8 @@ type OccupationInfo = {
   startsAt: string;
   endsAt: string;
   title: string;
+  /** Lote que criou a ocupação (`null` se foi criada à mão). */
+  batchId: string | null;
 };
 
 export interface ImportRepository {

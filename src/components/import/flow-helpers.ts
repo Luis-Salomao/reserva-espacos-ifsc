@@ -178,3 +178,13 @@ export function formatInstant(iso: string, timeZone: string): string {
   }).formatToParts(date);
   return `${part("day", parts)}/${part("month", parts)}/${part("year", parts)} ${part("hour", parts)}:${part("minute", parts)}`;
 }
+
+export const EARLIER_BATCH_HINT =
+  "Esta grade parece ser uma versão alterada de um lote já aplicado neste semestre. A comparação de versões ainda não está disponível: as aulas que mudaram aparecem como conflito com as ocupações do lote anterior e nada é substituído nem cancelado automaticamente.";
+
+/** Alguma linha em conflito com ocupação de um lote anterior do mesmo semestre? */
+export function hasEarlierBatchConflict(
+  rows: ReadonlyArray<{ conflictWith: { fromEarlierBatch: boolean } | null }>,
+): boolean {
+  return rows.some((row) => row.conflictWith?.fromEarlierBatch === true);
+}

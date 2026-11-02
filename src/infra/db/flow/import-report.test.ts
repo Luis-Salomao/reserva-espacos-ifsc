@@ -1,5 +1,6 @@
 import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, test } from "bun:test";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { createImportReportService } from "#/application/import-report";
@@ -116,7 +117,7 @@ async function setup() {
   ];
   await imports.insertRows(rows);
   const report = createImportReportService({ imports, spaces, users, semesters });
-  return { report, semesterId: semester.id };
+  return { report, semesterId: semester.id, teacherId: teacher.id, imports, db };
 }
 
 type Env = Awaited<ReturnType<typeof setup>>;
@@ -152,6 +153,7 @@ describe("relatório por linha do lote", () => {
       title: "Reunião do colegiado",
       startsAt: "2026-08-03T08:00",
       endsAt: "2026-08-03T09:00",
+      fromEarlierBatch: false,
     });
     expect(result.reasons).toEqual(
       expect.arrayContaining([
@@ -160,6 +162,34 @@ describe("relatório por linha do lote", () => {
         { status: "aplicada", reasonCode: null, total: 1 },
       ]),
     );
+  });
+
+  test("conflito com ocupação de lote anterior do mesmo semestre é marcado", async () => {
+    const earlier: ImportBatch = {
+      id: "b0",
+      semesterId: env.semesterId,
+      fileHash: "0000000011111111",
+      summary: { rows: 0, notApplicable: {}, counts },
+      planHash: null,
+      status: "aplicado",
+      createdBy: env.teacherId,
+      createdAt: "2026-10-01T10:00:00.000Z",
+      appliedAt: "2026-10-01T10:01:00.000Z",
+    };
+    await env.imports.insertBatch(earlier);
+    await env.db
+      .update(schema.occupations)
+      .set({ batchId: "b0", source: "import" })
+      .where(eq(schema.occupations.id, "occ1"));
+    const conflict = (await page(env, {})).rows.find((row) => row.rowKey === "o:2");
+    expect(conflict?.conflictWith?.fromEarlierBatch).toBe(true);
+    // Ocupação do próprio lote não conta como "versão anterior".
+    await env.db
+      .update(schema.occupations)
+      .set({ batchId: "b1" })
+      .where(eq(schema.occupations.id, "occ1"));
+    const own = (await page(env, {})).rows.find((row) => row.rowKey === "o:2");
+    expect(own?.conflictWith?.fromEarlierBatch).toBe(false);
   });
 
   test("filtra por situação, motivo e busca (título, sala e detalhe)", async () => {
