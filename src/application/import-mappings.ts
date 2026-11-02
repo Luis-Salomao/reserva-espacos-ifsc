@@ -166,6 +166,12 @@ export function createMappingsService(deps: {
       if (items.length > MAX_ITEMS) {
         return fail("validation", `Envie no máximo ${MAX_ITEMS} vínculos por vez.`);
       }
+      // Uma só consulta (como em saveRooms) em vez de uma por item.
+      const activeIds = new Set(
+        items.some((item) => item.userId !== null)
+          ? (await users.list()).filter((user) => user.active).map((user) => user.id)
+          : [],
+      );
       const clean: TeacherMapping[] = [];
       for (const item of items) {
         const id = parseText(
@@ -182,11 +188,8 @@ export function createMappingsService(deps: {
           "sourceShort",
         );
         if (!short.ok) return short;
-        if (item.userId !== null) {
-          const user = await users.findById(item.userId);
-          if (user === null || !user.active) {
-            return fail("validation", "A conta escolhida não existe ou está inativa.", "userId");
-          }
+        if (item.userId !== null && !activeIds.has(item.userId)) {
+          return fail("validation", "A conta escolhida não existe ou está inativa.", "userId");
         }
         clean.push({ sourceTeacherId: id.value, sourceShort: short.value, userId: item.userId });
       }
