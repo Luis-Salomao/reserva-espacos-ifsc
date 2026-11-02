@@ -206,6 +206,65 @@ describe("relatório por linha do lote", () => {
     expect(await keys({ status: "aplicada", search: "física" })).toEqual({ keys: [], total: 0 });
   });
 
+  test("filtra por tipo de mudança e expõe o tipo em cada linha", async () => {
+    await env.db
+      .update(schema.importRows)
+      .set({ changeKind: "alteracao" })
+      .where(eq(schema.importRows.rowKey, "o:2"));
+    await env.db
+      .update(schema.importRows)
+      .set({ changeKind: "remocao" })
+      .where(eq(schema.importRows.rowKey, "o:1"));
+    const alteracao = await page(env, { changeKind: "alteracao" });
+    expect(alteracao.rows.map((row) => [row.rowKey, row.changeKind])).toEqual([
+      ["o:2", "alteracao"],
+    ]);
+    expect(alteracao.total).toBe(1);
+    expect((await page(env, { changeKind: "remocao", status: "conflito" })).total).toBe(0);
+    expect((await page(env, { changeKind: "inclusao" })).total).toBe(0);
+    expect((await page(env, {})).rows.find((row) => row.rowKey === "n:0")?.changeKind).toBeNull();
+  });
+
+  test("lote de nova versão informa o lote substituído e os nomes das contas afetadas", async () => {
+    await env.imports.insertBatch({
+      id: "b2",
+      semesterId: env.semesterId,
+      fileHash: "ffff000011112222",
+      summary: {
+        rows: 0,
+        notApplicable: {},
+        counts,
+        version: {
+          supersedesBatchId: "b1",
+          inclusoes: 0,
+          alteracoes: 0,
+          bloqueadas: 0,
+          remocoes: 0,
+          responsaveis: 0,
+          inalteradas: 0,
+          mantidasCanceladas: 0,
+          affectedUserIds: [env.teacherId, "conta-removida"],
+        },
+      },
+      planHash: null,
+      status: "rascunho",
+      createdBy: env.teacherId,
+      createdAt: "2026-11-03T10:00:00.000Z",
+      appliedAt: null,
+      supersedesBatchId: "b1",
+    });
+    const second = await env.report.rows("b2", {});
+    if (!second.ok) throw new Error(second.message);
+    expect(second.value.batch.supersedesBatchId).toBe("b1");
+    expect(second.value.batch.supersedesAppliedAt).toBe("2026-11-02T10:01:00.000Z");
+    expect(second.value.batch.affectedNames).toEqual(["Profa. Exemplo"]);
+    const listed = await env.report.batches();
+    expect(listed.find((item) => item.id === "b2")?.supersedesAppliedAt).toBe(
+      "2026-11-02T10:01:00.000Z",
+    );
+    expect(listed.find((item) => item.id === "b1")?.supersedesAppliedAt).toBeNull();
+  });
+
   test("busca trata % e _ como texto comum", async () => {
     expect((await page(env, { search: "100%" })).rows.map((row) => row.rowKey)).toEqual(["o:2"]);
     expect((await page(env, { search: "%" })).total).toBe(1);

@@ -55,6 +55,7 @@ function rowWhere(batchId: string, filter: RowFilter): SQL {
   const parts: SQL[] = [eq(importRows.batchId, batchId)];
   if (filter.status !== undefined) parts.push(eq(importRows.status, filter.status));
   if (filter.reasonCode !== undefined) parts.push(eq(importRows.reasonCode, filter.reasonCode));
+  if (filter.changeKind !== undefined) parts.push(eq(importRows.changeKind, filter.changeKind));
   const term = filter.search?.trim();
   if (term !== undefined && term !== "") {
     const pattern = likePattern(term);

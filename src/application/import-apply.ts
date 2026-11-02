@@ -16,6 +16,7 @@ import {
   pendingTotal,
   type VersionSummary,
 } from "#/domain/import-batch";
+import { BUSY_MESSAGE, STALE_MESSAGE } from "#/domain/import-conflicts";
 import { IGNORE_ROOM, type PlanInput, planImport } from "./import-plan";
 import { plannedRows } from "./import-rows";
 import { planVersion } from "./version-plan";
@@ -45,13 +46,9 @@ const CHANGED_MESSAGE =
 const PREPARING_MESSAGE = "O lote ainda está sendo preparado. Conclua o preparo antes de aplicar.";
 const INCOMPLETE_MESSAGE =
   "O lote está incompleto (faltam linhas). Envie o arquivo de novo para refazer o preparo.";
-const BUSY_MESSAGE =
-  "Há outro lote deste semestre em andamento (aplicando ou interrompido). Conclua-o, ou descarte-o se nada foi aplicado, antes de continuar.";
 const DISCARD_APPLIED_MESSAGE = "Lote aplicado ou em aplicação não pode ser descartado.";
 const DISCARD_PARTIAL_MESSAGE =
   "Este lote já aplicou parte das mudanças; retome a aplicação para concluir.";
-const STALE_MESSAGE =
-  "Outra versão da grade foi aplicada depois deste preparo. Envie o arquivo de novo para refazer a conferência.";
 
 /** SHA-256 (hexadecimal) dos bytes do arquivo; junto do semestre identifica o lote. */
 export async function hashImportFile(bytes: Uint8Array): Promise<string> {

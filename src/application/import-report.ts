@@ -7,7 +7,12 @@ import type {
   UserRepository,
 } from "#/application/ports";
 import { fail, ok, type Result } from "#/application/validation";
-import type { ImportBatch, ImportRowStatus, ImportSummary } from "#/domain/import-batch";
+import type {
+  ImportBatch,
+  ImportChangeKind,
+  ImportRowStatus,
+  ImportSummary,
+} from "#/domain/import-batch";
 
 const DEFAULT_LIMIT = 50;
 const MAX_LIMIT = 200;
@@ -24,6 +29,12 @@ export type BatchView = {
   appliedAt: string | null;
   hashPrefix: string;
   summary: ImportSummary;
+  /** Lote aplicado que esta nova versão substitui (`null` = primeira versão). */
+  supersedesBatchId: string | null;
+  /** Quando o lote substituído foi aplicado (para "Nova versão de <data>"). */
+  supersedesAppliedAt: string | null;
+  /** Nomes das contas locais afetadas pela nova versão (nunca nomes de docentes do XML). */
+  affectedNames: string[];
 };
 
 export type RowView = {
@@ -38,6 +49,8 @@ export type RowView = {
   status: ImportRowStatus;
   reasonCode: string | null;
   reasonDetail: string | null;
+  /** Natureza da linha numa nova versão (`null` na primeira versão). */
+  changeKind: ImportChangeKind | null;
   /** Ocupação que impediu a linha (conflito com ocupação existente ou surgida na aplicação). */
   conflictWith: {
     title: string;
@@ -71,7 +84,12 @@ export function createImportReportService(deps: {
     return new Map((await semesters.list()).map((semester) => [semester.id, semester.name]));
   }
 
-  function toView(batch: ImportBatch, names: Map<string, string>): BatchView {
+  function toView(
+    batch: ImportBatch,
+    names: Map<string, string>,
+    supersedesAppliedAt: string | null,
+    accountNames: Map<string, string>,
+  ): BatchView {
     return {
       id: batch.id,
       semesterId: batch.semesterId,
@@ -81,7 +99,19 @@ export function createImportReportService(deps: {
       appliedAt: batch.appliedAt,
       hashPrefix: batch.fileHash.slice(0, HASH_PREFIX),
       summary: batch.summary,
+      supersedesBatchId: batch.supersedesBatchId,
+      supersedesAppliedAt,
+      affectedNames: (batch.summary.version?.affectedUserIds ?? [])
+        .map((id) => accountNames.get(id))
+        .filter((name): name is string => name !== undefined)
+        .sort((a, b) => a.localeCompare(b, "pt-BR")),
     };
+  }
+
+  async function supersededAt(batch: ImportBatch): Promise<string | null> {
+    if (batch.supersedesBatchId === null) return null;
+    const previous = await imports.findBatch(batch.supersedesBatchId);
+    return previous === null ? null : (previous.appliedAt ?? previous.createdAt);
   }
 
   return {
@@ -95,6 +125,7 @@ export function createImportReportService(deps: {
         ...(filter.status === undefined ? {} : { status: filter.status }),
         ...(filter.reasonCode === undefined ? {} : { reasonCode: filter.reasonCode }),
         ...(filter.search === undefined ? {} : { search: filter.search }),
+        ...(filter.changeKind === undefined ? {} : { changeKind: filter.changeKind }),
       };
       const [rows, total, reasons, names, allSpaces, accounts] = await Promise.all([
         imports.listRows(batchId, { ...where, limit, offset }),
@@ -136,7 +167,7 @@ export function createImportReportService(deps: {
       const spaceNames = new Map(allSpaces.map((space) => [space.id, space.name]));
       const userNames = new Map(accounts.map((user) => [user.id, user.name]));
       return ok({
-        batch: toView(batch, names),
+        batch: toView(batch, names, await supersededAt(batch), userNames),
         total,
         limit,
         offset,
@@ -161,6 +192,7 @@ export function createImportReportService(deps: {
             status: row.status,
             reasonCode: row.reasonCode,
             reasonDetail: row.reasonDetail,
+            changeKind: row.changeKind,
             conflictWith:
               other === undefined
                 ? null
@@ -177,8 +209,15 @@ export function createImportReportService(deps: {
 
     /** Lotes do mais recente para o mais antigo, com semestre, estado e contagens. */
     async batches(): Promise<BatchView[]> {
-      const [list, names] = await Promise.all([imports.listBatches(MAX_BATCHES), semesterNames()]);
-      return list.map((batch) => toView(batch, names));
+      const [list, names, accounts] = await Promise.all([
+        imports.listBatches(MAX_BATCHES),
+        semesterNames(),
+        users.list(),
+      ]);
+      const userNames = new Map(accounts.map((user) => [user.id, user.name]));
+      return Promise.all(
+        list.map(async (batch) => toView(batch, names, await supersededAt(batch), userNames)),
+      );
     },
   };
 }

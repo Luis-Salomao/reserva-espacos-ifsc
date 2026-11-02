@@ -2,6 +2,7 @@ import type { ImportReportService } from "#/application/import-report";
 import type { SemestersService } from "#/application/semesters";
 import type { SpacesService } from "#/application/spaces";
 import type { UsersService } from "#/application/users";
+import { IMPORT_CHANGE_KINDS } from "#/domain/import-batch";
 import type { Semester } from "#/domain/semester";
 import {
   type AdminOutcome,
@@ -76,6 +77,9 @@ export function getImportRows(deps: ImportFlowDeps, request: RequestLike, data: 
     const rawStatus = body.status;
     const status = IMPORT_ROW_STATUSES.find((item) => item === rawStatus);
     if (rawStatus !== undefined && status === undefined) return reject(400, BAD_REQUEST);
+    const rawKind = body.changeKind;
+    const changeKind = IMPORT_CHANGE_KINDS.find((item) => item === rawKind);
+    if (rawKind !== undefined && changeKind === undefined) return reject(400, BAD_REQUEST);
     const reasonCode = body.reasonCode;
     if (
       reasonCode !== undefined &&
@@ -95,6 +99,7 @@ export function getImportRows(deps: ImportFlowDeps, request: RequestLike, data: 
         ...(status === undefined ? {} : { status }),
         ...(reasonCode === undefined ? {} : { reasonCode }),
         ...(search === undefined ? {} : { search }),
+        ...(changeKind === undefined ? {} : { changeKind }),
         ...(limit === undefined ? {} : { limit }),
         ...(offset === undefined ? {} : { offset }),
       }),
