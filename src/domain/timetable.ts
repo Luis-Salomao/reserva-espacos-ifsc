@@ -27,6 +27,8 @@ export type Card = {
   weeks: string | null;
   terms: string | null;
   classroomIds: string[];
+  /** O card listava salas, mas todas eram desconhecidas: não herda as salas da aula. */
+  roomsUnknown?: boolean;
 };
 
 export type AscTimetable = {

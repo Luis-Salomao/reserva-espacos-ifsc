@@ -2,7 +2,7 @@ import { describe, expect, test } from "bun:test";
 import type { AscTimetable, Card, Lesson, Period } from "#/domain/timetable.ts";
 import { normalizeAsc } from "./normalize.ts";
 import { readAscXml } from "./read.ts";
-import { buildWeeklySlots, masksOverlap } from "./slots.ts";
+import { buildWeeklySlots, MAX_OVERLAP_DETAIL, masksOverlap } from "./slots.ts";
 
 const P = (number: number, start: string, end: string): Period => ({
   number,
@@ -175,7 +175,10 @@ describe("expansão de cards", () => {
   });
 
   test("card de lesson inexistente é ignorado", () => {
-    expect(buildWeeklySlots(tt([], [card("X")]))).toEqual({ slots: [], issues: [], overlaps: [] });
+    const result = buildWeeklySlots(tt([], [card("X")]));
+    expect(result.slots).toEqual([]);
+    expect(result.issues).toEqual([]);
+    expect(result.overlaps).toEqual([]);
   });
 
   test("periodsPerCard 0 é tratado como 1", () => {
@@ -333,6 +336,72 @@ describe("sobreposição interna", () => {
   });
 });
 
+describe("mescla pela ordem do relógio e segmentos", () => {
+  test("períodos 6 (20:10) e 7 (19:00) da mesma aula não são consecutivos no relógio", () => {
+    const { slots } = buildWeeklySlots(
+      tt([lesson("A")], [card("A", { period: 6 }), card("A", { period: 7 })]),
+    );
+    expect(slots).toHaveLength(2);
+    expect(slots.map((s) => [s.start, s.end])).toEqual([
+      ["19:00", "22:00"],
+      ["20:10", "22:00"],
+    ]);
+  });
+
+  test("aula A nos períodos 6 e 7 e aula B no 5: conflito certo com a parte 19:00-22:00", () => {
+    const result = buildWeeklySlots(
+      tt(
+        [lesson("A"), lesson("B")],
+        [card("A", { period: 6 }), card("A", { period: 7 }), card("B", { period: 5 })],
+      ),
+    );
+    const certain = result.overlaps.filter((o) => o.kind === "certain");
+    expect(certain.length).toBeGreaterThanOrEqual(1);
+    expect(result.overlapCounts.certain).toBe(certain.length);
+    expect(certain.every((o) => [o.a.lessonId, o.b.lessonId].sort().join() === "A,B")).toBe(true);
+  });
+
+  test("mescla por relógio usa o menor início e o maior fim", () => {
+    const periods = [P(2, "10:10", "12:00"), P(1, "08:00", "09:50")];
+    const { slots } = buildWeeklySlots(
+      tt([lesson("A")], [card("A", { period: 2 }), card("A", { period: 1 })], periods),
+    );
+    expect(slots).toHaveLength(1);
+    expect(slots[0]).toMatchObject({ start: "08:00", end: "12:00", periodFrom: 1, periodTo: 2 });
+  });
+
+  test("não mescla quando outro período começa entre os dois", () => {
+    const { slots } = buildWeeklySlots(
+      tt([lesson("A")], [card("A", { period: 1 }), card("A", { period: 3 })]),
+    );
+    expect(slots).toHaveLength(2);
+  });
+
+  test("cada card vira um segmento com o horário real do período", () => {
+    const { slots } = buildWeeklySlots(
+      tt([lesson("A")], [card("A", { period: 2 }), card("A", { period: 1 })]),
+    );
+    expect(slots[0]?.segments).toEqual([
+      { period: 1, start: "08:00", end: "09:50" },
+      { period: 2, start: "10:10", end: "12:00" },
+    ]);
+  });
+
+  test("intervalo dentro de um slot mesclado não conflita (09:50-10:10)", () => {
+    // P9 começa exatamente no fim de P1: não impede a mescla de P1 e P2.
+    const periods = [P(1, "08:00", "09:50"), P(2, "10:10", "12:00"), P(9, "09:50", "10:10")];
+    const result = buildWeeklySlots(
+      tt(
+        [lesson("A"), lesson("B")],
+        [card("A", { period: 1 }), card("A", { period: 2 }), card("B", { period: 9 })],
+        periods,
+      ),
+    );
+    expect(result.overlaps).toEqual([]);
+    expect(result.slots.find((s) => s.lessonId === "A")?.segments).toHaveLength(2);
+  });
+});
+
 describe("masksOverlap", () => {
   test("null é todos", () => {
     expect(masksOverlap(null, null)).toBe(true);
@@ -372,5 +441,48 @@ describe("fixtures", () => {
       "missing_period:L4",
     ]);
     expect(result.overlaps).toHaveLength(1);
+  });
+});
+
+describe("limite de detalhes de sobreposição", () => {
+  test("2000 cards idênticos: contagem exata, detalhe limitado e rápido", () => {
+    const total = 2000;
+    const lessons = Array.from({ length: total }, (_, i) =>
+      lesson(`L${String(i).padStart(5, "0")}`),
+    );
+    const cards = lessons.map((l) => card(l.id));
+    const started = performance.now();
+    const result = buildWeeklySlots(tt(lessons, cards));
+    const elapsed = performance.now() - started;
+    expect(result.overlapCounts).toEqual({ certain: (total * (total - 1)) / 2, possible: 0 });
+    expect(result.overlaps).toHaveLength(MAX_OVERLAP_DETAIL);
+    expect(result.overlapsTruncated).toBe(true);
+    expect(result.overlaps[0]).toMatchObject({
+      a: { lessonId: "L00000" },
+      b: { lessonId: "L00001" },
+    });
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  test("abaixo do limite não marca truncamento", () => {
+    const result = buildWeeklySlots(tt([lesson("A"), lesson("B")], [card("A"), card("B")]));
+    expect(result.overlapsTruncated).toBe(false);
+    expect(result.overlapCounts).toEqual({ certain: 1, possible: 0 });
+  });
+});
+
+describe("máscaras de dias e terms", () => {
+  test("lista de máscaras de dias vira vários dias", () => {
+    const { slots, issues } = buildWeeklySlots(
+      tt([lesson("A")], [card("A", { days: "10000,00100" })]),
+    );
+    expect(slots.map((s) => s.weekday)).toEqual([0, 2]);
+    expect(issues).toEqual([]);
+  });
+
+  test("terms sem nenhum 1 nunca é agendado", () => {
+    const result = buildWeeklySlots(tt([lesson("A")], [card("A", { terms: "0000" })]));
+    expect(result.slots).toEqual([]);
+    expect(result.issues).toEqual([{ code: "never_scheduled", ref: "A" }]);
   });
 });
