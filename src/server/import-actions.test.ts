@@ -174,7 +174,7 @@ describe("ações de importação: fluxo", () => {
     expect(prepared.response.data.reused).toBe(false);
 
     const applied = await applyImportBatch(ctx.deps, ctx.req("hor"), { batchId });
-    expect(applied.response.ok && applied.response.data.status).toBe("aplicado");
+    expect(applied.response.ok && applied.response.data.batch.status).toBe("aplicado");
 
     const again = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
     expect(again.response.ok && again.response.data.reused).toBe(true);
@@ -239,6 +239,35 @@ describe("ações de importação: fluxo", () => {
     expect(bad(await getImportReport(ctx.deps, t, { batchId: "nao-existe" }))).toMatchObject({
       status: 404,
     });
+  });
+
+  test("limit e offset precisam ser inteiros; prepare e apply aceitam orçamento inteiro", async () => {
+    const t = ctx.req("adm");
+    for (const extra of [{ limit: 1.5 }, { offset: -1 }, { limit: 0 }, { offset: 0.5 }]) {
+      const r = await getImportReport(ctx.deps, t, { batchId: "x", ...extra });
+      expect(r.response).toMatchObject({ ok: false, status: 400 });
+    }
+    for (const bad of [0, 1.5, 1000, "3"]) {
+      const r = await applyImportBatch(ctx.deps, t, { batchId: "x", maxChunks: bad });
+      expect(r.response).toMatchObject({ ok: false, status: 400 });
+      const p = await prepareImport(ctx.deps, t, ctx.semester.id, XML, bad as number);
+      expect(p.response).toMatchObject({ ok: false, status: 400 });
+    }
+  });
+
+  test("passo a passo: prepare e apply com orçamento devolvem progresso", async () => {
+    await saveRoomMappings(ctx.deps, ctx.req("adm"), {
+      items: [{ sourceRoomId: "R1", sourceShort: "S1", spaceId: ctx.space.id, ignored: false }],
+    });
+    const p = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, XML, 1);
+    expect(p.response.ok && typeof p.response.data.remaining).toBe("number");
+    expect(p.response.ok && typeof p.response.data.done).toBe("boolean");
+    if (!p.response.ok) return;
+    const a = await applyImportBatch(ctx.deps, ctx.req("hor"), {
+      batchId: p.response.data.batch.id,
+      maxChunks: 1,
+    });
+    expect(a.response.ok || a.response.status === 409).toBe(true);
   });
 
   test("falha de validação do serviço volta como 400 com o campo", async () => {

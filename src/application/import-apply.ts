@@ -6,6 +6,7 @@ import type {
   TeacherMappingRepository,
 } from "#/application/ports";
 import { fail, ok, type Result } from "#/application/validation";
+import { weekdayOf } from "#/domain/calendar";
 import type {
   ImportBatch,
   ImportRow,
@@ -15,13 +16,30 @@ import type {
 } from "#/domain/import-batch";
 import { IGNORE_ROOM, type ImportPlan, type PlanInput, planImport } from "./import-plan";
 
-/** Linhas por bloco atômico: cada linha usa até 3 instruções, então um bloco tem ≤ 90 instruções. */
+/** Linhas por bloco atômico de aplicação: cada linha usa até 3 instruções, então ≤ 90 instruções. */
 const ROWS_PER_CHUNK = 30;
+/** Linhas por chamada de gravação do rascunho (uma instrução por linha; o D1 limita parâmetros). */
+const ROWS_PER_WRITE = 50;
+/**
+ * Orçamento por chamada (o Workers limita as consultas por invocação; ~50 no plano Free). Conta:
+ * `prepare` gasta ~8 consultas fixas (vínculos x2, ocupações, semestre, lote por hash, inserir
+ * lote, chaves, contagem e fechar) + até `maxCalls` gravações de 50 linhas = 38 com o padrão 30
+ * (1500 linhas). `apply` gasta ~6 fixas (lote, contagem, estado, pendentes, contagem, estado) +
+ * até `maxChunks` blocos de 30 linhas = 36 com o padrão 30 (900 linhas). NÃO verificado: se o D1
+ * conta cada instrução de um `batch` separadamente; se contar, reduza os padrões.
+ */
+const DEFAULT_PREPARE_CALLS = 30;
+const DEFAULT_APPLY_CHUNKS = 30;
 
 const DEFAULT_REPORT_LIMIT = 200;
 const MAX_REPORT_LIMIT = 1000;
 const FAILURE_CODE = "erro_gravacao";
 const FAILURE_DETAIL = "Não foi possível gravar este grupo de linhas. Aplique o lote novamente.";
+const PARTIAL_MESSAGE =
+  "O arquivo foi lido só em parte (cards demais); a importação foi recusada para não gerar um lote incompleto.";
+const PREPARING_MESSAGE = "O lote ainda está sendo preparado. Conclua o preparo antes de aplicar.";
+const INCOMPLETE_MESSAGE =
+  "O lote está incompleto (faltam linhas). Envie o arquivo de novo para refazer o preparo.";
 
 /** SHA-256 (hexadecimal) dos bytes do arquivo; junto do semestre identifica o lote. */
 export async function hashImportFile(bytes: Uint8Array): Promise<string> {
@@ -41,13 +59,16 @@ export type PrepareInput = {
   semesterId: string;
   /** SHA-256 hexadecimal dos bytes do XML (`hashImportFile`). */
   fileHash: string;
-  preview: PlanInput["preview"];
+  /** `partial`: a leitura do arquivo foi truncada (ex.: cards demais); é recusada. */
+  preview: PlanInput["preview"] & { partial: boolean };
   actorId: string;
 };
 
-export type PrepareOutput = {
-  batch: ImportBatch;
-  /** `true` quando o mesmo arquivo já tinha lote neste semestre (nada novo é criado). */
+/** Progresso de um passo: `done` quando não resta nada; `remaining` em linhas. */
+export type StepOutput = { batch: ImportBatch; done: boolean; remaining: number };
+
+export type PrepareOutput = StepOutput & {
+  /** `true` quando o mesmo arquivo já tinha lote concluído neste semestre (nada novo é criado). */
   reused: boolean;
 };
 
@@ -66,15 +87,17 @@ function timePart(startsAt: string): string {
   return startsAt.slice(11);
 }
 
-function planRows(batchId: string, plan: ImportPlan): ImportRow[] {
+/** Linhas do plano sem lote (`batchId` vazio): o chamador carimba o id do lote que vale. */
+function planRows(plan: ImportPlan): ImportRow[] {
   const rows: ImportRow[] = [];
   const occurrence = (
     draft: ImportPlan["toInsert"][number],
     extra: Pick<ImportRow, "status" | "reasonCode" | "reasonDetail" | "conflictOccupationId">,
   ): ImportRow => ({
-    batchId,
+    batchId: "",
     rowKey: draft.rowKey,
     lessonId: draft.lessonId,
+    weekday: weekdayOf(draft.startsAt.slice(0, 10)),
     spaceId: draft.spaceId,
     date: draft.startsAt.slice(0, 10),
     startTime: timePart(draft.startsAt),
@@ -116,9 +139,10 @@ function planRows(batchId: string, plan: ImportPlan): ImportRow[] {
   }
   for (const item of plan.notApplicable) {
     rows.push({
-      batchId,
+      batchId: "",
       rowKey: item.rowKey,
       lessonId: item.lessonId,
+      weekday: item.weekday,
       spaceId: null,
       date: null,
       startTime: item.start,
@@ -155,6 +179,10 @@ function chunks<T>(items: readonly T[], size: number): T[][] {
   return result;
 }
 
+function total(counts: ImportRowCounts): number {
+  return Object.values(counts).reduce((sum, value) => sum + value, 0);
+}
+
 export function createImportService(deps: ImportServiceDeps) {
   const { imports, rooms, teachers, semesters, clock } = deps;
 
@@ -172,70 +200,123 @@ export function createImportService(deps: ImportServiceDeps) {
 
   return {
     /**
-     * Planeja e grava o lote como `rascunho` (linhas `pendente`, `nao_aplicavel`, `conflito`,
-     * `conflito_interno`). Mesmo arquivo e semestre com lote já iniciado ou aplicado: devolve o
-     * lote existente sem criar nada (idempotência). Um rascunho antigo é refeito com os vínculos atuais.
+     * Prepara o lote em passos (cada chamada grava no máximo `maxCalls` blocos de 50 linhas).
+     * Estados: `preparando` (linhas sendo gravadas) → `rascunho` (completo e conferido: linhas ==
+     * resumo). Um lote `preparando` do mesmo (arquivo, semestre) é retomado, nunca reutilizado;
+     * se as linhas gravadas não são do plano atual, é apagado e refeito. Lote `aplicando`,
+     * `aplicado` ou `falhou` é devolvido como está (`reused`). Um `rascunho` é refeito com os
+     * vínculos atuais. Prévia truncada é recusada.
      */
-    async prepare(input: PrepareInput): Promise<Result<PrepareOutput>> {
+    async prepare(
+      input: PrepareInput,
+      options: { maxCalls?: number } = {},
+    ): Promise<Result<PrepareOutput>> {
+      if (input.preview.partial) return fail("validation", PARTIAL_MESSAGE);
       const semester = await semesters.findById(input.semesterId);
       if (semester === null) return fail("not_found", "Semestre não encontrado.");
-      const existing = await imports.findBatchByHash(input.semesterId, input.fileHash);
-      if (existing !== null && existing.status !== "rascunho") {
-        return ok({ batch: existing, reused: true });
-      }
-      if (existing !== null) await imports.deleteDraft(existing.id);
 
       const maps = await loadMaps();
       const occupied = await imports.listActiveOccupations(
         `${semester.start}T00:00`,
         `${semester.end}T24:00`,
       );
-      const plan = planImport({
-        preview: input.preview,
-        semester,
-        ...maps,
-        existing: occupied,
-      });
-      const id = crypto.randomUUID();
-      const rows = planRows(id, plan);
-      const batch: ImportBatch = {
-        id,
-        semesterId: input.semesterId,
-        fileHash: input.fileHash,
-        summary: summarize(rows),
-        status: "rascunho",
-        createdBy: input.actorId,
-        createdAt: clock.now().toISOString(),
-        appliedAt: null,
-      };
-      try {
-        await imports.createBatch(batch, rows);
-      } catch (error) {
-        // Outra requisição criou o mesmo lote ao mesmo tempo: usa o que ela gravou.
-        const winner = await imports.findBatchByHash(input.semesterId, input.fileHash);
-        if (winner === null) throw error;
-        return ok({ batch: winner, reused: true });
+      const plan = planImport({ preview: input.preview, semester, ...maps, existing: occupied });
+      const planned = planRows(plan);
+      const summary = summarize(planned);
+      const planKeys = new Set(planned.map((row) => row.rowKey));
+      const budget = options.maxCalls ?? DEFAULT_PREPARE_CALLS;
+
+      for (let attempt = 0; attempt < 2; attempt++) {
+        let batch = await imports.findBatchByHash(input.semesterId, input.fileHash);
+        if (batch !== null && batch.status === "rascunho") {
+          await imports.deleteDraft(batch.id);
+          batch = null;
+        }
+        if (batch === null) {
+          await imports.insertBatch({
+            id: crypto.randomUUID(),
+            semesterId: input.semesterId,
+            fileHash: input.fileHash,
+            summary,
+            status: "preparando",
+            createdBy: input.actorId,
+            createdAt: clock.now().toISOString(),
+            appliedAt: null,
+          });
+          // Se outra requisição criou antes, o lote dela (outro id) é o que vale.
+          batch = await imports.findBatchByHash(input.semesterId, input.fileHash);
+          if (batch === null) throw new Error("Lote de importação não encontrado após a criação.");
+        }
+        if (batch.status !== "preparando") {
+          return ok({ batch, reused: true, done: true, remaining: 0 });
+        }
+        const batchId = batch.id;
+        const written = new Set(await imports.rowKeys(batchId));
+        if ([...written].some((key) => !planKeys.has(key))) {
+          await imports.deleteDraft(batchId);
+          continue;
+        }
+        const missing = planned.filter((row) => !written.has(row.rowKey));
+        let calls = 0;
+        let remaining = missing.length;
+        for (const group of chunks(missing, ROWS_PER_WRITE)) {
+          if (calls >= budget) break;
+          await imports.insertRows(group.map((row) => ({ ...row, batchId })));
+          calls++;
+          remaining -= group.length;
+        }
+        if (remaining > 0) {
+          return ok({ batch: { ...batch, summary }, reused: false, done: false, remaining });
+        }
+        const stored = total(await imports.countRows(batchId));
+        if (stored !== summary.rows) {
+          return ok({
+            batch: { ...batch, summary },
+            reused: false,
+            done: false,
+            remaining: Math.max(summary.rows - stored, 1),
+          });
+        }
+        await imports.setBatchState(batchId, { status: "rascunho", summary, appliedAt: null });
+        return ok({
+          batch: { ...batch, status: "rascunho", summary },
+          reused: false,
+          done: true,
+          remaining: 0,
+        });
       }
-      return ok({ batch, reused: false });
+      return fail("conflict", "Não foi possível preparar o lote agora. Tente novamente.");
     },
 
     /**
-     * Aplica (ou retoma) o lote: `rascunho`/`falhou` → `aplicando` → `aplicado`. Insere em blocos
-     * atômicos; ocupação sobreposta que surgiu depois da prévia vira linha `conflito`. Falha num bloco
-     * marca as linhas dele como `falha` (motivo genérico), interrompe e deixa o lote `falhou`;
-     * chamar de novo continua de onde parou, sem duplicar.
+     * Aplica (ou retoma) o lote em passos de no máximo `maxChunks` blocos atômicos de 30 linhas.
+     * Recusa lote `preparando` ou cujas linhas não batem com o resumo. Parar pelo orçamento deixa o
+     * lote `aplicando` (retomável); `falhou` só ocorre em erro real de gravação (as linhas do
+     * bloco viram `falha`, motivo genérico). Ocupação sobreposta surgida depois da prévia vira
+     * linha `conflito`. Chamar de novo continua de onde parou, sem duplicar.
      */
-    async apply(batchId: string): Promise<Result<ImportBatch>> {
+    async apply(
+      batchId: string,
+      options: { maxChunks?: number } = {},
+    ): Promise<Result<StepOutput>> {
       const batch = await imports.findBatch(batchId);
       if (batch === null) return fail("not_found", "Lote de importação não encontrado.");
-      if (batch.status === "aplicado") return ok(batch);
-      await imports.setBatchState(batchId, {
-        status: "aplicando",
-        summary: batch.summary,
-        appliedAt: null,
-      });
-      const pending = await imports.pendingRows(batchId);
+      if (batch.status === "aplicado") return ok({ batch, done: true, remaining: 0 });
+      if (batch.status === "preparando") return fail("conflict", PREPARING_MESSAGE);
+      if (total(await imports.countRows(batchId)) !== batch.summary.rows) {
+        return fail("conflict", INCOMPLETE_MESSAGE);
+      }
+      if (batch.status !== "aplicando") {
+        await imports.setBatchState(batchId, {
+          status: "aplicando",
+          summary: batch.summary,
+          appliedAt: null,
+        });
+      }
+      const chunkBudget = options.maxChunks ?? DEFAULT_APPLY_CHUNKS;
+      const pending = await imports.pendingRows(batchId, chunkBudget * ROWS_PER_CHUNK);
       const createdAt = clock.now().toISOString();
+      let errored = false;
       for (const group of chunks(pending, ROWS_PER_CHUNK)) {
         try {
           await imports.applyRows(batchId, group, createdAt);
@@ -246,20 +327,21 @@ export function createImportService(deps: ImportServiceDeps) {
             FAILURE_CODE,
             FAILURE_DETAIL,
           );
+          errored = true;
           break;
         }
       }
       const counts = await imports.countRows(batchId);
-      const complete = counts.pendente + counts.falha === 0;
-      await imports.setBatchState(batchId, {
-        status: complete ? "aplicado" : "falhou",
-        summary: { ...batch.summary, counts },
-        appliedAt: complete ? clock.now().toISOString() : null,
+      const remaining = counts.pendente + counts.falha;
+      const status = remaining === 0 ? "aplicado" : errored ? "falhou" : "aplicando";
+      const appliedAt = status === "aplicado" ? clock.now().toISOString() : null;
+      const summary = { ...batch.summary, counts };
+      await imports.setBatchState(batchId, { status, summary, appliedAt });
+      return ok({
+        batch: { ...batch, status, summary, appliedAt },
+        done: remaining === 0,
+        remaining,
       });
-      const updated = await imports.findBatch(batchId);
-      return updated === null
-        ? fail("not_found", "Lote de importação não encontrado.")
-        : ok(updated);
     },
 
     /** Lote e suas linhas (filtráveis por situação), para o usuário ver o que deu errado. */

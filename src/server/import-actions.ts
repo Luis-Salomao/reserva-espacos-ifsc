@@ -1,4 +1,9 @@
-import { hashImportFile, type ImportService } from "#/application/import-apply";
+import {
+  hashImportFile,
+  type ImportService,
+  type PrepareOutput,
+  type StepOutput,
+} from "#/application/import-apply";
 import type { MappingsService } from "#/application/import-mappings";
 import type { ImportBatch, ImportRow, ImportRowStatus } from "#/domain/import-batch";
 import { previewAscXml } from "#/import-asc/index.ts";
@@ -38,6 +43,17 @@ function asImporter<T>(
   run: (actorId: string) => Promise<AdminResponse<T>>,
 ): Promise<AdminOutcome<T>> {
   return asRoles(IMPORT_ROLES, deps, request, (actor) => run(actor.id));
+}
+
+const MAX_STEP = 100;
+const MAX_PAGE = 1000;
+
+/** Inteiro em [min, max]; `undefined` quando ausente; `null` quando inválido. */
+function boundedInt(value: unknown, min: number, max: number): number | null | undefined {
+  if (value === undefined) return undefined;
+  return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max
+    ? value
+    : null;
 }
 
 function objects(data: Record<string, unknown>, key: string): Record<string, unknown>[] | null {
@@ -135,30 +151,41 @@ export function prepareImport(
   request: RequestLike,
   semesterId: string,
   bytes: Uint8Array,
+  maxCalls?: number,
 ) {
-  return asImporter<{ batch: ImportBatch; reused: boolean }>(deps, request, async (actorId) => {
+  return asImporter<PrepareOutput>(deps, request, async (actorId) => {
     if (semesterId === "" || bytes.byteLength === 0) return reject(400, BAD_REQUEST);
+    if (maxCalls !== undefined && boundedInt(maxCalls, 1, MAX_STEP) === null) {
+      return reject(400, BAD_REQUEST);
+    }
     const parsed = previewAscXml(bytes);
     if (!parsed.ok) return reject(400, parsed.error.message);
     return fromResult(
-      await deps.imports.prepare({
-        semesterId,
-        fileHash: await hashImportFile(bytes),
-        preview: parsed.preview,
-        actorId,
-      }),
+      await deps.imports.prepare(
+        {
+          semesterId,
+          fileHash: await hashImportFile(bytes),
+          preview: parsed.preview,
+          actorId,
+        },
+        maxCalls === undefined ? {} : { maxCalls },
+      ),
     );
   });
 }
 
 export function applyImportBatch(deps: ImportDeps, request: RequestLike, data: unknown) {
-  return asImporter<ImportBatch>(deps, request, async () => {
+  return asImporter<StepOutput>(deps, request, async () => {
     const body = record(data);
     const batchId = body && text(body, "batchId");
     if (batchId === null || batchId === undefined || batchId === "") {
       return reject(400, BAD_REQUEST);
     }
-    return fromResult(await deps.imports.apply(batchId));
+    const maxChunks = boundedInt(body?.maxChunks, 1, MAX_STEP);
+    if (maxChunks === null) return reject(400, BAD_REQUEST);
+    return fromResult(
+      await deps.imports.apply(batchId, maxChunks === undefined ? {} : { maxChunks }),
+    );
   });
 }
 
@@ -172,8 +199,9 @@ export function getImportReport(deps: ImportDeps, request: RequestLike, data: un
     const rawStatus = body?.status;
     const status = STATUSES.find((item) => item === rawStatus);
     if (rawStatus !== undefined && status === undefined) return reject(400, BAD_REQUEST);
-    const limit = typeof body?.limit === "number" ? body.limit : undefined;
-    const offset = typeof body?.offset === "number" ? body.offset : undefined;
+    const limit = boundedInt(body?.limit, 1, MAX_PAGE);
+    const offset = boundedInt(body?.offset, 0, Number.MAX_SAFE_INTEGER);
+    if (limit === null || offset === null) return reject(400, BAD_REQUEST);
     return fromResult(
       await deps.imports.report(batchId, {
         ...(status === undefined ? {} : { status }),

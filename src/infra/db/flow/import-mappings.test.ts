@@ -227,6 +227,19 @@ describe("docentes", () => {
     });
   });
 
+  test("sigla salva com contas diferentes: não sugere (precisa de unanimidade)", async () => {
+    await env.service.saveTeachers([
+      { sourceTeacherId: "A", sourceShort: "XYZ", userId: env.maria.id },
+    ]);
+    const other = env.inactive.id;
+    await env.maps.teachers.saveMany(
+      [{ sourceTeacherId: "B", sourceShort: "XYZ", userId: other }],
+      "t",
+    );
+    const result = await env.service.suggestTeachers([{ id: "NOVO", short: "XYZ" }]);
+    expect(result[0]?.suggestion).toBeNull();
+  });
+
   test("sem vínculo: grava nulo; recusa conta inexistente, inativa e campos inválidos", async () => {
     const none = await env.service.saveTeachers([
       { sourceTeacherId: "T1", sourceShort: "MAR", userId: null },

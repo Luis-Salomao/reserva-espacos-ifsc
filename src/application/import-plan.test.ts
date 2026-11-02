@@ -245,6 +245,61 @@ describe("planImport", () => {
     expect(plan.internalConflicts).toEqual([]);
   });
 
+  test("horário do bloco do semestre com o mesmo número do período vence o do XML", () => {
+    const sem: Semester = {
+      ...semester,
+      blocks: [{ number: 1, name: "Manhã 1", short: "M1", start: "08:10", end: "09:55" }],
+    };
+    const two = slot({
+      end: "12:00",
+      periodTo: 2,
+      segments: [
+        { period: 1, start: "08:00", end: "09:50" },
+        { period: 2, start: "10:10", end: "12:00" },
+      ],
+    });
+    const plan = planImport(
+      input({ semester: sem, preview: { slots: [two], timetable: timetable([lesson()]) } }),
+    );
+    expect(plan.toInsert.slice(0, 2).map((d) => `${d.startsAt}/${d.endsAt}`)).toEqual([
+      "2026-08-03T08:10/2026-08-03T09:55",
+      "2026-08-03T10:10/2026-08-03T12:00",
+    ]);
+  });
+
+  test("detalhe de sala sem vínculo usa a sigla da sala, não a id do aSc", () => {
+    const tt = timetable([lesson()]);
+    tt.classrooms.push({ id: "R9", name: "Laboratório 9", short: "LAB9", capacity: null });
+    const plan = planImport(
+      input({ preview: { slots: [slot({ classroomIds: ["R9"] })], timetable: tt } }),
+    );
+    expect(plan.notApplicable[0]?.detail).toContain("LAB9");
+    expect(plan.notApplicable[0]?.detail).not.toContain("R9");
+  });
+
+  test("mesma aula, sala e início com fim diferente é contada, não descartada", () => {
+    const other = slot({ segments: [{ period: 1, start: "08:00", end: "10:30" }], end: "10:30" });
+    const plan = planImport(
+      input({ preview: { slots: [slot(), other], timetable: timetable([lesson()]) } }),
+    );
+    expect(plan.toInsert).toHaveLength(2);
+    expect(plan.notApplicable.map((n) => n.reason)).toEqual([
+      "duplicate_occurrence",
+      "duplicate_occurrence",
+    ]);
+    expect(new Set(plan.notApplicable.map((n) => n.rowKey)).size).toBe(2);
+  });
+
+  test("máscara de durações sem nenhuma marca: nunca agendada", () => {
+    const plan = planImport(
+      input({
+        preview: { slots: [slot({ termsMask: "0000" })], timetable: timetable([lesson()]) },
+      }),
+    );
+    expect(plan.notApplicable.map((n) => n.reason)).toEqual(["never_scheduled"]);
+    expect(plan.notApplicable[0]?.detail).toContain("nenhuma duração");
+  });
+
   test("desempenho: ~200 slots x 20 semanas em menos de 1 s", () => {
     const lessons: Lesson[] = [];
     const slots: WeeklySlot[] = [];

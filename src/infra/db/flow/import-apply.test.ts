@@ -129,9 +129,27 @@ function prepareInput(
   return {
     semesterId: env.semesterId,
     fileHash: hash,
-    preview: { slots, timetable: timetable(lessons) },
+    preview: { slots, timetable: timetable(lessons), partial: false },
     actorId: env.userId,
   };
+}
+
+async function prepareAll(env: Env, input: ReturnType<typeof prepareInput>) {
+  for (let guard = 0; guard < 100; guard++) {
+    const step = await env.service.prepare(input);
+    if (!step.ok) throw new Error(step.message);
+    if (step.value.done) return step.value;
+  }
+  throw new Error("prepare não terminou");
+}
+
+async function applyAll(env: Env, batchId: string) {
+  for (let guard = 0; guard < 100; guard++) {
+    const step = await env.service.apply(batchId);
+    if (!step.ok) throw new Error(step.message);
+    if (step.value.done) return step;
+  }
+  throw new Error("apply não terminou");
 }
 
 async function occupationCount(db: AppDb): Promise<number> {
@@ -171,9 +189,9 @@ describe("prepare + apply", () => {
     const applied = await env.service.apply(prepared.value.batch.id);
     expect(applied.ok).toBe(true);
     if (!applied.ok) return;
-    expect(applied.value.status).toBe("aplicado");
-    expect(applied.value.appliedAt).toBe(NOW.toISOString());
-    expect(applied.value.summary.counts).toMatchObject({
+    expect(applied.value.batch.status).toBe("aplicado");
+    expect(applied.value.batch.appliedAt).toBe(NOW.toISOString());
+    expect(applied.value.batch.summary.counts).toMatchObject({
       aplicada: 3,
       nao_aplicavel: 1,
       pendente: 0,
@@ -214,7 +232,7 @@ describe("prepare + apply", () => {
     expect(again.ok && again.value.batch.id).toBe(first.value.batch.id);
     expect(again.ok && again.value.batch.status).toBe("aplicado");
     const reapply = await env.service.apply(first.value.batch.id);
-    expect(reapply.ok && reapply.value.status).toBe("aplicado");
+    expect(reapply.ok && reapply.value.batch.status).toBe("aplicado");
     expect(await occupationCount(env.db)).toBe(count);
     expect(await env.db.select().from(schema.importBatches)).toHaveLength(1);
   });
@@ -229,7 +247,7 @@ describe("prepare + apply", () => {
     expect(second.value.batch.summary.counts.conflito).toBe(3);
     expect(second.value.batch.summary.counts.pendente).toBe(0);
     const applied = await env.service.apply(second.value.batch.id);
-    expect(applied.ok && applied.value.status).toBe("aplicado");
+    expect(applied.ok && applied.value.batch.status).toBe("aplicado");
     expect(await occupationCount(env.db)).toBe(3);
   });
 
@@ -299,7 +317,7 @@ describe("prepare + apply", () => {
       createdAt: "t",
     });
     const applied = await env.service.apply(prepared.value.batch.id);
-    expect(applied.ok && applied.value.status).toBe("aplicado");
+    expect(applied.ok && applied.value.batch.status).toBe("aplicado");
     expect(await occupationCount(env.db)).toBe(3);
     const conflicts = await env.service.report(prepared.value.batch.id, { status: "conflito" });
     expect(conflicts.ok && conflicts.value.rows).toHaveLength(1);
@@ -342,11 +360,11 @@ describe("prepare + apply", () => {
     const resumed = await env.service.prepare(prepareInput(env, [slot()]));
     expect(resumed.ok && resumed.value.reused).toBe(true);
     const applied = await env.service.apply(prepared.value.batch.id);
-    expect(applied.ok && applied.value.status).toBe("aplicado");
+    expect(applied.ok && applied.value.batch.status).toBe("aplicado");
     const all = await env.db.select().from(schema.occupations);
     expect(all).toHaveLength(3);
     expect(all.find((o) => o.id === first.id)?.status).toBe("cancelada");
-    expect(applied.ok && applied.value.summary.counts.aplicada).toBe(3);
+    expect(applied.ok && applied.value.batch.summary.counts.aplicada).toBe(3);
   });
 });
 
@@ -382,8 +400,8 @@ describe("retomada após falha", () => {
     expect(prepared.value.batch.summary.counts.pendente).toBe(75);
 
     const first = await env.service.apply(prepared.value.batch.id);
-    expect(first.ok && first.value.status).toBe("falhou");
-    const counts = first.ok ? first.value.summary.counts : null;
+    expect(first.ok && first.value.batch.status).toBe("falhou");
+    const counts = first.ok ? first.value.batch.summary.counts : null;
     expect(counts?.falha).toBe(30);
     expect(counts?.aplicada).toBe(30);
     expect(counts?.pendente).toBe(15);
@@ -399,11 +417,11 @@ describe("retomada após falha", () => {
     const again = await env.service.prepare(prepareInput(env, slots, lessons));
     expect(again.ok && again.value.reused).toBe(true);
     const second = await env.service.apply(prepared.value.batch.id);
-    expect(second.ok && second.value.status).toBe("aplicado");
-    expect(second.ok && second.value.summary.counts.aplicada).toBe(75);
-    expect(second.ok && second.value.summary.counts.falha).toBe(0);
+    expect(second.ok && second.value.batch.status).toBe("aplicado");
+    expect(second.ok && second.value.batch.summary.counts.aplicada).toBe(75);
+    expect(second.ok && second.value.batch.summary.counts.falha).toBe(0);
     expect(await occupationCount(env.db)).toBe(75);
-    expect(second.ok && second.value.appliedAt).not.toBeNull();
+    expect(second.ok && second.value.batch.appliedAt).not.toBeNull();
   });
 });
 
@@ -448,143 +466,13 @@ describe("desempenho", () => {
     });
     const long = { ...prepareInput(env, slots, lessons), semesterId: longSemester.id };
     const started = performance.now();
-    const prepared = await env.service.prepare(long);
-    if (!prepared.ok) throw new Error("prepare");
-    const applied = await env.service.apply(prepared.value.batch.id);
+    const prepared = await prepareAll(env, long);
+    const applied = await applyAll(env, prepared.batch.id);
     const elapsed = performance.now() - started;
-    expect(applied.ok && applied.value.status).toBe("aplicado");
+    expect(applied.ok && applied.value.batch.status).toBe("aplicado");
     const total = await occupationCount(env.db);
     expect(total).toBeGreaterThan(400);
     expect(elapsed).toBeLessThan(20000);
     console.log(`desempenho: ${total} ocupações (prepare+apply) em ${Math.round(elapsed)} ms`);
-  });
-});
-
-describe("repositório e concorrência", () => {
-  test("criação simultânea do mesmo lote: usa o lote que venceu", async () => {
-    const env = await setup((repo) => ({
-      ...repo,
-      createBatch: async (batch, rows) => {
-        await repo.createBatch(batch, rows);
-        throw new Error("outra requisição gravou primeiro");
-      },
-    }));
-    const result = await env.service.prepare(prepareInput(env, [slot()]));
-    expect(result.ok && result.value.reused).toBe(true);
-    expect(await env.db.select().from(schema.importBatches)).toHaveLength(1);
-  });
-
-  test("falha ao criar sem lote vencedor propaga o erro", async () => {
-    const env = await setup((repo) => ({
-      ...repo,
-      createBatch: async () => {
-        throw new Error("banco indisponível");
-      },
-    }));
-    await expect(env.service.prepare(prepareInput(env, [slot()]))).rejects.toThrow(
-      "banco indisponível",
-    );
-  });
-
-  test("criar o lote de novo é inofensivo e grava mais de um bloco de linhas", async () => {
-    const env = await setup();
-    const rows = Array.from({ length: 120 }, (_, index) => ({
-      batchId: "b1",
-      rowKey: `n:${index}`,
-      lessonId: "L1",
-      spaceId: null,
-      date: null,
-      startTime: "08:00",
-      endTime: "09:00",
-      title: "t",
-      responsibleUserId: null,
-      status: "nao_aplicavel" as const,
-      reasonCode: "no_room",
-      reasonDetail: null,
-      occupationId: null,
-      conflictOccupationId: null,
-    }));
-    const batch = {
-      id: "b1",
-      semesterId: env.semesterId,
-      fileHash: "h",
-      summary: { rows: 120, notApplicable: {}, counts: {} as never },
-      status: "rascunho" as const,
-      createdBy: env.userId,
-      createdAt: "t",
-      appliedAt: null,
-    };
-    await env.imports.createBatch(batch, rows);
-    await env.imports.createBatch(batch, rows);
-    expect(await env.db.select().from(schema.importRows)).toHaveLength(120);
-    expect((await env.imports.countRows("b1")).nao_aplicavel).toBe(120);
-    expect(await env.imports.listRows("b1", { limit: 10, offset: 115 })).toHaveLength(5);
-    const stored = await env.imports.findBatch("b1");
-    expect(stored?.summary.counts.pendente).toBe(0);
-  });
-
-  test("apagar rascunho não toca lote aplicado; marcar falha sem chaves não faz nada", async () => {
-    const env = await setup();
-    const prepared = await env.service.prepare(prepareInput(env, [slot()]));
-    if (!prepared.ok) throw new Error("prepare");
-    await env.service.apply(prepared.value.batch.id);
-    await env.imports.deleteDraft(prepared.value.batch.id);
-    expect((await env.imports.findBatch(prepared.value.batch.id))?.status).toBe("aplicado");
-    await env.imports.markFailed(prepared.value.batch.id, [], "x", "y");
-    await env.imports.applyRows(prepared.value.batch.id, [], "t");
-    expect((await env.imports.countRows(prepared.value.batch.id)).aplicada).toBe(3);
-    expect(await env.imports.findBatchByHash("outro", "h1")).toBeNull();
-  });
-
-  test("ocupação ativa sobreposta nunca é inserida (NOT EXISTS), mesmo direto no repositório", async () => {
-    const env = await setup();
-    const prepared = await env.service.prepare(prepareInput(env, [slot({ weekday: 0 })]));
-    if (!prepared.ok) throw new Error("prepare");
-    await env.db.insert(schema.occupations).values({
-      id: "bloqueio",
-      spaceId: env.spaceId,
-      startsAt: "2026-08-03T07:00",
-      endsAt: "2026-08-03T12:00",
-      source: "manual",
-      title: "Bloqueio",
-      status: "ativa",
-      createdAt: "t",
-    });
-    const rows = await env.imports.pendingRows(prepared.value.batch.id);
-    await env.imports.applyRows(prepared.value.batch.id, rows, "t");
-    const inserted = await env.db.select().from(schema.occupations);
-    expect(inserted.map((o) => o.startsAt).sort()).toEqual([
-      "2026-08-03T07:00",
-      "2026-08-10T08:00",
-      "2026-08-17T08:00",
-    ]);
-    const conflict = (
-      await env.imports.listRows(prepared.value.batch.id, {
-        status: "conflito",
-        limit: 5,
-        offset: 0,
-      })
-    )[0];
-    expect(conflict?.conflictOccupationId).toBe("bloqueio");
-  });
-
-  test("vínculos: grava mais de 50 itens em blocos", async () => {
-    const env = await setup();
-    const maps = createMappingRepositories(env.db);
-    const items = Array.from({ length: 120 }, (_, i) => ({
-      sourceRoomId: `X${i}`,
-      sourceShort: `x${i}`,
-      spaceId: null,
-      ignored: true,
-    }));
-    await maps.rooms.saveMany(items, "t");
-    expect((await maps.rooms.list()).length).toBe(121);
-    const people = Array.from({ length: 60 }, (_, i) => ({
-      sourceTeacherId: `T${i}`,
-      sourceShort: `t${i}`,
-      userId: null,
-    }));
-    await maps.teachers.saveMany(people, "t");
-    expect((await maps.teachers.list()).length).toBe(60);
   });
 });

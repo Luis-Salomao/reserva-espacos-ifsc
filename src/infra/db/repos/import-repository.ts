@@ -2,6 +2,7 @@ import { and, asc, eq, gt, inArray, lt, sql } from "drizzle-orm";
 import type { ImportRepository } from "#/application/ports";
 import type {
   ImportBatch,
+  ImportBatchStatus,
   ImportRow,
   ImportRowCounts,
   ImportRowStatus,
@@ -10,9 +11,6 @@ import type {
 import { runAtomically, type Statement } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
 import { importBatches, importRows, occupations } from "#/infra/db/schema";
-
-/** Instruções por `runAtomically` ao gravar linhas do lote (uma linha por instrução). */
-const ROWS_PER_CALL = 50;
 
 const EMPTY_COUNTS: ImportRowCounts = {
   pendente: 0,
@@ -24,6 +22,30 @@ const EMPTY_COUNTS: ImportRowCounts = {
 };
 
 const OPEN: ImportRowStatus[] = ["pendente", "falha"];
+const DRAFT: ImportBatchStatus[] = ["preparando", "rascunho"];
+
+function rowInsert(x: AppDb, row: ImportRow) {
+  return x
+    .insert(importRows)
+    .values({
+      batchId: row.batchId,
+      rowKey: row.rowKey,
+      lessonId: row.lessonId,
+      weekday: row.weekday,
+      spaceId: row.spaceId,
+      date: row.date,
+      startTime: row.startTime,
+      endTime: row.endTime,
+      title: row.title,
+      responsibleUserId: row.responsibleUserId,
+      status: row.status,
+      reasonCode: row.reasonCode,
+      reasonDetail: row.reasonDetail,
+      occupationId: row.occupationId,
+      conflictOccupationId: row.conflictOccupationId,
+    })
+    .onConflictDoNothing();
+}
 
 function parseSummary(json: string): ImportSummary {
   const parsed = JSON.parse(json) as Partial<ImportSummary>;
@@ -65,69 +87,49 @@ export function createImportRepository(db: AppDb): ImportRepository {
         .where(and(eq(importBatches.semesterId, semesterId), eq(importBatches.fileHash, fileHash)));
       return row ? toBatch(row) : null;
     },
-    async createBatch(batch, rows) {
-      const batchInsert = (x: AppDb) =>
-        x
-          .insert(importBatches)
-          .values({
-            id: batch.id,
-            semesterId: batch.semesterId,
-            fileHash: batch.fileHash,
-            summaryJson: JSON.stringify(batch.summary),
-            status: batch.status,
-            createdBy: batch.createdBy,
-            createdAt: batch.createdAt,
-            appliedAt: batch.appliedAt,
-          })
-          .onConflictDoNothing();
-      const rowInsert = (x: AppDb, row: ImportRow) =>
-        x
-          .insert(importRows)
-          .values({
-            batchId: row.batchId,
-            rowKey: row.rowKey,
-            lessonId: row.lessonId,
-            spaceId: row.spaceId,
-            date: row.date,
-            startTime: row.startTime,
-            endTime: row.endTime,
-            title: row.title,
-            responsibleUserId: row.responsibleUserId,
-            status: row.status,
-            reasonCode: row.reasonCode,
-            reasonDetail: row.reasonDetail,
-            occupationId: row.occupationId,
-            conflictOccupationId: row.conflictOccupationId,
-          })
-          .onConflictDoNothing();
-      await runAtomically(db, (x) => [batchInsert(x)]);
-      for (let index = 0; index < rows.length; index += ROWS_PER_CALL) {
-        const [first, ...rest] = rows.slice(index, index + ROWS_PER_CALL);
-        if (first === undefined) continue;
-        await runAtomically(db, (x) => [rowInsert(x, first), ...rest.map((r) => rowInsert(x, r))]);
-      }
+    async insertBatch(batch) {
+      await db
+        .insert(importBatches)
+        .values({
+          id: batch.id,
+          semesterId: batch.semesterId,
+          fileHash: batch.fileHash,
+          summaryJson: JSON.stringify(batch.summary),
+          status: batch.status,
+          createdBy: batch.createdBy,
+          createdAt: batch.createdAt,
+          appliedAt: batch.appliedAt,
+        })
+        .onConflictDoNothing();
+    },
+    async insertRows(rows) {
+      const [first, ...rest] = rows;
+      if (first === undefined) return;
+      await runAtomically(db, (x) => [rowInsert(x, first), ...rest.map((r) => rowInsert(x, r))]);
+    },
+    async rowKeys(batchId) {
+      const found = await db
+        .select({ rowKey: importRows.rowKey })
+        .from(importRows)
+        .where(eq(importRows.batchId, batchId));
+      return found.map((row) => row.rowKey);
     },
     async deleteDraft(id) {
+      const open = sql`EXISTS (SELECT 1 FROM import_batches b WHERE b.id = ${id} AND b.status IN ('preparando', 'rascunho'))`;
       await runAtomically(db, (x) => [
-        x
-          .delete(importRows)
-          .where(
-            and(
-              eq(importRows.batchId, id),
-              sql`EXISTS (SELECT 1 FROM import_batches b WHERE b.id = ${id} AND b.status = 'rascunho')`,
-            ),
-          ),
+        x.delete(importRows).where(and(eq(importRows.batchId, id), open)),
         x
           .delete(importBatches)
-          .where(and(eq(importBatches.id, id), eq(importBatches.status, "rascunho"))),
+          .where(and(eq(importBatches.id, id), inArray(importBatches.status, DRAFT))),
       ]);
     },
-    async pendingRows(batchId) {
+    async pendingRows(batchId, limit) {
       return db
         .select()
         .from(importRows)
         .where(and(eq(importRows.batchId, batchId), inArray(importRows.status, OPEN)))
-        .orderBy(asc(importRows.rowKey));
+        .orderBy(asc(importRows.rowKey))
+        .limit(limit);
     },
     async applyRows(batchId, rows, createdAt) {
       const first = rows[0];

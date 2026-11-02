@@ -1,4 +1,4 @@
-export type ImportBatchStatus = "rascunho" | "aplicando" | "aplicado" | "falhou";
+export type ImportBatchStatus = "preparando" | "rascunho" | "aplicando" | "aplicado" | "falhou";
 
 export type ImportRowStatus =
   | "pendente"
@@ -34,6 +34,8 @@ export type ImportRow = {
   batchId: string;
   rowKey: string;
   lessonId: string;
+  /** 0 = segunda-feira. */
+  weekday: number | null;
   spaceId: string | null;
   /** "YYYY-MM-DD"; `null` nas linhas não aplicáveis (sem data). */
   date: string | null;
