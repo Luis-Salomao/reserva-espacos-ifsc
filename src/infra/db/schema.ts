@@ -1,4 +1,11 @@
-import { index, integer, primaryKey, sqliteTable, text } from "drizzle-orm/sqlite-core";
+import {
+  index,
+  integer,
+  primaryKey,
+  sqliteTable,
+  text,
+  uniqueIndex,
+} from "drizzle-orm/sqlite-core";
 
 export const spaces = sqliteTable("spaces", {
   id: text("id").primaryKey(),
@@ -75,4 +82,99 @@ export const semesterBlocks = sqliteTable(
     endTime: text("end_time").notNull(),
   },
   (table) => [primaryKey({ columns: [table.semesterId, table.number] })],
+);
+
+/** Vínculo sala do XML (id do aSc) -> espaço. `ignored` = não gerar ocupações para essa sala. */
+export const roomMappings = sqliteTable("room_mappings", {
+  sourceRoomId: text("source_room_id").primaryKey(),
+  sourceShort: text("source_short").notNull(),
+  spaceId: text("space_id").references(() => spaces.id),
+  ignored: integer("ignored", { mode: "boolean" }).notNull().default(false),
+  updatedAt: text("updated_at").notNull(),
+});
+
+/** Vínculo docente do XML (id e sigla) -> conta local. */
+export const teacherMappings = sqliteTable("teacher_mappings", {
+  sourceTeacherId: text("source_teacher_id").primaryKey(),
+  sourceShort: text("source_short").notNull(),
+  userId: text("user_id").references(() => users.id),
+  updatedAt: text("updated_at").notNull(),
+});
+
+export const importBatches = sqliteTable(
+  "import_batches",
+  {
+    id: text("id").primaryKey(),
+    semesterId: text("semester_id")
+      .notNull()
+      .references(() => semesters.id),
+    fileHash: text("file_hash").notNull(),
+    summaryJson: text("summary_json").notNull(),
+    status: text("status", { enum: ["rascunho", "aplicando", "aplicado", "falhou"] }).notNull(),
+    createdBy: text("created_by")
+      .notNull()
+      .references(() => users.id),
+    createdAt: text("created_at").notNull(),
+    appliedAt: text("applied_at"),
+  },
+  (table) => [
+    uniqueIndex("import_batches_hash_semester_unique").on(table.fileHash, table.semesterId),
+  ],
+);
+
+/** Resultado por linha do lote: o que foi aplicado, o que não se aplica e por quê, conflitos e falhas. */
+export const importRows = sqliteTable(
+  "import_rows",
+  {
+    batchId: text("batch_id")
+      .notNull()
+      .references(() => importBatches.id, { onDelete: "cascade" }),
+    rowKey: text("row_key").notNull(),
+    lessonId: text("lesson_id").notNull(),
+    spaceId: text("space_id"),
+    date: text("date"),
+    startTime: text("start_time").notNull(),
+    endTime: text("end_time").notNull(),
+    title: text("title").notNull(),
+    responsibleUserId: text("responsible_user_id"),
+    status: text("status", {
+      enum: ["pendente", "aplicada", "nao_aplicavel", "conflito", "conflito_interno", "falha"],
+    }).notNull(),
+    reasonCode: text("reason_code"),
+    reasonDetail: text("reason_detail"),
+    occupationId: text("occupation_id"),
+    conflictOccupationId: text("conflict_occupation_id"),
+  },
+  (table) => [
+    primaryKey({ columns: [table.batchId, table.rowKey] }),
+    index("import_rows_batch_status_idx").on(table.batchId, table.status),
+  ],
+);
+
+export const occupations = sqliteTable(
+  "occupations",
+  {
+    id: text("id").primaryKey(),
+    spaceId: text("space_id")
+      .notNull()
+      .references(() => spaces.id),
+    startsAt: text("starts_at").notNull(),
+    endsAt: text("ends_at").notNull(),
+    source: text("source", { enum: ["import", "manual"] }).notNull(),
+    batchId: text("batch_id").references(() => importBatches.id),
+    lessonId: text("lesson_id"),
+    responsibleUserId: text("responsible_user_id").references(() => users.id),
+    title: text("title").notNull(),
+    status: text("status", { enum: ["ativa", "cancelada"] }).notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    index("occupations_space_starts_idx").on(table.spaceId, table.startsAt),
+    uniqueIndex("occupations_import_unique").on(
+      table.batchId,
+      table.lessonId,
+      table.spaceId,
+      table.startsAt,
+    ),
+  ],
 );
