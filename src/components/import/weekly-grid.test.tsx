@@ -15,6 +15,7 @@ const slot: SlotView = {
   end: "09:40",
   periodFrom: 1,
   periodTo: 2,
+  periods: [1, 2],
   subject: "Mat",
   classes: "T1",
   teachers: "FT",
@@ -68,5 +69,26 @@ describe("WeeklyGrid, blocos de vários períodos", () => {
     const rows = within(screen.getByRole("table")).getAllByRole("row");
     expect(within(rows[2] as HTMLElement).getByText("continuação: Mat (até 09:40)")).toBeTruthy();
     expect(within(rows[1] as HTMLElement).queryByText(/continuação/)).toBeNull();
+  });
+});
+
+describe("WeeklyGrid, períodos fora da ordem do relógio", () => {
+  const odd = [
+    { number: 7, name: "7", short: "7", start: "19:00", end: "22:00" },
+    { number: 6, name: "6", short: "6", start: "20:10", end: "22:00" },
+  ];
+
+  test("segmento em período numerado fora de ordem cai na linha do período certo", () => {
+    const crossing: SlotView = { ...slot, periodFrom: 7, periodTo: 6, periods: [7, 6] };
+    render(<WeeklyGrid room={{ ...room, slots: [crossing] }} periods={odd} />);
+    const rows = within(screen.getByRole("table")).getAllByRole("row");
+    expect(within(rows[1] as HTMLElement).getByText("Mat")).toBeTruthy();
+    expect(within(rows[2] as HTMLElement).getByText(/continuação: Mat/)).toBeTruthy();
+  });
+
+  test("cada linha tem chave estável e os blocos seguem a ordem recebida", () => {
+    render(<WeeklyGrid room={room} periods={odd} />);
+    const headers = within(screen.getByRole("table")).getAllByRole("rowheader");
+    expect(headers.map((header) => header.textContent)).toEqual(["719:00–22:00", "620:10–22:00"]);
   });
 });

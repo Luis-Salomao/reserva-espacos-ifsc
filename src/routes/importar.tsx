@@ -60,6 +60,11 @@ function RoomGrid({ view }: { view: PreviewView }) {
 function PreviewResult({ view }: { view: PreviewView }) {
   return (
     <>
+      {view.partial && (
+        <p role="alert" className="mt-4 rounded-lg border bg-occ-conflict p-4">
+          Prévia parcial: o arquivo tem mais cards do que o limite, e só os primeiros foram lidos.
+        </p>
+      )}
       <Section title="Resumo">
         <ImportSummary view={view} />
       </Section>
@@ -67,7 +72,11 @@ function PreviewResult({ view }: { view: PreviewView }) {
         <WarningList warnings={view.warnings} />
       </Section>
       <Section title="Sobreposições internas">
-        <OverlapList overlaps={view.overlaps} detail={view.overlapsDetail} />
+        <OverlapList
+          overlaps={view.overlaps}
+          detail={view.overlapsDetail}
+          truncated={view.overlapsTruncated}
+        />
       </Section>
       <Section title="Grade por sala">
         <RoomGrid view={view} />

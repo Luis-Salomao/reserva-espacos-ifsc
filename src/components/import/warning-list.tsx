@@ -10,12 +10,12 @@ export function WarningList({ warnings }: { warnings: PreviewView["warnings"] })
   return (
     <ul className="grid gap-2">
       {warnings.map((warning) => (
-        <li key={`${warning.source}:${warning.code}`}>
+        <li key={`${warning.source}:${warning.section}:${warning.code}`}>
           <details className="rounded-lg border bg-surface px-3 py-2">
             <summary className="cursor-pointer break-words font-medium">
               {warning.message}{" "}
               <span className="whitespace-nowrap font-normal text-muted-foreground">
-                ({SOURCE_LABEL[warning.source]}: {warning.count}{" "}
+                ({SOURCE_LABEL[warning.source]} · {warning.section}: {warning.count}{" "}
                 {warning.count === 1 ? "ocorrência" : "ocorrências"})
               </span>
             </summary>

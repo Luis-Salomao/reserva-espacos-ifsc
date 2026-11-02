@@ -5,6 +5,7 @@ import { type ReadResult, readAscXml } from "./read.ts";
 import {
   buildWeeklySlots,
   type InternalOverlap,
+  type SlotIssue,
   type WeeklyGrid,
   type WeeklySlot,
 } from "./slots.ts";
@@ -16,9 +17,11 @@ const ALL_TERMS_LABEL = "Todas as durações";
 type WarningGroup = {
   /** `xml`: aviso da leitura/normalização; `grade`: problema ao montar a grade semanal. */
   source: "xml" | "grade";
+  /** Seção do arquivo a que o aviso se refere (ex.: `lessons`, `cards`). */
+  section: string;
   code: string;
   count: number;
-  /** Até 5 referências (ids ou nomes de seção); nunca dados pessoais. */
+  /** Até 5 referências, no formato `id`, `id (atributo)`, `atributo` ou a seção; nunca dados pessoais. */
   examples: string[];
   message: string;
 };
@@ -36,9 +39,15 @@ export type ImportPreview = {
   };
   slotsByStatus: { applicable: number; no_room: number; multiple_rooms: number };
   warnings: WarningGroup[];
+  /** Contagens exatas; `overlapsDetail` guarda só os primeiros pares. */
   overlaps: { certain: number; possible: number };
+  /** `true` quando `overlapsDetail` tem menos pares que `overlaps.certain + overlaps.possible`. */
+  overlapsTruncated: boolean;
+  /** `true` quando o arquivo foi lido só em parte (ex.: `too_many_cards`). */
+  partial: boolean;
   /** Uma entrada por `termsMask` distinta entre os slots; `slots` conta slots (cards consecutivos já mesclados). */
   termsUsed: Array<{ mask: string; label: string; slots: number }>;
+  /** Apenas períodos utilizáveis (número único, fim depois do início), em ordem de relógio. */
   periods: Period[];
   classrooms: Array<{ id: string; short: string; name: string; slots: number }>;
   timetable: AscTimetable;
@@ -46,16 +55,39 @@ export type ImportPreview = {
   overlapsDetail: InternalOverlap[];
 };
 
-type Entry = { source: WarningGroup["source"]; code: string; ref: string; message: string };
+type Entry = {
+  source: WarningGroup["source"];
+  section: string;
+  code: string;
+  ref: string;
+  message: string;
+};
+
+const ISSUE_SECTIONS: Record<SlotIssue["code"], string> = {
+  missing_period: "cards",
+  invalid_days: "cards",
+  never_scheduled: "cards",
+  incomplete_block: "lessons",
+  lesson_without_cards: "lessons",
+  invalid_period: "periods",
+};
+
+function exampleOf(warning: ImportWarning): string {
+  if (warning.ref !== undefined) {
+    return warning.detail === undefined ? warning.ref : `${warning.ref} (${warning.detail})`;
+  }
+  return warning.detail ?? warning.section;
+}
 
 function groupWarnings(entries: Entry[]): WarningGroup[] {
   const groups = new Map<string, WarningGroup>();
   for (const entry of entries) {
-    const key = `${entry.source}:${entry.code}`;
+    const key = JSON.stringify([entry.source, entry.section, entry.code]);
     let group = groups.get(key);
     if (group === undefined) {
       group = {
         source: entry.source,
+        section: entry.section,
         code: entry.code,
         count: 0,
         examples: [],
@@ -75,12 +107,14 @@ function collectWarnings(warnings: ImportWarning[], grid: WeeklyGrid): WarningGr
   const entries: Entry[] = [
     ...warnings.map((w) => ({
       source: "xml" as const,
+      section: w.section,
       code: w.code,
-      ref: w.ref ?? w.section,
+      ref: exampleOf(w),
       message: describeWarningCode(w.code),
     })),
     ...grid.issues.map((issue) => ({
       source: "grade" as const,
+      section: ISSUE_SECTIONS[issue.code],
       code: issue.code,
       ref: issue.ref,
       message: describeSlotIssue(issue.code),
@@ -113,8 +147,6 @@ export function buildImportPreview(
   const { slots } = grid;
   const slotsByStatus = { applicable: 0, no_room: 0, multiple_rooms: 0 };
   for (const slot of slots) slotsByStatus[slot.status] += 1;
-  const overlaps = { certain: 0, possible: 0 };
-  for (const overlap of grid.overlaps) overlaps[overlap.kind] += 1;
   return {
     counts: {
       periods: timetable.periods.length,
@@ -128,9 +160,11 @@ export function buildImportPreview(
     },
     slotsByStatus,
     warnings: collectWarnings(warnings, grid),
-    overlaps,
+    overlaps: grid.overlapCounts,
+    overlapsTruncated: grid.overlapsTruncated,
+    partial: warnings.some((warning) => warning.code === "too_many_cards"),
     termsUsed: usedTerms(timetable, slots),
-    periods: timetable.periods,
+    periods: grid.periods,
     classrooms: timetable.classrooms.map((room) => ({
       id: room.id,
       short: room.short,

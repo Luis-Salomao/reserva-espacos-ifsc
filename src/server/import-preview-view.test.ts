@@ -87,3 +87,53 @@ describe("toPreviewView", () => {
     expect(slot?.termsLabel).toBe("Todas as durações");
   });
 });
+
+describe("referências quebradas (broken-refs.xml)", () => {
+  const { preview, view } = viewOf("broken-refs.xml");
+
+  test("avisa unknown_reference e lesson_without_class sem vazar valores", () => {
+    const codes = view.warnings.map((w) => `${w.section}:${w.code}`);
+    expect(codes).toContain("lessons:unknown_reference");
+    expect(codes).toContain("cards:unknown_reference");
+    expect(codes).toContain("lessons:lesson_without_class");
+    expect(JSON.stringify(view)).not.toMatch(/\b(SX|CX|PX|RX|TX)\b/);
+  });
+
+  test("sala inexistente deixa o slot sem sala, nunca sob um id cru", () => {
+    expect(preview.slotsByStatus).toEqual({ applicable: 2, no_room: 2, multiple_rooms: 0 });
+    for (const slot of view.withoutRoom) expect(slot.rooms).toEqual([]);
+  });
+
+  test("todo slot aplicável aparece em exatamente uma grade de sala", () => {
+    const inGrid = view.rooms.reduce((sum, room) => sum + room.slots.length, 0);
+    expect(inGrid).toBe(preview.slotsByStatus.applicable);
+    const keys = view.rooms.flatMap((room) => room.slots.map((slot) => slot.key));
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+});
+
+describe("sobreposições na visão", () => {
+  test("cada lado traz sigla da disciplina e das turmas; chaves únicas", () => {
+    const { view } = viewOf("edge-cards.xml");
+    expect(view.overlapsDetail.length).toBeGreaterThan(0);
+    for (const overlap of view.overlapsDetail) {
+      expect(overlap.a.classes).toBeDefined();
+      expect(overlap.b.classes).toBeDefined();
+    }
+    const keys = view.overlapsDetail.map((overlap) => overlap.key);
+    expect(new Set(keys).size).toBe(keys.length);
+  });
+
+  test("propaga overlapsTruncated e partial da prévia", () => {
+    const { preview } = viewOf("complete.xml");
+    const view = toPreviewView({ ...preview, overlapsTruncated: true, partial: true });
+    expect(view.overlapsTruncated).toBe(true);
+    expect(view.partial).toBe(true);
+  });
+
+  test("slot mescla guarda os períodos de cada card", () => {
+    const { view } = viewOf("complete.xml");
+    const slot = view.rooms.flatMap((room) => room.slots).find((s) => s.subject === "Mat");
+    expect(slot?.periods[0]).toBe(slot?.periodFrom);
+  });
+});

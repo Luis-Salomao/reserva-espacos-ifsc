@@ -16,7 +16,7 @@ function warningLines(preview: ImportPreview): string[] {
   return preview.warnings.map((group) => {
     const origin = group.source === "xml" ? "arquivo" : "grade";
     const examples = group.examples.length > 0 ? ` (ex.: ${group.examples.join(", ")})` : "";
-    return `${group.count}x [${origin}] ${group.message}${examples}`;
+    return `${group.count}x [${origin}/${group.section}] ${group.message}${examples}`;
   });
 }
 
@@ -24,6 +24,11 @@ function warningLines(preview: ImportPreview): string[] {
 export function formatPreviewText(preview: ImportPreview): string {
   const { counts, slotsByStatus, overlaps } = preview;
   const lines: string[] = ["Prévia da importação (nada foi gravado)"];
+  if (preview.partial) {
+    lines.push(
+      "ATENÇÃO: prévia parcial; o arquivo tem cards demais e só os primeiros foram lidos.",
+    );
+  }
 
   lines.push(
     ...section("Conteúdo do arquivo", [
@@ -44,7 +49,15 @@ export function formatPreviewText(preview: ImportPreview): string {
       "Sobreposições na mesma sala",
       overlaps.certain + overlaps.possible === 0
         ? ["Nenhuma"]
-        : [`Certas: ${overlaps.certain}`, `Possíveis: ${overlaps.possible}`],
+        : [
+            `Certas: ${overlaps.certain}`,
+            `Possíveis: ${overlaps.possible}`,
+            ...(preview.overlapsTruncated
+              ? [
+                  `Mostrando ${preview.overlapsDetail.length} de ${overlaps.certain + overlaps.possible} no detalhe (--json --full)`,
+                ]
+              : []),
+          ],
     ),
     ...section(
       "Durações usadas",

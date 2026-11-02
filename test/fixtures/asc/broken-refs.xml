@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<timetable ascttversion="2012.1">
+  <periods><period period="1" starttime="08:00:00" endtime="09:50:00"/><period period="2" starttime="10:10" endtime="12:00"/></periods>
+  <daysdefs><daysdef id="D1" days="10000"/></daysdefs>
+  <weeksdefs><weeksdef id="W1" weeks="1"/></weeksdefs>
+  <termsdefs><termsdef id="T1" name="Ano" terms="1111"/></termsdefs>
+  <subjects><subject id="S1" name="Matemática" short="Mat"/></subjects>
+  <teachers><teacher id="P1" short="FT"/></teachers>
+  <classrooms><classroom id="R1" name="Sala 101" short="101"/></classrooms>
+  <classes><class id="C1" name="Turma Um" short="T1"/></classes>
+  <lessons>
+    <lesson id="L1" classids="C1" subjectid="S1" periodspercard="1" teacherids="P1" classroomids="R1" termsdefid="T1" weeksdefid="W1" daysdefid="D1"/>
+    <lesson id="L2" classids="CX" subjectid="SX" periodspercard="1" teacherids="PX" classroomids="RX" termsdefid="TX" weeksdefid="W1" daysdefid="D1"/>
+    <lesson id="L3" subjectid="S1" periodspercard="1" classroomids="R1"/>
+  </lessons>
+  <cards>
+    <card lessonid="L1" classroomids="R1" period="1" days="10000"/>
+    <card lessonid="L2" period="1" days="01000"/>
+    <card lessonid="L3" period="2" days="10000"/>
+    <card lessonid="L1" classroomids="RX" period="2" days="00100"/>
+  </cards>
+</timetable>
