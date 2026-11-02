@@ -261,3 +261,48 @@ describe("docentes", () => {
     expect((await env.service.saveTeachers([])).ok).toBe(true);
   });
 });
+
+describe("saveTeachers: consultas ao validar as contas", () => {
+  test("uma única listagem, sem findById por item", async () => {
+    const db = open();
+    const users = createUserRepository(db);
+    const maps = createMappingRepositories(db);
+    const maria = await users.create({
+      email: "maria@x.org",
+      name: "Maria",
+      code: "MAR",
+      roles: ["docente"],
+      passwordHash: "x",
+    });
+    let findById = 0;
+    let list = 0;
+    const spied = {
+      ...users,
+      findById: (id: string) => {
+        findById++;
+        return users.findById(id);
+      },
+      list: () => {
+        list++;
+        return users.list();
+      },
+    };
+    const service = createMappingsService({
+      rooms: maps.rooms,
+      teachers: maps.teachers,
+      spaces: createSpaceRepository(db),
+      users: spied,
+      clock,
+    });
+    const result = await service.saveTeachers(
+      ["A", "B", "C", "D"].map((id) => ({
+        sourceTeacherId: id,
+        sourceShort: id,
+        userId: maria.id,
+      })),
+    );
+    expect(result.ok).toBe(true);
+    expect(findById).toBe(0);
+    expect(list).toBe(1);
+  });
+});
