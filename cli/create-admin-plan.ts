@@ -6,6 +6,7 @@ export type CreateAdminInput = {
   code: string | undefined;
   passwordHash: string;
   target: "local" | "cloudflare";
+  shell: "posix" | "powershell";
   id: string;
   now: string;
 };
@@ -32,9 +33,14 @@ export function escapeSqlLiteral(value: string): string {
   return `'${value.replaceAll("'", "''")}'`;
 }
 
-/** Texto entre aspas duplas para shell POSIX (bash/zsh): escapa \, ", $, crase e !. */
-export function shellDoubleQuote(value: string): string {
-  return `"${value.replace(/[\\"$`!]/g, "\\$&")}"`;
+/** Shell POSIX (bash/zsh): aspas simples; cada ' vira '\''. */
+export function shellSingleQuote(value: string): string {
+  return `'${value.replaceAll("'", String.raw`'\''`)}'`;
+}
+
+/** PowerShell: aspas simples, com ' dobrado. */
+export function powershellQuote(value: string): string {
+  return `'${value.replaceAll("'", "''")}'`;
 }
 
 function buildInsert(row: CreateAdminRow, id: string, now: string): string {
@@ -82,6 +88,8 @@ export function planCreateAdmin(input: CreateAdminInput): CreateAdminPlan {
   return {
     ok: true,
     row,
-    command: `wrangler d1 execute DB --remote --config wrangler.jsonc --command ${shellDoubleQuote(sql)}`,
+    command: `wrangler d1 execute DB --remote --config wrangler.jsonc --command ${
+      input.shell === "powershell" ? powershellQuote(sql) : shellSingleQuote(sql)
+    }`,
   };
 }
