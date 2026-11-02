@@ -7,6 +7,8 @@ export type CreateAdminInput = {
   passwordHash: string;
   target: "local" | "cloudflare";
   shell: "posix" | "powershell";
+  /** Só para o alvo cloudflare: grava no D1 local (`dev:cf`) em vez do remoto. */
+  local?: boolean;
   id: string;
   now: string;
 };
@@ -88,7 +90,7 @@ export function planCreateAdmin(input: CreateAdminInput): CreateAdminPlan {
   return {
     ok: true,
     row,
-    command: `wrangler d1 execute DB --remote --config wrangler.jsonc --command ${
+    command: `wrangler d1 execute DB ${input.local === true ? "--local" : "--remote"} --config wrangler.jsonc --command ${
       input.shell === "powershell" ? powershellQuote(sql) : shellSingleQuote(sql)
     }`,
   };

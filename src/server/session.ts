@@ -36,7 +36,14 @@ function cookie(value: string, maxAge: number, secure: boolean): string {
   return parts.join("; ");
 }
 
-/** Valor de `Set-Cookie` para uma sessão nova ou renovada (7 dias). */
+/**
+ * Valor de `Set-Cookie` para uma sessão nova ou renovada (7 dias).
+ *
+ * O Max-Age é renovado em TODA requisição autenticada (janela deslizante no navegador), mas a
+ * sessão no banco só é estendida quando falta menos de 1 dia (`RENEW_BELOW_MS` em auth.ts). Logo,
+ * o cookie pode viver além do `expires_at` do banco; isso é inofensivo, porque o servidor sempre
+ * valida o token no banco (sessão expirada é recusada e apagada) e o cookie apenas fica inerte.
+ */
 export function buildSessionCookie(token: string, secure: boolean): string {
   if (!TOKEN_PATTERN.test(token)) throw new Error("Token de sessão em formato inválido.");
   return cookie(token, SESSION_MAX_AGE_SECONDS, secure);
