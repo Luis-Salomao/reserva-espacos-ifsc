@@ -45,7 +45,7 @@ bun run build:local
 bun run start:local
 ```
 
-Verifique em `http://localhost:3000/api/health`.
+Verifique em `http://localhost:3000/api/health` (com `PUBLIC_READ=false` a resposta informa só o alvo, sem a contagem de espaços).
 
 ### Alvo Cloudflare (Workers + D1)
 
@@ -90,9 +90,21 @@ reservas.campus.edu.br {
 }
 ```
 
+## Primeiro acesso (criar o primeiro administrador)
+
+Sem nenhuma conta, ninguém consegue entrar; o primeiro `admin` nasce pela CLI. A senha é pedida sem eco, ou lida da entrada padrão com `--password-stdin`, e nunca é impressa.
+
+- **Local (Bun + SQLite):** `bun run cli create-admin --email EMAIL --name NOME` (grava no banco de `DATABASE_PATH`).
+- **Docker:** a imagem traz a CLI empacotada em `/app/cli.mjs`. Com o contêiner rodando: `docker exec -it NOME_DO_CONTEINER bun /app/cli.mjs create-admin --email EMAIL --name NOME`. Sem terminal: `printf '%s' "$SENHA" | docker exec -i NOME_DO_CONTEINER bun /app/cli.mjs create-admin --email EMAIL --name NOME --password-stdin`. Com o contêiner parado, use o mesmo volume: `docker run --rm -it -v reserva-data:/data reserva bun /app/cli.mjs create-admin --email EMAIL --name NOME`.
+- **Cloudflare:** `bun run cli create-admin --target cloudflare --email EMAIL --name NOME` calcula o hash e **imprime** o comando `wrangler d1 execute DB --remote ...` (a CLI não escreve no D1). Para o D1 de desenvolvimento (`bun run dev:cf`), acrescente `--local`: o comando impresso usa `--local` em vez de `--remote`. Use o mesmo `PASSWORD_PEPPER` do Worker, se houver, e `--shell powershell` no PowerShell.
+
+### Custo do hash de senha no Cloudflare Workers
+
+O padrão é scrypt com N=16384. Medições **locais** (tempo de parede numa máquina de desenvolvimento): scrypt N=16384 ≈ 30 ms, N=4096 ≈ 7 ms, PBKDF2 com 100 000 iterações ≈ 40–60 ms. O consumo de **CPU em produção no Workers não foi medido**. O plano gratuito limita a CPU por requisição (10 ms), então o login pode estourar o limite; meça no seu plano antes de decidir. Se precisar, defina em `wrangler.jsonc` (`vars`) `PASSWORD_HASH` (`scrypt` ou `pbkdf2`) e/ou `PASSWORD_SCRYPT_N` (potência de 2, 1024 a 65536); o pepper (`PASSWORD_PEPPER`) é segredo (`wrangler secret put`). Trocar o algoritmo ou o custo mantém válidos os hashes antigos: no próximo login bem-sucedido a senha é regravada com a configuração nova (`needsRehash`). Trocar o **pepper** invalida todas as senhas. Um login com e-mail inexistente paga o mesmo custo de hash que um existente (hash fictício calculado uma vez por processo/isolate), para não revelar quais e-mails existem pelo tempo de resposta.
+
 ## Administração
 
-Contas e espaços são geridos por quem tem o papel `admin`, em `/admin/contas` e `/admin/espacos` (menu "Administração"). O primeiro administrador nasce pela CLI (`bun run cli create-admin`). Desativar uma conta ou redefinir sua senha encerra todas as sessões dela, e o último administrador ativo não pode se desativar nem perder o papel `admin`. Espaços não têm exclusão nesta etapa.
+Contas e espaços são geridos por quem tem o papel `admin`, em `/admin/contas` e `/admin/espacos` (menu "Administração"). O primeiro administrador nasce pela CLI (veja "Primeiro acesso"). Quem tem o papel `horarios` pode criar espaços a partir do fluxo de importação (vínculo de salas), mas só o `admin` edita espaços depois. Desativar uma conta ou redefinir sua senha encerra todas as sessões dela, e o último administrador ativo não pode se desativar nem perder o papel `admin`. Espaços não têm exclusão nesta etapa.
 
 ## Desenvolvimento
 
@@ -139,6 +151,8 @@ Quem tem o papel `admin` ou `horarios` importa em **Importar grade** (`/importar
 4. **Docentes**: o responsável é a conta do primeiro docente da aula que tiver vínculo; a sugestão compara a sigla com o código da conta.
 5. **Conferência**: prepara o lote em passos (com barra de progresso) e mostra as contagens por estado e motivo. Enviar o mesmo arquivo de novo no mesmo semestre é reconhecido: nada é duplicado.
 6. **Aplicação**: cria as ocupações em passos; se for interrompida, aplique de novo e ela continua de onde parou. Conflitos com ocupações existentes são listados e nunca inseridos.
+
+**Limitação conhecida:** reimportar uma grade alterada de um semestre já aplicado ainda não compara as versões (não cancela nem substitui ocupações do lote anterior). As aulas que mudaram aparecem como conflito com as ocupações do lote anterior, e a tela mostra um aviso nesse caso. A comparação entre versões está planejada como Fase 1c, antes do cancelamento da Fase 2.
 
 O **resultado por linha** (cada aula/ocorrência com estado, motivo, conflito e falha, com filtros, busca e paginação) aparece ao fim e também em **Lotes anteriores** (`/importar/lotes`).
 
