@@ -1,14 +1,18 @@
 import { Link } from "@tanstack/react-router";
 import type { BatchView } from "#/application/import-report";
+import { DiscardBatchButton } from "./discard-button";
 import { BATCH_STATUS_LABELS, formatInstant } from "./flow-helpers";
 
 /** Lista de lotes: semestre, data, estado e contagens; cada um abre o resultado por linha. */
 export function BatchList({
   batches,
   timeZone,
+  onChanged,
 }: {
   batches: readonly BatchView[];
   timeZone: string;
+  /** Chamado depois de descartar um lote (a lista recarrega). */
+  onChanged: () => void;
 }) {
   if (batches.length === 0) {
     return (
@@ -40,12 +44,20 @@ export function BatchList({
               <span className="text-sm text-muted-foreground">
                 {formatInstant(batch.createdAt, timeZone)} · arquivo {batch.hashPrefix}
               </span>
+              {batch.supersedesAppliedAt !== null && (
+                <span className="text-sm font-medium">
+                  Nova versão de {formatInstant(batch.supersedesAppliedAt, timeZone).slice(0, 10)}
+                </span>
+              )}
               <span className="text-sm">
                 {counts.aplicada} aplicadas · {counts.nao_aplicavel} não aplicáveis ·{" "}
                 {counts.conflito + counts.conflito_interno} conflitos · {counts.falha} falhas ·{" "}
                 {counts.pendente} pendentes
               </span>
             </Link>
+            <div className="mt-2">
+              <DiscardBatchButton batch={batch} onDiscarded={onChanged} />
+            </div>
           </li>
         );
       })}

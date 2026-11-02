@@ -154,7 +154,17 @@ Quem tem o papel `admin` ou `horarios` importa em **Importar grade** (`/importar
 5. **Conferência**: prepara o lote em passos (com barra de progresso) e mostra as contagens por estado e motivo. Enviar o mesmo arquivo de novo no mesmo semestre é reconhecido: nada é duplicado.
 6. **Aplicação**: cria as ocupações em passos; se for interrompida, aplique de novo e ela continua de onde parou. Conflitos com ocupações existentes são listados e nunca inseridos.
 
-**Limitação conhecida:** reimportar uma grade alterada de um semestre já aplicado ainda não compara as versões (não cancela nem substitui ocupações do lote anterior). As aulas que mudaram aparecem como conflito com as ocupações do lote anterior, e a tela mostra um aviso nesse caso. A comparação entre versões está planejada como Fase 1c, antes do cancelamento da Fase 2.
+### Nova versão da grade
+
+Se o semestre já tem um lote aplicado, enviar um arquivo diferente cria uma **nova versão**: a conferência compara o arquivo com as ocupações importadas vigentes e mostra "Nova versão da grade" com os cartões **Inclusões**, **Alterações**, **Bloqueadas**, **Remoções**, **Inalteradas**, **Canceladas mantidas** e **Troca de responsável**, além de "Responsáveis afetados" (nomes das contas locais, para avisar quem tiver aula mexida). Clique num cartão para ver só aquele tipo na tabela; as alterações aparecem lado a lado, "antes → depois", por aula e data.
+
+- **Aplicar mudanças** cancela as ocupações removidas ou alteradas (status `cancelada`, motivo "nova versão"; nada é apagado) e cria as novas. Reservas avulsas nunca são alteradas; uma inclusão que cai sobre uma reserva avulsa vira conflito. Cancelamentos feitos à mão antes continuam cancelados.
+- **Alteração bloqueada**: se a nova ocorrência conflita, a versão anterior daquela aula continua ativa e nada daquele grupo é cancelado.
+- **Um lote em andamento por semestre.** Enquanto houver um lote `aplicando` ou interrompido (`falhou`), preparar ou aplicar outro é recusado com um aviso e um link para o lote em andamento, com **Retomar** ou **Descartar**. Se outra versão for aplicada depois do seu preparo, a conferência é recusada ("envie o arquivo novamente").
+- **Descartar lote** (em `/importar/lotes`, no detalhe do lote e no aviso acima) apaga um lote ainda não aplicado, com confirmação. Vale para lotes preparando e aguardando aplicação, e para os interrompidos só se nada foi aplicado; senão, retome a aplicação.
+- Depois de aplicar, o resultado mostra as ocupações canceladas e criadas, trocas de responsável, bloqueadas, conflitos e falhas. A lista de lotes mostra "Nova versão de <data>".
+
+**Limitações conhecidas:** a identidade de uma aula entre versões é o **título (disciplina + turmas) e a data**; os ids do aSc não são usados. Por isso, uma disciplina ou turma renomeada aparece como remoção mais inclusão. Aulas com várias salas continuam "não aplicáveis". Nenhum aviso é enviado aos responsáveis afetados (só a lista); isso vem em fase futura.
 
 O **resultado por linha** (cada aula/ocorrência com estado, motivo, conflito e falha, com filtros, busca e paginação) aparece ao fim e também em **Lotes anteriores** (`/importar/lotes`).
 

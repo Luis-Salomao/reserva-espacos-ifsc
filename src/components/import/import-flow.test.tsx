@@ -34,6 +34,8 @@ const batch = (status: ImportBatch["status"]): ImportBatch => ({
 });
 
 const applyCalls: string[] = [];
+const discardCalls: string[] = [];
+let inProgress: unknown[] = [];
 
 mock.module("#/server/import-fns", () => ({
   getImportTargetsFn: async () => ({
@@ -50,6 +52,11 @@ mock.module("#/server/import-fns", () => ({
     return { ok: true, data: { batch: { ...batch("aplicado") }, done: true, remaining: 0 } };
   },
   getImportRowsFn: async () => ({ ok: false, status: 404, message: "sem linhas no teste" }),
+  listImportBatchesFn: async () => ({ ok: true, data: inProgress }),
+  discardImportBatchFn: async ({ data }: { data: { batchId: string } }) => {
+    discardCalls.push(data.batchId);
+    return { ok: true, data: null };
+  },
 }));
 
 const { ImportFlow } = await import("./import-flow");
@@ -67,6 +74,8 @@ let prepareCalls = 0;
 beforeEach(() => {
   prepareCalls = 0;
   applyCalls.length = 0;
+  discardCalls.length = 0;
+  inProgress = [];
   globalThis.fetch = (async () => {
     prepareCalls++;
     await new Promise<void>((resolve) => {
@@ -136,5 +145,149 @@ describe("ImportFlow: reentrada", () => {
     const seen = prepareCalls;
     await new Promise((resolve) => setTimeout(resolve, 120));
     expect(prepareCalls).toBe(seen);
+  });
+});
+
+const versionBatch = (): ImportBatch => ({
+  ...batch("rascunho"),
+  supersedesBatchId: "b0",
+  summary: {
+    rows: 8,
+    notApplicable: {},
+    counts: { ...EMPTY_COUNTS, cancelar: 3, pendente: 5, inalterada: 40 },
+    version: {
+      supersedesBatchId: "b0",
+      inclusoes: 2,
+      alteracoes: 3,
+      bloqueadas: 1,
+      remocoes: 0,
+      responsaveis: 0,
+      inalteradas: 40,
+      mantidasCanceladas: 4,
+      affectedUserIds: ["u1", "u2"],
+    },
+  },
+});
+
+function prepareReturns(body: unknown, status = 200) {
+  globalThis.fetch = (async () =>
+    new Response(JSON.stringify(body), { status })) as unknown as typeof fetch;
+}
+
+describe("ImportFlow: nova versão da grade", () => {
+  test("mostra o resumo por tipo, os responsáveis afetados e confirma com Aplicar mudanças", async () => {
+    prepareReturns({
+      ok: true,
+      data: { batch: versionBatch(), reused: false, done: true, remaining: 0 },
+    });
+    const { button } = await renderFlow();
+    fireEvent.click(button);
+    await screen.findByRole("heading", { name: "Nova versão da grade" });
+    for (const label of [
+      "Inclusões",
+      "Alterações",
+      "Bloqueadas",
+      "Remoções",
+      "Inalteradas",
+      "Canceladas mantidas",
+      "Troca de responsável",
+    ]) {
+      expect(screen.getByRole("button", { name: new RegExp(label) })).toBeTruthy();
+    }
+    expect(screen.getByText("Responsáveis afetados: 2")).toBeTruthy();
+    expect(screen.getByText("Serão canceladas 3 ocupações e criadas 5.")).toBeTruthy();
+    expect(screen.getByRole("button", { name: "Aplicar mudanças" })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Aplicar importação" })).toBeNull();
+  });
+
+  test("primeira versão mantém a interface da fase anterior", async () => {
+    const { button } = await renderFlow();
+    fireEvent.click(button);
+    await screen.findByRole("button", { name: "Aplicar importação" });
+    expect(screen.queryByRole("heading", { name: "Nova versão da grade" })).toBeNull();
+  });
+
+  test("outro lote em andamento: mensagem, link, Retomar e Descartar com confirmação", async () => {
+    prepareReturns(
+      {
+        ok: false,
+        message:
+          "Há outro lote deste semestre em andamento (aplicando ou interrompido). Conclua-o, ou descarte-o se nada foi aplicado, antes de continuar.",
+      },
+      409,
+    );
+    inProgress = [
+      {
+        id: "busy-1",
+        semesterId: "s1",
+        semesterName: "2026.2",
+        status: "falhou",
+        createdAt: "2026-11-02T10:00:00.000Z",
+        appliedAt: null,
+        hashPrefix: "aaaa0000",
+        summary: { rows: 2, notApplicable: {}, counts: { ...EMPTY_COUNTS, falha: 2 } },
+        supersedesBatchId: null,
+        supersedesAppliedAt: null,
+        affectedNames: [],
+      },
+    ];
+    const { button } = await renderFlow();
+    fireEvent.click(button);
+    await screen.findByText(/Há outro lote deste semestre em andamento/);
+    const link = await screen.findByRole("link", { name: "Abrir o lote em andamento" });
+    expect(link.getAttribute("href")).toContain("/importar/lotes/busy-1");
+    expect(screen.getByRole("button", { name: "Retomar" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Descartar lote" }));
+    expect(await screen.findByText("Descartar este lote?")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Descartar" }));
+    await waitFor(() => expect(discardCalls).toEqual(["busy-1"]));
+    await waitFor(() => expect(screen.queryByText(/Há outro lote deste semestre/)).toBeNull());
+  });
+
+  test("versão defasada: pede para enviar o arquivo de novo", async () => {
+    prepareReturns(
+      {
+        ok: false,
+        message:
+          "Outra versão da grade foi aplicada depois deste preparo. Envie o arquivo de novo para refazer a conferência.",
+      },
+      409,
+    );
+    const { button } = await renderFlow();
+    fireEvent.click(button);
+    expect(
+      await screen.findByText("Uma versão mais nova já foi aplicada; envie o arquivo novamente."),
+    ).toBeTruthy();
+  });
+
+  test("Descartar fica desabilitado, com explicação, quando o lote já aplicou parte", async () => {
+    prepareReturns(
+      {
+        ok: false,
+        message:
+          "Há outro lote deste semestre em andamento (aplicando ou interrompido). Conclua-o, ou descarte-o se nada foi aplicado, antes de continuar.",
+      },
+      409,
+    );
+    inProgress = [
+      {
+        id: "busy-2",
+        semesterId: "s1",
+        semesterName: "2026.2",
+        status: "falhou",
+        createdAt: "2026-11-02T10:00:00.000Z",
+        appliedAt: null,
+        hashPrefix: "bbbb0000",
+        summary: { rows: 2, notApplicable: {}, counts: { ...EMPTY_COUNTS, aplicada: 1, falha: 1 } },
+        supersedesBatchId: null,
+        supersedesAppliedAt: null,
+        affectedNames: [],
+      },
+    ];
+    const { button } = await renderFlow();
+    fireEvent.click(button);
+    const discard = await screen.findByRole("button", { name: "Descartar lote" });
+    expect((discard as HTMLButtonElement).disabled).toBe(true);
+    expect(screen.getByText(/retome a aplicação/)).toBeTruthy();
   });
 });

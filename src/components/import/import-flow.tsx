@@ -2,20 +2,30 @@ import { Link } from "@tanstack/react-router";
 import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import type { PrepareOutput, StepOutput } from "#/application/import-apply";
 import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-mappings";
+import type { BatchView } from "#/application/import-report";
 import { runAdminAction } from "#/components/admin/use-admin-action";
 import { Button } from "#/components/ui/button";
 import { Label } from "#/components/ui/label";
 import { type ImportBatch, pendingTotal } from "#/domain/import-batch";
+import { classifyImportConflict } from "#/domain/import-conflicts";
 import type { AdminResponse } from "#/server/admin-actions";
 import type { ImportTargets } from "#/server/import-flow";
 import { applyImportBatchFn, getImportTargetsFn, suggestMappingsFn } from "#/server/import-fns";
 import type { PreviewView } from "#/server/import-preview-view";
 import { BatchCounts } from "./batch-counts";
 import { BatchRows } from "./batch-rows";
-import { BATCH_STATUS_LABELS, formatDate, termsWithoutDates } from "./flow-helpers";
+import { ConflictNotice } from "./conflict-notice";
+import {
+  applySentence,
+  BATCH_STATUS_LABELS,
+  formatDate,
+  termsWithoutDates,
+  type VersionView,
+} from "./flow-helpers";
 import { loadImportRows } from "./load-rows";
 import { RoomMappingStep, TeacherMappingStep } from "./mapping-steps";
 import { runSteps, type StepResponse } from "./run-steps";
+import { VersionOverview, VersionResult } from "./version-overview";
 
 /** Blocos por chamada: ~1500 linhas no preparo e ~600 na aplicação, abaixo do orçamento do Workers. */
 const PREPARE_CALLS = 20;
@@ -103,6 +113,38 @@ function ErrorBox({
   );
 }
 
+type Failure = { message: string; conflict: boolean; again: () => void };
+
+/** Falha de preparo/aplicação: conflitos tipados (outro lote em andamento, versão defasada) têm aviso próprio. */
+function FailureBox({
+  failure,
+  semesterId,
+  disabled,
+  onResume,
+  onCleared,
+}: {
+  failure: Failure;
+  semesterId: string;
+  disabled: boolean;
+  onResume: (batchId: string, total: number) => void;
+  onCleared: () => void;
+}) {
+  const kind = classifyImportConflict(failure.message);
+  if (kind !== null) {
+    return (
+      <ConflictNotice
+        kind={kind}
+        message={failure.message}
+        semesterId={semesterId}
+        disabled={disabled}
+        onResume={onResume}
+        onCleared={onCleared}
+      />
+    );
+  }
+  return <ErrorBox message={failure.message} conflict={failure.conflict} onRetry={failure.again} />;
+}
+
 type Props = { view: PreviewView; file: File };
 
 /**
@@ -122,11 +164,9 @@ export function ImportFlow({ view, file }: Props) {
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [reused, setReused] = useState(false);
   const [progress, setProgress] = useState<Progress | null>(null);
-  const [failure, setFailure] = useState<{
-    message: string;
-    conflict: boolean;
-    again: () => void;
-  } | null>(null);
+  const [failure, setFailure] = useState<Failure | null>(null);
+  const [versionView, setVersionView] = useState<VersionView | "">("");
+  const [rowsBatch, setRowsBatch] = useState<BatchView | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
   const running = useRef(false);
@@ -200,18 +240,18 @@ export function ImportFlow({ view, file }: Props) {
       return;
     }
     setBatch(outcome.last.batch);
+    setVersionView("");
     setReused(outcome.last.reused);
     setRefreshKey((key) => key + 1);
   }
 
-  async function apply() {
-    if (batch === null || running.current) return;
+  /** Aplica em passos; "track" = o lote é o da conferência (senão é a retomada de outro lote em andamento). */
+  async function runApply(batchId: string, total: number, track: boolean) {
+    if (running.current) return;
     running.current = true;
     const controller = new AbortController();
     abort.current = controller;
-    const batchId = batch.id;
     setFailure(null);
-    const total = pendingTotal(batch.summary.counts);
     setProgress({ label: "Aplicando", done: 0, total });
     const outcome = await runSteps<StepOutput>(
       () =>
@@ -223,7 +263,7 @@ export function ImportFlow({ view, file }: Props) {
         maxSteps: MAX_STEPS,
         maxStalls: MAX_STALLS,
         onProgress: (output) => {
-          setBatch(output.batch);
+          if (track) setBatch(output.batch);
           setProgress({ label: "Aplicando", done: Math.max(total - output.remaining, 0), total });
         },
       },
@@ -233,9 +273,14 @@ export function ImportFlow({ view, file }: Props) {
     setProgress(null);
     setRefreshKey((key) => key + 1);
     if (!outcome.ok) {
-      if (outcome.last !== null) setBatch(outcome.last.batch);
-      setFailure({ ...outcome.failure, again: () => void apply() });
+      if (track && outcome.last !== null) setBatch(outcome.last.batch);
+      setFailure({ ...outcome.failure, again: () => void runApply(batchId, total, track) });
     }
+  }
+
+  function apply() {
+    if (batch === null) return;
+    void runApply(batch.id, pendingTotal(batch.summary.counts), true);
   }
 
   if (loadError !== null) {
@@ -255,6 +300,9 @@ export function ImportFlow({ view, file }: Props) {
   const readyToApply =
     batch !== null && batch.status !== "aplicado" && batch.status !== "preparando";
   const pendingCount = batch === null ? 0 : pendingTotal(batch.summary.counts);
+  const version = batch?.summary.version;
+  const resumeOther = (batchId: string, total: number) => void runApply(batchId, total, false);
+  const clearFailure = () => setFailure(null);
 
   return (
     <>
@@ -365,11 +413,17 @@ export function ImportFlow({ view, file }: Props) {
             </span>
           )}
         </div>
-        {progress !== null && progress.label === "Preparando" && (
+        {progress !== null && (progress.label === "Preparando" || batch === null) && (
           <ProgressBar label={progress.label} done={progress.done} total={progress.total} />
         )}
         {failure !== null && progress === null && batch === null && (
-          <ErrorBox message={failure.message} conflict={failure.conflict} onRetry={failure.again} />
+          <FailureBox
+            failure={failure}
+            semesterId={semesterId}
+            disabled={busy}
+            onResume={resumeOther}
+            onCleared={clearFailure}
+          />
         )}
         {batch !== null && (
           <div className="grid gap-3">
@@ -381,6 +435,14 @@ export function ImportFlow({ view, file }: Props) {
                 Este arquivo já foi importado neste semestre. Nada foi duplicado.
               </p>
             )}
+            {version !== undefined && (
+              <VersionOverview
+                version={version}
+                affectedNames={rowsBatch?.affectedNames ?? []}
+                active={versionView}
+                onSelect={setVersionView}
+              />
+            )}
             <BatchCounts summary={batch.summary} />
           </div>
         )}
@@ -390,29 +452,51 @@ export function ImportFlow({ view, file }: Props) {
         <Step number={5} title="Aplicação">
           {readyToApply ? (
             <>
-              <p className="text-sm text-muted-foreground">
-                Cria as ocupações das {pendingCount} linhas pendentes. Conflitos e linhas não
-                aplicáveis não são gravados. Se for interrompido, aplique de novo: continua de onde
-                parou, sem duplicar.
-              </p>
-              <Button className="justify-self-start" onClick={() => void apply()} disabled={busy}>
-                {batch.status === "rascunho" ? "Aplicar importação" : "Continuar aplicação"}
+              {version === undefined ? (
+                <p className="text-sm text-muted-foreground">
+                  Cria as ocupações das {pendingCount} linhas pendentes. Conflitos e linhas não
+                  aplicáveis não são gravados. Se for interrompido, aplique de novo: continua de
+                  onde parou, sem duplicar.
+                </p>
+              ) : (
+                <div className="grid gap-1 text-sm">
+                  <p>{applySentence(batch.summary.counts)}</p>
+                  <p className="text-muted-foreground">
+                    Alterações bloqueadas e conflitos não são gravados. A versão anterior é
+                    preservada: nada é apagado, só cancelado. Se for interrompido, aplique de novo:
+                    continua de onde parou, sem duplicar.
+                  </p>
+                </div>
+              )}
+              <Button className="justify-self-start" onClick={apply} disabled={busy}>
+                {version !== undefined
+                  ? "Aplicar mudanças"
+                  : batch.status === "rascunho"
+                    ? "Aplicar importação"
+                    : "Continuar aplicação"}
               </Button>
             </>
-          ) : (
+          ) : version === undefined ? (
             <p>
               Importação concluída: <strong>{batch.summary.counts.aplicada}</strong> ocupações
               criadas.
             </p>
+          ) : (
+            <div className="grid gap-2">
+              <p>Nova versão aplicada.</p>
+              <VersionResult counts={batch.summary.counts} />
+            </div>
           )}
           {progress !== null && progress.label === "Aplicando" && (
             <ProgressBar label={progress.label} done={progress.done} total={progress.total} />
           )}
           {failure !== null && progress === null && (
-            <ErrorBox
-              message={failure.message}
-              conflict={failure.conflict}
-              onRetry={failure.again}
+            <FailureBox
+              failure={failure}
+              semesterId={semesterId}
+              disabled={busy}
+              onResume={resumeOther}
+              onCleared={clearFailure}
             />
           )}
         </Step>
@@ -423,7 +507,13 @@ export function ImportFlow({ view, file }: Props) {
           <h2 id="resultado" className="text-xl font-semibold">
             Resultado por linha
           </h2>
-          <BatchRows batchId={batch.id} load={loadImportRows} refreshKey={refreshKey} />
+          <BatchRows
+            batchId={batch.id}
+            load={loadImportRows}
+            refreshKey={refreshKey}
+            view={versionView}
+            onBatchLoaded={setRowsBatch}
+          />
           <Link
             to="/importar/lotes/$id"
             params={{ id: batch.id }}

@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { AppShell } from "#/components/app-shell";
 import { BatchList } from "#/components/import/batch-list";
 import { listImportBatchesFn } from "#/server/import-fns";
@@ -16,6 +16,7 @@ export const Route = createFileRoute("/importar/lotes/")({
 function BatchesPage() {
   const batches = Route.useLoaderData();
   const { session } = Route.useRouteContext();
+  const router = useRouter();
   return (
     <AppShell wide>
       <h1 className="text-2xl font-semibold">Lotes de importação</h1>
@@ -23,7 +24,11 @@ function BatchesPage() {
         Cada arquivo importado vira um lote por semestre. Abra um lote para ver o resultado de cada
         aula.
       </p>
-      <BatchList batches={batches} timeZone={session.timeZone} />
+      <BatchList
+        batches={batches}
+        timeZone={session.timeZone}
+        onChanged={() => void router.invalidate()}
+      />
     </AppShell>
   );
 }
