@@ -62,6 +62,7 @@ function toBatch(row: typeof importBatches.$inferSelect): ImportBatch {
     semesterId: row.semesterId,
     fileHash: row.fileHash,
     summary: parseSummary(row.summaryJson),
+    planHash: row.planHash,
     status: row.status,
     createdBy: row.createdBy,
     createdAt: row.createdAt,
@@ -95,6 +96,7 @@ export function createImportRepository(db: AppDb): ImportRepository {
           semesterId: batch.semesterId,
           fileHash: batch.fileHash,
           summaryJson: JSON.stringify(batch.summary),
+          planHash: batch.planHash,
           status: batch.status,
           createdBy: batch.createdBy,
           createdAt: batch.createdAt,
@@ -200,15 +202,17 @@ export function createImportRepository(db: AppDb): ImportRepository {
           ),
         );
     },
-    async setBatchState(id, state) {
-      await db
+    async transition(id, from, to) {
+      const changed = await db
         .update(importBatches)
         .set({
-          status: state.status,
-          summaryJson: JSON.stringify(state.summary),
-          appliedAt: state.appliedAt,
+          status: to.status,
+          ...(to.summary === undefined ? {} : { summaryJson: JSON.stringify(to.summary) }),
+          ...(to.appliedAt === undefined ? {} : { appliedAt: to.appliedAt }),
         })
-        .where(eq(importBatches.id, id));
+        .where(and(eq(importBatches.id, id), inArray(importBatches.status, [...from])))
+        .returning({ id: importBatches.id });
+      return changed.length > 0;
     },
     async countRows(batchId) {
       const grouped = await db

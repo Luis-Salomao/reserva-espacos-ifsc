@@ -37,6 +37,8 @@ const FAILURE_CODE = "erro_gravacao";
 const FAILURE_DETAIL = "Não foi possível gravar este grupo de linhas. Aplique o lote novamente.";
 const PARTIAL_MESSAGE =
   "O arquivo foi lido só em parte (cards demais); a importação foi recusada para não gerar um lote incompleto.";
+const CHANGED_MESSAGE =
+  "O lote foi alterado por outra operação enquanto esta rodava. Recarregue e tente de novo.";
 const PREPARING_MESSAGE = "O lote ainda está sendo preparado. Conclua o preparo antes de aplicar.";
 const INCOMPLETE_MESSAGE =
   "O lote está incompleto (faltam linhas). Envie o arquivo de novo para refazer o preparo.";
@@ -171,6 +173,26 @@ function summarize(rows: readonly ImportRow[]): ImportSummary {
   return { rows: rows.length, notApplicable, counts };
 }
 
+/** SHA-256 do conteúdo canônico das linhas planejadas (chave, situação, motivo, espaço, horários, responsável, título). */
+async function fingerprint(rows: readonly ImportRow[]): Promise<string> {
+  const canonical = [...rows]
+    .sort((x, y) => (x.rowKey < y.rowKey ? -1 : x.rowKey > y.rowKey ? 1 : 0))
+    .map((row) => [
+      row.rowKey,
+      row.status,
+      row.reasonCode,
+      row.conflictOccupationId,
+      row.spaceId,
+      row.date,
+      row.startTime,
+      row.endTime,
+      row.weekday,
+      row.responsibleUserId,
+      row.title,
+    ]);
+  return hashImportFile(new TextEncoder().encode(JSON.stringify(canonical)));
+}
+
 function chunks<T>(items: readonly T[], size: number): T[][] {
   const result: T[][] = [];
   for (let index = 0; index < items.length; index += size) {
@@ -223,6 +245,7 @@ export function createImportService(deps: ImportServiceDeps) {
       const plan = planImport({ preview: input.preview, semester, ...maps, existing: occupied });
       const planned = planRows(plan);
       const summary = summarize(planned);
+      const planHash = await fingerprint(planned);
       const planKeys = new Set(planned.map((row) => row.rowKey));
       const budget = options.maxCalls ?? DEFAULT_PREPARE_CALLS;
 
@@ -238,6 +261,7 @@ export function createImportService(deps: ImportServiceDeps) {
             semesterId: input.semesterId,
             fileHash: input.fileHash,
             summary,
+            planHash,
             status: "preparando",
             createdBy: input.actorId,
             createdAt: clock.now().toISOString(),
@@ -252,7 +276,8 @@ export function createImportService(deps: ImportServiceDeps) {
         }
         const batchId = batch.id;
         const written = new Set(await imports.rowKeys(batchId));
-        if ([...written].some((key) => !planKeys.has(key))) {
+        // O plano mudou (vínculos, conflitos, motivos) ou há linhas que não são dele: refaz do zero.
+        if (batch.planHash !== planHash || [...written].some((key) => !planKeys.has(key))) {
           await imports.deleteDraft(batchId);
           continue;
         }
@@ -277,7 +302,12 @@ export function createImportService(deps: ImportServiceDeps) {
             remaining: Math.max(summary.rows - stored, 1),
           });
         }
-        await imports.setBatchState(batchId, { status: "rascunho", summary, appliedAt: null });
+        const closed = await imports.transition(batchId, ["preparando"], {
+          status: "rascunho",
+          summary,
+          appliedAt: null,
+        });
+        if (!closed) return fail("conflict", CHANGED_MESSAGE);
         return ok({
           batch: { ...batch, status: "rascunho", summary },
           reused: false,
@@ -307,11 +337,11 @@ export function createImportService(deps: ImportServiceDeps) {
         return fail("conflict", INCOMPLETE_MESSAGE);
       }
       if (batch.status !== "aplicando") {
-        await imports.setBatchState(batchId, {
+        const started = await imports.transition(batchId, ["rascunho", "falhou"], {
           status: "aplicando",
-          summary: batch.summary,
           appliedAt: null,
         });
+        if (!started) return fail("conflict", CHANGED_MESSAGE);
       }
       const chunkBudget = options.maxChunks ?? DEFAULT_APPLY_CHUNKS;
       const pending = await imports.pendingRows(batchId, chunkBudget * ROWS_PER_CHUNK);
@@ -336,7 +366,17 @@ export function createImportService(deps: ImportServiceDeps) {
       const status = remaining === 0 ? "aplicado" : errored ? "falhou" : "aplicando";
       const appliedAt = status === "aplicado" ? clock.now().toISOString() : null;
       const summary = { ...batch.summary, counts };
-      await imports.setBatchState(batchId, { status, summary, appliedAt });
+      const finished = await imports.transition(batchId, ["aplicando"], {
+        status,
+        summary,
+        appliedAt,
+      });
+      if (!finished) {
+        // Outra chamada concluiu (ou o lote foi refeito/apagado) enquanto esta rodava.
+        const current = await imports.findBatch(batchId);
+        if (current?.status === "aplicado") return ok({ batch: current, done: true, remaining: 0 });
+        return fail("conflict", CHANGED_MESSAGE);
+      }
       return ok({
         batch: { ...batch, status, summary, appliedAt },
         done: remaining === 0,

@@ -143,10 +143,15 @@ export interface ImportRepository {
     code: string,
     detail: string,
   ): Promise<void>;
-  setBatchState(
+  /**
+   * Compara-e-troca: muda o estado só se o lote está em um dos estados `from` (uma única
+   * instrução UPDATE ... WHERE status IN ...). `false` = nada mudou (lote apagado ou em outro estado).
+   */
+  transition(
     id: string,
-    state: { status: ImportBatchStatus; summary: ImportSummary; appliedAt: string | null },
-  ): Promise<void>;
+    from: readonly ImportBatchStatus[],
+    to: { status: ImportBatchStatus; summary?: ImportSummary; appliedAt?: string | null },
+  ): Promise<boolean>;
   countRows(batchId: string): Promise<ImportRowCounts>;
   listRows(
     batchId: string,

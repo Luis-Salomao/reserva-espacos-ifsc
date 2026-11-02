@@ -69,30 +69,32 @@ function slot(over: Partial<WeeklySlot> = {}): WeeklySlot {
   };
 }
 
-function open(): AppDb {
+function open(foreignKeys = true): AppDb {
   const sqlite = new Database(":memory:");
-  sqlite.run("PRAGMA foreign_keys = ON");
+  sqlite.run(`PRAGMA foreign_keys = ${foreignKeys ? "ON" : "OFF"}`);
   const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder: "drizzle" });
   return db;
 }
 
-async function setup(wrap?: (repo: ImportRepository) => ImportRepository) {
-  const db = open();
+async function setup(wrap?: (repo: ImportRepository) => ImportRepository, foreignKeys = true) {
+  const db = open(foreignKeys);
   const semesters = createSemesterRepository(db);
   const semester = await semesters.create(semesterData);
   const space = await createSpaceRepository(db).create({ name: "Lab 1", capacity: null });
-  await db.insert(schema.users).values({
-    id: "u",
-    email: "a@x.org",
-    name: "Admin",
-    code: null,
-    roles: "admin",
-    passwordHash: "x",
-    active: true,
-    createdAt: "t",
-    updatedAt: "t",
-  });
+  for (const id of ["u", "u2"]) {
+    await db.insert(schema.users).values({
+      id,
+      email: `${id}@x.org`,
+      name: id,
+      code: null,
+      roles: "admin",
+      passwordHash: "x",
+      active: true,
+      createdAt: "t",
+      updatedAt: "t",
+    });
+  }
   const maps = createMappingRepositories(db);
   await maps.rooms.saveMany(
     [{ sourceRoomId: "R1", sourceShort: "L1", spaceId: space.id, ignored: false }],
@@ -107,7 +109,7 @@ async function setup(wrap?: (repo: ImportRepository) => ImportRepository) {
     semesters,
     clock,
   });
-  return { db, imports, semesterId: semester.id, service };
+  return { db, imports, maps, spaceId: space.id, semesterId: semester.id, service };
 }
 
 type Env = Awaited<ReturnType<typeof setup>>;
@@ -439,5 +441,151 @@ describe("repositório", () => {
       "t",
     );
     expect((await maps.teachers.list()).length).toBe(60);
+  });
+});
+
+describe("transições com comparar-e-trocar (corrida entre prepare e apply)", () => {
+  test("prepare lento não devolve lote aplicando a rascunho", async () => {
+    const env = await setup();
+    const { slots, lessons } = manySlots(3);
+    const input = inputOf(env, slots, lessons);
+    const done = await prepareAll(env, input);
+    const first = await env.service.apply(done.batch.id, { maxChunks: 1 });
+    expect(first.ok && first.value.batch.status).toBe("aplicado");
+    // simula o prepare lento: lote já aplicando, ele tenta fechar o preparo
+    await env.db
+      .update(schema.importBatches)
+      .set({ status: "aplicando" })
+      .where(eq(schema.importBatches.id, done.batch.id));
+    const ok = await env.imports.transition(done.batch.id, ["preparando"], { status: "rascunho" });
+    expect(ok).toBe(false);
+    expect((await env.imports.findBatch(done.batch.id))?.status).toBe("aplicando");
+  });
+
+  test("fechar o preparo de um lote que já saiu de preparando vira conflito tipado", async () => {
+    let swapped = false;
+    const env = await setup((repo) => ({
+      ...repo,
+      countRows: async (id) => {
+        const counts = await repo.countRows(id);
+        if (!swapped) {
+          swapped = true;
+          await repo.transition(id, ["preparando"], { status: "aplicando" });
+        }
+        return counts;
+      },
+    }));
+    const { slots, lessons } = manySlots(2);
+    const result = await env.service.prepare(inputOf(env, slots, lessons));
+    expect(!result.ok && result.kind).toBe("conflict");
+    expect((await env.db.select().from(schema.importBatches))[0]?.status).toBe("aplicando");
+  });
+
+  test("apply concorrente com a refação do rascunho não devolve aplicado para lote apagado", async () => {
+    let raced = true;
+    const env = await setup((repo) => ({
+      ...repo,
+      countRows: async (id) => {
+        const counts = await repo.countRows(id);
+        if (!raced) {
+          raced = true;
+          await repo.deleteDraft(id);
+        }
+        return counts;
+      },
+    }));
+    const { slots, lessons } = manySlots(2);
+    const prepared = await prepareAll(env, inputOf(env, slots, lessons));
+    raced = false;
+    const result = await env.service.apply(prepared.batch.id);
+    expect(!result.ok && result.kind).toBe("conflict");
+    expect(await occupations(env.db)).toBe(0);
+  });
+
+  test("deleteDraft não depende de chaves estrangeiras: linhas de lote aplicando sobrevivem", async () => {
+    const env = await setup(undefined, false);
+    const { slots, lessons } = manySlots(25);
+    const prepared = await prepareAll(env, inputOf(env, slots, lessons));
+    await env.service.apply(prepared.batch.id, { maxChunks: 1 });
+    expect((await env.imports.findBatch(prepared.batch.id))?.status).toBe("aplicando");
+    const before = (await env.db.select().from(schema.importRows)).length;
+    await env.imports.deleteDraft(prepared.batch.id);
+    expect((await env.db.select().from(schema.importRows)).length).toBe(before);
+    expect((await env.imports.findBatch(prepared.batch.id))?.status).toBe("aplicando");
+  });
+
+  test("apply só sai de aplicando para aplicado ou falhou uma vez", async () => {
+    const env = await setup();
+    const { slots, lessons } = manySlots(2);
+    const prepared = await prepareAll(env, inputOf(env, slots, lessons));
+    expect(
+      await env.imports.transition(prepared.batch.id, ["aplicando"], { status: "aplicado" }),
+    ).toBe(false);
+    expect(await env.imports.transition("nao-existe", ["rascunho"], { status: "aplicando" })).toBe(
+      false,
+    );
+  });
+});
+
+describe("impressão digital do plano (preparando refeito quando o conteúdo muda)", () => {
+  const withTeacher = (lessons: Lesson[]) => lessons.map((l) => ({ ...l, teacherIds: ["T1"] }));
+
+  test("vínculo de docente muda no meio do preparo: refaz com o responsável novo", async () => {
+    const env = await setup();
+    await env.maps.teachers.saveMany(
+      [{ sourceTeacherId: "T1", sourceShort: "T1", userId: "u" }],
+      "t",
+    );
+    const { slots, lessons } = manySlots(40);
+    const input = inputOf(env, slots, withTeacher(lessons));
+    const first = await env.service.prepare(input, { maxCalls: 1 });
+    expect(first.ok && first.value.done).toBe(false);
+    await env.maps.teachers.saveMany(
+      [{ sourceTeacherId: "T1", sourceShort: "T1", userId: "u2" }],
+      "t",
+    );
+    const done = await prepareAll(env, input);
+    const rows = await env.db.select().from(schema.importRows);
+    expect(
+      rows.filter((r) => r.status === "pendente").every((r) => r.responsibleUserId === "u2"),
+    ).toBe(true);
+    expect(rows).toHaveLength(120);
+    expect(done.batch.status).toBe("rascunho");
+  });
+
+  test("conflito aparece no meio do preparo: a linha vira conflito ao refazer", async () => {
+    const env = await setup();
+    const { slots, lessons } = manySlots(40);
+    const input = inputOf(env, slots, lessons);
+    await env.service.prepare(input, { maxCalls: 1 });
+    await env.db.insert(schema.occupations).values({
+      id: "novo",
+      spaceId: env.spaceId,
+      startsAt: "2026-08-03T06:30",
+      endsAt: "2026-08-03T07:30",
+      source: "manual",
+      title: "Reserva",
+      status: "ativa",
+      createdAt: "t",
+    });
+    await prepareAll(env, input);
+    const rows = await env.db.select().from(schema.importRows);
+    expect(rows.filter((r) => r.status === "conflito").map((r) => r.conflictOccupationId)).toEqual([
+      "novo",
+      "novo",
+    ]);
+    expect(rows).toHaveLength(120);
+  });
+
+  test("mesmo plano: retoma o mesmo lote sem refazer", async () => {
+    const env = await setup();
+    const { slots, lessons } = manySlots(40);
+    const input = inputOf(env, slots, lessons);
+    const first = await env.service.prepare(input, { maxCalls: 1 });
+    const second = await env.service.prepare(input, { maxCalls: 1 });
+    expect(second.ok && first.ok && second.value.batch.id).toBe(
+      first.ok ? first.value.batch.id : "",
+    );
+    expect(second.ok && second.value.remaining).toBe(20);
   });
 });
