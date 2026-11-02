@@ -3,11 +3,13 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { createAuthService } from "#/application/auth";
+import { createSemestersService } from "#/application/semesters";
 import { createSpacesService } from "#/application/spaces";
 import { createUsersService } from "#/application/users";
 import type { Role } from "#/domain/user";
 import { createPasswordHasher } from "#/infra/auth/password-hasher";
 import { createLoginAttemptRepository } from "#/infra/db/repos/login-attempt-repository";
+import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSessionRepository } from "#/infra/db/repos/session-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 import { createUserRepository } from "#/infra/db/repos/user-repository";
@@ -16,12 +18,16 @@ import { cryptoRandom, systemClock } from "#/infra/runtime";
 import {
   type AdminDeps,
   createAccount,
+  createSemester,
   createSpace,
+  getSemester,
   listAccounts,
   listAdminSpaces,
+  listSemesters,
   resetAccountPassword,
   setAccountActive,
   updateAccount,
+  updateSemester,
   updateSpace,
 } from "./admin-actions.ts";
 
@@ -49,6 +55,7 @@ async function setup() {
     auth,
     users: createUsersService({ users, sessions, hasher }),
     spaces: createSpacesService({ spaces: createSpaceRepository(db) }),
+    semesters: createSemestersService({ semesters: createSemesterRepository(db) }),
     cookieSecure: "auto",
   };
 
@@ -338,5 +345,144 @@ describe("espaços (administrador)", () => {
       (await updateSpace(ctx.deps, admin, { id: "nao-existe", name: "Y", capacity: null }))
         .response,
     ).toMatchObject({ ok: false, status: 404 });
+  });
+});
+
+const SEMESTER = {
+  name: "2026.2",
+  start: "2026-08-03",
+  end: "2026-12-19",
+  terms: [{ position: 1, start: "2026-08-03", end: "2026-10-03" }],
+  blocks: [{ number: 1, name: "Noite 12", short: "N12", start: "18:00", end: "19:50" }],
+};
+
+describe("semestres: matriz de autorização", () => {
+  let ctx: Ctx;
+  beforeEach(async () => {
+    ctx = await setup();
+  });
+
+  const calls: Array<[string, (c: Ctx, token: string | null) => Promise<unknown>]> = [
+    ["listSemesters", async (c, t) => (await listSemesters(c.deps, c.req(t))).response],
+    ["getSemester", async (c, t) => (await getSemester(c.deps, c.req(t), { id: "x" })).response],
+    ["createSemester", async (c, t) => (await createSemester(c.deps, c.req(t), SEMESTER)).response],
+    [
+      "updateSemester",
+      async (c, t) => (await updateSemester(c.deps, c.req(t), { ...SEMESTER, id: "x" })).response,
+    ],
+  ];
+
+  for (const [name, call] of calls) {
+    test(`${name}: sem sessão responde 401`, async () => {
+      expect(await call(ctx, null)).toMatchObject({ ok: false, status: 401 });
+      expect(await call(ctx, "token-que-nao-existe")).toMatchObject({ ok: false, status: 401 });
+    });
+
+    test(`${name}: docente recebe 403 e nada é gravado`, async () => {
+      expect(await call(ctx, ctx.docente.token)).toMatchObject({ ok: false, status: 403 });
+      expect(await ctx.deps.semesters.list()).toHaveLength(0);
+    });
+
+    test(`${name}: administrador e horários passam da autorização`, async () => {
+      for (const token of [ctx.admin.token, ctx.horarios.token]) {
+        const response = (await call(ctx, token)) as { ok: boolean; status?: number };
+        expect([401, 403]).not.toContain(response.status);
+      }
+    });
+  }
+});
+
+describe("semestres (administrador e horários)", () => {
+  test("horários cria, lê, lista e edita; admin também", async () => {
+    const ctx = await setup();
+    const horarios = ctx.req(ctx.horarios.token);
+    const created = await createSemester(ctx.deps, horarios, SEMESTER);
+    if (!created.response.ok) throw new Error("esperava ok");
+    const id = created.response.data.id;
+    expect(created.response.data).toMatchObject({ name: "2026.2", terms: [{ position: 1 }] });
+    expect((await getSemester(ctx.deps, horarios, { id })).response).toMatchObject({
+      ok: true,
+      data: { id, blocks: [{ number: 1, short: "N12" }] },
+    });
+    expect((await listSemesters(ctx.deps, ctx.req(ctx.admin.token))).response).toMatchObject({
+      ok: true,
+      data: [{ id }],
+    });
+    const edited = await updateSemester(ctx.deps, ctx.req(ctx.admin.token), {
+      ...SEMESTER,
+      id,
+      name: "2026.2 revisado",
+      blocks: [{ number: "2", name: "Noite 34", short: "N34", start: "20:10", end: "22:00" }],
+    });
+    expect(edited.response).toMatchObject({
+      ok: true,
+      data: { name: "2026.2 revisado", blocks: [{ number: 2 }] },
+    });
+  });
+
+  test("validação e conflito viram 400 e 409 com o campo; inexistente é 404", async () => {
+    const ctx = await setup();
+    const horarios = ctx.req(ctx.horarios.token);
+    await createSemester(ctx.deps, horarios, SEMESTER);
+    expect(
+      (await createSemester(ctx.deps, horarios, { ...SEMESTER, name: "2026.2".toLowerCase() }))
+        .response,
+    ).toMatchObject({ ok: false, status: 409, field: "name" });
+    expect(
+      (await createSemester(ctx.deps, horarios, { ...SEMESTER, name: "B", start: "2026-02-30" }))
+        .response,
+    ).toMatchObject({ ok: false, status: 400, field: "start" });
+    expect(
+      (await updateSemester(ctx.deps, horarios, { ...SEMESTER, id: "nao-existe", name: "Z" }))
+        .response,
+    ).toMatchObject({ ok: false, status: 404 });
+    expect((await getSemester(ctx.deps, horarios, { id: "nao-existe" })).response).toMatchObject({
+      ok: false,
+      status: 404,
+    });
+  });
+
+  test("corpo malformado vira 400", async () => {
+    const ctx = await setup();
+    const horarios = ctx.req(ctx.horarios.token);
+    const bad: unknown[] = [
+      null,
+      "texto",
+      [],
+      { ...SEMESTER, name: 1 },
+      { ...SEMESTER, start: null },
+      { ...SEMESTER, end: 2 },
+      { ...SEMESTER, terms: "x" },
+      { ...SEMESTER, terms: [null] },
+      { ...SEMESTER, terms: [{ position: "1", start: "a", end: "b" }] },
+      { ...SEMESTER, terms: [{ position: 1, start: 1, end: "b" }] },
+      { ...SEMESTER, blocks: {} },
+      { ...SEMESTER, blocks: [null] },
+      {
+        ...SEMESTER,
+        blocks: [{ number: {}, name: "a", short: "a", start: "08:00", end: "09:00" }],
+      },
+      { ...SEMESTER, blocks: [{ number: 1, name: 2, short: "a", start: "08:00", end: "09:00" }] },
+      { ...SEMESTER, blocks: [{ number: 1, name: "a", short: "a", start: "08:00" }] },
+    ];
+    for (const body of bad) {
+      expect((await createSemester(ctx.deps, horarios, body)).response).toMatchObject({
+        ok: false,
+        status: 400,
+        message: "Requisição inválida.",
+      });
+    }
+    expect(
+      (await updateSemester(ctx.deps, horarios, { ...SEMESTER, id: 5 })).response,
+    ).toMatchObject({ ok: false, status: 400 });
+    expect((await getSemester(ctx.deps, horarios, { id: 5 })).response).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    expect((await getSemester(ctx.deps, horarios, null)).response).toMatchObject({
+      ok: false,
+      status: 400,
+    });
+    expect(await ctx.deps.semesters.list()).toHaveLength(0);
   });
 });

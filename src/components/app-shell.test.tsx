@@ -32,7 +32,7 @@ async function renderShell(children: ReactNode, session: SessionInfo = anonymous
   const root = createRootRouteWithContext<{ session: SessionInfo }>()({
     component: () => <AppShell>{children}</AppShell>,
   });
-  const routes = ["/", "/importar", "/entrar"].map((path) =>
+  const routes = ["/", "/importar", "/entrar", "/semestres"].map((path) =>
     createRoute({ getParentRoute: () => root, path }),
   );
   const router = createRouter({
@@ -58,7 +58,8 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Importar grade" }).getAttribute("href")).toBe(
       "/importar",
     );
-    expect(nav.querySelectorAll("a")).toHaveLength(2);
+    expect(screen.getByRole("link", { name: "Semestres" }).getAttribute("href")).toBe("/semestres");
+    expect(nav.querySelectorAll("a")).toHaveLength(3);
   });
 
   test("visitante vê Entrar e não vê Importar grade nem Sair", async () => {
@@ -102,6 +103,18 @@ describe("AppShell", () => {
     expect(screen.queryByRole("link", { name: "Administração" })).toBeNull();
   });
 
+  test("Semestres para admin e horários, não para docente nem visitante", async () => {
+    for (const role of ["admin", "horarios"] as const) {
+      await renderShell("x", { user: { ...ana, roles: [role] }, publicRead: true });
+      expect(screen.getByRole("link", { name: "Semestres" })).toBeDefined();
+      cleanup();
+    }
+    await renderShell("x", { user: { ...ana, roles: ["docente"] }, publicRead: true });
+    expect(screen.queryByRole("link", { name: "Semestres" })).toBeNull();
+    cleanup();
+    await renderShell("x", anonymous);
+    expect(screen.queryByRole("link", { name: "Semestres" })).toBeNull();
+  });
   test("alternar o tema muda data-theme e persiste a escolha", async () => {
     document.documentElement.dataset.theme = "light";
     await renderShell("x");

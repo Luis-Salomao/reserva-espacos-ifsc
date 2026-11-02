@@ -1,4 +1,4 @@
-import { beforeEach, describe, expect, mock, test } from "bun:test";
+import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -7,6 +7,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import type { Semester } from "#/domain/semester";
 import type { User } from "#/domain/user";
 import type { AdminResponse } from "#/server/admin-actions";
 
@@ -15,6 +16,8 @@ let createResponse: AdminResponse<User> = { ok: true, data: {} as User };
 let activeResponse: AdminResponse<User> = { ok: true, data: {} as User };
 let resetResponse: AdminResponse<null> = { ok: true, data: null };
 const calls: string[] = [];
+let semesterResponse: AdminResponse<unknown> = { ok: true, data: {} };
+const semesterCalls: Array<Record<string, unknown>> = [];
 
 mock.module("#/server/admin", () => ({
   createAccountFn: async (_: Call) => createResponse,
@@ -34,10 +37,19 @@ mock.module("#/server/admin", () => ({
     field: "capacity",
   }),
   updateSpaceFn: async () => ({ ok: true, data: {} }),
+  createSemesterFn: async (arg: Call) => {
+    semesterCalls.push(arg.data);
+    return semesterResponse;
+  },
+  updateSemesterFn: async (arg: Call) => {
+    semesterCalls.push(arg.data);
+    return semesterResponse;
+  },
 }));
 
 const { AccountsManager } = await import("./accounts-manager");
 const { SpacesManager } = await import("./spaces-manager");
+const { SemesterForm } = await import("#/components/semesters/semester-form");
 
 const me: User = {
   id: "me",
@@ -165,5 +177,129 @@ describe("SpacesManager", () => {
     await waitFor(() => expect(document.activeElement).toBe(capacity));
     expect(capacity.getAttribute("aria-invalid")).toBe("true");
     expect(capacity.getAttribute("aria-describedby")).toBe(alert.id);
+  });
+});
+
+describe("SemesterForm", () => {
+  const original = globalThis.fetch;
+  afterEach(() => {
+    globalThis.fetch = original;
+  });
+
+  function renderForm(semester: Semester | null = null) {
+    const root = createRootRoute({ component: () => <SemesterForm semester={semester} /> });
+    const router = createRouter({
+      routeTree: root,
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+    render(<RouterProvider router={router} />);
+  }
+
+  function mockPreview(body: unknown) {
+    globalThis.fetch = (async () => Response.json(body)) as unknown as typeof fetch;
+  }
+
+  test("erro de data é anunciado, ligado ao campo e recebe o foco", async () => {
+    semesterCalls.length = 0;
+    semesterResponse = {
+      ok: false,
+      status: 400,
+      message: "Data de início inválida.",
+      field: "start",
+    };
+    renderForm();
+    const name = (await screen.findByLabelText("Nome")) as HTMLInputElement;
+    fireEvent.change(name, { target: { value: "2026.2" } });
+    fireEvent.submit(name.closest("form") as HTMLFormElement);
+    const alert = await screen.findByRole("alert");
+    const start = screen.getAllByLabelText("Início")[0] as HTMLInputElement;
+    await waitFor(() => expect(document.activeElement).toBe(start));
+    expect(start.getAttribute("aria-invalid")).toBe("true");
+    expect(start.getAttribute("aria-describedby")).toBe(alert.id);
+    expect(semesterCalls[0]).toMatchObject({ name: "2026.2", terms: expect.any(Array) });
+  });
+
+  test("erro em campo de bloco leva o foco ao campo do bloco certo", async () => {
+    semesterResponse = {
+      ok: false,
+      status: 400,
+      message: "A hora de fim deve ser posterior à de início.",
+      field: "block-0-end",
+    };
+    renderForm();
+    fireEvent.click(await screen.findByRole("button", { name: "Adicionar bloco" }));
+    const name = screen.getByLabelText("Nome", { selector: "input[maxlength='40']" });
+    fireEvent.submit(name.closest("form") as HTMLFormElement);
+    const alert = await screen.findByRole("alert");
+    const ends = screen.getAllByLabelText("Fim");
+    const blockEnd = ends[ends.length - 1] as HTMLInputElement;
+    await waitFor(() => expect(document.activeElement).toBe(blockEnd));
+    expect(blockEnd.getAttribute("aria-describedby")).toBe(alert.id);
+  });
+
+  test("usar blocos do XML preenche o formulário sem salvar", async () => {
+    semesterCalls.length = 0;
+    mockPreview({
+      ok: true,
+      preview: {
+        periods: [
+          { number: 5, name: "Noite 12", short: "N12", start: "18:00", end: "19:50" },
+          { number: 6, name: "Noite 34", short: "N34", start: "20:10", end: "22:00" },
+        ],
+      },
+    });
+    renderForm();
+    const file = (await screen.findByLabelText(/Usar blocos do XML/)) as HTMLInputElement;
+    fireEvent.change(file, {
+      target: { files: [new File(["<xml/>"], "horario.xml", { type: "text/xml" })] },
+    });
+    await screen.findByText(/2 blocos carregados/);
+    expect(screen.getByDisplayValue("Noite 12")).toBeDefined();
+    expect(screen.getByDisplayValue("N34")).toBeDefined();
+    expect(semesterCalls).toEqual([]);
+  });
+
+  test("falhas ao ler o XML são anunciadas", async () => {
+    renderForm();
+    const file = (await screen.findByLabelText(/Usar blocos do XML/)) as HTMLInputElement;
+    const send = () =>
+      fireEvent.change(file, {
+        target: { files: [new File(["x"], "a.xml", { type: "text/xml" })] },
+      });
+
+    mockPreview({ ok: false, message: "Arquivo inválido." });
+    send();
+    expect((await screen.findByRole("alert")).textContent).toBe("Arquivo inválido.");
+
+    mockPreview({ ok: true, preview: { periods: [] } });
+    send();
+    await screen.findByText(/não tem blocos/);
+
+    globalThis.fetch = (async () => {
+      throw new Error("rede");
+    }) as unknown as typeof fetch;
+    send();
+    await screen.findByText(/Não foi possível ler o arquivo/);
+  });
+
+  test("edição envia o id, mostra o semestre salvo e remove blocos", async () => {
+    semesterCalls.length = 0;
+    const semester: Semester = {
+      id: "sem-1",
+      name: "2026.1",
+      start: "2026-02-02",
+      end: "2026-06-30",
+      terms: [{ position: 2, start: "2026-03-01", end: "2026-04-01" }],
+      blocks: [{ number: 1, name: "Manhã", short: "M", start: "08:00", end: "09:50" }],
+    };
+    semesterResponse = { ok: true, data: semester };
+    renderForm(semester);
+    const save = await screen.findByRole("button", { name: "Salvar" });
+    expect(screen.getByDisplayValue("Manhã")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Remover bloco 1" }));
+    expect(screen.queryByDisplayValue("Manhã")).toBeNull();
+    fireEvent.submit(save.closest("form") as HTMLFormElement);
+    await screen.findByText("Semestre salvo.");
+    expect(semesterCalls[0]).toMatchObject({ id: "sem-1", name: "2026.1", blocks: [] });
   });
 });

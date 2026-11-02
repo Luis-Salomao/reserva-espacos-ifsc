@@ -3,6 +3,9 @@ import type { Role, User } from "#/domain/user";
 /** Papéis que podem importar (e, depois, aplicar) a grade. */
 export const IMPORT_ROLES: readonly Role[] = ["admin", "horarios"];
 
+/** Papéis que gerem a configuração dos semestres (o administrador também gere contas e espaços). */
+export const SEMESTER_ROLES: readonly Role[] = ["admin", "horarios"];
+
 /** Papéis que gerem contas e espaços. */
 export const ADMIN_ROLES: readonly Role[] = ["admin"];
 

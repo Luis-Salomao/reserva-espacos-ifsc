@@ -1,3 +1,4 @@
+import type { Semester } from "#/domain/semester";
 import type { Space } from "#/domain/space";
 import type { Role, User } from "#/domain/user";
 
@@ -82,4 +83,16 @@ export interface Clock {
 
 export interface RandomSource {
   bytes(length: number): Uint8Array;
+}
+
+export interface SemesterRepository {
+  /** Semestres com durações e blocos, do início mais recente para o mais antigo. */
+  list(): Promise<Semester[]>;
+  findById(id: string): Promise<Semester | null>;
+  create(input: Omit<Semester, "id">): Promise<Semester>;
+  /**
+   * Substitui os dados e o conjunto inteiro de durações e blocos. `null` se o semestre não
+   * existe. Atômico onde o driver tem `batch` (D1); no bun:sqlite é uma sequência idempotente.
+   */
+  replace(id: string, input: Omit<Semester, "id">): Promise<Semester | null>;
 }

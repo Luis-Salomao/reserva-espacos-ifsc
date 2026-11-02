@@ -15,6 +15,13 @@
       "when": 1793588984848,
       "tag": "0001_right_agent_zero",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "6",
+      "when": 1793592795030,
+      "tag": "0002_minor_genesis",
+      "breakpoints": true
     }
   ]
 }

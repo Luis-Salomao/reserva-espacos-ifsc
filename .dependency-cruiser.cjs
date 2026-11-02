@@ -3,9 +3,10 @@ module.exports = {
   forbidden: [
     {
       name: "domain-is-pure",
-      comment: "src/domain não pode importar nada fora de src/domain (nem pacotes externos).",
+      comment:
+        "src/domain não pode importar nada fora de src/domain (nem pacotes externos); arquivos *.test.ts ficam isentos, pois usam bun:test.",
       severity: "error",
-      from: { path: "^src/domain/" },
+      from: { path: "^src/domain/", pathNot: "\\.test\\.ts$" },
       to: { pathNot: "^src/domain/" },
     },
     {

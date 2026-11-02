@@ -1,15 +1,18 @@
+import type { SemesterInput, SemestersService } from "#/application/semesters";
 import type { SpacesService } from "#/application/spaces";
 import type { UsersService } from "#/application/users";
 import type { Failure, Result } from "#/application/validation";
+import type { Semester } from "#/domain/semester";
 import type { Space } from "#/domain/space";
-import type { User } from "#/domain/user";
+import type { Role, User } from "#/domain/user";
 import { type AuthPort, resolveSession } from "./auth-handlers.ts";
-import { ADMIN_ROLES, authorizeRoles, type CookieSecureMode } from "./session.ts";
+import { ADMIN_ROLES, authorizeRoles, type CookieSecureMode, SEMESTER_ROLES } from "./session.ts";
 
 export type AdminDeps = {
   auth: AuthPort;
   users: UsersService;
   spaces: SpacesService;
+  semesters: SemestersService;
   cookieSecure: CookieSecureMode;
 };
 
@@ -45,10 +48,11 @@ function fromResult<T>(result: Result<T>): AdminResponse<T> {
 }
 
 /**
- * Exige sessão e papel `admin` no servidor (401 sem sessão, 403 com outro papel) antes de qualquer
+ * Exige sessão e um dos papéis dados no servidor (401 sem sessão, 403 com outro papel) antes de qualquer
  * ação; a checagem não depende da tela.
  */
-async function asAdmin<T>(
+async function asRoles<T>(
+  roles: readonly Role[],
   deps: AdminDeps,
   request: RequestLike,
   run: (actor: User) => Promise<AdminResponse<T>>,
@@ -59,7 +63,7 @@ async function asAdmin<T>(
     deps.auth,
     deps.cookieSecure,
   );
-  const access = authorizeRoles(user, ADMIN_ROLES);
+  const access = authorizeRoles(user, roles);
   if (!access.ok) {
     const message = access.status === 401 ? "É preciso entrar." : "Sem permissão para esta ação.";
     return { response: reject(access.status, message), setCookie: null };
@@ -178,5 +182,112 @@ export function updateSpace(deps: AdminDeps, request: RequestLike, data: unknown
       return reject(400, BAD_REQUEST);
     }
     return fromResult(await deps.spaces.update(id, { name, capacity: cap }));
+  });
+}
+
+function asAdmin<T>(
+  deps: AdminDeps,
+  request: RequestLike,
+  run: (actor: User) => Promise<AdminResponse<T>>,
+): Promise<AdminOutcome<T>> {
+  return asRoles(ADMIN_ROLES, deps, request, run);
+}
+
+/** Semestres: `admin` ou `horarios`. */
+function asSemesterEditor<T>(
+  deps: AdminDeps,
+  request: RequestLike,
+  run: (actor: User) => Promise<AdminResponse<T>>,
+): Promise<AdminOutcome<T>> {
+  return asRoles(SEMESTER_ROLES, deps, request, run);
+}
+
+function listOf(data: Record<string, unknown>, key: string): unknown[] | null {
+  const value = data[key];
+  return Array.isArray(value) ? value : null;
+}
+
+function parseTerms(raw: unknown[]): SemesterInput["terms"] | null {
+  const terms: SemesterInput["terms"] = [];
+  for (const item of raw) {
+    const term = record(item);
+    const start = term && text(term, "start");
+    const end = term && text(term, "end");
+    if (!term || typeof term.position !== "number" || start === null || end === null) return null;
+    terms.push({ position: term.position, start, end });
+  }
+  return terms;
+}
+
+function parseBlocks(raw: unknown[]): SemesterInput["blocks"] | null {
+  const blocks: SemesterInput["blocks"] = [];
+  for (const item of raw) {
+    const block = record(item);
+    const name = block && text(block, "name");
+    const short = block && text(block, "short");
+    const start = block && text(block, "start");
+    const end = block && text(block, "end");
+    const number = block?.number;
+    if (
+      !block ||
+      (typeof number !== "number" && typeof number !== "string") ||
+      name === null ||
+      short === null ||
+      start === null ||
+      end === null
+    ) {
+      return null;
+    }
+    blocks.push({ number, name, short, start, end });
+  }
+  return blocks;
+}
+
+function semesterInput(body: Record<string, unknown> | null): SemesterInput | null {
+  const name = body && text(body, "name");
+  const start = body && text(body, "start");
+  const end = body && text(body, "end");
+  const rawTerms = body && listOf(body, "terms");
+  const rawBlocks = body && listOf(body, "blocks");
+  if (!name || start === null || end === null || !rawTerms || !rawBlocks) return null;
+  const terms = parseTerms(rawTerms);
+  const blocks = parseBlocks(rawBlocks);
+  return terms === null || blocks === null ? null : { name, start, end, terms, blocks };
+}
+
+export function listSemesters(deps: AdminDeps, request: RequestLike) {
+  return asSemesterEditor<Semester[]>(deps, request, async () => ({
+    ok: true,
+    data: await deps.semesters.list(),
+  }));
+}
+
+export function getSemester(deps: AdminDeps, request: RequestLike, data: unknown) {
+  return asSemesterEditor<Semester>(deps, request, async () => {
+    const body = record(data);
+    const id = body && text(body, "id");
+    if (id === null || id === undefined || id === "") return reject(400, BAD_REQUEST);
+    const semester = await deps.semesters.get(id);
+    return semester === null
+      ? reject(404, "Semestre não encontrado.")
+      : { ok: true, data: semester };
+  });
+}
+
+export function createSemester(deps: AdminDeps, request: RequestLike, data: unknown) {
+  return asSemesterEditor<Semester>(deps, request, async () => {
+    const input = semesterInput(record(data));
+    if (input === null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.semesters.create(input));
+  });
+}
+
+export function updateSemester(deps: AdminDeps, request: RequestLike, data: unknown) {
+  return asSemesterEditor<Semester>(deps, request, async () => {
+    const body = record(data);
+    const id = body && text(body, "id");
+    const input = semesterInput(body);
+    if (id === null || id === undefined || input === null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.semesters.update(id, input));
   });
 }
