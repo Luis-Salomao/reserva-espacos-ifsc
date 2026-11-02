@@ -1,6 +1,6 @@
 import { getRequest, setResponseHeader } from "@tanstack/react-start/server";
 import { createAuthService } from "#/application/auth";
-import { createPasswordHasher } from "#/infra/auth/password-hasher";
+import { createConfiguredHasher } from "#/infra/auth/configured-hasher";
 import { createLoginAttemptRepository } from "#/infra/db/repos/login-attempt-repository";
 import { createSessionRepository } from "#/infra/db/repos/session-repository";
 import { createUserRepository } from "#/infra/db/repos/user-repository";
@@ -20,11 +20,7 @@ export function getAuth() {
     users: createUserRepository(db),
     sessions: createSessionRepository(db),
     attempts: createLoginAttemptRepository(db),
-    hasher: createPasswordHasher({
-      algorithm: env.PASSWORD_HASH,
-      scryptN: env.PASSWORD_SCRYPT_N,
-      ...(env.PASSWORD_PEPPER === undefined ? {} : { pepper: env.PASSWORD_PEPPER }),
-    }),
+    hasher: createConfiguredHasher(env),
     clock: systemClock,
     random: cryptoRandom,
   });

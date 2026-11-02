@@ -53,23 +53,29 @@ async function hashToken(token: string): Promise<string> {
   return toHex(new Uint8Array(digest));
 }
 
+// Hash fictício gerado pelo próprio hasher configurado (mesmo algoritmo e custo do real), para que
+// email inexistente leve o mesmo tempo que um existente. Compartilhado por hasher (e não por
+// instância do serviço): o serviço é montado a cada requisição, e sem isso cada login de email
+// desconhecido pagaria um hash extra (~2x o tempo), o que seria um oráculo de timing.
+const dummyHashes = new WeakMap<PasswordHasher, Promise<string>>();
+
+function sharedDummyHash(hasher: PasswordHasher, secret: () => string): Promise<string> {
+  const existing = dummyHashes.get(hasher);
+  if (existing !== undefined) return existing;
+  const pending = hasher.hash(secret());
+  dummyHashes.set(hasher, pending);
+  // Se a geração falhar, descarta a promessa para a próxima tentativa recomeçar.
+  pending.catch(() => {
+    if (dummyHashes.get(hasher) === pending) dummyHashes.delete(hasher);
+  });
+  return pending;
+}
+
 export function createAuthService(deps: AuthDeps) {
   const { users, sessions, hasher, attempts, clock, random } = deps;
 
-  // Hash fictício gerado pelo próprio hasher configurado (mesmo algoritmo e custo do real), para que
-  // email inexistente leve o mesmo tempo. Calculado uma vez, sob demanda, e memoizado.
-  let dummyHash: Promise<string> | undefined;
-  const getDummyHash = (): Promise<string> => {
-    if (dummyHash === undefined) {
-      const pending = hasher.hash(toBase64Url(random.bytes(16)));
-      dummyHash = pending;
-      // Se a geração falhar, descarta a promessa memoizada para a próxima tentativa recomeçar.
-      pending.catch(() => {
-        if (dummyHash === pending) dummyHash = undefined;
-      });
-    }
-    return dummyHash;
-  };
+  const getDummyHash = (): Promise<string> =>
+    sharedDummyHash(hasher, () => toBase64Url(random.bytes(16)));
 
   return {
     async login(email: string, password: string): Promise<LoginResult> {
