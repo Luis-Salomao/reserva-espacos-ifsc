@@ -6,7 +6,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
-import type { ImportBatch } from "#/domain/import-batch";
+import { EMPTY_COUNTS, type ImportBatch } from "#/domain/import-batch";
 import type { PreviewView } from "#/server/import-preview-view";
 
 const semester = {
@@ -18,14 +18,7 @@ const semester = {
   blocks: [],
 };
 
-const counts = {
-  pendente: 2,
-  aplicada: 0,
-  nao_aplicavel: 0,
-  conflito: 0,
-  conflito_interno: 0,
-  falha: 0,
-};
+const counts = { ...EMPTY_COUNTS, pendente: 2 };
 
 const batch = (status: ImportBatch["status"]): ImportBatch => ({
   id: "b1",
@@ -37,6 +30,7 @@ const batch = (status: ImportBatch["status"]): ImportBatch => ({
   createdBy: "u",
   createdAt: "2026-11-02T10:00:00.000Z",
   appliedAt: null,
+  supersedesBatchId: null,
 });
 
 const applyCalls: string[] = [];

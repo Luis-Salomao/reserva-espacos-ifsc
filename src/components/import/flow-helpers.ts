@@ -115,6 +115,12 @@ export const STATUS_LABELS: Record<ImportRowStatus, string> = {
   conflito: "Conflito",
   conflito_interno: "Conflito no arquivo",
   falha: "Falha ao gravar",
+  inalterada: "Inalterada",
+  mantida_cancelada: "Cancelada mantida",
+  cancelar: "A cancelar",
+  cancelada_versao: "Cancelada pela nova versão",
+  responsavel: "Responsável a trocar",
+  responsavel_atualizado: "Responsável trocado",
 };
 
 export const STATUS_ORDER: readonly ImportRowStatus[] = [
@@ -126,6 +132,16 @@ export const STATUS_ORDER: readonly ImportRowStatus[] = [
   "falha",
 ];
 
+/** Situações próprias de uma nova versão da grade (só aparecem em lotes sobre uma versão vigente). */
+export const VERSION_STATUS_ORDER: readonly ImportRowStatus[] = [
+  "inalterada",
+  "mantida_cancelada",
+  "cancelar",
+  "cancelada_versao",
+  "responsavel",
+  "responsavel_atualizado",
+];
+
 /** Classe de fundo por situação; o texto do rótulo sempre acompanha a cor. */
 export const STATUS_TONE: Record<ImportRowStatus, string> = {
   pendente: "bg-surface-2",
@@ -134,6 +150,12 @@ export const STATUS_TONE: Record<ImportRowStatus, string> = {
   conflito: "bg-occ-conflict",
   conflito_interno: "bg-occ-conflict",
   falha: "bg-occ-conflict",
+  inalterada: "bg-surface-2",
+  mantida_cancelada: "bg-surface-2",
+  cancelar: "bg-surface-2",
+  cancelada_versao: "bg-occ-imported",
+  responsavel: "bg-surface-2",
+  responsavel_atualizado: "bg-occ-imported",
 };
 
 export const BATCH_STATUS_LABELS = {

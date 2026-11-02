@@ -176,6 +176,23 @@ describe("ações de importação: fluxo", () => {
 
     const again = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
     expect(again.response.ok && again.response.data.reused).toBe(true);
+
+    // outro arquivo (bytes diferentes, mesma grade) é uma nova versão: devolve o resumo da diferença
+    const changed = new Uint8Array([...XML, ...new TextEncoder().encode("\n<!-- v2 -->")]);
+    const next = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, changed);
+    expect(next.response.ok).toBe(true);
+    if (!next.response.ok) return;
+    expect(next.response.data.reused).toBe(false);
+    expect(next.response.data.batch.supersedesBatchId).toBe(batchId);
+    const version = next.response.data.batch.summary.version;
+    expect(version?.supersedesBatchId).toBe(batchId);
+    expect(version?.inalteradas).toBeGreaterThan(0);
+    expect(version).toMatchObject({ inclusoes: 0, alteracoes: 0, remocoes: 0, responsaveis: 0 });
+    expect(version?.affectedUserIds).toEqual([]);
+    const reapplied = await applyImportBatch(ctx.deps, ctx.req("hor"), {
+      batchId: next.response.data.batch.id,
+    });
+    expect(reapplied.response.ok && reapplied.response.data.batch.status).toBe("aplicado");
   });
 
   test("corpos inválidos: 400", async () => {
