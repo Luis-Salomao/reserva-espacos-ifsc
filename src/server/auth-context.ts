@@ -42,5 +42,6 @@ export async function getRequestSession() {
   );
   if (setCookie !== null) setResponseHeader("Set-Cookie", setCookie);
   setResponseHeader("Cache-Control", "no-store");
-  return { user, publicRead: getEnv(getRuntimeEnv()).PUBLIC_READ };
+  const env = getEnv(getRuntimeEnv());
+  return { user, publicRead: env.PUBLIC_READ, timeZone: env.TIMEZONE };
 }

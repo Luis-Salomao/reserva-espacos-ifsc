@@ -5,7 +5,15 @@ import { BatchRows, type LoadRows } from "./batch-rows";
 import { BATCH_STATUS_LABELS, formatInstant } from "./flow-helpers";
 
 /** Lote reaberto: cabeçalho, contagens e a mesma tabela por linha do fim da importação. */
-export function BatchDetail({ batch, load }: { batch: BatchView; load: LoadRows }) {
+export function BatchDetail({
+  batch,
+  load,
+  timeZone,
+}: {
+  batch: BatchView;
+  load: LoadRows;
+  timeZone: string;
+}) {
   return (
     <div className="grid gap-4">
       <div>
@@ -14,9 +22,9 @@ export function BatchDetail({ batch, load }: { batch: BatchView; load: LoadRows 
         </Link>
         <h1 className="mt-2 text-2xl font-semibold">Lote do semestre {batch.semesterName}</h1>
         <p className="text-muted-foreground">
-          {BATCH_STATUS_LABELS[batch.status]} · criado em {formatInstant(batch.createdAt)}
-          {batch.appliedAt !== null && ` · aplicado em ${formatInstant(batch.appliedAt)}`} · arquivo{" "}
-          {batch.hashPrefix}
+          {BATCH_STATUS_LABELS[batch.status]} · criado em {formatInstant(batch.createdAt, timeZone)}
+          {batch.appliedAt !== null && ` · aplicado em ${formatInstant(batch.appliedAt, timeZone)}`}{" "}
+          · arquivo {batch.hashPrefix}
         </p>
       </div>
       <BatchCounts summary={batch.summary} />

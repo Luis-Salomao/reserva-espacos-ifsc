@@ -15,9 +15,10 @@ export const Route = createFileRoute("/importar/lotes/$id")({
 
 function BatchPage() {
   const batch = Route.useLoaderData();
+  const { session } = Route.useRouteContext();
   return (
     <AppShell wide>
-      <BatchDetail batch={batch} load={loadImportRows} />
+      <BatchDetail batch={batch} load={loadImportRows} timeZone={session.timeZone} />
     </AppShell>
   );
 }

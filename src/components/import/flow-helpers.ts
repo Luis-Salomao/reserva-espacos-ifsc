@@ -157,9 +157,24 @@ export function formatDateTime(value: string): string {
   return month && day ? `${day}/${month} ${time}` : value;
 }
 
-/** ISO UTC -> "03/11/2026 10:30" no horário local do navegador. */
-export function formatInstant(iso: string): string {
+/**
+ * ISO UTC -> "03/11/2026 10:30" no fuso informado (TIMEZONE do servidor). Nunca usa o fuso do
+ * processo, para a página renderizada no servidor ser idêntica à do navegador (sem divergência na
+ * hidratação).
+ */
+export function formatInstant(iso: string, timeZone: string): string {
   const date = new Date(iso);
   if (Number.isNaN(date.getTime())) return iso;
-  return date.toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" });
+  const part = (type: Intl.DateTimeFormatPartTypes, parts: Intl.DateTimeFormatPart[]): string =>
+    parts.find((item) => item.type === type)?.value ?? "";
+  const parts = new Intl.DateTimeFormat("pt-BR", {
+    timeZone,
+    day: "2-digit",
+    month: "2-digit",
+    year: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  return `${part("day", parts)}/${part("month", parts)}/${part("year", parts)} ${part("hour", parts)}:${part("minute", parts)}`;
 }
