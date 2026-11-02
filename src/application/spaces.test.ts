@@ -92,6 +92,9 @@ describe("criar espaço", () => {
     ["só espaços", "   "],
     ["longo demais", "x".repeat(81)],
     ["com controle", "Lab\n1"],
+    ["com DEL", "Lab\u007f1"],
+    ["com controle C1 (U+0085)", "Lab\u00851"],
+    ["com controle C1 (U+009F)", "Lab\u009f1"],
   ])("recusa nome %s", async (_label, name) => {
     expect(await ctx.service.create({ name, capacity: null })).toMatchObject({
       ok: false,
