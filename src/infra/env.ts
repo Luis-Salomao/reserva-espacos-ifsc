@@ -6,6 +6,9 @@ export type AppEnv = {
   DATABASE_PATH?: string;
   TIMEZONE: string;
   PUBLIC_READ: boolean;
+  PASSWORD_HASH: "scrypt" | "pbkdf2";
+  PASSWORD_SCRYPT_N: number;
+  PASSWORD_PEPPER?: string;
 };
 
 type EnvSource = Record<string, string | undefined>;
@@ -22,6 +25,15 @@ export function getEnv(source: EnvSource): AppEnv {
       DATABASE_PATH: z.string().min(1).optional(),
       TIMEZONE: z.string().min(1).default("America/Sao_Paulo"),
       PUBLIC_READ: z.stringbool().default(true),
+      PASSWORD_HASH: z.enum(["scrypt", "pbkdf2"]).default("scrypt"),
+      PASSWORD_SCRYPT_N: z.coerce
+        .number()
+        .int()
+        .min(1024)
+        .max(65536)
+        .refine((n) => (n & (n - 1)) === 0, "deve ser potência de 2")
+        .default(16384),
+      PASSWORD_PEPPER: z.string().min(1).optional(),
     },
     runtimeEnv: source,
     isServer: true,
@@ -42,6 +54,9 @@ export function getEnv(source: EnvSource): AppEnv {
     DEPLOY_TARGET: parsed.DEPLOY_TARGET,
     TIMEZONE: parsed.TIMEZONE,
     PUBLIC_READ: parsed.PUBLIC_READ,
+    PASSWORD_HASH: parsed.PASSWORD_HASH,
+    PASSWORD_SCRYPT_N: parsed.PASSWORD_SCRYPT_N,
+    ...(parsed.PASSWORD_PEPPER === undefined ? {} : { PASSWORD_PEPPER: parsed.PASSWORD_PEPPER }),
     ...(parsed.DATABASE_PATH === undefined ? {} : { DATABASE_PATH: parsed.DATABASE_PATH }),
   };
 }
