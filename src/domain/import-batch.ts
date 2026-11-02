@@ -23,6 +23,8 @@ export type ImportBatch = {
   semesterId: string;
   fileHash: string;
   summary: ImportSummary;
+  /** SHA-256 das linhas planejadas; detecta plano que mudou durante o preparo. */
+  planHash: string | null;
   status: ImportBatchStatus;
   createdBy: string;
   createdAt: string;

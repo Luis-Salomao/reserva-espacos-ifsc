@@ -110,6 +110,7 @@ export const importBatches = sqliteTable(
       .references(() => semesters.id),
     fileHash: text("file_hash").notNull(),
     summaryJson: text("summary_json").notNull(),
+    planHash: text("plan_hash"),
     status: text("status", {
       enum: ["preparando", "rascunho", "aplicando", "aplicado", "falhou"],
     }).notNull(),

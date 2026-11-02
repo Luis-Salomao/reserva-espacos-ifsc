@@ -23,6 +23,9 @@ export function getDb(): AppDb {
   if (path !== ":memory:") mkdirSync(dirname(resolve(path)), { recursive: true });
   const sqlite = new Database(path, { create: true });
   sqlite.run("PRAGMA journal_mode = WAL");
+  // Chaves estrangeiras ligadas (no SQLite é por conexão). Nenhuma lógica de importação depende delas:
+  // apagar rascunho e trocar de estado são condicionais ao estado do lote. No D1, pelo que a
+  // documentação da Cloudflare indica, as chaves estrangeiras são sempre aplicadas (NÃO verificado aqui).
   sqlite.run("PRAGMA foreign_keys = ON");
   connection = sqlite;
   const db = drizzle(sqlite, { schema });

@@ -1,0 +1,1 @@
+ALTER TABLE `import_batches` ADD `plan_hash` text;
