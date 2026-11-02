@@ -67,6 +67,15 @@ describe("planCreateAdmin", () => {
     expect(command).not.toContain('"');
   });
 
+  test("com local (dev:cf) o comando usa --local em vez de --remote", () => {
+    const plan = planCreateAdmin({ ...base, local: true });
+    if (!plan.ok) throw new Error(plan.errors.join(","));
+    expect(
+      plan.command?.startsWith("wrangler d1 execute DB --local --config wrangler.jsonc "),
+    ).toBe(true);
+    expect(plan.command).not.toContain("--remote");
+  });
+
   test("shell powershell dobra as aspas simples e não usa barra invertida", () => {
     const plan = planCreateAdmin({ ...base, name: "Ana D'Ávila", shell: "powershell" });
     if (!plan.ok) throw new Error(plan.errors.join(","));
