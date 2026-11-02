@@ -25,7 +25,7 @@ export type AdminResponse<T> =
 
 export type AdminOutcome<T> = { response: AdminResponse<T>; setCookie: string | null };
 
-type RequestLike = Pick<Request, "url" | "headers">;
+export type RequestLike = Pick<Request, "url" | "headers">;
 
 const STATUS_BY_KIND: Record<Failure["kind"], AdminStatus> = {
   validation: 400,
@@ -34,15 +34,15 @@ const STATUS_BY_KIND: Record<Failure["kind"], AdminStatus> = {
   last_admin: 409,
 };
 
-const BAD_REQUEST = "Requisição inválida.";
+export const BAD_REQUEST = "Requisição inválida.";
 
-function reject(status: AdminStatus, message: string, field?: string): AdminResponse<never> {
+export function reject(status: AdminStatus, message: string, field?: string): AdminResponse<never> {
   return field === undefined
     ? { ok: false, status, message }
     : { ok: false, status, message, field };
 }
 
-function fromResult<T>(result: Result<T>): AdminResponse<T> {
+export function fromResult<T>(result: Result<T>): AdminResponse<T> {
   if (result.ok) return { ok: true, data: result.value };
   return reject(STATUS_BY_KIND[result.kind], result.message, result.field);
 }
@@ -51,9 +51,9 @@ function fromResult<T>(result: Result<T>): AdminResponse<T> {
  * Exige sessão e um dos papéis dados no servidor (401 sem sessão, 403 com outro papel) antes de qualquer
  * ação; a checagem não depende da tela.
  */
-async function asRoles<T>(
+export async function asRoles<T>(
   roles: readonly Role[],
-  deps: AdminDeps,
+  deps: Pick<AdminDeps, "auth" | "cookieSecure">,
   request: RequestLike,
   run: (actor: User) => Promise<AdminResponse<T>>,
 ): Promise<AdminOutcome<T>> {
@@ -71,18 +71,18 @@ async function asRoles<T>(
   return { response: await run(access.user), setCookie };
 }
 
-function record(data: unknown): Record<string, unknown> | null {
+export function record(data: unknown): Record<string, unknown> | null {
   return typeof data === "object" && data !== null && !Array.isArray(data)
     ? (data as Record<string, unknown>)
     : null;
 }
 
-function text(data: Record<string, unknown>, key: string): string | null {
+export function text(data: Record<string, unknown>, key: string): string | null {
   const value = data[key];
   return typeof value === "string" ? value : null;
 }
 
-function textList(data: Record<string, unknown>, key: string): string[] | null {
+export function textList(data: Record<string, unknown>, key: string): string[] | null {
   const value = data[key];
   if (!Array.isArray(value)) return null;
   return value.every((item) => typeof item === "string") ? (value as string[]) : null;
