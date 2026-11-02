@@ -58,6 +58,7 @@ const REQUIRED = [
   "--text-muted",
   "--accent",
   "--accent-contrast",
+  "--accent-text",
   "--occ-free",
   "--occ-booked",
   "--occ-imported",
@@ -94,8 +95,15 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 
+  test("texto laranja (links) sobre fundo e superfícies >= 4.5", () => {
+    for (const base of ["--bg", "--surface", "--surface-2"]) {
+      expect(contrast(t["--accent-text"] as string, t[base] as string)).toBeGreaterThanOrEqual(4.5);
+    }
+  });
+
   test("foco visível contra o fundo >= 3", () => {
     expect(contrast(t["--focus"] as string, t["--bg"] as string)).toBeGreaterThanOrEqual(3);
+    expect(contrast(t["--focus"] as string, t["--surface"] as string)).toBeGreaterThanOrEqual(3);
   });
 
   test.each(OCCUPANCY)("texto sobre %s >= 4.5", (token) => {

@@ -1,53 +1,56 @@
-/* Tokens do design system. Claro: agenda clara e calma. Escuro: grafite sóbrio. */
+/* Tokens do design system. Claro: branco e preto com destaque laranja. Escuro: preto e branco com o mesmo laranja. */
 :root {
   color-scheme: light;
   --bg: #ffffff;
-  --surface: #f8f9fa;
-  --surface-2: #f1f3f4;
-  --border: #dadce0;
-  --text: #1f1f1f;
-  --text-muted: #5f6368;
-  --accent: #1a73e8;
-  --accent-contrast: #ffffff;
-  --occ-free: #e6f4ea;
-  --occ-booked: #d2e3fc;
-  --occ-imported: #fde7b8;
-  --occ-conflict: #fad2cf;
-  --focus: #1a73e8;
+  --surface: #fafafa;
+  --surface-2: #f4f4f5;
+  --border: #e4e4e7;
+  --text: #0a0a0a;
+  --text-muted: #52525b;
+  --accent: #f38020;
+  --accent-contrast: #111111;
+  --accent-text: #b54708;
+  --occ-free: #dcf2e3;
+  --occ-booked: #ffe3c9;
+  --occ-imported: #dde8f6;
+  --occ-conflict: #fcd5d3;
+  --focus: #c2410c;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #08090a;
-  --surface: #101113;
-  --surface-2: #17181b;
-  --border: #23252a;
-  --text: #f7f8f8;
-  --text-muted: #8a8f98;
-  --accent: #5e6ad2;
-  --accent-contrast: #ffffff;
-  --occ-free: #123524;
-  --occ-booked: #1e2a5a;
-  --occ-imported: #4a3a0f;
-  --occ-conflict: #5a1f22;
-  --focus: #8f98f5;
+  --bg: #0a0a0a;
+  --surface: #141414;
+  --surface-2: #1c1c1c;
+  --border: #2e2e2e;
+  --text: #fafafa;
+  --text-muted: #a1a1aa;
+  --accent: #f38020;
+  --accent-contrast: #111111;
+  --accent-text: #f38020;
+  --occ-free: #14391f;
+  --occ-booked: #5a2d08;
+  --occ-imported: #1d2f4a;
+  --occ-conflict: #5c1d1f;
+  --focus: #f38020;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #08090a;
-    --surface: #101113;
-    --surface-2: #17181b;
-    --border: #23252a;
-    --text: #f7f8f8;
-    --text-muted: #8a8f98;
-    --accent: #5e6ad2;
-    --accent-contrast: #ffffff;
-    --occ-free: #123524;
-    --occ-booked: #1e2a5a;
-    --occ-imported: #4a3a0f;
-    --occ-conflict: #5a1f22;
-    --focus: #8f98f5;
+    --bg: #0a0a0a;
+    --surface: #141414;
+    --surface-2: #1c1c1c;
+    --border: #2e2e2e;
+    --text: #fafafa;
+    --text-muted: #a1a1aa;
+    --accent: #f38020;
+    --accent-contrast: #111111;
+    --accent-text: #f38020;
+    --occ-free: #14391f;
+    --occ-booked: #5a2d08;
+    --occ-imported: #1d2f4a;
+    --occ-conflict: #5c1d1f;
+    --focus: #f38020;
   }
 }

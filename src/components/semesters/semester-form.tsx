@@ -8,6 +8,7 @@ import {
   useFocusInvalidField,
 } from "#/components/admin/use-admin-action";
 import { Button } from "#/components/ui/button";
+import { DatePicker } from "#/components/ui/date-picker";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import {
@@ -246,26 +247,10 @@ export function SemesterForm({ semester, onSaved }: Props) {
         <legend className="mb-1 text-base font-semibold">Vigência</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field id={`${uid}-start`} label="Início" error={fieldError(result, "start")}>
-            {(props) => (
-              <Input
-                {...props}
-                type="date"
-                required
-                value={start}
-                onChange={(event) => setStart(event.target.value)}
-              />
-            )}
+            {(props) => <DatePicker {...props} required value={start} onChange={setStart} />}
           </Field>
           <Field id={`${uid}-end`} label="Fim" error={fieldError(result, "end")}>
-            {(props) => (
-              <Input
-                {...props}
-                type="date"
-                required
-                value={end}
-                onChange={(event) => setEnd(event.target.value)}
-              />
-            )}
+            {(props) => <DatePicker {...props} required value={end} onChange={setEnd} />}
           </Field>
         </div>
       </fieldset>
@@ -289,11 +274,10 @@ export function SemesterForm({ semester, onSaved }: Props) {
                   error={fieldError(result, `term-${position}-start`)}
                 >
                   {(props) => (
-                    <Input
+                    <DatePicker
                       {...props}
-                      type="date"
                       value={term.start}
-                      onChange={(event) => changeTerm(position - 1, { start: event.target.value })}
+                      onChange={(v) => changeTerm(position - 1, { start: v })}
                     />
                   )}
                 </Field>
@@ -303,11 +287,10 @@ export function SemesterForm({ semester, onSaved }: Props) {
                   error={fieldError(result, `term-${position}-end`)}
                 >
                   {(props) => (
-                    <Input
+                    <DatePicker
                       {...props}
-                      type="date"
                       value={term.end}
-                      onChange={(event) => changeTerm(position - 1, { end: event.target.value })}
+                      onChange={(v) => changeTerm(position - 1, { end: v })}
                     />
                   )}
                 </Field>
