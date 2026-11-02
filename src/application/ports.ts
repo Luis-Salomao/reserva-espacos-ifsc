@@ -1,3 +1,14 @@
+import type { ExistingOccupation } from "#/application/import-plan";
+import type {
+  ImportBatch,
+  ImportBatchStatus,
+  ImportRow,
+  ImportRowCounts,
+  ImportRowStatus,
+  ImportSummary,
+  RoomMapping,
+  TeacherMapping,
+} from "#/domain/import-batch";
 import type { Semester } from "#/domain/semester";
 import type { Space } from "#/domain/space";
 import type { Role, User } from "#/domain/user";
@@ -95,4 +106,48 @@ export interface SemesterRepository {
    * existe. Atômico nos dois alvos (batch no D1, transação no bun:sqlite).
    */
   replace(id: string, input: Omit<Semester, "id">): Promise<Semester | null>;
+}
+
+export interface RoomMappingRepository {
+  list(): Promise<RoomMapping[]>;
+  /** Grava (insere ou atualiza pela id de origem) em blocos atômicos. */
+  saveMany(items: readonly RoomMapping[], updatedAt: string): Promise<void>;
+}
+
+export interface TeacherMappingRepository {
+  list(): Promise<TeacherMapping[]>;
+  saveMany(items: readonly TeacherMapping[], updatedAt: string): Promise<void>;
+}
+
+export interface ImportRepository {
+  findBatch(id: string): Promise<ImportBatch | null>;
+  findBatchByHash(semesterId: string, fileHash: string): Promise<ImportBatch | null>;
+  /** Grava lote e linhas em blocos; repetir é inofensivo (ignora chaves já gravadas). */
+  createBatch(batch: ImportBatch, rows: readonly ImportRow[]): Promise<void>;
+  /** Apaga um rascunho e suas linhas (nunca ocupações). */
+  deleteDraft(id: string): Promise<void>;
+  /** Linhas ainda por aplicar (`pendente` ou `falha`), em ordem estável. */
+  pendingRows(batchId: string): Promise<ImportRow[]>;
+  /**
+   * Aplica as linhas de um bloco numa unidade atômica: insere cada ocupação só se não houver
+   * ocupação ativa sobreposta no espaço e registra, na mesma unidade, `aplicada` ou `conflito`.
+   */
+  applyRows(batchId: string, rows: readonly ImportRow[], createdAt: string): Promise<void>;
+  markFailed(
+    batchId: string,
+    rowKeys: readonly string[],
+    code: string,
+    detail: string,
+  ): Promise<void>;
+  setBatchState(
+    id: string,
+    state: { status: ImportBatchStatus; summary: ImportSummary; appliedAt: string | null },
+  ): Promise<void>;
+  countRows(batchId: string): Promise<ImportRowCounts>;
+  listRows(
+    batchId: string,
+    options: { status?: ImportRowStatus; limit: number; offset: number },
+  ): Promise<ImportRow[]>;
+  /** Ocupações ativas que se sobrepõem a `[from, to)`. */
+  listActiveOccupations(from: string, to: string): Promise<ExistingOccupation[]>;
 }
