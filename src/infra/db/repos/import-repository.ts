@@ -1,4 +1,19 @@
-import { and, asc, desc, eq, gt, gte, inArray, lt, ne, or, type SQL, sql } from "drizzle-orm";
+import {
+  and,
+  asc,
+  desc,
+  eq,
+  getTableColumns,
+  gt,
+  gte,
+  inArray,
+  lt,
+  lte,
+  ne,
+  or,
+  type SQL,
+  sql,
+} from "drizzle-orm";
 import type { ImportRepository, RowFilter } from "#/application/ports";
 import {
   EMPTY_COUNTS,
@@ -104,6 +119,14 @@ export function createImportRepository(db: AppDb): ImportRepository {
     async findBatch(id) {
       const [row] = await db.select().from(importBatches).where(eq(importBatches.id, id));
       return row ? toBatch(row) : null;
+    },
+    async findBatches(ids) {
+      if (ids.length === 0) return [];
+      const found = await db
+        .select()
+        .from(importBatches)
+        .where(inArray(importBatches.id, [...ids]));
+      return found.map(toBatch);
     },
     async findBatchByHash(semesterId, fileHash) {
       const [row] = await db
@@ -444,6 +467,36 @@ export function createImportRepository(db: AppDb): ImportRepository {
         )
         .limit(options.limit)
         .offset(options.offset);
+    },
+    async listRowGroups(batchId, options) {
+      const ranked = db
+        .select({
+          ...getTableColumns(importRows),
+          rank: sql<number>`dense_rank() over (order by ${importRows.date} is null, ${importRows.date}, ${importRows.title})`.as(
+            "grp_rank",
+          ),
+        })
+        .from(importRows)
+        .where(rowWhere(batchId, options))
+        .as("ranked");
+      const found = await db
+        .select()
+        .from(ranked)
+        .where(
+          and(gt(ranked.rank, options.offset), lte(ranked.rank, options.offset + options.limit)),
+        )
+        .orderBy(sql`grp_rank`, asc(ranked.startTime), asc(ranked.rowKey));
+      return found.map(({ rank: _rank, ...row }) => row);
+    },
+    async countRowGroups(batchId, filter) {
+      const groups = db
+        .select({ date: importRows.date, title: importRows.title })
+        .from(importRows)
+        .where(rowWhere(batchId, filter))
+        .groupBy(importRows.date, importRows.title)
+        .as("grupos");
+      const [found] = await db.select({ total: sql<number>`count(*)` }).from(groups);
+      return Number(found?.total ?? 0);
     },
     async countFilteredRows(batchId, filter) {
       const [found] = await db

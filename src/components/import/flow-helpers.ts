@@ -358,3 +358,19 @@ export function resultCards(
     { label: "Falhas", count: counts.falha, tone: STATUS_TONE.falha },
   ];
 }
+
+/**
+ * Casa, dentro de um grupo (aula + data), as ocupações de antes e de depois uma a uma, na ordem
+ * recebida (horário, depois chave): a 1ª de antes com a 1ª de depois, e assim por diante. Sobra de
+ * um lado fica sem par (cancelamento sem substituta ou inclusão extra).
+ */
+export function pairBeforeAfter<T>(
+  before: readonly T[],
+  after: readonly T[],
+): Array<{ before: T | null; after: T | null }> {
+  const length = Math.max(before.length, after.length);
+  return Array.from({ length }, (_, index) => ({
+    before: before[index] ?? null,
+    after: after[index] ?? null,
+  }));
+}

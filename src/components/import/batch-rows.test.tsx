@@ -176,6 +176,7 @@ describe("BatchRows", () => {
     expect(screen.getByText(/Sala 1/)).toBeTruthy();
     expect(screen.getByText(/Sala 2/)).toBeTruthy();
     expect(queries.at(-1)?.changeKind).toBe("alteracao");
+    expect(queries.at(-1)?.groups).toBe(true);
     expect(queries.at(-1)?.status).toBeUndefined();
   });
 

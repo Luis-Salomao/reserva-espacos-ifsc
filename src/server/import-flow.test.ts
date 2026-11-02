@@ -171,6 +171,7 @@ describe("ações do fluxo de importação", () => {
       { batchId, search: 4 },
       { batchId, changeKind: "inventado" },
       { batchId, changeKind: 3 },
+      { batchId, groups: "sim" },
       { batchId, limit: 0 },
       { batchId, offset: -1 },
       "texto",

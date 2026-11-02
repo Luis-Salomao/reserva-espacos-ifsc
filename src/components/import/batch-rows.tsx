@@ -23,6 +23,8 @@ export type RowsQuery = {
   status?: ImportRowStatus;
   reasonCode?: string;
   changeKind?: ImportChangeKind;
+  /** Pagina por grupo (aula + data): `limit`, `offset` e o total contam grupos. */
+  groups?: boolean;
   search?: string;
   limit: number;
   offset: number;
@@ -31,8 +33,8 @@ export type RowsQuery = {
 export type LoadRows = (query: RowsQuery) => Promise<AdminResponse<RowsPage>>;
 
 const PAGE_SIZE = 25;
-/** Alterações aparecem em grupos antes/depois; a página é maior para não cortar um grupo ao meio. */
-const GROUPED_PAGE_SIZE = 200;
+/** Visão de alterações: a página tem este tanto de GRUPOS (aula + data); um grupo nunca é cortado. */
+const GROUPED_PAGE_SIZE = 25;
 const SEARCH_DELAY_MS = 300;
 const LOAD_ERROR = "Não foi possível carregar as linhas do lote. Tente novamente.";
 const SELECT_CLASS =
@@ -115,6 +117,7 @@ export function BatchRows({ batchId, load, refreshKey = 0, view = "", onBatchLoa
     const result = await load({
       batchId,
       ...viewQuery,
+      ...(grouped ? { groups: true } : {}),
       ...(status === "" ? {} : { status }),
       ...(reasonCode === "" ? {} : { reasonCode }),
       ...(search.trim() === "" ? {} : { search: search.trim() }),
@@ -130,7 +133,18 @@ export function BatchRows({ batchId, load, refreshKey = 0, view = "", onBatchLoa
     } else {
       setError(result === null ? LOAD_ERROR : result.message);
     }
-  }, [batchId, load, status, reasonCode, search, offset, pageSize, viewQuery, onBatchLoaded]);
+  }, [
+    batchId,
+    load,
+    status,
+    reasonCode,
+    search,
+    offset,
+    pageSize,
+    grouped,
+    viewQuery,
+    onBatchLoaded,
+  ]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey força recarregar
   useEffect(() => {
@@ -216,7 +230,7 @@ export function BatchRows({ batchId, load, refreshKey = 0, view = "", onBatchLoa
             ? filtered
               ? "Nenhuma linha com esses filtros."
               : "Este lote não tem linhas."
-            : `Mostrando ${first}–${last} de ${total}${filtered ? " (filtrado)" : ""}.`}
+            : `Mostrando ${first}–${last} de ${total}${grouped ? (total === 1 ? " alteração" : " alterações") : ""}${filtered ? " (filtrado)" : ""}.`}
       </p>
 
       {page !== null && page.rows.length > 0 && grouped && (

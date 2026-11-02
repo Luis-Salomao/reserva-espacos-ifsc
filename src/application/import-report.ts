@@ -70,7 +70,12 @@ export type RowsPage = {
   reasons: ReasonCount[];
 };
 
-export type ReportFilter = RowFilter & { limit?: number; offset?: number };
+export type ReportFilter = RowFilter & {
+  limit?: number;
+  offset?: number;
+  /** Pagina por grupo (aula + data): `limit`/`offset`/`total` contam grupos (visão de alterações). */
+  groups?: boolean;
+};
 
 export function createImportReportService(deps: {
   imports: ImportRepository;
@@ -128,8 +133,12 @@ export function createImportReportService(deps: {
         ...(filter.changeKind === undefined ? {} : { changeKind: filter.changeKind }),
       };
       const [rows, total, reasons, names, allSpaces, accounts] = await Promise.all([
-        imports.listRows(batchId, { ...where, limit, offset }),
-        imports.countFilteredRows(batchId, where),
+        filter.groups === true
+          ? imports.listRowGroups(batchId, { ...where, limit, offset })
+          : imports.listRows(batchId, { ...where, limit, offset }),
+        filter.groups === true
+          ? imports.countRowGroups(batchId, where)
+          : imports.countFilteredRows(batchId, where),
         imports.reasonCounts(batchId),
         semesterNames(),
         spaces.list(),
@@ -215,9 +224,26 @@ export function createImportReportService(deps: {
         users.list(),
       ]);
       const userNames = new Map(accounts.map((user) => [user.id, user.name]));
-      return Promise.all(
-        list.map(async (batch) => toView(batch, names, await supersededAt(batch), userNames)),
-      );
+      // Uma consulta só para os lotes substituídos que não estão na própria lista.
+      const known = new Map(list.map((batch) => [batch.id, batch]));
+      const missing = [
+        ...new Set(
+          list
+            .map((batch) => batch.supersedesBatchId)
+            .filter((id): id is string => id !== null && !known.has(id)),
+        ),
+      ];
+      for (const batch of await imports.findBatches(missing)) known.set(batch.id, batch);
+      return list.map((batch) => {
+        const previous =
+          batch.supersedesBatchId === null ? undefined : known.get(batch.supersedesBatchId);
+        return toView(
+          batch,
+          names,
+          previous === undefined ? null : (previous.appliedAt ?? previous.createdAt),
+          userNames,
+        );
+      });
     },
   };
 }

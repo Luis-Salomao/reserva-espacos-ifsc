@@ -160,6 +160,8 @@ export type ApplyPhase = "mudancas" | "insercoes";
 
 export interface ImportRepository {
   findBatch(id: string): Promise<ImportBatch | null>;
+  /** Vários lotes numa só consulta (os que não existem mais ficam de fora). */
+  findBatches(ids: readonly string[]): Promise<ImportBatch[]>;
   findBatchByHash(semesterId: string, fileHash: string): Promise<ImportBatch | null>;
   /** Grava o lote; se já existe lote com o mesmo (hash, semestre) não faz nada. */
   insertBatch(batch: ImportBatch): Promise<void>;
@@ -228,6 +230,16 @@ export interface ImportRepository {
     batchId: string,
     options: RowFilter & { limit: number; offset: number },
   ): Promise<ImportRow[]>;
+  /**
+   * Linhas do lote paginadas por GRUPO (aula + data): `limit`/`offset` contam grupos e as linhas de
+   * um grupo nunca se separam entre páginas. Ordem: data (sem data por último), título, horário, chave.
+   */
+  listRowGroups(
+    batchId: string,
+    options: RowFilter & { limit: number; offset: number },
+  ): Promise<ImportRow[]>;
+  /** Quantos grupos (aula + data) passam pelo filtro. */
+  countRowGroups(batchId: string, filter: RowFilter): Promise<number>;
   /** Quantas linhas do lote passam pelo filtro (para paginar). */
   countFilteredRows(batchId: string, filter: RowFilter): Promise<number>;
   /** Linhas do lote agrupadas por situação e motivo. */
