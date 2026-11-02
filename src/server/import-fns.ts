@@ -3,6 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { finish } from "./finish.ts";
 import {
   applyImportBatch,
+  discardImportBatch,
   saveRoomMappings,
   saveTeacherMappings,
   suggestMappings,
@@ -59,3 +60,9 @@ export const getImportRowsFn = createServerFn({ method: "POST" })
 export const listImportBatchesFn = createServerFn({ method: "GET" }).handler(async () =>
   finish(await listImportBatches(getImportFlowDeps(), getRequest())),
 );
+
+export const discardImportBatchFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await discardImportBatch(getImportFlowDeps(), getRequest(), data)),
+  );

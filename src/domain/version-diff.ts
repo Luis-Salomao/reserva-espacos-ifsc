@@ -18,7 +18,6 @@ type VersionChange = {
   lessonKey: string;
   date: string;
   cancel: VersionOccurrence[];
-  alreadyCancelled: VersionOccurrence[];
   insert: VersionOccurrence[];
 };
 
@@ -152,7 +151,6 @@ export function diffVersions(current: VersionOccurrence[], next: VersionOccurren
         lessonKey: sample.lessonKey,
         date: sample.date,
         cancel: leftoverCurrent.filter((o) => o.status !== "cancelada"),
-        alreadyCancelled: leftoverCurrent.filter((o) => o.status === "cancelada"),
         insert: leftoverNext,
       });
     } else if (leftoverCurrent.length > 0) {

@@ -16,6 +16,7 @@ import * as schema from "#/infra/db/schema";
 import { systemClock } from "#/infra/runtime";
 import {
   applyImportBatch,
+  discardImportBatch,
   type ImportDeps,
   prepareImport,
   saveRoomMappings,
@@ -193,6 +194,29 @@ describe("ações de importação: fluxo", () => {
       batchId: next.response.data.batch.id,
     });
     expect(reapplied.response.ok && reapplied.response.data.batch.status).toBe("aplicado");
+  });
+
+  test("descartar: rascunho sai, aplicado é recusado, corpo inválido e docente são barrados", async () => {
+    await saveRoomMappings(ctx.deps, ctx.req("adm"), {
+      items: [{ sourceRoomId: "R1", sourceShort: "S1", spaceId: ctx.space.id, ignored: false }],
+    });
+    const prepared = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
+    if (!prepared.response.ok) throw new Error("prepare");
+    const batchId = prepared.response.data.batch.id;
+    expect((await discardImportBatch(ctx.deps, ctx.req("doc"), { batchId })).response.ok).toBe(
+      false,
+    );
+    expect((await discardImportBatch(ctx.deps, ctx.req("hor"), {})).response.ok).toBe(false);
+    expect((await discardImportBatch(ctx.deps, ctx.req("hor"), { batchId })).response.ok).toBe(
+      true,
+    );
+    const again = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
+    if (!again.response.ok) throw new Error("prepare");
+    await applyImportBatch(ctx.deps, ctx.req("hor"), { batchId: again.response.data.batch.id });
+    const refused = await discardImportBatch(ctx.deps, ctx.req("hor"), {
+      batchId: again.response.data.batch.id,
+    });
+    expect(refused.response.ok).toBe(false);
   });
 
   test("corpos inválidos: 400", async () => {

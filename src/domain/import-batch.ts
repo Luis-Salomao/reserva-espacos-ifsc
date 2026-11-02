@@ -57,8 +57,10 @@ export function pendingTotal(counts: ImportRowCounts): number {
 export type VersionSummary = {
   supersedesBatchId: string;
   inclusoes: number;
-  /** Grupos (aula + data) com cancelar/inserir. */
+  /** Grupos (aula + data) com cancelar/inserir que serão aplicados. */
   alteracoes: number;
+  /** Grupos de alteração segurados por conflito (a versão anterior continua). */
+  bloqueadas: number;
   remocoes: number;
   responsaveis: number;
   inalteradas: number;

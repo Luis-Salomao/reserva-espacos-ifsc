@@ -5,7 +5,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { createImportService } from "#/application/import-apply";
 import type { ImportRepository } from "#/application/ports";
-import type { ImportChangeKind, ImportRow, ImportRowStatus } from "#/domain/import-batch";
+import { EMPTY_COUNTS, type ImportRow } from "#/domain/import-batch";
 import type { Semester } from "#/domain/semester";
 import type { AscTimetable, Lesson } from "#/domain/timetable";
 import type { WeeklySlot } from "#/import-asc/slots";
@@ -84,14 +84,14 @@ const version = (hash: string, slots: WeeklySlot[], lessons?: Lesson[]): Version
   lessons:
     lessons ??
     [...new Set(slots.map((s) => s.lessonId))].map((id) =>
-      lesson(id, ["T1"], id.startsWith("B") ? "S2" : "S1"),
+      lesson(id, ["T1"], id.startsWith("B") ? "S2" : id.startsWith("C") ? "S3" : "S1"),
     ),
 });
 
 type Env = {
   db: AppDb;
   semesterId: string;
-  spaces: Record<"R1" | "R2" | "R3", string>;
+  spaces: Record<"R1" | "R2" | "R3" | "R4", string>;
   userId: string;
   clock: { time: number };
   service: ReturnType<typeof createImportService>;
@@ -114,6 +114,7 @@ async function setup(wrap?: (repo: ImportRepository) => ImportRepository): Promi
     R1: (await spaceRepo.create({ name: "Lab 1", capacity: null })).id,
     R2: (await spaceRepo.create({ name: "Lab 2", capacity: null })).id,
     R3: (await spaceRepo.create({ name: "Lab 3", capacity: null })).id,
+    R4: (await spaceRepo.create({ name: "Lab 4", capacity: null })).id,
   };
   const userRow = (id: string) => ({
     id,
@@ -131,7 +132,7 @@ async function setup(wrap?: (repo: ImportRepository) => ImportRepository): Promi
   }
   const maps = createMappingRepositories(db);
   await maps.rooms.saveMany(
-    (["R1", "R2", "R3"] as const).map((room) => ({
+    (["R1", "R2", "R3", "R4"] as const).map((room) => ({
       sourceRoomId: room,
       sourceShort: room,
       spaceId: spaces[room],
@@ -251,6 +252,7 @@ describe("nova versão: classificação e aplicação", () => {
       supersedesBatchId: first.id,
       inclusoes: 0,
       alteracoes: 0,
+      bloqueadas: 0,
       remocoes: 0,
       responsaveis: 0,
       inalteradas: 3,
@@ -694,6 +696,181 @@ describe("nova versão: classificação e aplicação", () => {
   });
 });
 
+describe("nova versão: bloqueios em cascata", () => {
+  test("P1: ocupação segurada por grupo bloqueado ocupa o lugar; outra aula não é movida para lá", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1"), at("B2", "R2")]));
+    await env.db.insert(schema.occupations).values(manualBooking(env.spaces.R3));
+    // L1 -> R3 (avulsa em 10/08: bloqueada, fica em R1); B2 -> R1 (R1 segurada por L1)
+    const prepared = await prepareAll(env, version("h2", [at("L1", "R3"), at("B2", "R1")]));
+    const ten = (await rowsOf(env, prepared.batch.id)).filter((r) => r.date === "2026-08-10");
+    expect(ten.filter((r) => r.status === "alteracao_bloqueada")).toHaveLength(2);
+    expect(ten.some((r) => r.status === "cancelar" || r.status === "pendente")).toBe(false);
+    expect(prepared.batch.summary.version).toMatchObject({ alteracoes: 4, bloqueadas: 2 });
+    await applyAll(env, prepared.batch.id);
+    const onTen = (await occupationsOf(env)).filter(
+      (o) => o.startsAt.startsWith("2026-08-10") && o.source === "import",
+    );
+    expect(
+      onTen
+        .filter((o) => o.status === "ativa")
+        .map((o) => [o.title, o.spaceId])
+        .sort(),
+    ).toEqual(
+      [
+        ["ALG — T1A", env.spaces.R1],
+        ["BD — T1A", env.spaces.R2],
+      ].sort(),
+    );
+  });
+
+  test("cadeia de três grupos que se bloqueiam em sequência", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1"), at("B2", "R2"), at("C3", "R3")]));
+    await env.db.insert(schema.occupations).values(manualBooking(env.spaces.R4));
+    const prepared = await prepareAll(
+      env,
+      version("h2", [at("L1", "R4"), at("B2", "R1"), at("C3", "R2")]),
+    );
+    const ten = (await rowsOf(env, prepared.batch.id)).filter((r) => r.date === "2026-08-10");
+    expect(ten.some((r) => r.status === "cancelar")).toBe(false);
+    expect(prepared.batch.summary.version?.bloqueadas).toBe(3);
+    await applyAll(env, prepared.batch.id);
+    const active = (await occupationsOf(env)).filter(
+      (o) => o.startsAt.startsWith("2026-08-10") && o.source === "import" && o.status === "ativa",
+    );
+    expect(active.map((o) => o.spaceId).sort()).toEqual(
+      [env.spaces.R1, env.spaces.R2, env.spaces.R3].sort(),
+    );
+  });
+});
+
+describe("nova versão: um lote em andamento por semestre", () => {
+  async function twoDrafts() {
+    const env = await setup();
+    await publish(env, twelve("R1", "h1"));
+    const v2 = await prepareAll(env, twelve("R2", "h2"));
+    const v3 = await prepareAll(env, twelve("R3", "h3"));
+    return { env, v2, v3 };
+  }
+
+  test("P2: com a v2 em andamento a v3, preparada sobre a mesma base, é recusada; depois, desatualizada", async () => {
+    const { env, v2, v3 } = await twoDrafts();
+    env.clock.time += 1000;
+    const step = await env.service.apply(v2.batch.id, { maxChunks: 1 });
+    expect(step.ok && step.value.batch.status).toBe("aplicando");
+    const busy = await env.service.apply(v3.batch.id);
+    expect(busy.ok).toBe(false);
+    expect(!busy.ok && busy.kind).toBe("conflict");
+    expect(!busy.ok && busy.message).toContain("em andamento");
+    expect((await env.imports.findBatch(v3.batch.id))?.status).toBe("rascunho");
+    await applyAll(env, v2.batch.id);
+    const stale = await env.service.apply(v3.batch.id);
+    expect(!stale.ok && stale.kind).toBe("conflict");
+    expect(!stale.ok && stale.message).toContain("Outra versão");
+    const active = (await occupationsOf(env)).filter((o) => o.status === "ativa");
+    expect(active).toHaveLength(36);
+    expect(active.every((o) => o.spaceId === env.spaces.R2)).toBe(true);
+  });
+
+  test("P3: preparar outra versão com um lote aplicando é recusado", async () => {
+    const { env, v2 } = await twoDrafts();
+    await env.service.apply(v2.batch.id, { maxChunks: 1 });
+    const refused = await env.service.prepare(input(env, twelve("R3", "h4")));
+    expect(!refused.ok && refused.kind).toBe("conflict");
+    expect(!refused.ok && refused.message).toContain("em andamento");
+    // o próprio lote em andamento continua reconhecido pelo hash
+    const same = await env.service.prepare(input(env, twelve("R2", "h2")));
+    expect(same.ok && same.value.reused).toBe(true);
+    await applyAll(env, v2.batch.id);
+    const after = await env.service.prepare(input(env, twelve("R3", "h4")));
+    expect(after.ok).toBe(true);
+  });
+
+  test("lote falhou bloqueia os outros até ser retomado", async () => {
+    const fail = { on: false };
+    const env = await setup((repo) => ({
+      ...repo,
+      applyRows: async (batchId, rows, createdAt) => {
+        if (fail.on) throw new Error("banco indisponível");
+        return repo.applyRows(batchId, rows, createdAt);
+      },
+    }));
+    await publish(env, twelve("R1", "h1"));
+    const v2 = await prepareAll(env, twelve("R2", "h2"));
+    const v3 = await prepareAll(env, twelve("R3", "h3"));
+    fail.on = true;
+    const failed = await env.service.apply(v2.batch.id);
+    expect(failed.ok && failed.value.batch.status).toBe("falhou");
+    expect((await env.service.prepare(input(env, twelve("R3", "h5")))).ok).toBe(false);
+    const other = await env.service.apply(v3.batch.id);
+    expect(!other.ok && other.kind).toBe("conflict");
+    fail.on = false;
+    const resumed = await applyAll(env, v2.batch.id);
+    expect(resumed.batch.status).toBe("aplicado");
+    expect((await occupationsOf(env)).filter((o) => o.status === "ativa")).toHaveLength(36);
+  });
+});
+
+describe("descartar lote", () => {
+  test("rascunho pode ser descartado; aplicado e inexistente não", async () => {
+    const env = await setup();
+    const applied = await publish(env, version("h1", [at("L1", "R1")]));
+    const draft = await prepareAll(env, version("h2", [at("L1", "R2")]));
+    const ok = await env.service.discardBatch(draft.batch.id);
+    expect(ok.ok).toBe(true);
+    expect(await env.imports.findBatch(draft.batch.id)).toBeNull();
+    expect(
+      await env.db
+        .select()
+        .from(schema.importRows)
+        .where(eq(schema.importRows.batchId, draft.batch.id)),
+    ).toHaveLength(0);
+    const no = await env.service.discardBatch(applied.id);
+    expect(!no.ok && no.kind).toBe("conflict");
+    const missing = await env.service.discardBatch("nao-existe");
+    expect(!missing.ok && missing.kind).toBe("not_found");
+    expect((await occupationsOf(env)).filter((o) => o.status === "ativa")).toHaveLength(3);
+  });
+
+  test("falhou sem nada aplicado pode ser descartado e libera o semestre", async () => {
+    const env = await setup((repo) => ({
+      ...repo,
+      applyVersionRows: async () => {
+        throw new Error("banco indisponível");
+      },
+    }));
+    await publish(env, twelve("R1", "h1"));
+    const v2 = await prepareAll(env, twelve("R2", "h2"));
+    const failed = await env.service.apply(v2.batch.id);
+    expect(failed.ok && failed.value.batch.status).toBe("falhou");
+    const gone = await env.service.discardBatch(v2.batch.id);
+    expect(gone.ok).toBe(true);
+    expect(await env.imports.findBatch(v2.batch.id)).toBeNull();
+    expect((await env.service.prepare(input(env, twelve("R3", "h3")))).ok).toBe(true);
+  });
+
+  test("falhou com linhas já aplicadas não pode ser descartado: retome a aplicação", async () => {
+    const fail = { on: false };
+    const env = await setup((repo) => ({
+      ...repo,
+      applyRows: async (batchId, rows, createdAt) => {
+        if (fail.on) throw new Error("banco indisponível");
+        return repo.applyRows(batchId, rows, createdAt);
+      },
+    }));
+    await publish(env, twelve("R1", "h1"));
+    const v2 = await prepareAll(env, twelve("R2", "h2"));
+    fail.on = true;
+    await env.service.apply(v2.batch.id);
+    const refused = await env.service.discardBatch(v2.batch.id);
+    expect(!refused.ok && refused.kind).toBe("conflict");
+    expect(!refused.ok && refused.message).toContain("retome a aplicação");
+    expect((await env.imports.findBatch(v2.batch.id))?.status).toBe("falhou");
+    expect((await occupationsOf(env)).filter((o) => o.status === "cancelada")).toHaveLength(36);
+  });
+});
+
 describe("nova versão: interrupção e retomada", () => {
   async function moved(env: Env) {
     await publish(env, twelve("R1", "h1"));
@@ -900,24 +1077,17 @@ describe("nova versão: interrupção e retomada", () => {
 });
 
 describe("tipos de linha", () => {
-  test("os tipos de mudança e situações são exatamente os do desenho", () => {
-    const kinds: ImportChangeKind[] = [
+  test("contagens e tipos acompanham exatamente os enums do esquema", () => {
+    expect(Object.keys(EMPTY_COUNTS).sort()).toEqual(
+      [...schema.importRows.status.enumValues].sort(),
+    );
+    expect(schema.importRows.changeKind.enumValues).toEqual([
       "inclusao",
       "alteracao",
       "remocao",
       "inalterada",
       "mantida_cancelada",
       "responsavel",
-    ];
-    const statuses: ImportRowStatus[] = [
-      "inalterada",
-      "mantida_cancelada",
-      "cancelar",
-      "cancelada_versao",
-      "responsavel",
-      "responsavel_atualizado",
-    ];
-    expect(kinds).toHaveLength(6);
-    expect(statuses).toHaveLength(6);
+    ]);
   });
 });

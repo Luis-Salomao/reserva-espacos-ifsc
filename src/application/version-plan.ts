@@ -152,24 +152,49 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
       reasonDetail: CANCELLED_MOVED,
     });
   }
-  for (const group of diff.changed) {
-    for (const o of group.alreadyCancelled) keptCancelled(o, leftover);
-  }
 
+  // Ocupações vigentes que continuam ativas depois deste lote (inalteradas, troca de responsável e,
+  // abaixo, as seguradas por grupos bloqueados): uma inserção sobre elas é conflito.
   const staying = groupBySpace(
     [...diff.unchanged, ...diff.responsibleChanged].map((pair) => occupationOf(pair.current)),
   );
-  const insertRow = (o: VersionOccurrence, changeKind: ImportChangeKind): ImportRow => {
+  const insertRow = (
+    o: VersionOccurrence,
+    changeKind: ImportChangeKind,
+    own: ReadonlySet<string> = new Set(),
+  ): ImportRow => {
     const draft = draftOf.get(o) as OccurrenceDraft;
     let outcome = outcomeOf.get(draft) as Parameters<typeof occurrenceRow>[1];
     if (outcome === PENDING_INSERT) {
-      const blocker = (staying.get(draft.spaceId) ?? []).find((other) =>
-        intervalsOverlap(draft, other),
+      const blocker = (staying.get(draft.spaceId) ?? []).find(
+        (other) => !own.has(other.id) && intervalsOverlap(draft, other),
       );
       if (blocker !== undefined) outcome = existingConflict(blocker.id);
     }
     return occurrenceRow(draft, outcome, changeKind);
   };
+  const isConflict = (row: ImportRow) =>
+    row.status === "conflito" || row.status === "conflito_interno";
+
+  // Ponto fixo: um grupo com nova ocorrência já em conflito (com algo que este lote não cancela) fica
+  // bloqueado e SEGURA suas ocupações antigas; isso pode fazer outro grupo, que iria para o lugar delas,
+  // conflitar também. Repete até nenhum grupo mudar de estado.
+  const blockedGroups = new Set<(typeof diff.changed)[number]>();
+  for (let flipped = true; flipped; ) {
+    flipped = false;
+    for (const group of diff.changed) {
+      if (blockedGroups.has(group)) continue;
+      if (!group.insert.some((o) => isConflict(insertRow(o, "alteracao")))) continue;
+      blockedGroups.add(group);
+      for (const o of group.cancel) {
+        const held = occupationOf(o);
+        const list = staying.get(held.spaceId);
+        if (list === undefined) staying.set(held.spaceId, [held]);
+        else list.push(held);
+      }
+      flipped = true;
+    }
+  }
   const cancelRow = (o: VersionOccurrence, changeKind: ImportChangeKind): ImportRow => {
     const occupation = occupationOf(o);
     affect(occupation.responsibleUserId);
@@ -179,15 +204,12 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
   for (const o of diff.added) rows.push(insertRow(o, "inclusao"));
   for (const o of diff.removed) rows.push(cancelRow(o, "remocao"));
   for (const group of diff.changed) {
-    const inserts = group.insert.map((o) => insertRow(o, "alteracao"));
-    // Se alguma nova ocorrência do grupo já nasce em conflito (com algo que este lote não cancela),
-    // o grupo todo fica bloqueado: nada é cancelado nem inserido e a versão anterior continua.
+    // Grupo bloqueado: nada é cancelado nem inserido e a versão anterior continua.
     // Conflito que só aparece na aplicação (fase de inserções, depois dos cancelamentos) é um
     // resíduo aceito: a linha vira conflito concorrente e a aula pode ficar sem sala até resolver.
-    const blocked = inserts.some(
-      (row) => row.status === "conflito" || row.status === "conflito_interno",
-    );
-    if (blocked) {
+    const own = new Set(group.cancel.map((o) => o.occupationId as string));
+    const inserts = group.insert.map((o) => insertRow(o, "alteracao", own));
+    if (blockedGroups.has(group)) {
       const hold = { reasonCode: "alteracao_bloqueada", reasonDetail: BLOCKED_DETAIL };
       for (const o of group.cancel) {
         rows.push(currentRow(occupationOf(o), "b", "alteracao_bloqueada", "alteracao", hold));
@@ -220,7 +242,8 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
     version: {
       supersedesBatchId: input.supersedesBatchId,
       inclusoes: count("inclusao"),
-      alteracoes: diff.changed.length,
+      alteracoes: diff.changed.length - blockedGroups.size,
+      bloqueadas: blockedGroups.size,
       remocoes: count("remocao"),
       responsaveis: count("responsavel"),
       inalteradas: count("inalterada"),
