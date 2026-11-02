@@ -67,7 +67,7 @@ function toNodes(items: unknown, depth: number): XmlNode[] | null {
 
 export function readAscXml(bytes: Uint8Array): ReadResult {
   if (bytes.byteLength > MAX_XML_BYTES) return fail("too_large");
-  const text = decode(bytes);
+  const text = decode(bytes)?.trimStart() ?? null;
   if (text === null) return fail("unsupported_encoding");
   if (FORBIDDEN_DECLARATION.test(text)) return fail("dtd_forbidden");
   if (XMLValidator.validate(text) !== true) return fail("malformed");

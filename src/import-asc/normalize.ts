@@ -26,7 +26,91 @@ import type { ImportWarning } from "./warnings.ts";
 
 export type NormalizeResult = { timetable: AscTimetable; warnings: ImportWarning[] };
 
+/** Acima disso a prévia é parcial: o resto dos cards é ignorado (proteção de memória e tempo). */
+const MAX_CARDS = 5000;
+
 const values = <T>(entries: { value: T }[]): T[] => entries.map((entry) => entry.value);
+
+type KnownIds = {
+  subjects: Set<string>;
+  classes: Set<string>;
+  teachers: Set<string>;
+  classrooms: Set<string>;
+  termsDefs: Set<string>;
+  weeksDefs: Set<string>;
+  daysDefs: Set<string>;
+};
+
+type Entry<T> = { key: string; value: T };
+
+/**
+ * Valida os ids de cada aula (§7.2): referência inexistente vira `unknown_reference` (só o id da
+ * aula e o nome do atributo, nunca o valor) e é descartada; aula sem turma vira `lesson_without_class`.
+ */
+function checkLessonReferences(
+  entries: Entry<Lesson>[],
+  known: KnownIds,
+  warnings: ImportWarning[],
+): Entry<Lesson>[] {
+  return entries.map(({ key, value: lesson }) => {
+    const unknown = (detail: string) =>
+      warnings.push({ code: "unknown_reference", section: "lessons", ref: key, detail });
+    const keepKnown = (ids: string[], set: Set<string>, detail: string): string[] => {
+      const kept = ids.filter((id) => set.has(id));
+      if (kept.length < ids.length) unknown(detail);
+      return kept;
+    };
+    const single = (id: string | null, set: Set<string>, detail: string): string | null => {
+      if (id === null || set.has(id)) return id;
+      unknown(detail);
+      return null;
+    };
+    const checked: Lesson = {
+      ...lesson,
+      subjectId: single(lesson.subjectId, known.subjects, "subjectid"),
+      classIds: keepKnown(lesson.classIds, known.classes, "classids"),
+      teacherIds: keepKnown(lesson.teacherIds, known.teachers, "teacherids"),
+      classroomIds: keepKnown(lesson.classroomIds, known.classrooms, "classroomids"),
+      termsDefId: single(lesson.termsDefId, known.termsDefs, "termsdefid"),
+      weeksDefId: single(lesson.weeksDefId, known.weeksDefs, "weeksdefid"),
+      daysDefId: single(lesson.daysDefId, known.daysDefs, "daysdefid"),
+    };
+    if (checked.classIds.length === 0) {
+      warnings.push({ code: "lesson_without_class", section: "lessons", ref: key });
+    }
+    return { key, value: checked };
+  });
+}
+
+/** Remove cards exatamente iguais (a ordem das salas não importa); o primeiro vence. */
+function dedupeCards(cards: Card[], warnings: ImportWarning[]): Card[] {
+  const seen = new Set<string>();
+  const kept: Card[] = [];
+  for (const card of cards) {
+    const key = JSON.stringify([
+      card.lessonId,
+      card.period,
+      card.days,
+      card.weeks,
+      card.terms,
+      [...card.classroomIds].sort(),
+      card.roomsUnknown === true,
+    ]);
+    if (seen.has(key)) {
+      warnings.push({ code: "duplicate_card", section: "cards", ref: card.lessonId });
+      continue;
+    }
+    seen.add(key);
+    kept.push(card);
+  }
+  return kept;
+}
+
+function limitCards(cards: Card[], warnings: ImportWarning[]): Card[] {
+  if (cards.length <= MAX_CARDS) return cards;
+  warnings.push({ code: "too_many_cards", section: "cards", detail: String(cards.length) });
+  return cards.slice(0, MAX_CARDS);
+}
 
 /**
  * Converte a árvore XML em `AscTimetable`. Nunca lança: problemas viram avisos.
@@ -159,7 +243,17 @@ export function normalizeAsc(root: XmlNode): NormalizeResult {
     warnings,
   );
 
-  const lessons = readSection<Lesson>(
+  const known: KnownIds = {
+    subjects: new Set(subjects.map((entry) => entry.key)),
+    classes: new Set(classes.map((entry) => entry.key)),
+    teachers: new Set(teachers.map((entry) => entry.key)),
+    classrooms: new Set(classrooms.map((entry) => entry.key)),
+    termsDefs: new Set(terms.map((entry) => entry.key)),
+    weeksDefs: new Set(weeks.map((entry) => entry.key)),
+    daysDefs: new Set(days.map((entry) => entry.key)),
+  };
+
+  const rawLessons = readSection<Lesson>(
     root,
     {
       section: "lessons",
@@ -187,8 +281,9 @@ export function normalizeAsc(root: XmlNode): NormalizeResult {
     warnings,
   );
 
+  const lessons = checkLessonReferences(rawLessons, known, warnings);
   const lessonIds = new Set(lessons.map((entry) => entry.key));
-  const cards = readSection<Card>(
+  const rawCards = readSection<Card>(
     root,
     {
       section: "cards",
@@ -207,18 +302,26 @@ export function normalizeAsc(root: XmlNode): NormalizeResult {
         const rawPeriod = attr(node, "period");
         const period = parseInteger(rawPeriod);
         if (rawPeriod !== undefined && period === null) warn("invalid_number", lessonId, "period");
-        return {
+        const listed = idList(attr(node, "classroomids"));
+        const classroomIds = listed.filter((id) => known.classrooms.has(id));
+        if (classroomIds.length < listed.length)
+          warn("unknown_reference", lessonId, "classroomids");
+        const card: Card = {
           lessonId,
           period,
           days: singleMask(attr(node, "days"), warn, lessonId),
           weeks: singleMask(attr(node, "weeks"), warn, lessonId),
           terms: singleMask(attr(node, "terms"), warn, lessonId),
-          classroomIds: idList(attr(node, "classroomids")),
+          classroomIds,
         };
+        if (listed.length > 0 && classroomIds.length === 0) card.roomsUnknown = true;
+        return card;
       },
     },
     warnings,
   );
+
+  const cards = limitCards(dedupeCards(values(rawCards), warnings), warnings);
 
   return {
     timetable: {
@@ -231,7 +334,7 @@ export function normalizeAsc(root: XmlNode): NormalizeResult {
       subjects: values(subjects),
       classes: values(classes),
       lessons: values(lessons),
-      cards: values(cards),
+      cards,
     },
     warnings,
   };
