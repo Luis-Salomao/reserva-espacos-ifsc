@@ -15,7 +15,9 @@ type ApplyReason =
   | "conflito_existente"
   | "conflito_concorrente"
   | "conflito_interno"
-  | "erro_gravacao";
+  | "erro_gravacao"
+  | "ja_cancelada"
+  | "cancelada_sem_correspondente";
 
 export type ReasonCode = NotApplicableReason | ApplyReason;
 
@@ -34,6 +36,8 @@ const LABELS: Record<ReasonCode, string> = {
   conflito_concorrente: "Conflito surgido durante a aplicação",
   conflito_interno: "Conflito com outra aula do arquivo",
   erro_gravacao: "Erro de gravação",
+  ja_cancelada: "Já estava cancelada",
+  cancelada_sem_correspondente: "Cancelada e fora da nova versão",
 };
 
 /** Todos os códigos de motivo que o planejador e a aplicação podem gravar numa linha. */

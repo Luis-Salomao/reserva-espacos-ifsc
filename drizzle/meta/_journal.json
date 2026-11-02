@@ -43,6 +43,13 @@
       "when": 1793628918814,
       "tag": "0005_empty_rocket_racer",
       "breakpoints": true
+    },
+    {
+      "idx": 6,
+      "version": "6",
+      "when": 1793653796889,
+      "tag": "0006_tired_gorilla_man",
+      "breakpoints": true
     }
   ]
 }

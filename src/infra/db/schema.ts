@@ -119,6 +119,8 @@ export const importBatches = sqliteTable(
       .references(() => users.id),
     createdAt: text("created_at").notNull(),
     appliedAt: text("applied_at"),
+    /** Último lote aplicado do semestre quando este foi preparado como nova versão (só rastreio). */
+    supersedesBatchId: text("supersedes_batch_id"),
   },
   (table) => [
     uniqueIndex("import_batches_hash_semester_unique").on(table.fileHash, table.semesterId),
@@ -142,12 +144,29 @@ export const importRows = sqliteTable(
     title: text("title").notNull(),
     responsibleUserId: text("responsible_user_id"),
     status: text("status", {
-      enum: ["pendente", "aplicada", "nao_aplicavel", "conflito", "conflito_interno", "falha"],
+      enum: [
+        "pendente",
+        "aplicada",
+        "nao_aplicavel",
+        "conflito",
+        "conflito_interno",
+        "falha",
+        "inalterada",
+        "mantida_cancelada",
+        "cancelar",
+        "cancelada_versao",
+        "responsavel",
+        "responsavel_atualizado",
+      ],
     }).notNull(),
     reasonCode: text("reason_code"),
     reasonDetail: text("reason_detail"),
     occupationId: text("occupation_id"),
     conflictOccupationId: text("conflict_occupation_id"),
+    /** Natureza da mudança na nova versão; `null` nos lotes da primeira versão do semestre. */
+    changeKind: text("change_kind", {
+      enum: ["inclusao", "alteracao", "remocao", "inalterada", "mantida_cancelada", "responsavel"],
+    }),
   },
   (table) => [
     primaryKey({ columns: [table.batchId, table.rowKey] }),
@@ -171,6 +190,9 @@ export const occupations = sqliteTable(
     title: text("title").notNull(),
     status: text("status", { enum: ["ativa", "cancelada"] }).notNull(),
     createdAt: text("created_at").notNull(),
+    /** Por que foi cancelada (`nova_versao` = substituída por uma nova versão da grade). */
+    cancelReason: text("cancel_reason"),
+    cancelledAt: text("cancelled_at"),
   },
   (table) => [
     index("occupations_space_starts_idx").on(table.spaceId, table.startsAt),
