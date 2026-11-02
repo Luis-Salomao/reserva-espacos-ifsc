@@ -3,7 +3,7 @@ import type { ReactNode } from "react";
 import { ThemeToggle } from "#/components/theme-toggle";
 import { Button } from "#/components/ui/button";
 import { cn } from "#/lib/utils";
-import { ADMIN_ROLES, IMPORT_ROLES, type SessionInfo } from "#/server/session";
+import { ADMIN_ROLES, IMPORT_ROLES, SEMESTER_ROLES, type SessionInfo } from "#/server/session";
 
 type Props = { children: ReactNode; wide?: boolean };
 
@@ -18,6 +18,7 @@ export function AppShell({ children, wide = false }: Props) {
   const width = wide ? "max-w-6xl" : "max-w-3xl";
   const user = useSessionUser();
   const canImport = user?.roles.some((role) => IMPORT_ROLES.includes(role)) ?? false;
+  const canConfigureSemesters = user?.roles.some((role) => SEMESTER_ROLES.includes(role)) ?? false;
   const isAdmin = user?.roles.some((role) => ADMIN_ROLES.includes(role)) ?? false;
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
@@ -37,6 +38,11 @@ export function AppShell({ children, wide = false }: Props) {
               {canImport && (
                 <Link to="/importar" className="rounded-md px-2 py-2 hover:bg-surface-2">
                   Importar grade
+                </Link>
+              )}
+              {canConfigureSemesters && (
+                <Link to="/semestres" className="rounded-md px-2 py-2 hover:bg-surface-2">
+                  Semestres
                 </Link>
               )}
               {isAdmin && (

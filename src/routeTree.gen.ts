@@ -19,6 +19,8 @@ import { Route as ApiEntrarRouteImport } from './routes/api/entrar'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiImportPreviewRouteImport } from './routes/api/import-preview'
 import { Route as ApiSairRouteImport } from './routes/api/sair'
+import { Route as SemestresIndexRouteImport } from './routes/semestres.index'
+import { Route as SemestresIdRouteImport } from './routes/semestres.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -70,6 +72,16 @@ const ApiSairRoute = ApiSairRouteImport.update({
   path: '/api/sair',
   getParentRoute: () => rootRouteImport,
 } as any)
+const SemestresIndexRoute = SemestresIndexRouteImport.update({
+  id: '/semestres/',
+  path: '/semestres/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SemestresIdRoute = SemestresIdRouteImport.update({
+  id: '/semestres/$id',
+  path: '/semestres/$id',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -81,7 +93,9 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/sair': typeof ApiSairRoute
+  '/semestres/$id': typeof SemestresIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/semestres/': typeof SemestresIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -93,7 +107,9 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/sair': typeof ApiSairRoute
+  '/semestres/$id': typeof SemestresIdRoute
   '/admin': typeof AdminIndexRoute
+  '/semestres': typeof SemestresIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,7 +122,9 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/sair': typeof ApiSairRoute
+  '/semestres/$id': typeof SemestresIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/semestres/': typeof SemestresIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -120,7 +138,9 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/import-preview'
     | '/api/sair'
+    | '/semestres/$id'
     | '/admin/'
+    | '/semestres/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -132,7 +152,9 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/import-preview'
     | '/api/sair'
+    | '/semestres/$id'
     | '/admin'
+    | '/semestres'
   id:
     | '__root__'
     | '/'
@@ -144,7 +166,9 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/import-preview'
     | '/api/sair'
+    | '/semestres/$id'
     | '/admin/'
+    | '/semestres/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -157,7 +181,9 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   ApiImportPreviewRoute: typeof ApiImportPreviewRoute
   ApiSairRoute: typeof ApiSairRoute
+  SemestresIdRoute: typeof SemestresIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
+  SemestresIndexRoute: typeof SemestresIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -232,6 +258,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiSairRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/semestres/': {
+      id: '/semestres/'
+      path: '/semestres'
+      fullPath: '/semestres/'
+      preLoaderRoute: typeof SemestresIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/semestres/$id': {
+      id: '/semestres/$id'
+      path: '/semestres/$id'
+      fullPath: '/semestres/$id'
+      preLoaderRoute: typeof SemestresIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
@@ -245,7 +285,9 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   ApiImportPreviewRoute: ApiImportPreviewRoute,
   ApiSairRoute: ApiSairRoute,
+  SemestresIdRoute: SemestresIdRoute,
   AdminIndexRoute: AdminIndexRoute,
+  SemestresIndexRoute: SemestresIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
