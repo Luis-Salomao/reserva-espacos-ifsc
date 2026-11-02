@@ -2,9 +2,11 @@ import { describe, expect, test } from "bun:test";
 import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-mappings";
 import {
   CREATE_VALUE,
+  EARLIER_BATCH_HINT,
   formatDate,
   formatDateTime,
   formatInstant,
+  hasEarlierBatchConflict,
   IGNORE_VALUE,
   roomChoiceOf,
   roomMappingsToSave,
@@ -136,5 +138,27 @@ describe("formatação", () => {
     // Independe do fuso do processo: o servidor e o navegador mostram o mesmo texto.
     expect(formatInstant("2026-11-02T13:30:00.000Z", "UTC")).toBe("02/11/2026 13:30");
     expect(formatInstant("2026-11-02T01:30:00.000Z", "America/Sao_Paulo")).toBe("01/11/2026 22:30");
+  });
+});
+
+describe("aviso de grade alterada", () => {
+  const conflict = (fromEarlierBatch: boolean) =>
+    ({ title: "x", startsAt: "a", endsAt: "b", fromEarlierBatch }) as const;
+
+  test("detecta conflito com ocupação de lote anterior do mesmo semestre", () => {
+    expect(hasEarlierBatchConflict([{ conflictWith: null }])).toBe(false);
+    expect(hasEarlierBatchConflict([{ conflictWith: conflict(false) }])).toBe(false);
+    expect(
+      hasEarlierBatchConflict([
+        { conflictWith: conflict(false) },
+        { conflictWith: conflict(true) },
+      ]),
+    ).toBe(true);
+    expect(hasEarlierBatchConflict([])).toBe(false);
+  });
+
+  test("a dica explica que a comparação de versões ainda não existe", () => {
+    expect(EARLIER_BATCH_HINT).toContain("versão alterada de um lote já aplicado");
+    expect(EARLIER_BATCH_HINT).toContain("comparação de versões ainda não está disponível");
   });
 });

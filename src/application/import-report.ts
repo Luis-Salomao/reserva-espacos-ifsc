@@ -39,7 +39,13 @@ export type RowView = {
   reasonCode: string | null;
   reasonDetail: string | null;
   /** Ocupação que impediu a linha (conflito com ocupação existente ou surgida na aplicação). */
-  conflictWith: { title: string; startsAt: string; endsAt: string } | null;
+  conflictWith: {
+    title: string;
+    startsAt: string;
+    endsAt: string;
+    /** A ocupação veio de um lote anterior do mesmo semestre (grade provavelmente reeditada). */
+    fromEarlierBatch: boolean;
+  } | null;
 };
 
 export type RowsPage = {
@@ -107,6 +113,26 @@ export function createImportReportService(deps: {
           item,
         ]),
       );
+      // Lotes que criaram as ocupações em conflito: só conta como "anterior" o do mesmo semestre
+      // e criado antes deste.
+      const otherBatchIds = [
+        ...new Set(
+          [...occupations.values()]
+            .map((item) => item.batchId)
+            .filter((id): id is string => id !== null && id !== batch.id),
+        ),
+      ];
+      const earlierBatches = new Set<string>();
+      for (const id of otherBatchIds) {
+        const other = await imports.findBatch(id);
+        if (
+          other !== null &&
+          other.semesterId === batch.semesterId &&
+          other.createdAt < batch.createdAt
+        ) {
+          earlierBatches.add(id);
+        }
+      }
       const spaceNames = new Map(allSpaces.map((space) => [space.id, space.name]));
       const userNames = new Map(accounts.map((user) => [user.id, user.name]));
       return ok({
@@ -138,7 +164,12 @@ export function createImportReportService(deps: {
             conflictWith:
               other === undefined
                 ? null
-                : { title: other.title, startsAt: other.startsAt, endsAt: other.endsAt },
+                : {
+                    title: other.title,
+                    startsAt: other.startsAt,
+                    endsAt: other.endsAt,
+                    fromEarlierBatch: other.batchId !== null && earlierBatches.has(other.batchId),
+                  },
           };
         }),
       });

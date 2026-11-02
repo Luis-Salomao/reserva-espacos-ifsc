@@ -8,8 +8,10 @@ import type { ImportRowStatus } from "#/domain/import-batch";
 import { describeReason } from "#/domain/import-reasons";
 import type { AdminResponse } from "#/server/admin-actions";
 import {
+  EARLIER_BATCH_HINT,
   formatDate,
   formatDateTime,
+  hasEarlierBatchConflict,
   STATUS_LABELS,
   STATUS_ORDER,
   STATUS_TONE,
@@ -232,6 +234,12 @@ export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
               : "Este lote não tem linhas."
             : `Mostrando ${first}–${last} de ${total}${filtered ? " (filtrado)" : ""}.`}
       </p>
+
+      {page !== null && hasEarlierBatchConflict(page.rows) && (
+        <p role="note" className="rounded-lg border bg-muted p-3 text-sm">
+          {EARLIER_BATCH_HINT}
+        </p>
+      )}
 
       {page !== null && page.rows.length > 0 && (
         <div className={loading ? "opacity-60" : undefined}>

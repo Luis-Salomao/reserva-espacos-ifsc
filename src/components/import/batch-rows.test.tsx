@@ -56,6 +56,7 @@ const rows: RowView[] = [
       title: "Reunião do colegiado",
       startsAt: "2026-08-03T08:00",
       endsAt: "2026-08-03T09:00",
+      fromEarlierBatch: false,
     },
   }),
   row({
@@ -127,6 +128,31 @@ describe("BatchRows", () => {
     expect(within(table).getByText(/Aplique o lote novamente/)).toBeTruthy();
     expect(within(table).getAllByText("Seg 03/08/2026").length).toBeGreaterThan(0);
     expect(within(table).getByText("Segunda-feira")).toBeTruthy();
+  });
+
+  test("avisa quando o conflito é com ocupação de um lote anterior do mesmo semestre", async () => {
+    const { load } = loader();
+    const { rerender } = render(<BatchRows batchId="b1" load={load} />);
+    await screen.findByText("Cálculo — T2B");
+    expect(screen.queryByText(/versão alterada de um lote já aplicado/)).toBeNull();
+    const earlier: LoadRows = async (query) => {
+      const result = await load(query);
+      if (!result.ok) return result;
+      return {
+        ...result,
+        data: {
+          ...result.data,
+          rows: result.data.rows.map((item) =>
+            item.conflictWith === null
+              ? item
+              : { ...item, conflictWith: { ...item.conflictWith, fromEarlierBatch: true } },
+          ),
+        },
+      };
+    };
+    rerender(<BatchRows batchId="b2" load={earlier} />);
+    expect(await screen.findByText(/versão alterada de um lote já aplicado/)).toBeTruthy();
+    expect(screen.getByText(/comparação de versões ainda não está disponível/)).toBeTruthy();
   });
 
   test("filtra por estado e por motivo no servidor e volta à primeira página", async () => {
