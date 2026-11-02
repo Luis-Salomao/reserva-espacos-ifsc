@@ -101,6 +101,25 @@ describe("POST de preparo do lote", () => {
     expect((await handlePrepareRequest(ctx.post(query, "doc"), ctx.deps)).status).toBe(403);
   });
 
+  for (const [token, status] of [
+    [null, 401],
+    ["doc", 403],
+  ] as const) {
+    test(`sem permissão (${status}) responde antes de ler o corpo`, async () => {
+      let touched = false;
+      const request = {
+        ...ctx.post(`?semesterId=${ctx.semester.id}`, token),
+        get body() {
+          touched = true;
+          return null;
+        },
+      };
+      const response = await handlePrepareRequest(request, ctx.deps);
+      expect(response.status).toBe(status);
+      expect(touched).toBe(false);
+    });
+  }
+
   test("prepara em passos e reconhece o mesmo arquivo depois", async () => {
     const query = `?semesterId=${ctx.semester.id}&maxCalls=1`;
     const response = await handlePrepareRequest(ctx.post(query, "hor"), ctx.deps);

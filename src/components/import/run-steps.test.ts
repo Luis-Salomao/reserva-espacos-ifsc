@@ -80,4 +80,26 @@ describe("runSteps", () => {
     });
     expect(other).toMatchObject({ ok: false, failure: { conflict: false }, last: null });
   });
+
+  test("sinal abortado interrompe antes do próximo passo", async () => {
+    const controller = new AbortController();
+    const { step, calls } = script([out(100), out(50), out(0, true)]);
+    const result = await runSteps(step, {
+      maxSteps: 10,
+      maxStalls: 3,
+      signal: controller.signal,
+      onProgress: () => controller.abort(),
+    });
+    expect(calls.count).toBe(1);
+    expect(result).toMatchObject({ ok: false, failure: { aborted: true } });
+  });
+
+  test("sinal já abortado não chama o servidor", async () => {
+    const controller = new AbortController();
+    controller.abort();
+    const { step, calls } = script([out(0, true)]);
+    const result = await runSteps(step, { maxSteps: 10, maxStalls: 3, signal: controller.signal });
+    expect(calls.count).toBe(0);
+    expect(result).toMatchObject({ ok: false, failure: { aborted: true }, last: null });
+  });
 });

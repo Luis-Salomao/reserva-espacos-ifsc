@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useRef, useState } from "react";
 import type { PrepareOutput, StepOutput } from "#/application/import-apply";
 import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-mappings";
 import { runAdminAction } from "#/components/admin/use-admin-action";
@@ -25,11 +25,15 @@ const MAX_STALLS = 3;
 
 const NETWORK_ERROR = "Não foi possível falar com o servidor. Verifique a conexão e tente de novo.";
 
-async function postPrepare(file: File, semesterId: string): Promise<AdminResponse<PrepareOutput>> {
+async function postPrepare(
+  file: File,
+  semesterId: string,
+  signal: AbortSignal,
+): Promise<AdminResponse<PrepareOutput>> {
   try {
     const response = await fetch(
       `/api/import-prepare?semesterId=${encodeURIComponent(semesterId)}&maxCalls=${PREPARE_CALLS}`,
-      { method: "POST", headers: { "Content-Type": "application/xml" }, body: file },
+      { method: "POST", headers: { "Content-Type": "application/xml" }, body: file, signal },
     );
     return (await response.json()) as AdminResponse<PrepareOutput>;
   } catch {
@@ -52,7 +56,7 @@ function Step({ number, title, children }: { number: number; title: string; chil
 }
 
 function ProgressBar({ label, done, total }: { label: string; done: number; total: number }) {
-  const percent = total === 0 ? 100 : Math.min(100, Math.round((done / total) * 100));
+  const percent = total === 0 ? 0 : Math.min(100, Math.round((done / total) * 100));
   return (
     <div className="grid gap-1">
       <div
@@ -125,6 +129,11 @@ export function ImportFlow({ view, file }: Props) {
   } | null>(null);
   const [refreshKey, setRefreshKey] = useState(0);
 
+  const running = useRef(false);
+  const abort = useRef<AbortController | null>(null);
+  // Ao sair da página, o laço de passos é interrompido (nada mais é chamado no servidor).
+  useEffect(() => () => abort.current?.abort(), []);
+
   const loadTargets = useCallback(async () => {
     setLoadError(null);
     const [targetsResult, suggestionsResult] = await Promise.all([
@@ -162,12 +171,19 @@ export function ImportFlow({ view, file }: Props) {
   const unsaved = roomsDirty || teachersDirty;
 
   async function prepare() {
-    if (semester === undefined) return;
+    // Reentrada (clique duplo): a ref vale já neste tick, antes de qualquer estado re-renderizar.
+    if (semester === undefined || running.current) return;
+    running.current = true;
+    const controller = new AbortController();
+    abort.current = controller;
     setFailure(null);
     setBatch(null);
+    setProgress({ label: "Preparando", done: 0, total: 0 });
     const outcome = await runSteps<PrepareOutput>(
-      () => postPrepare(file, semester.id) as Promise<StepResponse<PrepareOutput>>,
+      () =>
+        postPrepare(file, semester.id, controller.signal) as Promise<StepResponse<PrepareOutput>>,
       {
+        signal: controller.signal,
         maxSteps: MAX_STEPS,
         maxStalls: MAX_STALLS,
         onProgress: (output) => {
@@ -176,6 +192,8 @@ export function ImportFlow({ view, file }: Props) {
         },
       },
     );
+    running.current = false;
+    if (controller.signal.aborted) return;
     setProgress(null);
     if (!outcome.ok) {
       setFailure({ ...outcome.failure, again: () => void prepare() });
@@ -187,7 +205,10 @@ export function ImportFlow({ view, file }: Props) {
   }
 
   async function apply() {
-    if (batch === null) return;
+    if (batch === null || running.current) return;
+    running.current = true;
+    const controller = new AbortController();
+    abort.current = controller;
     const batchId = batch.id;
     setFailure(null);
     const total = batch.summary.counts.pendente + batch.summary.counts.falha;
@@ -198,6 +219,7 @@ export function ImportFlow({ view, file }: Props) {
           applyImportBatchFn({ data: { batchId, maxChunks: APPLY_CHUNKS } }),
         ) as Promise<StepResponse<StepOutput>>,
       {
+        signal: controller.signal,
         maxSteps: MAX_STEPS,
         maxStalls: MAX_STALLS,
         onProgress: (output) => {
@@ -206,6 +228,8 @@ export function ImportFlow({ view, file }: Props) {
         },
       },
     );
+    running.current = false;
+    if (controller.signal.aborted) return;
     setProgress(null);
     setRefreshKey((key) => key + 1);
     if (!outcome.ok) {

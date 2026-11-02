@@ -192,6 +192,11 @@ describe("relatório por linha do lote", () => {
     expect(clamped.offset).toBe(0);
   });
 
+  test("linhas sem data (não aplicáveis) vêm por último", async () => {
+    const result = await page(env, {});
+    expect(result.rows.map((row) => row.rowKey)).toEqual(["o:1", "o:2", "n:0"]);
+  });
+
   test("lista os lotes com o nome do semestre", async () => {
     const list = await env.report.batches();
     expect(list).toHaveLength(1);

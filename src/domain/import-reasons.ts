@@ -1,4 +1,26 @@
-const LABELS = {
+/** Motivos pelos quais um horário do arquivo não vira ocupação (emitidos pelo planejador). */
+export type NotApplicableReason =
+  | "no_room"
+  | "multiple_rooms"
+  | "room_unmapped"
+  | "room_ignored"
+  | "term_without_dates"
+  | "weeks_unsupported"
+  | "never_scheduled"
+  | "duplicate_occurrence"
+  | "no_dates";
+
+/** Motivos gravados na aplicação (conflitos e falha de gravação). */
+type ApplyReason =
+  | "conflito_existente"
+  | "conflito_concorrente"
+  | "conflito_interno"
+  | "erro_gravacao";
+
+export type ReasonCode = NotApplicableReason | ApplyReason;
+
+// `Record` completo: um código novo sem rótulo não compila.
+const LABELS: Record<ReasonCode, string> = {
   no_room: "Aula sem sala",
   multiple_rooms: "Aula com várias salas",
   room_unmapped: "Sala sem vínculo",
@@ -12,17 +34,17 @@ const LABELS = {
   conflito_concorrente: "Conflito surgido durante a aplicação",
   conflito_interno: "Conflito com outra aula do arquivo",
   erro_gravacao: "Erro de gravação",
-} as const;
+};
 
 /** Todos os códigos de motivo que o planejador e a aplicação podem gravar numa linha. */
-export const REASON_CODES = Object.keys(LABELS) as ReadonlyArray<keyof typeof LABELS>;
+export const REASON_CODES = Object.keys(LABELS) as readonly ReasonCode[];
 
 export type ReasonView = { label: string; detail: string | null; known: boolean };
 
 const UNKNOWN_LABEL = "Motivo não reconhecido";
 const MISSING_LABEL = "Sem motivo informado";
 
-function isKnown(code: string): code is keyof typeof LABELS {
+function isKnown(code: string): code is ReasonCode {
   return Object.hasOwn(LABELS, code);
 }
 

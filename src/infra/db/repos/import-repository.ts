@@ -253,7 +253,12 @@ export function createImportRepository(db: AppDb): ImportRepository {
         .select()
         .from(importRows)
         .where(rowWhere(batchId, options))
-        .orderBy(asc(importRows.date), asc(importRows.startTime), asc(importRows.rowKey))
+        .orderBy(
+          sql`${importRows.date} IS NULL`,
+          asc(importRows.date),
+          asc(importRows.startTime),
+          asc(importRows.rowKey),
+        )
         .limit(options.limit)
         .offset(options.offset);
     },

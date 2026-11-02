@@ -1,28 +1,50 @@
 import { describe, expect, spyOn, test } from "bun:test";
 import { readFileSync } from "node:fs";
 import { join } from "node:path";
+import type { Role, User } from "#/domain/user";
 import { MAX_XML_BYTES } from "#/import-asc/read.ts";
+import type { AuthPort } from "./auth-handlers.ts";
 import { handlePreviewRequest, type PreviewImportResult } from "./import-preview.ts";
 
 const FIXTURE = join(import.meta.dir, "../../test/fixtures/asc/complete.xml");
+
+function userWith(roles: Role[]): User {
+  return { id: "u", email: "u@x.org", name: "U", code: null, roles, active: true };
+}
+
+const AUTH: AuthPort = {
+  login: async () => ({ ok: false, reason: "invalid" }),
+  authenticate: async (token) =>
+    token === "adm" ? userWith(["admin"]) : token === "doc" ? userWith(["docente"]) : null,
+  logout: async () => {},
+};
+
+const BASE = { url: "https://reservas.ifsc.edu.br/api/import-preview" };
+const withCookie = (token: string | null, extra: Record<string, string> = {}) =>
+  new Headers({ ...extra, ...(token === null ? {} : { cookie: `sid=${token}` }) });
 
 /** O `Request` do runtime de testes descarta `Content-Length`; por isso a requisição é montada à mão. */
 function post(body: string): Request {
   const length = new TextEncoder().encode(body).length;
   return {
-    headers: new Headers({ "content-length": String(length) }),
+    ...BASE,
+    headers: withCookie("adm", { "content-length": String(length) }),
     body: length === 0 ? null : new Response(body).body,
   } as unknown as Request;
 }
 
 async function run(request: Request): Promise<{ status: number; json: PreviewImportResult }> {
-  const response = await handlePreviewRequest(request);
+  const response = await handlePreviewRequest(request, AUTH, "auto");
   return { status: response.status, json: (await response.json()) as PreviewImportResult };
 }
 
 /** Requisição falsa: só cabeçalhos e corpo, para simular o que o `Request` real não permite. */
 function fake(contentLength: string, body: ReadableStream<Uint8Array> | null): Request {
-  return { headers: new Headers({ "content-length": contentLength }), body } as unknown as Request;
+  return {
+    ...BASE,
+    headers: withCookie("adm", { "content-length": contentLength }),
+    body,
+  } as unknown as Request;
 }
 
 describe("handlePreviewRequest", () => {
@@ -51,7 +73,8 @@ describe("handlePreviewRequest", () => {
   test("recusa Content-Length acima do limite sem tocar no corpo", async () => {
     let touched = false;
     const request = {
-      headers: new Headers({ "content-length": String(MAX_XML_BYTES + 1) }),
+      ...BASE,
+      headers: withCookie("adm", { "content-length": String(MAX_XML_BYTES + 1) }),
       get body() {
         touched = true;
         return null;
@@ -64,7 +87,7 @@ describe("handlePreviewRequest", () => {
   });
 
   test("exige Content-Length", async () => {
-    const request = { headers: new Headers(), body: null } as unknown as Request;
+    const request = { ...BASE, headers: withCookie("adm"), body: null } as unknown as Request;
     const { status } = await run(request);
     expect(status).toBe(411);
   });
@@ -85,7 +108,8 @@ describe("handlePreviewRequest", () => {
 
   test("falha inesperada vira mensagem genérica e loga só o nome do erro", async () => {
     const request = {
-      headers: new Headers({ "content-length": "5" }),
+      ...BASE,
+      headers: withCookie("adm", { "content-length": "5" }),
       get body(): never {
         throw new TypeError("conteúdo secreto");
       },
@@ -101,4 +125,24 @@ describe("handlePreviewRequest", () => {
       log.mockRestore();
     }
   });
+
+  for (const [token, status] of [
+    [null, 401],
+    ["doc", 403],
+  ] as const) {
+    test(`sem permissão (${status}) responde antes de ler o corpo`, async () => {
+      let touched = false;
+      const request = {
+        ...BASE,
+        headers: withCookie(token, { "content-length": "5" }),
+        get body() {
+          touched = true;
+          return null;
+        },
+      } as unknown as Request;
+      const response = await handlePreviewRequest(request, AUTH, "auto");
+      expect(response.status).toBe(status);
+      expect(touched).toBe(false);
+    });
+  }
 });

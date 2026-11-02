@@ -1,6 +1,8 @@
 import { MAX_XML_BYTES } from "#/import-asc/read.ts";
 import { type AdminResponse, reject } from "./admin-actions.ts";
+import { requireRole } from "./auth-handlers.ts";
 import { type ImportDeps, prepareImport } from "./import-actions.ts";
+import { IMPORT_ROLES } from "./session.ts";
 import { checkContentLength, readBodyWithLimit, TOO_LARGE_MESSAGE } from "./upload-limit.ts";
 
 const INVALID = "Requisição inválida.";
@@ -24,6 +26,12 @@ export async function handlePrepareRequest(
   deps: ImportDeps,
 ): Promise<Response> {
   try {
+    // Sessão e papel antes de ler qualquer byte do corpo (até 10 MB).
+    const access = await requireRole(request, deps.auth, IMPORT_ROLES, deps.cookieSecure);
+    if (!access.ok) {
+      const body = (await access.response.json()) as { message: string };
+      return reply(reject(access.response.status === 401 ? 401 : 403, body.message));
+    }
     const params = new URL(request.url).searchParams;
     const semesterId = params.get("semesterId") ?? "";
     const rawCalls = params.get("maxCalls");
