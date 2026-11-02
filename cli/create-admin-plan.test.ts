@@ -97,3 +97,11 @@ describe("planCreateAdmin", () => {
     expect(planCreateAdmin({ ...base, passwordHash: "x'; DROP TABLE users;--" }).ok).toBe(false);
   });
 });
+
+describe("powershellQuote com aspas tipográficas", () => {
+  test("dobra também U+2018 a U+201B (o PowerShell as trata como aspas simples)", () => {
+    for (const quote of ["‘", "’", "‚", "‛"]) {
+      expect(powershellQuote(`a${quote}b`)).toBe(`'a${quote}${quote}b'`);
+    }
+  });
+});

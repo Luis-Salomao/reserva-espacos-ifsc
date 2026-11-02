@@ -29,7 +29,7 @@ function fakeHasher() {
   return { hasher, calls };
 }
 
-function setup() {
+function setup(hasherOverride?: PasswordHasher) {
   let current = new Date("2026-11-02T12:00:00.000Z");
   let counter = 0;
   const clock = { now: () => new Date(current) };
@@ -100,7 +100,7 @@ function setup() {
   const service = createAuthService({
     users,
     sessions,
-    hasher: h.hasher,
+    hasher: hasherOverride ?? h.hasher,
     attempts,
     clock,
     random,
@@ -360,5 +360,26 @@ describe("authenticate e logout", () => {
     await ctx.service.logout(token);
     expect(await ctx.service.authenticate(token)).toBeNull();
     expect(ctx.sessionMap.size).toBe(0);
+  });
+});
+
+describe("hash fictício", () => {
+  test("se a geração falha, a promessa memoizada é descartada e a próxima tentativa recupera", async () => {
+    let failNext = true;
+    const flaky: PasswordHasher = {
+      async hash(password) {
+        if (failNext) {
+          failNext = false;
+          throw new Error("falha transitória");
+        }
+        return `fake:${password}`;
+      },
+      verify: async (password, stored) => stored === `fake:${password}`,
+      needsRehash: () => false,
+    };
+    const { service } = setup(flaky);
+    await expect(service.login("ninguem@ifsc.edu.br", WRONG)).rejects.toThrow("falha transitória");
+    const result = await service.login("ninguem@ifsc.edu.br", WRONG);
+    expect(result).toEqual({ ok: false, reason: "invalid" });
   });
 });

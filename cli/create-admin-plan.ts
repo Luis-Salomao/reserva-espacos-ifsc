@@ -38,9 +38,9 @@ export function shellSingleQuote(value: string): string {
   return `'${value.replaceAll("'", String.raw`'\''`)}'`;
 }
 
-/** PowerShell: aspas simples, com ' dobrado. */
+/** PowerShell: aspas simples; trata U+2018 a U+201B como aspas simples, então todas são dobradas. */
 export function powershellQuote(value: string): string {
-  return `'${value.replaceAll("'", "''")}'`;
+  return `'${value.replace(/['‘-‛]/g, (quote) => quote + quote)}'`;
 }
 
 function buildInsert(row: CreateAdminRow, id: string, now: string): string {

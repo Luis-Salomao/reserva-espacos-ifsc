@@ -10,18 +10,31 @@
 
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
+import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as ImportarRouteImport } from './routes/importar'
+import { Route as ApiEntrarRouteImport } from './routes/api/entrar'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiImportPreviewRouteImport } from './routes/api/import-preview'
+import { Route as ApiSairRouteImport } from './routes/api/sair'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => rootRouteImport,
 } as any)
+const EntrarRoute = EntrarRouteImport.update({
+  id: '/entrar',
+  path: '/entrar',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ImportarRoute = ImportarRouteImport.update({
   id: '/importar',
   path: '/importar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const ApiEntrarRoute = ApiEntrarRouteImport.update({
+  id: '/api/entrar',
+  path: '/api/entrar',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiHealthRoute = ApiHealthRouteImport.update({
@@ -34,39 +47,78 @@ const ApiImportPreviewRoute = ApiImportPreviewRouteImport.update({
   path: '/api/import-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiSairRoute = ApiSairRouteImport.update({
+  id: '/api/sair',
+  path: '/api/sair',
+  getParentRoute: () => rootRouteImport,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRoute
+  '/api/entrar': typeof ApiEntrarRoute
   '/api/health': typeof ApiHealthRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
+  '/api/sair': typeof ApiSairRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRoute
+  '/api/entrar': typeof ApiEntrarRoute
   '/api/health': typeof ApiHealthRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
+  '/api/sair': typeof ApiSairRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
+  '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRoute
+  '/api/entrar': typeof ApiEntrarRoute
   '/api/health': typeof ApiHealthRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
+  '/api/sair': typeof ApiSairRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
-  fullPaths: '/' | '/importar' | '/api/health' | '/api/import-preview'
+  fullPaths:
+    | '/'
+    | '/entrar'
+    | '/importar'
+    | '/api/entrar'
+    | '/api/health'
+    | '/api/import-preview'
+    | '/api/sair'
   fileRoutesByTo: FileRoutesByTo
-  to: '/' | '/importar' | '/api/health' | '/api/import-preview'
-  id: '__root__' | '/' | '/importar' | '/api/health' | '/api/import-preview'
+  to:
+    | '/'
+    | '/entrar'
+    | '/importar'
+    | '/api/entrar'
+    | '/api/health'
+    | '/api/import-preview'
+    | '/api/sair'
+  id:
+    | '__root__'
+    | '/'
+    | '/entrar'
+    | '/importar'
+    | '/api/entrar'
+    | '/api/health'
+    | '/api/import-preview'
+    | '/api/sair'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
+  EntrarRoute: typeof EntrarRoute
   ImportarRoute: typeof ImportarRoute
+  ApiEntrarRoute: typeof ApiEntrarRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiImportPreviewRoute: typeof ApiImportPreviewRoute
+  ApiSairRoute: typeof ApiSairRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -78,11 +130,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof IndexRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/entrar': {
+      id: '/entrar'
+      path: '/entrar'
+      fullPath: '/entrar'
+      preLoaderRoute: typeof EntrarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/importar': {
       id: '/importar'
       path: '/importar'
       fullPath: '/importar'
       preLoaderRoute: typeof ImportarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/api/entrar': {
+      id: '/api/entrar'
+      path: '/api/entrar'
+      fullPath: '/api/entrar'
+      preLoaderRoute: typeof ApiEntrarRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/health': {
@@ -99,24 +165,35 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiImportPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/sair': {
+      id: '/api/sair'
+      path: '/api/sair'
+      fullPath: '/api/sair'
+      preLoaderRoute: typeof ApiSairRouteImport
+      parentRoute: typeof rootRouteImport
+    }
   }
 }
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
+  EntrarRoute: EntrarRoute,
   ImportarRoute: ImportarRoute,
+  ApiEntrarRoute: ApiEntrarRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiImportPreviewRoute: ApiImportPreviewRoute,
+  ApiSairRoute: ApiSairRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
   ._addFileTypes<FileRouteTypes>()
 
 import type { getRouter } from './router.tsx'
-import type { createStart } from '@tanstack/react-start'
+import type { startInstance } from './start.ts'
 declare module '@tanstack/react-start' {
   interface Register {
     ssr: true
     router: Awaited<ReturnType<typeof getRouter>>
+    config: Awaited<ReturnType<typeof startInstance.getOptions>>
   }
 }

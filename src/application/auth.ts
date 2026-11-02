@@ -60,7 +60,14 @@ export function createAuthService(deps: AuthDeps) {
   // email inexistente leve o mesmo tempo. Calculado uma vez, sob demanda, e memoizado.
   let dummyHash: Promise<string> | undefined;
   const getDummyHash = (): Promise<string> => {
-    dummyHash ??= hasher.hash(toBase64Url(random.bytes(16)));
+    if (dummyHash === undefined) {
+      const pending = hasher.hash(toBase64Url(random.bytes(16)));
+      dummyHash = pending;
+      // Se a geração falhar, descarta a promessa memoizada para a próxima tentativa recomeçar.
+      pending.catch(() => {
+        if (dummyHash === pending) dummyHash = undefined;
+      });
+    }
     return dummyHash;
   };
 

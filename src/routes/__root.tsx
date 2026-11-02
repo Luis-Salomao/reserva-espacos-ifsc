@@ -2,6 +2,8 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { THEME_SCRIPT } from "#/lib/theme-script";
+import { getSessionInfo } from "#/server/auth-fns";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
 import appCss from "../styles.css?url";
 
@@ -10,6 +12,8 @@ interface MyRouterContext {
 }
 
 export const Route = createRootRouteWithContext<MyRouterContext>()({
+  // Sessão carregada no servidor a cada navegação: alimenta o AppShell e as guardas de rota.
+  beforeLoad: async () => ({ session: await getSessionInfo() }),
   head: () => ({
     meta: [
       {
@@ -32,9 +36,6 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
   }),
   shellComponent: RootDocument,
 });
-
-// Define data-theme antes da primeira pintura para evitar flash de tema errado.
-const THEME_SCRIPT = `try{var t=localStorage.getItem("theme");if(t!=="light"&&t!=="dark"){t=matchMedia("(prefers-color-scheme: dark)").matches?"dark":"light"}document.documentElement.dataset.theme=t}catch(e){}`;
 
 function RootDocument({ children }: { children: React.ReactNode }) {
   return (
