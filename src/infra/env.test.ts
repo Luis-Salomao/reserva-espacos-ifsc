@@ -30,3 +30,32 @@ describe("getEnv", () => {
     expect(message).not.toContain("s3cr3t");
   });
 });
+
+describe("getEnv: senha", () => {
+  const base = { DEPLOY_TARGET: "cloudflare" };
+
+  test("padrões: scrypt, N=16384, sem pepper", () => {
+    const env = getEnv(base);
+    expect(env.PASSWORD_HASH).toBe("scrypt");
+    expect(env.PASSWORD_SCRYPT_N).toBe(16384);
+    expect(env.PASSWORD_PEPPER).toBeUndefined();
+  });
+
+  test("lê pbkdf2, N e pepper", () => {
+    const env = getEnv({
+      ...base,
+      PASSWORD_HASH: "pbkdf2",
+      PASSWORD_SCRYPT_N: "32768",
+      PASSWORD_PEPPER: "pepper-de-teste",
+    });
+    expect(env.PASSWORD_HASH).toBe("pbkdf2");
+    expect(env.PASSWORD_SCRYPT_N).toBe(32768);
+    expect(env.PASSWORD_PEPPER).toBe("pepper-de-teste");
+  });
+
+  test("rejeita algoritmo desconhecido e N inválido", () => {
+    expect(() => getEnv({ ...base, PASSWORD_HASH: "md5" })).toThrow("PASSWORD_HASH");
+    expect(() => getEnv({ ...base, PASSWORD_SCRYPT_N: "1000" })).toThrow("PASSWORD_SCRYPT_N");
+    expect(() => getEnv({ ...base, PASSWORD_SCRYPT_N: "512" })).toThrow("PASSWORD_SCRYPT_N");
+  });
+});
