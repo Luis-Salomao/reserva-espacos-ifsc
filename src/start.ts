@@ -1,4 +1,9 @@
-import { createCsrfMiddleware, createMiddleware, createStart } from "@tanstack/react-start";
+import {
+  createCsrfMiddleware,
+  createMiddleware,
+  createServerOnlyFn,
+  createStart,
+} from "@tanstack/react-start";
 import { getEnv } from "#/infra/env";
 import { THEME_SCRIPT } from "#/lib/theme-script";
 import { createNonce, runWithNonce } from "#/server/request-nonce";
@@ -31,10 +36,17 @@ const securityMiddleware = createMiddleware({ type: "request" }).server(
 // Camada adicional do próprio Start (Sec-Fetch-Site/Origin), só para métodos que alteram estado.
 // O `origin` é o mesmo do nosso middleware (PUBLIC_ORIGIN ou a origem da requisição); sem isso, atrás
 // de proxy com TLS o Start compararia o Origin público com a URL interna e recusaria tudo.
+// Todo acesso ao ambiente/banco (`#db-client`, `bun:sqlite`) fica dentro de `createServerOnlyFn` ou de
+// `.server()`: este módulo também entra no bundle do navegador e não pode puxá-los no escopo do módulo
+// (src/start.test.ts guarda isso).
+const originMatches = createServerOnlyFn(
+  (value: string, request: Request): boolean =>
+    value === allowedOrigin(request.url, getEnv(getRuntimeEnv()).PUBLIC_ORIGIN),
+);
+
 const startCsrf = createCsrfMiddleware({
   filter: ({ request }) => MUTATING.has(request.method.toUpperCase()),
-  origin: (value, { request }) =>
-    value === allowedOrigin(request.url, getEnv(getRuntimeEnv()).PUBLIC_ORIGIN),
+  origin: (value, { request }) => originMatches(value, request),
 });
 
 export const startInstance = createStart(() => ({
