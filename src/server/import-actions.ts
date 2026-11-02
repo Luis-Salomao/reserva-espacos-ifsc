@@ -5,7 +5,6 @@ import {
   type StepOutput,
 } from "#/application/import-apply";
 import type { MappingsService } from "#/application/import-mappings";
-import type { ImportBatch, ImportRow, ImportRowStatus } from "#/domain/import-batch";
 import { previewAscXml } from "#/import-asc/index.ts";
 import {
   type AdminOutcome,
@@ -19,6 +18,7 @@ import {
   text,
 } from "./admin-actions.ts";
 import type { AuthPort } from "./auth-handlers.ts";
+import { boundedInt, MAX_STEP } from "./input.ts";
 import { type CookieSecureMode, IMPORT_ROLES } from "./session.ts";
 
 export type ImportDeps = {
@@ -28,32 +28,12 @@ export type ImportDeps = {
   cookieSecure: CookieSecureMode;
 };
 
-export const STATUSES: readonly ImportRowStatus[] = [
-  "pendente",
-  "aplicada",
-  "nao_aplicavel",
-  "conflito",
-  "conflito_interno",
-  "falha",
-];
-
 export function asImporter<T>(
   deps: ImportDeps,
   request: RequestLike,
   run: (actorId: string) => Promise<AdminResponse<T>>,
 ): Promise<AdminOutcome<T>> {
   return asRoles(IMPORT_ROLES, deps, request, (actor) => run(actor.id));
-}
-
-const MAX_STEP = 100;
-export const MAX_PAGE = 1000;
-
-/** Inteiro em [min, max]; `undefined` quando ausente; `null` quando inválido. */
-export function boundedInt(value: unknown, min: number, max: number): number | null | undefined {
-  if (value === undefined) return undefined;
-  return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max
-    ? value
-    : null;
 }
 
 function objects(data: Record<string, unknown>, key: string): Record<string, unknown>[] | null {
@@ -185,29 +165,6 @@ export function applyImportBatch(deps: ImportDeps, request: RequestLike, data: u
     if (maxChunks === null) return reject(400, BAD_REQUEST);
     return fromResult(
       await deps.imports.apply(batchId, maxChunks === undefined ? {} : { maxChunks }),
-    );
-  });
-}
-
-export function getImportReport(deps: ImportDeps, request: RequestLike, data: unknown) {
-  return asImporter<{ batch: ImportBatch; rows: ImportRow[] }>(deps, request, async () => {
-    const body = record(data);
-    const batchId = body && text(body, "batchId");
-    if (batchId === null || batchId === undefined || batchId === "") {
-      return reject(400, BAD_REQUEST);
-    }
-    const rawStatus = body?.status;
-    const status = STATUSES.find((item) => item === rawStatus);
-    if (rawStatus !== undefined && status === undefined) return reject(400, BAD_REQUEST);
-    const limit = boundedInt(body?.limit, 1, MAX_PAGE);
-    const offset = boundedInt(body?.offset, 0, Number.MAX_SAFE_INTEGER);
-    if (limit === null || offset === null) return reject(400, BAD_REQUEST);
-    return fromResult(
-      await deps.imports.report(batchId, {
-        ...(status === undefined ? {} : { status }),
-        ...(limit === undefined ? {} : { limit }),
-        ...(offset === undefined ? {} : { offset }),
-      }),
     );
   });
 }

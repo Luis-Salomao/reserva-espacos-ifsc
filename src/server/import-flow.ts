@@ -12,7 +12,8 @@ import {
   reject,
   text,
 } from "./admin-actions.ts";
-import { asImporter, boundedInt, type ImportDeps, MAX_PAGE, STATUSES } from "./import-actions.ts";
+import { asImporter, type ImportDeps } from "./import-actions.ts";
+import { boundedInt, IMPORT_ROW_STATUSES, MAX_PAGE } from "./input.ts";
 
 export type ImportFlowDeps = ImportDeps & {
   report: ImportReportService;
@@ -73,7 +74,7 @@ export function getImportRows(deps: ImportFlowDeps, request: RequestLike, data: 
     const batchId = body && text(body, "batchId");
     if (!body || batchId === null || batchId === "") return reject(400, BAD_REQUEST);
     const rawStatus = body.status;
-    const status = STATUSES.find((item) => item === rawStatus);
+    const status = IMPORT_ROW_STATUSES.find((item) => item === rawStatus);
     if (rawStatus !== undefined && status === undefined) return reject(400, BAD_REQUEST);
     const reasonCode = body.reasonCode;
     if (

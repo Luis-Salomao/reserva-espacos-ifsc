@@ -27,6 +27,7 @@ import {
 } from "./admin-actions.ts";
 import { getAuth } from "./auth-context.ts";
 import { finish } from "./finish.ts";
+import { passthrough } from "./input.ts";
 
 /**
  * Funções de servidor da administração (contas e espaços: `admin`; semestres: `admin` ou
@@ -52,8 +53,6 @@ function getAdminDeps(): AdminDeps {
     cookieSecure: env.COOKIE_SECURE,
   };
 }
-
-export const passthrough = (data: unknown): unknown => data;
 
 export const listAccountsFn = createServerFn({ method: "GET" }).handler(async () =>
   finish(await listAccounts(getAdminDeps(), getRequest())),

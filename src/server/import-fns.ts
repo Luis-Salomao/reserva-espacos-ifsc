@@ -14,8 +14,7 @@ import {
   getImportTargets,
   listImportBatches,
 } from "./import-flow.ts";
-
-const passthrough = (data: unknown): unknown => data;
+import { passthrough } from "./input.ts";
 
 export const getImportTargetsFn = createServerFn({ method: "GET" }).handler(async () =>
   finish(await getImportTargets(getImportFlowDeps(), getRequest())),

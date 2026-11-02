@@ -7,13 +7,7 @@ import type {
 } from "#/application/ports";
 import { fail, ok, type Result } from "#/application/validation";
 import { weekdayOf } from "#/domain/calendar";
-import type {
-  ImportBatch,
-  ImportRow,
-  ImportRowCounts,
-  ImportRowStatus,
-  ImportSummary,
-} from "#/domain/import-batch";
+import type { ImportBatch, ImportRow, ImportRowCounts, ImportSummary } from "#/domain/import-batch";
 import { IGNORE_ROOM, type ImportPlan, type PlanInput, planImport } from "./import-plan";
 
 /** Linhas por bloco atômico de aplicação: cada linha usa até 3 instruções, então ≤ 90 instruções. */
@@ -31,8 +25,6 @@ const ROWS_PER_WRITE = 50;
 const DEFAULT_PREPARE_CALLS = 30;
 const DEFAULT_APPLY_CHUNKS = 30;
 
-const DEFAULT_REPORT_LIMIT = 200;
-const MAX_REPORT_LIMIT = 1000;
 const FAILURE_CODE = "erro_gravacao";
 const FAILURE_DETAIL = "Não foi possível gravar este grupo de linhas. Aplique o lote novamente.";
 const PARTIAL_MESSAGE =
@@ -73,8 +65,6 @@ export type PrepareOutput = StepOutput & {
   /** `true` quando o mesmo arquivo já tinha lote concluído neste semestre (nada novo é criado). */
   reused: boolean;
 };
-
-export type ReportOptions = { status?: ImportRowStatus; limit?: number; offset?: number };
 
 const EMPTY_COUNTS: ImportRowCounts = {
   pendente: 0,
@@ -382,22 +372,6 @@ export function createImportService(deps: ImportServiceDeps) {
         done: remaining === 0,
         remaining,
       });
-    },
-
-    /** Lote e suas linhas (filtráveis por situação), para o usuário ver o que deu errado. */
-    async report(
-      batchId: string,
-      options: ReportOptions,
-    ): Promise<Result<{ batch: ImportBatch; rows: ImportRow[] }>> {
-      const batch = await imports.findBatch(batchId);
-      if (batch === null) return fail("not_found", "Lote de importação não encontrado.");
-      const limit = Math.min(Math.max(options.limit ?? DEFAULT_REPORT_LIMIT, 1), MAX_REPORT_LIMIT);
-      const rows = await imports.listRows(batchId, {
-        ...(options.status === undefined ? {} : { status: options.status }),
-        limit,
-        offset: Math.max(options.offset ?? 0, 0),
-      });
-      return ok({ batch, rows });
     },
   };
 }
