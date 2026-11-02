@@ -16,7 +16,9 @@ export type ImportRowStatus =
   | "cancelada_versao"
   /** Nova versão: ocupação vigente cujo responsável muda (pendente). */
   | "responsavel"
-  | "responsavel_atualizado";
+  | "responsavel_atualizado"
+  /** Nova versão: alteração segurada porque a nova ocorrência conflita; a versão anterior fica ativa. */
+  | "alteracao_bloqueada";
 
 /** Natureza da linha numa nova versão da grade (agrupa a tela); `null` na primeira versão. */
 export type ImportChangeKind =
@@ -43,6 +45,7 @@ export const EMPTY_COUNTS: ImportRowCounts = {
   cancelada_versao: 0,
   responsavel: 0,
   responsavel_atualizado: 0,
+  alteracao_bloqueada: 0,
 };
 
 /** Situações que ainda pedem trabalho de aplicação. */

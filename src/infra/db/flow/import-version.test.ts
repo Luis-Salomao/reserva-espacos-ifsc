@@ -411,21 +411,79 @@ describe("nova versão: classificação e aplicação", () => {
     expect(l3.map((o) => o.startsAt.slice(0, 10)).sort()).toEqual(["2026-08-03", "2026-08-17"]);
   });
 
-  test("aula movida para uma sala com reserva avulsa: nova ocorrência em conflito, antiga cancelada, avulsa intacta", async () => {
+  test("aula movida para uma sala com reserva avulsa: a data em conflito mantém a versão anterior (alteração bloqueada)", async () => {
     const env = await setup();
     await publish(env, version("h1", [at("L1", "R1")]));
     await env.db.insert(schema.occupations).values(manualBooking(env.spaces.R2));
     const manualBefore = (await occupationsOf(env)).find((o) => o.id === "manual-1");
     const prepared = await prepareAll(env, version("h2", [at("L1", "R2")]));
     expect(tally(await rowsOf(env, prepared.batch.id))).toEqual({
-      "cancelar/alteracao": 3,
+      "cancelar/alteracao": 2,
       "pendente/alteracao": 2,
       "conflito/alteracao": 1,
+      "alteracao_bloqueada/alteracao": 1,
     });
+    const blocked = (await rowsOf(env, prepared.batch.id)).find(
+      (r) => r.status === "alteracao_bloqueada",
+    );
+    expect(blocked).toMatchObject({ date: "2026-08-10", reasonCode: "alteracao_bloqueada" });
+    expect(prepared.batch.summary.counts.alteracao_bloqueada).toBe(1);
     await applyAll(env, prepared.batch.id);
     const all = await occupationsOf(env);
     expect(all.find((o) => o.id === "manual-1")).toEqual(manualBefore);
     expect(all.filter((o) => o.batchId === prepared.batch.id)).toHaveLength(2);
+    const held = all.find((o) => o.id === blocked?.occupationId);
+    expect(held).toMatchObject({ status: "ativa", cancelReason: null, spaceId: env.spaces.R1 });
+  });
+
+  test("grupo bloqueado também segura as outras inserções do grupo", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    await env.db.insert(schema.occupations).values(manualBooking(env.spaces.R2));
+    const prepared = await prepareAll(
+      env,
+      version("h2", [at("L1", "R2"), at("L1b", "R3")], [lesson("L1"), lesson("L1b")]),
+    );
+    const onTen = (await rowsOf(env, prepared.batch.id)).filter((r) => r.date === "2026-08-10");
+    expect(onTen.map((r) => r.status).sort()).toEqual([
+      "alteracao_bloqueada",
+      "alteracao_bloqueada",
+      "conflito",
+    ]);
+    await applyAll(env, prepared.batch.id);
+    const active = (await occupationsOf(env)).filter(
+      (o) => o.status === "ativa" && o.startsAt.startsWith("2026-08-10") && o.source === "import",
+    );
+    expect(active.map((o) => o.batchId)).toEqual([expect.not.stringContaining(prepared.batch.id)]);
+  });
+
+  test("cancelada antes cuja sala mudou: a nova ocorrência não é inserida e fica mantida cancelada", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    const [second] = (await occupationsOf(env)).filter((o) => o.startsAt.startsWith("2026-08-10"));
+    if (!second) throw new Error("sem ocupação");
+    await env.db
+      .update(schema.occupations)
+      .set({ status: "cancelada" })
+      .where(eq(schema.occupations.id, second.id));
+    const prepared = await prepareAll(env, version("h2", [at("L1", "R2")]));
+    expect(tally(await rowsOf(env, prepared.batch.id))).toEqual({
+      "cancelar/alteracao": 2,
+      "pendente/alteracao": 2,
+      "mantida_cancelada/mantida_cancelada": 1,
+    });
+    const kept = (await rowsOf(env, prepared.batch.id)).find((r) => r.occupationId === second.id);
+    expect(kept).toMatchObject({
+      reasonCode: "cancelada_alterada",
+      reasonDetail: "Cancelada antes; sala ou horário mudou na nova versão.",
+    });
+    await applyAll(env, prepared.batch.id);
+    const all = await occupationsOf(env);
+    expect(all.find((o) => o.id === second.id)?.status).toBe("cancelada");
+    expect(all.filter((o) => o.batchId === prepared.batch.id)).toHaveLength(2);
+    expect(all.some((o) => o.startsAt.startsWith("2026-08-10") && o.status === "ativa")).toBe(
+      false,
+    );
   });
 
   test("reserva avulsa criada depois do preparo: conflito concorrente e a avulsa fica intacta", async () => {
@@ -453,18 +511,18 @@ describe("nova versão: classificação e aplicação", () => {
     expect(active.every((o) => o.batchId === prepared.batch.id)).toBe(true);
   });
 
-  test("aula movida para a sala onde outra aula do arquivo já está: conflito no arquivo, a outra fica", async () => {
+  test("aula movida para a sala onde outra aula do arquivo já está: conflito no arquivo, a anterior é mantida", async () => {
     const env = await setup();
     await publish(env, version("h1", [at("L1", "R1"), at("B2", "R2")]));
     const prepared = await prepareAll(env, version("h2", [at("L1", "R2"), at("B2", "R2")]));
     expect(tally(await rowsOf(env, prepared.batch.id))).toEqual({
       "inalterada/inalterada": 3,
-      "cancelar/alteracao": 3,
+      "alteracao_bloqueada/alteracao": 3,
       "conflito_interno/alteracao": 3,
     });
     await applyAll(env, prepared.batch.id);
     expect((await occupationsOf(env, prepared.batch.id)).length).toBe(0);
-    expect((await occupationsOf(env)).filter((o) => o.status === "ativa")).toHaveLength(3);
+    expect((await occupationsOf(env)).filter((o) => o.status === "ativa")).toHaveLength(6);
   });
 
   test("inclusão que cairia sobre ocupação vigente que permanece ativa vira conflito com ela", async () => {

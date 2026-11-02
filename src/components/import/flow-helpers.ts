@@ -121,6 +121,7 @@ export const STATUS_LABELS: Record<ImportRowStatus, string> = {
   cancelada_versao: "Cancelada pela nova versão",
   responsavel: "Responsável a trocar",
   responsavel_atualizado: "Responsável trocado",
+  alteracao_bloqueada: "Alteração bloqueada",
 };
 
 export const STATUS_ORDER: readonly ImportRowStatus[] = [
@@ -140,6 +141,7 @@ export const VERSION_STATUS_ORDER: readonly ImportRowStatus[] = [
   "cancelada_versao",
   "responsavel",
   "responsavel_atualizado",
+  "alteracao_bloqueada",
 ];
 
 /** Classe de fundo por situação; o texto do rótulo sempre acompanha a cor. */
@@ -156,6 +158,7 @@ export const STATUS_TONE: Record<ImportRowStatus, string> = {
   cancelada_versao: "bg-occ-imported",
   responsavel: "bg-surface-2",
   responsavel_atualizado: "bg-occ-imported",
+  alteracao_bloqueada: "bg-occ-conflict",
 };
 
 export const BATCH_STATUS_LABELS = {

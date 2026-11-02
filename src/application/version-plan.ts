@@ -27,6 +27,9 @@ export type VersionPlanInput = Pick<
 
 export type VersionPlan = { rows: ImportRow[]; version: VersionSummary };
 
+const BLOCKED_DETAIL =
+  "A nova versão desta aula conflita com outra ocupação; a versão anterior foi mantida até o conflito ser resolvido.";
+const CANCELLED_MOVED = "Cancelada antes; sala ou horário mudou na nova versão.";
 const CANCELLED_NO_MATCH =
   "Já estava cancelada e não consta mais na nova versão; continua cancelada.";
 
@@ -142,6 +145,13 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
   for (const pair of diff.keptCancelled) keptCancelled(pair.current);
   const leftover = { reasonCode: "cancelada_sem_correspondente", reasonDetail: CANCELLED_NO_MATCH };
   for (const o of diff.removedAlreadyCancelled) keptCancelled(o, leftover);
+  // Cancelada antes cuja sala/horário mudou: a nova ocorrência (pareada) não é inserida.
+  for (const pair of diff.movedCancelled) {
+    keptCancelled(pair.current, {
+      reasonCode: "cancelada_alterada",
+      reasonDetail: CANCELLED_MOVED,
+    });
+  }
   for (const group of diff.changed) {
     for (const o of group.alreadyCancelled) keptCancelled(o, leftover);
   }
@@ -169,11 +179,29 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
   for (const o of diff.added) rows.push(insertRow(o, "inclusao"));
   for (const o of diff.removed) rows.push(cancelRow(o, "remocao"));
   for (const group of diff.changed) {
-    for (const o of group.cancel) rows.push(cancelRow(o, "alteracao"));
-    for (const o of group.insert) {
-      affect(o.responsibleUserId);
-      rows.push(insertRow(o, "alteracao"));
+    const inserts = group.insert.map((o) => insertRow(o, "alteracao"));
+    // Se alguma nova ocorrência do grupo já nasce em conflito (com algo que este lote não cancela),
+    // o grupo todo fica bloqueado: nada é cancelado nem inserido e a versão anterior continua.
+    // Conflito que só aparece na aplicação (fase de inserções, depois dos cancelamentos) é um
+    // resíduo aceito: a linha vira conflito concorrente e a aula pode ficar sem sala até resolver.
+    const blocked = inserts.some(
+      (row) => row.status === "conflito" || row.status === "conflito_interno",
+    );
+    if (blocked) {
+      const hold = { reasonCode: "alteracao_bloqueada", reasonDetail: BLOCKED_DETAIL };
+      for (const o of group.cancel) {
+        rows.push(currentRow(occupationOf(o), "b", "alteracao_bloqueada", "alteracao", hold));
+      }
+      for (const row of inserts) {
+        rows.push(
+          row.status === "pendente" ? { ...row, status: "alteracao_bloqueada", ...hold } : row,
+        );
+      }
+      continue;
     }
+    for (const o of group.cancel) rows.push(cancelRow(o, "alteracao"));
+    for (const o of group.insert) affect(o.responsibleUserId);
+    rows.push(...inserts);
   }
   for (const pair of diff.responsibleChanged) {
     affect(pair.current.responsibleUserId);

@@ -16,6 +16,7 @@ export const IMPORT_ROW_STATUSES: readonly ImportRowStatus[] = [
   "cancelada_versao",
   "responsavel",
   "responsavel_atualizado",
+  "alteracao_bloqueada",
 ];
 
 export const MAX_STEP = 100;
