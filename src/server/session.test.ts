@@ -28,6 +28,19 @@ describe("isSecureUrl", () => {
   });
 });
 
+describe("isSecureUrl com COOKIE_SECURE", () => {
+  test("true força Secure e false remove, mesmo em HTTP fora de localhost", () => {
+    expect(isSecureUrl("http://localhost:3000/", "true")).toBe(true);
+    expect(isSecureUrl("http://192.168.0.10:3000/", "false")).toBe(false);
+    expect(isSecureUrl("https://reservas.ifsc.edu.br/", "false")).toBe(false);
+  });
+
+  test("auto mantém a regra padrão", () => {
+    expect(isSecureUrl("http://localhost:3000/", "auto")).toBe(false);
+    expect(isSecureUrl("http://192.168.0.10:3000/", "auto")).toBe(true);
+  });
+});
+
 describe("cookie de sessão", () => {
   test("tem os atributos exigidos", () => {
     const cookie = buildSessionCookie("tok_en-1", true);

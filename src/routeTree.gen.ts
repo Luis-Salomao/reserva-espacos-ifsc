@@ -12,6 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as ImportarRouteImport } from './routes/importar'
+import { Route as AdminIndexRouteImport } from './routes/admin.index'
+import { Route as AdminContasRouteImport } from './routes/admin.contas'
+import { Route as AdminEspacosRouteImport } from './routes/admin.espacos'
 import { Route as ApiEntrarRouteImport } from './routes/api/entrar'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiImportPreviewRouteImport } from './routes/api/import-preview'
@@ -30,6 +33,21 @@ const EntrarRoute = EntrarRouteImport.update({
 const ImportarRoute = ImportarRouteImport.update({
   id: '/importar',
   path: '/importar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminIndexRoute = AdminIndexRouteImport.update({
+  id: '/admin/',
+  path: '/admin/',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminContasRoute = AdminContasRouteImport.update({
+  id: '/admin/contas',
+  path: '/admin/contas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const AdminEspacosRoute = AdminEspacosRouteImport.update({
+  id: '/admin/espacos',
+  path: '/admin/espacos',
   getParentRoute: () => rootRouteImport,
 } as any)
 const ApiEntrarRoute = ApiEntrarRouteImport.update({
@@ -57,29 +75,38 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRoute
+  '/admin/contas': typeof AdminContasRoute
+  '/admin/espacos': typeof AdminEspacosRoute
   '/api/entrar': typeof ApiEntrarRoute
   '/api/health': typeof ApiHealthRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/sair': typeof ApiSairRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRoute
+  '/admin/contas': typeof AdminContasRoute
+  '/admin/espacos': typeof AdminEspacosRoute
   '/api/entrar': typeof ApiEntrarRoute
   '/api/health': typeof ApiHealthRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/sair': typeof ApiSairRoute
+  '/admin': typeof AdminIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRoute
+  '/admin/contas': typeof AdminContasRoute
+  '/admin/espacos': typeof AdminEspacosRoute
   '/api/entrar': typeof ApiEntrarRoute
   '/api/health': typeof ApiHealthRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/sair': typeof ApiSairRoute
+  '/admin/': typeof AdminIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -87,38 +114,50 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/importar'
+    | '/admin/contas'
+    | '/admin/espacos'
     | '/api/entrar'
     | '/api/health'
     | '/api/import-preview'
     | '/api/sair'
+    | '/admin/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/entrar'
     | '/importar'
+    | '/admin/contas'
+    | '/admin/espacos'
     | '/api/entrar'
     | '/api/health'
     | '/api/import-preview'
     | '/api/sair'
+    | '/admin'
   id:
     | '__root__'
     | '/'
     | '/entrar'
     | '/importar'
+    | '/admin/contas'
+    | '/admin/espacos'
     | '/api/entrar'
     | '/api/health'
     | '/api/import-preview'
     | '/api/sair'
+    | '/admin/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EntrarRoute: typeof EntrarRoute
   ImportarRoute: typeof ImportarRoute
+  AdminContasRoute: typeof AdminContasRoute
+  AdminEspacosRoute: typeof AdminEspacosRoute
   ApiEntrarRoute: typeof ApiEntrarRoute
   ApiHealthRoute: typeof ApiHealthRoute
   ApiImportPreviewRoute: typeof ApiImportPreviewRoute
   ApiSairRoute: typeof ApiSairRoute
+  AdminIndexRoute: typeof AdminIndexRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -142,6 +181,27 @@ declare module '@tanstack/react-router' {
       path: '/importar'
       fullPath: '/importar'
       preLoaderRoute: typeof ImportarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/': {
+      id: '/admin/'
+      path: '/admin'
+      fullPath: '/admin/'
+      preLoaderRoute: typeof AdminIndexRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/contas': {
+      id: '/admin/contas'
+      path: '/admin/contas'
+      fullPath: '/admin/contas'
+      preLoaderRoute: typeof AdminContasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/admin/espacos': {
+      id: '/admin/espacos'
+      path: '/admin/espacos'
+      fullPath: '/admin/espacos'
+      preLoaderRoute: typeof AdminEspacosRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/api/entrar': {
@@ -179,10 +239,13 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EntrarRoute: EntrarRoute,
   ImportarRoute: ImportarRoute,
+  AdminContasRoute: AdminContasRoute,
+  AdminEspacosRoute: AdminEspacosRoute,
   ApiEntrarRoute: ApiEntrarRoute,
   ApiHealthRoute: ApiHealthRoute,
   ApiImportPreviewRoute: ApiImportPreviewRoute,
   ApiSairRoute: ApiSairRoute,
+  AdminIndexRoute: AdminIndexRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

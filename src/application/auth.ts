@@ -16,7 +16,7 @@ const MAX_FAILURES = 5;
 const LOCK_WINDOW_MS = 15 * 60 * 1000;
 
 const MAX_EMAIL_LENGTH = 254;
-const MAX_PASSWORD_LENGTH = 1024;
+export const MAX_PASSWORD_LENGTH = 1024;
 const PURGE_ATTEMPTS_OLDER_THAN_MS = DAY_MS;
 
 export function validatePassword(password: string): string | null {

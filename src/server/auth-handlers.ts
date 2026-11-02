@@ -4,6 +4,7 @@ import {
   authorizeRoles,
   buildClearedSessionCookie,
   buildSessionCookie,
+  type CookieSecureMode,
   isSecureUrl,
   parseSessionToken,
   safeRedirectTarget,
@@ -45,13 +46,24 @@ function loginFailure(code: LoginErrorCode, voltar: string): Outcome {
   return { location: `/entrar?${query.toString()}`, setCookie: null };
 }
 
-export type LoginInput = { email: string; password: string; voltar: string; url: string };
+export type LoginInput = {
+  email: string;
+  password: string;
+  voltar: string;
+  url: string;
+  /** Token do cookie `sid` já presente na requisição; é revogado quando o login novo dá certo. */
+  previousToken?: string | null;
+  cookieSecure?: CookieSecureMode;
+};
 
 export async function processLogin(input: LoginInput, auth: AuthPort): Promise<Outcome> {
   const voltar = safeRedirectTarget(input.voltar);
   let result: LoginResult;
   try {
     result = await auth.login(input.email, input.password);
+    if (result.ok && input.previousToken != null && input.previousToken !== result.token) {
+      await auth.logout(input.previousToken);
+    }
   } catch (error) {
     console.error("[entrar] falha:", error instanceof Error ? error.name : "erro");
     return loginFailure("falha", voltar);
@@ -60,14 +72,18 @@ export async function processLogin(input: LoginInput, auth: AuthPort): Promise<O
     return loginFailure(result.reason === "locked" ? "bloqueado" : "invalido", voltar);
   return {
     location: voltar,
-    setCookie: buildSessionCookie(result.token, isSecureUrl(input.url)),
+    setCookie: buildSessionCookie(result.token, isSecureUrl(input.url, input.cookieSecure)),
   };
 }
 
 const MAX_FORM_BYTES = 8 * 1024;
 
 /** POST do formulário de login (urlencoded). Responde com redirecionamento 303. */
-export async function handleLogin(request: Request, auth: AuthPort): Promise<Response> {
+export async function handleLogin(
+  request: Request,
+  auth: AuthPort,
+  cookieSecure: CookieSecureMode = "auto",
+): Promise<Response> {
   const length = checkContentLength(request.headers, MAX_FORM_BYTES);
   if (!length.ok) return new Response(length.message, { status: length.status });
   const bytes = await readBodyWithLimit(request.body, MAX_FORM_BYTES);
@@ -79,6 +95,8 @@ export async function handleLogin(request: Request, auth: AuthPort): Promise<Res
       password: form.get("password") ?? "",
       voltar: form.get("voltar") ?? "",
       url: request.url,
+      previousToken: parseSessionToken(request.headers.get("cookie")),
+      cookieSecure,
     },
     auth,
   );
@@ -89,15 +107,20 @@ export async function processLogout(
   token: string | null,
   url: string,
   auth: AuthPort,
+  cookieSecure: CookieSecureMode = "auto",
 ): Promise<Outcome> {
   if (token !== null) await auth.logout(token);
-  return { location: "/", setCookie: buildClearedSessionCookie(isSecureUrl(url)) };
+  return { location: "/", setCookie: buildClearedSessionCookie(isSecureUrl(url, cookieSecure)) };
 }
 
 /** POST de saída: revoga a sessão, apaga o cookie e volta ao início. */
-export async function handleLogout(request: Request, auth: AuthPort): Promise<Response> {
+export async function handleLogout(
+  request: Request,
+  auth: AuthPort,
+  cookieSecure: CookieSecureMode = "auto",
+): Promise<Response> {
   const token = parseSessionToken(request.headers.get("cookie"));
-  return toRedirect(await processLogout(token, request.url, auth));
+  return toRedirect(await processLogout(token, request.url, auth, cookieSecure));
 }
 
 export type ResolvedSession = { user: User | null; setCookie: string | null };
@@ -110,12 +133,13 @@ export async function resolveSession(
   cookieHeader: string | null,
   url: string,
   auth: AuthPort,
+  cookieSecure: CookieSecureMode = "auto",
 ): Promise<ResolvedSession> {
   const token = parseSessionToken(cookieHeader);
   if (token === null) return { user: null, setCookie: null };
   const user = await auth.authenticate(token);
   if (user === null) return { user: null, setCookie: null };
-  return { user, setCookie: buildSessionCookie(token, isSecureUrl(url)) };
+  return { user, setCookie: buildSessionCookie(token, isSecureUrl(url, cookieSecure)) };
 }
 
 export type RequiredRole =
@@ -127,11 +151,13 @@ export async function requireRole(
   request: Pick<Request, "url" | "headers">,
   auth: AuthPort,
   roles: readonly Role[],
+  cookieSecure: CookieSecureMode = "auto",
 ): Promise<RequiredRole> {
   const { user, setCookie } = await resolveSession(
     request.headers.get("cookie"),
     request.url,
     auth,
+    cookieSecure,
   );
   const result = authorizeRoles(user, roles);
   if (result.ok) return { ok: true, user: result.user, setCookie };

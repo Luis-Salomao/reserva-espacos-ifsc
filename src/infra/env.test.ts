@@ -41,6 +41,13 @@ describe("getEnv: senha", () => {
     expect(env.PASSWORD_PEPPER).toBeUndefined();
   });
 
+  test("COOKIE_SECURE: padrão auto; aceita true/false; rejeita outro valor", () => {
+    expect(getEnv(base).COOKIE_SECURE).toBe("auto");
+    expect(getEnv({ ...base, COOKIE_SECURE: "true" }).COOKIE_SECURE).toBe("true");
+    expect(getEnv({ ...base, COOKIE_SECURE: "false" }).COOKIE_SECURE).toBe("false");
+    expect(() => getEnv({ ...base, COOKIE_SECURE: "talvez" })).toThrow("COOKIE_SECURE");
+  });
+
   test("lê pbkdf2, N e pepper", () => {
     const env = getEnv({
       ...base,

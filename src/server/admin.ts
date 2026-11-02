@@ -1,0 +1,97 @@
+import { createServerFn } from "@tanstack/react-start";
+import { getRequest, setResponseHeader, setResponseStatus } from "@tanstack/react-start/server";
+import { createSpacesService } from "#/application/spaces";
+import { createUsersService } from "#/application/users";
+import { createPasswordHasher } from "#/infra/auth/password-hasher";
+import { createSessionRepository } from "#/infra/db/repos/session-repository";
+import { createSpaceRepository } from "#/infra/db/repos/space-repository";
+import { createUserRepository } from "#/infra/db/repos/user-repository";
+import { getEnv } from "#/infra/env";
+import { getDb, getRuntimeEnv } from "#db-client";
+import {
+  type AdminDeps,
+  type AdminOutcome,
+  type AdminResponse,
+  createAccount,
+  createSpace,
+  listAccounts,
+  listAdminSpaces,
+  resetAccountPassword,
+  setAccountActive,
+  updateAccount,
+  updateSpace,
+} from "./admin-actions.ts";
+import { getAuth } from "./auth-context.ts";
+
+/**
+ * Funções de servidor da administração. Cada uma exige o papel `admin` no servidor (em
+ * `admin-actions.ts`), então a checagem vale mesmo se alguém chamar a função direto. Sessão
+ * ausente ou papel errado respondem HTTP 401/403 (o cliente recebe um erro); falhas de validação
+ * voltam como resultado tipado com HTTP 200, para a tela mostrar a mensagem no campo.
+ */
+function getAdminDeps(): AdminDeps {
+  const env = getEnv(getRuntimeEnv());
+  const db = getDb();
+  const users = createUserRepository(db);
+  const sessions = createSessionRepository(db);
+  return {
+    auth: getAuth(),
+    users: createUsersService({
+      users,
+      sessions,
+      hasher: createPasswordHasher({
+        algorithm: env.PASSWORD_HASH,
+        scryptN: env.PASSWORD_SCRYPT_N,
+        ...(env.PASSWORD_PEPPER === undefined ? {} : { pepper: env.PASSWORD_PEPPER }),
+      }),
+    }),
+    spaces: createSpacesService({ spaces: createSpaceRepository(db) }),
+    cookieSecure: env.COOKIE_SECURE,
+  };
+}
+
+function finish<T>(outcome: AdminOutcome<T>): AdminResponse<T> {
+  setResponseHeader("Cache-Control", "no-store");
+  if (outcome.setCookie !== null) setResponseHeader("Set-Cookie", outcome.setCookie);
+  const { response } = outcome;
+  if (!response.ok && (response.status === 401 || response.status === 403)) {
+    setResponseStatus(response.status);
+  }
+  return response;
+}
+
+const passthrough = (data: unknown): unknown => data;
+
+export const listAccountsFn = createServerFn({ method: "GET" }).handler(async () =>
+  finish(await listAccounts(getAdminDeps(), getRequest())),
+);
+
+export const createAccountFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await createAccount(getAdminDeps(), getRequest(), data)));
+
+export const updateAccountFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await updateAccount(getAdminDeps(), getRequest(), data)));
+
+export const setAccountActiveFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await setAccountActive(getAdminDeps(), getRequest(), data)));
+
+export const resetAccountPasswordFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await resetAccountPassword(getAdminDeps(), getRequest(), data)),
+  );
+
+export const listAdminSpacesFn = createServerFn({ method: "GET" }).handler(async () =>
+  finish(await listAdminSpaces(getAdminDeps(), getRequest())),
+);
+
+export const createSpaceFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await createSpace(getAdminDeps(), getRequest(), data)));
+
+export const updateSpaceFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await updateSpace(getAdminDeps(), getRequest(), data)));

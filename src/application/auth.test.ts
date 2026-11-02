@@ -63,6 +63,10 @@ function setup(hasherOverride?: PasswordHasher) {
     updatePasswordHash: async (id, passwordHash) => {
       for (const u of userMap.values()) if (u.id === id) u.passwordHash = passwordHash;
     },
+    list: async () => [],
+    findByCode: async () => null,
+    update: async () => null,
+    setActive: async () => {},
   };
   const sessionMap = new Map<string, Session>();
   const sessions: SessionRepository = {
@@ -75,6 +79,9 @@ function setup(hasherOverride?: PasswordHasher) {
     },
     deleteByTokenHash: async (h) => {
       sessionMap.delete(h);
+    },
+    revokeAllForUser: async (userId) => {
+      for (const [hash, s] of sessionMap) if (s.userId === userId) sessionMap.delete(hash);
     },
   };
   const attemptList: Array<{ email: string; attemptedAt: string; success: boolean }> = [];
@@ -284,12 +291,17 @@ describe("login: entradas, expurgo e hash fictício", () => {
           throw new Error("x");
         },
         updatePasswordHash: async () => {},
+        list: async () => [],
+        findByCode: async () => null,
+        update: async () => null,
+        setActive: async () => {},
       },
       sessions: {
         create: async () => {},
         findByTokenHash: async () => null,
         extend: async () => {},
         deleteByTokenHash: async () => {},
+        revokeAllForUser: async () => {},
       },
       hasher: spy,
       attempts: {
