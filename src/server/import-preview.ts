@@ -1,6 +1,8 @@
 import { previewAscXml } from "#/import-asc/index.ts";
 import { MAX_XML_BYTES } from "#/import-asc/read.ts";
+import { type AuthPort, requireRole } from "./auth-handlers.ts";
 import { type PreviewView, toPreviewView } from "./import-preview-view.ts";
+import { type CookieSecureMode, IMPORT_ROLES } from "./session.ts";
 import { checkContentLength, readBodyWithLimit, TOO_LARGE_MESSAGE } from "./upload-limit.ts";
 
 export type PreviewImportResult =
@@ -20,8 +22,15 @@ function reply(result: PreviewImportResult, status = 200): Response {
  * verificado pelo `Content-Length` e novamente durante a leitura em pedaços, que é cancelada ao
  * passar de 10 MB. Nada é gravado nem registrado; em erro inesperado só o nome do erro vai ao log.
  */
-export async function handlePreviewRequest(request: Request): Promise<Response> {
+export async function handlePreviewRequest(
+  request: Request,
+  auth: AuthPort,
+  cookieSecure: CookieSecureMode,
+): Promise<Response> {
   try {
+    // Sessão e papel antes de qualquer leitura do corpo: sem permissão, nenhum byte é lido.
+    const access = await requireRole(request, auth, IMPORT_ROLES, cookieSecure);
+    if (!access.ok) return access.response;
     const length = checkContentLength(request.headers, MAX_XML_BYTES);
     if (!length.ok) return reply({ ok: false, message: length.message }, length.status);
     const bytes = await readBodyWithLimit(request.body, MAX_XML_BYTES);

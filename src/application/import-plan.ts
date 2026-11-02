@@ -1,4 +1,5 @@
 import { expandSlotDates, missingTerms } from "#/domain/expand";
+import type { NotApplicableReason } from "#/domain/import-reasons";
 import { intervalsOverlap, localDateTime, type Occupation } from "#/domain/occupation";
 import type { Semester } from "#/domain/semester";
 import type { AscTimetable } from "#/domain/timetable";
@@ -20,17 +21,6 @@ type OccupationDraft = {
   title: string;
   responsibleUserId: string | null;
 };
-
-type NotApplicableReason =
-  | "no_room"
-  | "multiple_rooms"
-  | "room_unmapped"
-  | "room_ignored"
-  | "term_without_dates"
-  | "weeks_unsupported"
-  | "never_scheduled"
-  | "duplicate_occurrence"
-  | "no_dates";
 
 type NotApplicable = {
   /** `n:<posição do slot>`. */
