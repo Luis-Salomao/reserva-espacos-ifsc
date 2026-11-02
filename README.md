@@ -125,6 +125,8 @@ bun run preview:cf            # build:cf + wrangler dev
 ### Docker (alvo local)
 
 > Verificado no commit `d84abcc`: o build funciona, o contêiner fica saudável (healthcheck em `/api/health`, que informa o alvo `local`), roda como usuário não root (uid 1000) e o banco persiste no volume nomeado ao reiniciar o contêiner.
+>
+> A CLI empacotada na imagem (`/app/cli.mjs`, usada em "Primeiro acesso") foi verificada só fora do contêiner (bundle executado com Bun contra um SQLite temporário). [PENDENTE: verificar `docker build`, `docker exec ... create-admin` e login por `curl` no contêiner; Docker estava indisponível.]
 
 ```bash
 docker build -t reserva .
