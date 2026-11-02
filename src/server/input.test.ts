@@ -13,7 +13,7 @@ describe("entrada das server functions", () => {
     for (const bad of [0, 11, 1.5, "3", null]) expect(boundedInt(bad, 1, 10)).toBeNull();
   });
 
-  test("lista as doze situações de linha", () => {
-    expect(IMPORT_ROW_STATUSES).toHaveLength(12);
+  test("lista as treze situações de linha", () => {
+    expect(IMPORT_ROW_STATUSES).toHaveLength(13);
   });
 });

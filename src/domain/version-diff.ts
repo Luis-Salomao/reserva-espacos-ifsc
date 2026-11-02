@@ -25,6 +25,8 @@ type VersionChange = {
 export type VersionDiff = {
   unchanged: VersionPair[];
   keptCancelled: VersionPair[];
+  /** Cancelada antes cuja sala/horário mudou: a nova ocorrência pareia com ela e não é inserida. */
+  movedCancelled: VersionPair[];
   responsibleChanged: VersionPair[];
   changed: VersionChange[];
   removed: VersionOccurrence[];
@@ -78,6 +80,7 @@ export function diffVersions(current: VersionOccurrence[], next: VersionOccurren
   const result: VersionDiff = {
     unchanged: [],
     keptCancelled: [],
+    movedCancelled: [],
     responsibleChanged: [],
     changed: [],
     removed: [],
@@ -113,7 +116,7 @@ export function diffVersions(current: VersionOccurrence[], next: VersionOccurren
         if (match) matches.set(n, match);
       }
     }
-    const leftoverNext: VersionOccurrence[] = [];
+    let leftoverNext: VersionOccurrence[] = [];
     for (const n of nxt) {
       const match = matches.get(n);
       if (!match) {
@@ -126,7 +129,22 @@ export function diffVersions(current: VersionOccurrence[], next: VersionOccurren
         result.responsibleChanged.push(pair);
       else result.unchanged.push(pair);
     }
-    const leftoverCurrent = [...available.values()].flat().sort(compareOccurrences);
+    let leftoverCurrent = [...available.values()].flat().sort(compareOccurrences);
+    if (leftoverNext.length > 0) {
+      // Regra 6: cancelamento anterior é preservado. As ocorrências novas do grupo pareiam 1:1
+      // (ordem determinística) com as canceladas que sobraram; as pareadas não são inseridas.
+      const cancelledLeft = leftoverCurrent.filter((o) => o.status === "cancelada");
+      const paired = Math.min(cancelledLeft.length, leftoverNext.length);
+      for (let index = 0; index < paired; index++) {
+        result.movedCancelled.push({
+          current: cancelledLeft[index] as VersionOccurrence,
+          next: leftoverNext[index] as VersionOccurrence,
+        });
+      }
+      const usedCurrent = new Set(cancelledLeft.slice(0, paired));
+      leftoverCurrent = leftoverCurrent.filter((o) => !usedCurrent.has(o));
+      leftoverNext = leftoverNext.slice(paired);
+    }
     const sample = cur[0] ?? nxt[0];
     if (!sample) continue;
     if (leftoverCurrent.length > 0 && leftoverNext.length > 0) {
@@ -148,6 +166,7 @@ export function diffVersions(current: VersionOccurrence[], next: VersionOccurren
 
   result.unchanged.sort(comparePairs);
   result.keptCancelled.sort(comparePairs);
+  result.movedCancelled.sort(comparePairs);
   result.responsibleChanged.sort(comparePairs);
   result.changed.sort((a, b) => cmp(a.date, b.date) || cmp(a.lessonKey, b.lessonKey));
   result.removed.sort(compareOccurrences);

@@ -157,6 +157,7 @@ export const importRows = sqliteTable(
         "cancelada_versao",
         "responsavel",
         "responsavel_atualizado",
+        "alteracao_bloqueada",
       ],
     }).notNull(),
     reasonCode: text("reason_code"),

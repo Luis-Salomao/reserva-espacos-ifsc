@@ -67,11 +67,10 @@ describe("diffVersions", () => {
     expect(r2.added).toHaveLength(1);
   });
 
-  test("restos canceladas não são canceladas de novo", () => {
+  test("restos canceladas não são canceladas de novo: pareiam com a nova ocorrência", () => {
     const r = diffVersions([occ({ status: "cancelada" })], [occ({ spaceId: "sala-2" })]);
-    expect(r.changed[0]?.cancel).toHaveLength(0);
-    expect(r.changed[0]?.alreadyCancelled).toHaveLength(1);
-    expect(r.changed[0]?.insert).toHaveLength(1);
+    expect(r.changed).toHaveLength(0);
+    expect(r.movedCancelled).toHaveLength(1);
   });
 
   test("só restos atuais: ativa vira remoção, cancelada vai para a lista própria", () => {
@@ -135,6 +134,38 @@ describe("diffVersions", () => {
     expect(r.responsibleChanged.map((p) => p.next.responsibleUserId)).toEqual(["u3"]);
     expect(r.removed).toHaveLength(0);
     expect(r.added).toHaveLength(0);
+  });
+
+  test("cancelada cujo horário/sala mudou: a nova ocorrência pareia 1:1 e não é inserida", () => {
+    const r = diffVersions([occ({ status: "cancelada" })], [occ({ spaceId: "sala-2" })]);
+    expect(r.movedCancelled).toHaveLength(1);
+    expect(r.movedCancelled[0]?.current.spaceId).toBe("sala-1");
+    expect(r.movedCancelled[0]?.next.spaceId).toBe("sala-2");
+    expect(r.added).toHaveLength(0);
+    expect(r.changed).toHaveLength(0);
+    expect(r.removedAlreadyCancelled).toHaveLength(0);
+  });
+
+  test("pareamento com cancelada: o que sobra segue normal (inserção extra, cancelada extra)", () => {
+    const extraInsert = diffVersions(
+      [occ({ status: "cancelada" })],
+      [occ({ spaceId: "sala-2" }), occ({ spaceId: "sala-3" })],
+    );
+    expect(extraInsert.movedCancelled).toHaveLength(1);
+    expect(extraInsert.added.map((o) => o.spaceId)).toEqual(["sala-3"]);
+    const extraCancelled = diffVersions(
+      [occ({ status: "cancelada" }), occ({ status: "cancelada", spaceId: "sala-9" })],
+      [occ({ spaceId: "sala-2" })],
+    );
+    expect(extraCancelled.movedCancelled).toHaveLength(1);
+    expect(extraCancelled.removedAlreadyCancelled).toHaveLength(1);
+    const withActive = diffVersions(
+      [occ({ status: "cancelada" }), occ({ spaceId: "sala-9" })],
+      [occ({ spaceId: "sala-2" })],
+    );
+    expect(withActive.movedCancelled).toHaveLength(1);
+    expect(withActive.removed.map((o) => o.spaceId)).toEqual(["sala-9"]);
+    expect(withActive.changed).toHaveLength(0);
   });
 
   test("desempenho com 20 000 ocorrências por lado", () => {
