@@ -103,7 +103,7 @@ describe("erros de campo acessíveis", () => {
     fireEvent.submit(email.closest("form") as HTMLFormElement);
     const alert = await screen.findByRole("alert");
     expect(alert.textContent).toBe("Informe um e-mail válido.");
-    await waitFor(() => expect(document.activeElement).toBe(email));
+    await waitFor(() => expect(document.activeElement === email).toBe(true));
     expect(email.getAttribute("aria-invalid")).toBe("true");
     expect(email.getAttribute("aria-describedby")).toBe(alert.id);
   });
@@ -120,7 +120,7 @@ describe("erros de campo acessíveis", () => {
     fireEvent.submit(email.closest("form") as HTMLFormElement);
     const alert = await screen.findByRole("alert");
     const first = screen.getAllByLabelText("Administrador")[0] as HTMLInputElement;
-    await waitFor(() => expect(document.activeElement).toBe(first));
+    await waitFor(() => expect(document.activeElement === first).toBe(true));
     expect(first.closest("fieldset")?.getAttribute("aria-describedby")).toBe(alert.id);
   });
 });
@@ -174,7 +174,7 @@ describe("SpacesManager", () => {
     fireEvent.submit(name.closest("form") as HTMLFormElement);
     const alert = await screen.findByRole("alert");
     const capacity = screen.getByLabelText("Capacidade (opcional)");
-    await waitFor(() => expect(document.activeElement).toBe(capacity));
+    await waitFor(() => expect(document.activeElement === capacity).toBe(true));
     expect(capacity.getAttribute("aria-invalid")).toBe("true");
     expect(capacity.getAttribute("aria-describedby")).toBe(alert.id);
   });
@@ -213,7 +213,7 @@ describe("SemesterForm", () => {
     fireEvent.submit(name.closest("form") as HTMLFormElement);
     const alert = await screen.findByRole("alert");
     const start = screen.getAllByLabelText("Início")[0] as HTMLInputElement;
-    await waitFor(() => expect(document.activeElement).toBe(start));
+    await waitFor(() => expect(document.activeElement === start).toBe(true));
     expect(start.getAttribute("aria-invalid")).toBe("true");
     expect(start.getAttribute("aria-describedby")).toBe(alert.id);
     expect(semesterCalls[0]).toMatchObject({ name: "2026.2", terms: expect.any(Array) });
@@ -233,7 +233,7 @@ describe("SemesterForm", () => {
     const alert = await screen.findByRole("alert");
     const ends = screen.getAllByLabelText("Fim");
     const blockEnd = ends[ends.length - 1] as HTMLInputElement;
-    await waitFor(() => expect(document.activeElement).toBe(blockEnd));
+    await waitFor(() => expect(document.activeElement === blockEnd).toBe(true));
     expect(blockEnd.getAttribute("aria-describedby")).toBe(alert.id);
   });
 

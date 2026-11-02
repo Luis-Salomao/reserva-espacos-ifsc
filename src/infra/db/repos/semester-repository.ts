@@ -1,33 +1,12 @@
-import { asc, desc, eq } from "drizzle-orm";
+import { asc, desc, eq, inArray } from "drizzle-orm";
 import type { SemesterRepository } from "#/application/ports";
 import type { Semester } from "#/domain/semester";
+import { runAtomically, type Statement } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
 import { semesterBlocks, semesters, semesterTerms } from "#/infra/db/schema";
 
-type Query = PromiseLike<unknown>;
-type Queries = [Query, ...Query[]];
-type Batchable = { batch(queries: Queries): Promise<unknown> };
-
-function hasBatch(db: AppDb): db is AppDb & Batchable {
-  return typeof (db as Partial<Batchable>).batch === "function";
-}
-
-/**
- * Executa as instruções juntas. No D1 (`db.batch`) é tudo ou nada. O drizzle do bun:sqlite não
- * tem `batch` e não usamos `db.transaction()` (o código é o mesmo nos dois alvos): as instruções
- * rodam em sequência, na ordem dada. Como `replace` apaga os filhos e regrava o conjunto
- * inteiro, repetir a operação após uma interrupção converge para o mesmo estado.
- */
-async function runTogether(db: AppDb, queries: Queries): Promise<void> {
-  if (hasBatch(db)) {
-    await db.batch(queries);
-    return;
-  }
-  for (const query of queries) await query;
-}
-
 // Uma linha por INSERT: o D1 limita a 100 parâmetros por instrução.
-function childInserts(db: AppDb, id: string, input: Omit<Semester, "id">): Query[] {
+function childInserts(db: AppDb, id: string, input: Omit<Semester, "id">): Statement[] {
   return [
     ...input.terms.map((term) =>
       db.insert(semesterTerms).values({
@@ -52,9 +31,18 @@ function childInserts(db: AppDb, id: string, input: Omit<Semester, "id">): Query
 
 async function load(db: AppDb, rows: (typeof semesters.$inferSelect)[]): Promise<Semester[]> {
   if (rows.length === 0) return [];
+  const ids = rows.map((row) => row.id);
   const [terms, blocks] = await Promise.all([
-    db.select().from(semesterTerms).orderBy(asc(semesterTerms.position)),
-    db.select().from(semesterBlocks).orderBy(asc(semesterBlocks.number)),
+    db
+      .select()
+      .from(semesterTerms)
+      .where(inArray(semesterTerms.semesterId, ids))
+      .orderBy(asc(semesterTerms.position)),
+    db
+      .select()
+      .from(semesterBlocks)
+      .where(inArray(semesterBlocks.semesterId, ids))
+      .orderBy(asc(semesterBlocks.number)),
   ]);
   return rows.map((row) => ({
     id: row.id,
@@ -76,6 +64,7 @@ async function load(db: AppDb, rows: (typeof semesters.$inferSelect)[]): Promise
   }));
 }
 
+/** Gravações de semestre e filhos são atômicas (`runAtomically`: batch no D1, transação no bun:sqlite). */
 export function createSemesterRepository(db: AppDb): SemesterRepository {
   async function findById(id: string): Promise<Semester | null> {
     const rows = await db.select().from(semesters).where(eq(semesters.id, id));
@@ -94,8 +83,8 @@ export function createSemesterRepository(db: AppDb): SemesterRepository {
     async create(input) {
       const id = crypto.randomUUID();
       const now = new Date().toISOString();
-      await runTogether(db, [
-        db.insert(semesters).values({
+      await runAtomically(db, (x) => [
+        x.insert(semesters).values({
           id,
           name: input.name,
           startsOn: input.start,
@@ -103,7 +92,7 @@ export function createSemesterRepository(db: AppDb): SemesterRepository {
           createdAt: now,
           updatedAt: now,
         }),
-        ...childInserts(db, id, input),
+        ...childInserts(x, id, input),
       ]);
       return {
         id,
@@ -118,8 +107,8 @@ export function createSemesterRepository(db: AppDb): SemesterRepository {
         .from(semesters)
         .where(eq(semesters.id, id));
       if (existing === undefined) return null;
-      await runTogether(db, [
-        db
+      await runAtomically(db, (x) => [
+        x
           .update(semesters)
           .set({
             name: input.name,
@@ -128,9 +117,9 @@ export function createSemesterRepository(db: AppDb): SemesterRepository {
             updatedAt: new Date().toISOString(),
           })
           .where(eq(semesters.id, id)),
-        db.delete(semesterTerms).where(eq(semesterTerms.semesterId, id)),
-        db.delete(semesterBlocks).where(eq(semesterBlocks.semesterId, id)),
-        ...childInserts(db, id, input),
+        x.delete(semesterTerms).where(eq(semesterTerms.semesterId, id)),
+        x.delete(semesterBlocks).where(eq(semesterBlocks.semesterId, id)),
+        ...childInserts(x, id, input),
       ]);
       return findById(id);
     },

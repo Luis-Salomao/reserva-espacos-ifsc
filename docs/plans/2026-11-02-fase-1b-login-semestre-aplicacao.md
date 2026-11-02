@@ -76,10 +76,21 @@
 - [ ] Testes: expansão em semestre curto com feriado nenhum (não inventar), Duração parcial, segmento por bloco (intervalo livre), conflito com ocupação existente, idempotência, retomada após falha simulada no meio.
 - [ ] `bun run check` verde. Commit.
 
+### Task 5b: Novo tema laranja e componentes prontos
+
+Pedido do autor em 02/11/2026: usar componentes prontos de registros que entregam o código (shadcn, Magic UI, Watermelon UI) e personalizar com as cores do projeto: claro = branco e preto com destaque laranja; escuro = preto e branco com o mesmo laranja.
+
+**Files:** `src/styles/tokens.css`, `src/styles/tokens.test.ts`, `docs/design-system.md`, `src/components/ui/{calendar,popover,date-picker}.tsx` (via `bunx shadcn@latest add`), formulário de semestre.
+
+- [ ] Tokens: `--accent` laranja (#F38020 ou próximo) com `--accent-contrast` preto; texto/link laranja sobre fundo claro usa um tom mais escuro que passe 4.5:1; cores de ocupação revistas. Teste de contraste continua verde nos três blocos.
+- [ ] Adicionar Calendar/Popover/DatePicker do registro shadcn (pt-BR, segunda como início da semana, sem horário de verão), substituir os campos de data do semestre. Teste de componente.
+- [ ] Nenhuma marca citada em docs ou código. Lighthouse continua passando. Commit.
+
 ### Task 6: Fluxo de importação na tela
 
 **Files:** `src/server/import-flow.ts` (+test), rotas `/importar` (passos), `/importar/lotes`, componentes de de-para.
 
+- [ ] Resultado por linha (pedido do autor): tabela filtrável com cada aula/ocorrência e seu estado (aplicada, não aplicável com motivo, conflito com qual ocupação, falha ao gravar com mensagem), também ao reabrir um lote.
 - [ ] Depois da prévia: escolher semestre; de-para de salas (espaço existente / criar / ignorar; vínculos salvos e pré-preenchidos); de-para de docentes (sugestão por sigla = `code` da conta; manual; sem vínculo); conferência (aplicáveis, não aplicáveis com motivo, conflitos); aplicar; resultado; lista de lotes com estado.
 - [ ] O XML não é guardado: o lote guarda o hash e o resumo; a prévia é reenviada pelo cliente na etapa de aplicar e verificada pelo hash.
 - [ ] Verificação manual com fixture e XML real em `dev`; 360 px sem rolagem. `bun run check` verde. Commit.

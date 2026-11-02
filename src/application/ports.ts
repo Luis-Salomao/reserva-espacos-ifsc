@@ -92,7 +92,7 @@ export interface SemesterRepository {
   create(input: Omit<Semester, "id">): Promise<Semester>;
   /**
    * Substitui os dados e o conjunto inteiro de durações e blocos. `null` se o semestre não
-   * existe. Atômico onde o driver tem `batch` (D1); no bun:sqlite é uma sequência idempotente.
+   * existe. Atômico nos dois alvos (batch no D1, transação no bun:sqlite).
    */
   replace(id: string, input: Omit<Semester, "id">): Promise<Semester | null>;
 }
