@@ -9,8 +9,25 @@ export type AppEnv = {
   PASSWORD_HASH: "scrypt" | "pbkdf2";
   PASSWORD_SCRYPT_N: number;
   PASSWORD_PEPPER?: string;
+  /** Origem pública (ex.: https://reservas.campus.edu.br), sem caminho; ver README (proxy reverso). */
+  PUBLIC_ORIGIN?: string;
+  /** Com PUBLIC_ORIGIN definida, é derivada dela: "true" se https, "false" se http. */
   COOKIE_SECURE: "auto" | "true" | "false";
 };
+
+/** Origem canônica (esquema + host, sem caminho/consulta); `null` se o valor não for assim. */
+function parsePublicOrigin(value: string): string | null {
+  let url: URL;
+  try {
+    url = new URL(value);
+  } catch {
+    return null;
+  }
+  if (url.protocol !== "http:" && url.protocol !== "https:") return null;
+  if (url.hostname === "" || url.username !== "" || url.password !== "") return null;
+  if (url.pathname !== "/" || url.search !== "" || url.hash !== "") return null;
+  return url.origin;
+}
 
 type EnvSource = Record<string, string | undefined>;
 
@@ -35,6 +52,11 @@ export function getEnv(source: EnvSource): AppEnv {
         .refine((n) => (n & (n - 1)) === 0, "deve ser potência de 2")
         .default(16384),
       PASSWORD_PEPPER: z.string().min(1).optional(),
+      PUBLIC_ORIGIN: z
+        .string()
+        .min(1)
+        .refine((value) => parsePublicOrigin(value) !== null, "origem inválida")
+        .optional(),
       COOKIE_SECURE: z.enum(["auto", "true", "false"]).default("auto"),
     },
     runtimeEnv: source,
@@ -52,13 +74,26 @@ export function getEnv(source: EnvSource): AppEnv {
     );
   }
 
+  const publicOrigin =
+    parsed.PUBLIC_ORIGIN === undefined
+      ? undefined
+      : (parsePublicOrigin(parsed.PUBLIC_ORIGIN) ?? undefined);
+  // Com origem pública, o Secure do cookie segue o esquema dela (o servidor só vê HTTP interno).
+  const cookieSecure =
+    publicOrigin === undefined
+      ? parsed.COOKIE_SECURE
+      : publicOrigin.startsWith("https:")
+        ? "true"
+        : "false";
+
   return {
     DEPLOY_TARGET: parsed.DEPLOY_TARGET,
     TIMEZONE: parsed.TIMEZONE,
     PUBLIC_READ: parsed.PUBLIC_READ,
     PASSWORD_HASH: parsed.PASSWORD_HASH,
     PASSWORD_SCRYPT_N: parsed.PASSWORD_SCRYPT_N,
-    COOKIE_SECURE: parsed.COOKIE_SECURE,
+    COOKIE_SECURE: cookieSecure,
+    ...(publicOrigin === undefined ? {} : { PUBLIC_ORIGIN: publicOrigin }),
     ...(parsed.PASSWORD_PEPPER === undefined ? {} : { PASSWORD_PEPPER: parsed.PASSWORD_PEPPER }),
     ...(parsed.DATABASE_PATH === undefined ? {} : { DATABASE_PATH: parsed.DATABASE_PATH }),
   };

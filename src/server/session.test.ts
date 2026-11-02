@@ -115,6 +115,22 @@ describe("csrfRejection", () => {
     expect(csrfRejection(req("POST", { "sec-fetch-site": "same-origin" }))?.status).toBe(403);
   });
 
+  test("com PUBLIC_ORIGIN, só essa origem passa (mesmo com a URL interna diferente)", () => {
+    const internal = {
+      method: "POST",
+      url: "http://127.0.0.1:3000/api/sair",
+      headers: new Headers({ origin: "https://reservas.campus.edu.br" }),
+    } as unknown as Request;
+    expect(csrfRejection(internal)?.status).toBe(403);
+    expect(csrfRejection(internal, "https://reservas.campus.edu.br")).toBeNull();
+    const own = {
+      method: "POST",
+      url: "http://127.0.0.1:3000/api/sair",
+      headers: new Headers({ origin: "http://127.0.0.1:3000" }),
+    } as unknown as Request;
+    expect(csrfRejection(own, "https://reservas.campus.edu.br")?.status).toBe(403);
+  });
+
   test("GET e HEAD não são verificados", () => {
     expect(csrfRejection(req("GET"))).toBeNull();
     expect(csrfRejection(req("HEAD"))).toBeNull();

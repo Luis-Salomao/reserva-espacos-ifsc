@@ -62,16 +62,23 @@ export function parseSessionToken(header: string | null): string | null {
 
 const MUTATING_METHODS = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
+/** Origem aceita no `Origin`: `PUBLIC_ORIGIN`, se definida, senão a origem da própria requisição. */
+export function allowedOrigin(requestUrl: string, publicOrigin?: string): string {
+  return publicOrigin ?? new URL(requestUrl).origin;
+}
+
 /**
  * Proteção CSRF: toda requisição que altera estado precisa do cabeçalho `Origin` igual à origem
- * da própria requisição. Devolve a resposta 403 quando recusa, ou `null` quando pode seguir.
+ * esperada (`PUBLIC_ORIGIN`, atrás de proxy reverso com TLS; senão a da própria requisição).
+ * Não confia em `X-Forwarded-*`. Devolve a resposta 403 quando recusa, ou `null` quando pode seguir.
  */
 export function csrfRejection(
   request: Pick<Request, "method" | "url" | "headers">,
+  publicOrigin?: string,
 ): Response | null {
   if (!MUTATING_METHODS.has(request.method.toUpperCase())) return null;
   const origin = request.headers.get("origin");
-  if (origin !== null && origin === new URL(request.url).origin) return null;
+  if (origin !== null && origin === allowedOrigin(request.url, publicOrigin)) return null;
   return new Response("Origem não permitida.", {
     status: 403,
     headers: { "Content-Type": "text/plain; charset=utf-8" },

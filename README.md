@@ -72,6 +72,24 @@ Dados reais (`data/`), arquivos `.env`, `.dev.vars` e bancos SQLite nunca entram
 
 O cookie de sessão (`sid`) é `HttpOnly; SameSite=Lax` e leva `Secure`, exceto em `http://localhost` e `http://127.0.0.1`. A variável opcional `COOKIE_SECURE` muda isso: `auto` (padrão), `true` (sempre Secure) ou `false` (nunca). **Use `false` só em rede local sem HTTPS**; em produção mantenha `auto` ou `true`. Ao entrar de novo, a sessão anterior do navegador é revogada.
 
+### Atrás de proxy reverso com TLS
+
+O servidor não confia em `X-Forwarded-*`. Atrás de um proxy que termina o TLS (ele fala HTTP com o app), defina `PUBLIC_ORIGIN` com a origem pública, sem caminho: `PUBLIC_ORIGIN=https://reservas.campus.edu.br`. Com ela, o `Origin` aceito nos POST é exatamente essa origem (proteção CSRF) e o cookie de sessão leva `Secure` se e somente se ela for `https` (isso prevalece sobre `COOKIE_SECURE`). Sem `PUBLIC_ORIGIN`, vale o comportamento anterior (origem da própria requisição). Exemplos de proxy:
+
+```nginx
+server {
+  listen 443 ssl;
+  server_name reservas.campus.edu.br;
+  location / { proxy_pass http://127.0.0.1:3000; proxy_set_header Host $host; }
+}
+```
+
+```caddyfile
+reservas.campus.edu.br {
+  reverse_proxy 127.0.0.1:3000
+}
+```
+
 ## Administração
 
 Contas e espaços são geridos por quem tem o papel `admin`, em `/admin/contas` e `/admin/espacos` (menu "Administração"). O primeiro administrador nasce pela CLI (`bun run cli create-admin`). Desativar uma conta ou redefinir sua senha encerra todas as sessões dela, e o último administrador ativo não pode se desativar nem perder o papel `admin`. Espaços não têm exclusão nesta etapa.
