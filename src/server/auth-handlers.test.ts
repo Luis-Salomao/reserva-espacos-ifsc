@@ -102,6 +102,29 @@ describe("processLogin", () => {
     expect(calls).toEqual(["login:ana@ifsc.edu.br", "logout:antigo-1"]);
   });
 
+  test("falha ao revogar a sessão anterior não derruba o login", async () => {
+    const { auth } = fakeAuth({
+      logout: async () => {
+        throw new Error("banco indisponível");
+      },
+    });
+    const spy = spyOn(console, "error").mockImplementation(() => {});
+    const outcome = await processLogin(
+      {
+        email: "ana@ifsc.edu.br",
+        password: FAKE_PASSWORD,
+        voltar: "/importar",
+        url: HTTPS,
+        previousToken: "antigo-1",
+      },
+      auth,
+    );
+    expect(outcome.location).toBe("/importar");
+    expect(outcome.setCookie).toContain("sid=tok-123");
+    expect(spy).toHaveBeenCalled();
+    spy.mockRestore();
+  });
+
   test("login recusado mantém a sessão anterior", async () => {
     const { auth, calls } = fakeAuth();
     await processLogin(

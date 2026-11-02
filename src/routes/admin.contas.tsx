@@ -18,12 +18,13 @@ export const Route = createFileRoute("/admin/contas")({
 
 function AccountsPage() {
   const users = Route.useLoaderData();
+  const { session } = Route.useRouteContext();
   return (
     <AppShell>
       <h1 className="mb-1 text-2xl font-semibold">Administração</h1>
       <p className="mb-4 text-muted-foreground">Contas de acesso e papéis.</p>
       <AdminNav />
-      <AccountsManager users={users} />
+      <AccountsManager users={users} currentUserId={session.user?.id ?? ""} />
     </AppShell>
   );
 }

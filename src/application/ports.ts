@@ -32,12 +32,19 @@ export interface UserRepository {
   list(): Promise<User[]>;
   /** Busca por sigla exata. */
   findByCode(code: string): Promise<User | null>;
-  /** Atualiza nome, sigla e papéis; `null` se a conta não existe. */
+  /**
+   * Atualiza nome, sigla e papéis. `null` se a conta não existe ou se a mudança tiraria o papel
+   * admin do último administrador ativo (checagem atômica na própria instrução).
+   */
   update(
     id: string,
     input: { name: string; code: string | null; roles: Role[] },
   ): Promise<User | null>;
-  setActive(id: string, active: boolean): Promise<void>;
+  /**
+   * Ativa/desativa. `false` se a conta não existe ou se desativá-la deixaria o sistema sem
+   * administrador ativo (checagem atômica na própria instrução).
+   */
+  setActive(id: string, active: boolean): Promise<boolean>;
 }
 
 /** Sessão persistida. Só o SHA-256 do token existe no banco. Datas em ISO 8601 UTC. */

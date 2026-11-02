@@ -11,22 +11,15 @@ import {
   updateAccountFn,
 } from "#/server/admin";
 import type { AdminResponse } from "#/server/admin-actions";
+import { FieldError } from "./field-error";
 import {
   fieldError,
   generalError,
   ROLE_LABELS,
   ROLE_OPTIONS,
   runAdminAction,
+  useFocusInvalidField,
 } from "./use-admin-action";
-
-function FieldError({ id, message }: { id: string; message: string | undefined }) {
-  if (message === undefined) return null;
-  return (
-    <p id={id} className="text-sm text-destructive">
-      {message}
-    </p>
-  );
-}
 
 function GeneralError({ message }: { message: string | undefined }) {
   if (message === undefined) return null;
@@ -50,9 +43,10 @@ function RolesField({ idPrefix, value, onChange, error }: RolesFieldProps) {
     <fieldset className="grid gap-2" aria-describedby={error === undefined ? undefined : errorId}>
       <legend className="text-sm font-medium">Papéis</legend>
       <div className="flex flex-wrap gap-x-4 gap-y-1">
-        {ROLE_OPTIONS.map((role) => (
+        {ROLE_OPTIONS.map((role, index) => (
           <label key={role} className="flex min-h-9 items-center gap-2 text-sm">
             <input
+              id={index === 0 ? `${idPrefix}-roles` : undefined}
               type="checkbox"
               className="size-4"
               checked={value.includes(role)}
@@ -79,6 +73,7 @@ function CreateAccountForm() {
   const [roles, setRoles] = useState<Role[]>(["docente"]);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<AdminResponse<User> | null>(null);
+  useFocusInvalidField(result, uid);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -192,6 +187,7 @@ function EditAccountForm({ user, onDone }: { user: User; onDone: () => void }) {
   const [roles, setRoles] = useState<Role[]>(user.roles);
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<AdminResponse<User> | null>(null);
+  useFocusInvalidField(result, uid);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -256,12 +252,21 @@ function EditAccountForm({ user, onDone }: { user: User; onDone: () => void }) {
   );
 }
 
-function ResetPasswordForm({ user, onDone }: { user: User; onDone: () => void }) {
+function ResetPasswordForm({
+  user,
+  isSelf,
+  onDone,
+}: {
+  user: User;
+  isSelf: boolean;
+  onDone: () => void;
+}) {
   const router = useRouter();
   const uid = useId();
   const [password, setPassword] = useState("");
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<AdminResponse<null> | null>(null);
+  useFocusInvalidField(result, uid);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -273,6 +278,11 @@ function ResetPasswordForm({ user, onDone }: { user: User; onDone: () => void })
     setResult(response);
     if (response.ok) {
       setPassword("");
+      // Redefinir a própria senha encerra a sessão atual: vai ao login em vez de recarregar.
+      if (isSelf) {
+        await router.navigate({ to: "/entrar" });
+        return;
+      }
       await router.invalidate();
       onDone();
     }
@@ -315,7 +325,7 @@ function ResetPasswordForm({ user, onDone }: { user: User; onDone: () => void })
 
 type Mode = "view" | "edit" | "password";
 
-function AccountItem({ user }: { user: User }) {
+function AccountItem({ user, isSelf }: { user: User; isSelf: boolean }) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("view");
   const [pending, setPending] = useState(false);
@@ -328,7 +338,10 @@ function AccountItem({ user }: { user: User }) {
     );
     setPending(false);
     setResult(response);
-    if (response.ok) await router.invalidate();
+    if (!response.ok) return;
+    // Desativar a si mesmo encerra a sessão atual: vai ao login em vez de recarregar.
+    if (isSelf && user.active) await router.navigate({ to: "/entrar" });
+    else await router.invalidate();
   }
 
   const toView = () => setMode("view");
@@ -382,12 +395,18 @@ function AccountItem({ user }: { user: User }) {
         </p>
       )}
       {mode === "edit" && <EditAccountForm user={user} onDone={toView} />}
-      {mode === "password" && <ResetPasswordForm user={user} onDone={toView} />}
+      {mode === "password" && <ResetPasswordForm user={user} isSelf={isSelf} onDone={toView} />}
     </li>
   );
 }
 
-export function AccountsManager({ users }: { users: User[] }) {
+export function AccountsManager({
+  users,
+  currentUserId,
+}: {
+  users: User[];
+  currentUserId: string;
+}) {
   return (
     <div className="grid gap-6">
       <CreateAccountForm />
@@ -397,7 +416,7 @@ export function AccountsManager({ users }: { users: User[] }) {
         </h2>
         <ul className="grid gap-3">
           {users.map((user) => (
-            <AccountItem key={user.id} user={user} />
+            <AccountItem key={user.id} user={user} isSelf={user.id === currentUserId} />
           ))}
         </ul>
       </section>

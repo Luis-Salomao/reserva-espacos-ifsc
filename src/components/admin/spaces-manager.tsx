@@ -6,7 +6,8 @@ import { Label } from "#/components/ui/label";
 import type { Space } from "#/domain/space";
 import { createSpaceFn, updateSpaceFn } from "#/server/admin";
 import type { AdminResponse } from "#/server/admin-actions";
-import { fieldError, generalError, runAdminAction } from "./use-admin-action";
+import { FieldError } from "./field-error";
+import { fieldError, generalError, runAdminAction, useFocusInvalidField } from "./use-admin-action";
 
 type FormProps = {
   space: Space | null;
@@ -20,6 +21,7 @@ function SpaceForm({ space, onDone }: FormProps) {
   const [capacity, setCapacity] = useState(space?.capacity?.toString() ?? "");
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<AdminResponse<Space> | null>(null);
+  useFocusInvalidField(result, uid);
 
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
@@ -62,11 +64,7 @@ function SpaceForm({ space, onDone }: FormProps) {
           aria-invalid={nameError === undefined ? undefined : true}
           aria-describedby={nameError === undefined ? undefined : `${uid}-name-error`}
         />
-        {nameError !== undefined && (
-          <p id={`${uid}-name-error`} className="text-sm text-destructive">
-            {nameError}
-          </p>
-        )}
+        <FieldError id={`${uid}-name-error`} message={nameError} />
       </div>
       <div className="grid gap-2">
         <Label htmlFor={`${uid}-capacity`}>Capacidade (opcional)</Label>
@@ -78,11 +76,7 @@ function SpaceForm({ space, onDone }: FormProps) {
           aria-invalid={capacityError === undefined ? undefined : true}
           aria-describedby={capacityError === undefined ? undefined : `${uid}-capacity-error`}
         />
-        {capacityError !== undefined && (
-          <p id={`${uid}-capacity-error`} className="text-sm text-destructive">
-            {capacityError}
-          </p>
-        )}
+        <FieldError id={`${uid}-capacity-error`} message={capacityError} />
       </div>
       <div className="flex flex-wrap gap-2">
         <Button type="submit" size="sm" disabled={pending}>

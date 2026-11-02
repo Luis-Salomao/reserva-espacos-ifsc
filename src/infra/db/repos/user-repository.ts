@@ -1,4 +1,4 @@
-import { eq } from "drizzle-orm";
+import { and, eq, type SQL, sql } from "drizzle-orm";
 import type { UserRecord, UserRepository } from "#/application/ports";
 import { normalizeEmail, parseRoles, serializeRoles, type User } from "#/domain/user";
 import type { AppDb } from "#/infra/db/client";
@@ -23,6 +23,17 @@ function toRecord(row: Row): UserRecord {
   };
 }
 
+/**
+ * Condição de uma única instrução UPDATE que impede deixar o sistema sem admin ativo: vale se a
+ * conta não é admin ativo ou se existe outro admin ativo. Atômica em bun-sqlite e em D1.
+ */
+function keepsAnActiveAdmin(id: string): SQL {
+  const isAdmin = (roles: unknown) => sql`(',' || ${roles} || ',') LIKE '%,admin,%'`;
+  return sql`(NOT (${users.active} = 1 AND ${isAdmin(users.roles)}) OR EXISTS (
+    SELECT 1 FROM users AS other
+    WHERE other.id <> ${id} AND other.active = 1 AND ${isAdmin(sql.raw("other.roles"))}))`;
+}
+
 // Sem db.transaction(): o código é compartilhado entre bun-sqlite (sync) e D1 (async).
 export function createUserRepository(db: AppDb): UserRepository {
   const repo: UserRepository = {
@@ -43,7 +54,8 @@ export function createUserRepository(db: AppDb): UserRepository {
       return rows.map(toUser);
     },
     async update(id, input) {
-      await db
+      const removesAdmin = !input.roles.includes("admin");
+      const rows = await db
         .update(users)
         .set({
           name: input.name,
@@ -51,14 +63,18 @@ export function createUserRepository(db: AppDb): UserRepository {
           roles: serializeRoles(input.roles),
           updatedAt: new Date().toISOString(),
         })
-        .where(eq(users.id, id));
-      return repo.findById(id);
+        .where(removesAdmin ? and(eq(users.id, id), keepsAnActiveAdmin(id)) : eq(users.id, id))
+        .returning({ id: users.id });
+      return rows.length === 0 ? null : repo.findById(id);
     },
     async setActive(id, active) {
-      await db
+      const guard: SQL | undefined = active ? undefined : keepsAnActiveAdmin(id);
+      const rows = await db
         .update(users)
         .set({ active, updatedAt: new Date().toISOString() })
-        .where(eq(users.id, id));
+        .where(guard === undefined ? eq(users.id, id) : and(eq(users.id, id), guard))
+        .returning({ id: users.id });
+      return rows.length > 0;
     },
     async create(input) {
       const now = new Date().toISOString();

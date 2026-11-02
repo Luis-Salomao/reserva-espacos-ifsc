@@ -61,12 +61,20 @@ export async function processLogin(input: LoginInput, auth: AuthPort): Promise<O
   let result: LoginResult;
   try {
     result = await auth.login(input.email, input.password);
-    if (result.ok && input.previousToken != null && input.previousToken !== result.token) {
-      await auth.logout(input.previousToken);
-    }
   } catch (error) {
     console.error("[entrar] falha:", error instanceof Error ? error.name : "erro");
     return loginFailure("falha", voltar);
+  }
+  if (result.ok && input.previousToken != null && input.previousToken !== result.token) {
+    // Melhor esforço: o login novo já foi emitido; a sessão antiga expira sozinha em até 7 dias.
+    try {
+      await auth.logout(input.previousToken);
+    } catch (error) {
+      console.error(
+        "[entrar] revogação da sessão anterior falhou:",
+        error instanceof Error ? error.name : "erro",
+      );
+    }
   }
   if (!result.ok)
     return loginFailure(result.reason === "locked" ? "bloqueado" : "invalido", voltar);
