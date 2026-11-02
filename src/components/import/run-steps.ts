@@ -1,6 +1,6 @@
 export type StepOutput = { done: boolean; remaining: number };
 
-export type StepFailure = { message: string; conflict: boolean };
+type StepFailure = { message: string; conflict: boolean };
 
 export type StepResponse<T extends StepOutput> =
   | { ok: true; data: T }

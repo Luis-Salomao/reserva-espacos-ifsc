@@ -124,7 +124,7 @@ export type RowFilter = { status?: ImportRowStatus; reasonCode?: string; search?
 
 export type ReasonCount = { status: ImportRowStatus; reasonCode: string | null; total: number };
 
-export type OccupationInfo = {
+type OccupationInfo = {
   id: string;
   spaceId: string;
   startsAt: string;
