@@ -1,4 +1,5 @@
 import type {
+  ApplyPhase,
   Clock,
   ImportRepository,
   RoomMappingRepository,
@@ -6,9 +7,18 @@ import type {
   TeacherMappingRepository,
 } from "#/application/ports";
 import { fail, ok, type Result } from "#/application/validation";
-import { weekdayOf } from "#/domain/calendar";
-import type { ImportBatch, ImportRow, ImportRowCounts, ImportSummary } from "#/domain/import-batch";
-import { IGNORE_ROOM, type ImportPlan, type PlanInput, planImport } from "./import-plan";
+import {
+  EMPTY_COUNTS,
+  type ImportBatch,
+  type ImportRow,
+  type ImportRowCounts,
+  type ImportSummary,
+  pendingTotal,
+  type VersionSummary,
+} from "#/domain/import-batch";
+import { IGNORE_ROOM, type PlanInput, planImport } from "./import-plan";
+import { plannedRows } from "./import-rows";
+import { planVersion } from "./version-plan";
 
 /** Linhas por bloco atômico de aplicação: cada linha usa até 3 instruções, então ≤ 90 instruções. */
 const ROWS_PER_CHUNK = 30;
@@ -16,11 +26,12 @@ const ROWS_PER_CHUNK = 30;
 const ROWS_PER_WRITE = 50;
 /**
  * Orçamento por chamada (o Workers limita as consultas por invocação; ~50 no plano Free). Conta:
- * `prepare` gasta ~8 consultas fixas (vínculos x2, ocupações, semestre, lote por hash, inserir
- * lote, chaves, contagem e fechar) + até `maxCalls` gravações de 50 linhas = 38 com o padrão 30
- * (1500 linhas). `apply` gasta ~6 fixas (lote, contagem, estado, pendentes, contagem, estado) +
- * até `maxChunks` blocos de 30 linhas = 36 com o padrão 30 (900 linhas). Verificado só no D1 local (workerd): 20 blocos por passo rodaram sem erro; o limite do D1 remoto NÃO foi medido. Se o D1
- * conta cada instrução de um `batch` separadamente; se contar, reduza os padrões.
+ * `prepare` gasta ~9 consultas fixas (lote por hash, vínculos x2, versão vigente, ocupações,
+ * semestre, inserir lote, chaves, contagem e fechar) + até `maxCalls` gravações de 50 linhas = 39
+ * com o padrão 30 (1500 linhas). `apply` gasta ~7 fixas (lote, contagem, estado, pendentes de cada
+ * fase, contagem, estado) + até `maxChunks` blocos de 30 linhas = 37 com o padrão 30 (900 linhas).
+ * Verificado só no D1 local (workerd): 20 blocos por passo rodaram sem erro; o limite do D1 remoto
+ * NÃO foi medido. Se o D1 conta cada instrução de um `batch` separadamente, reduza os padrões.
  */
 const DEFAULT_PREPARE_CALLS = 30;
 const DEFAULT_APPLY_CHUNKS = 30;
@@ -34,6 +45,8 @@ const CHANGED_MESSAGE =
 const PREPARING_MESSAGE = "O lote ainda está sendo preparado. Conclua o preparo antes de aplicar.";
 const INCOMPLETE_MESSAGE =
   "O lote está incompleto (faltam linhas). Envie o arquivo de novo para refazer o preparo.";
+const STALE_MESSAGE =
+  "Outra versão da grade foi aplicada depois deste preparo. Envie o arquivo de novo para refazer a conferência.";
 
 /** SHA-256 (hexadecimal) dos bytes do arquivo; junto do semestre identifica o lote. */
 export async function hashImportFile(bytes: Uint8Array): Promise<string> {
@@ -66,92 +79,7 @@ export type PrepareOutput = StepOutput & {
   reused: boolean;
 };
 
-const EMPTY_COUNTS: ImportRowCounts = {
-  pendente: 0,
-  aplicada: 0,
-  nao_aplicavel: 0,
-  conflito: 0,
-  conflito_interno: 0,
-  falha: 0,
-};
-
-function timePart(startsAt: string): string {
-  return startsAt.slice(11);
-}
-
-/** Linhas do plano sem lote (`batchId` vazio): o chamador carimba o id do lote que vale. */
-function planRows(plan: ImportPlan): ImportRow[] {
-  const rows: ImportRow[] = [];
-  const occurrence = (
-    draft: ImportPlan["toInsert"][number],
-    extra: Pick<ImportRow, "status" | "reasonCode" | "reasonDetail" | "conflictOccupationId">,
-  ): ImportRow => ({
-    batchId: "",
-    rowKey: draft.rowKey,
-    lessonId: draft.lessonId,
-    weekday: weekdayOf(draft.startsAt.slice(0, 10)),
-    spaceId: draft.spaceId,
-    date: draft.startsAt.slice(0, 10),
-    startTime: timePart(draft.startsAt),
-    endTime: timePart(draft.endsAt),
-    title: draft.title,
-    responsibleUserId: draft.responsibleUserId,
-    occupationId: null,
-    ...extra,
-  });
-  for (const draft of plan.toInsert) {
-    rows.push(
-      occurrence(draft, {
-        status: "pendente",
-        reasonCode: null,
-        reasonDetail: null,
-        conflictOccupationId: null,
-      }),
-    );
-  }
-  for (const { draft, existingId } of plan.conflicts) {
-    rows.push(
-      occurrence(draft, {
-        status: "conflito",
-        reasonCode: "conflito_existente",
-        reasonDetail: "Já existe uma ocupação ativa neste espaço e horário.",
-        conflictOccupationId: existingId,
-      }),
-    );
-  }
-  for (const { draft } of plan.internalConflicts) {
-    rows.push(
-      occurrence(draft, {
-        status: "conflito_interno",
-        reasonCode: "conflito_interno",
-        reasonDetail: "Outra aula do mesmo arquivo ocupa o mesmo espaço e horário.",
-        conflictOccupationId: null,
-      }),
-    );
-  }
-  for (const item of plan.notApplicable) {
-    rows.push({
-      batchId: "",
-      rowKey: item.rowKey,
-      lessonId: item.lessonId,
-      weekday: item.weekday,
-      spaceId: null,
-      date: null,
-      startTime: item.start,
-      endTime: item.end,
-      title: item.title,
-      responsibleUserId: null,
-      status: "nao_aplicavel",
-      reasonCode: item.reason,
-      reasonDetail: item.detail,
-      occupationId: null,
-      conflictOccupationId: null,
-    });
-  }
-  return rows;
-}
-
-function summarize(rows: readonly ImportRow[]): ImportSummary {
+function summarize(rows: readonly ImportRow[], version?: VersionSummary): ImportSummary {
   const counts: ImportRowCounts = { ...EMPTY_COUNTS };
   const notApplicable: Record<string, number> = {};
   for (const row of rows) {
@@ -160,17 +88,30 @@ function summarize(rows: readonly ImportRow[]): ImportSummary {
       notApplicable[row.reasonCode] = (notApplicable[row.reasonCode] ?? 0) + 1;
     }
   }
-  return { rows: rows.length, notApplicable, counts };
+  return {
+    rows: rows.length,
+    notApplicable,
+    counts,
+    ...(version === undefined ? {} : { version }),
+  };
 }
 
-/** SHA-256 do conteúdo canônico das linhas planejadas (chave, situação, motivo, espaço, horários, responsável, título). */
-async function fingerprint(rows: readonly ImportRow[]): Promise<string> {
+/**
+ * SHA-256 do conteúdo canônico das linhas planejadas (chave, situação, tipo de mudança, motivo,
+ * ocupação, espaço, horários, responsável, título) e da versão que o lote substitui.
+ */
+async function fingerprint(
+  rows: readonly ImportRow[],
+  supersedesBatchId: string | null,
+): Promise<string> {
   const canonical = [...rows]
     .sort((x, y) => (x.rowKey < y.rowKey ? -1 : x.rowKey > y.rowKey ? 1 : 0))
     .map((row) => [
       row.rowKey,
       row.status,
+      row.changeKind,
       row.reasonCode,
+      row.occupationId,
       row.conflictOccupationId,
       row.spaceId,
       row.date,
@@ -180,7 +121,7 @@ async function fingerprint(rows: readonly ImportRow[]): Promise<string> {
       row.responsibleUserId,
       row.title,
     ]);
-  return hashImportFile(new TextEncoder().encode(JSON.stringify(canonical)));
+  return hashImportFile(new TextEncoder().encode(JSON.stringify([supersedesBatchId, canonical])));
 }
 
 function chunks<T>(items: readonly T[], size: number): T[][] {
@@ -218,6 +159,10 @@ export function createImportService(deps: ImportServiceDeps) {
      * se as linhas gravadas não são do plano atual, é apagado e refeito. Lote `aplicando`,
      * `aplicado` ou `falhou` é devolvido como está (`reused`). Um `rascunho` é refeito com os
      * vínculos atuais. Prévia truncada é recusada.
+     *
+     * Se o semestre já tem um lote `aplicado`, o arquivo é uma NOVA VERSÃO: as linhas descrevem a
+     * diferença para a versão vigente (inserir, cancelar, trocar responsável, informativas) e o
+     * lote registra `supersedesBatchId`. Sem lote aplicado, é a primeira versão (Fase 1b).
      */
     async prepare(
       input: PrepareInput,
@@ -227,15 +172,38 @@ export function createImportService(deps: ImportServiceDeps) {
       const semester = await semesters.findById(input.semesterId);
       if (semester === null) return fail("not_found", "Semestre não encontrado.");
 
+      // Mesmo arquivo já aplicado (ou em aplicação): reconhecido pelo hash, sem planejar nem comparar.
+      const known = await imports.findBatchByHash(input.semesterId, input.fileHash);
+      if (known !== null && known.status !== "preparando" && known.status !== "rascunho") {
+        return ok({ batch: known, reused: true, done: true, remaining: 0 });
+      }
+
       const maps = await loadMaps();
-      const occupied = await imports.listActiveOccupations(
-        `${semester.start}T00:00`,
-        `${semester.end}T24:00`,
-      );
-      const plan = planImport({ preview: input.preview, semester, ...maps, existing: occupied });
-      const planned = planRows(plan);
-      const summary = summarize(planned);
-      const planHash = await fingerprint(planned);
+      const from = `${semester.start}T00:00`;
+      const to = `${semester.end}T24:00`;
+      const supersedes = await imports.latestAppliedBatchId(input.semesterId);
+      const occupied = await imports.listActiveOccupations(from, to);
+      let planned: ImportRow[];
+      let version: VersionSummary | undefined;
+      if (supersedes === null) {
+        planned = plannedRows(
+          planImport({ preview: input.preview, semester, ...maps, existing: occupied }),
+        );
+      } else {
+        const current = await imports.listVersionOccupations(input.semesterId, from, to);
+        const plan = planVersion({
+          preview: input.preview,
+          semester,
+          ...maps,
+          active: occupied,
+          current,
+          supersedesBatchId: supersedes,
+        });
+        planned = plan.rows;
+        version = plan.version;
+      }
+      const summary = summarize(planned, version);
+      const planHash = await fingerprint(planned, supersedes);
       const planKeys = new Set(planned.map((row) => row.rowKey));
       const budget = options.maxCalls ?? DEFAULT_PREPARE_CALLS;
 
@@ -256,6 +224,7 @@ export function createImportService(deps: ImportServiceDeps) {
             createdBy: input.actorId,
             createdAt: clock.now().toISOString(),
             appliedAt: null,
+            supersedesBatchId: supersedes,
           });
           // Se outra requisição criou antes, o lote dela (outro id) é o que vale.
           batch = await imports.findBatchByHash(input.semesterId, input.fileHash);
@@ -266,7 +235,7 @@ export function createImportService(deps: ImportServiceDeps) {
         }
         const batchId = batch.id;
         const written = new Set(await imports.rowKeys(batchId));
-        // O plano mudou (vínculos, conflitos, motivos) ou há linhas que não são dele: refaz do zero.
+        // O plano mudou (vínculos, conflitos, motivos, versão vigente) ou há linhas que não são dele: refaz do zero.
         if (batch.planHash !== planHash || [...written].some((key) => !planKeys.has(key))) {
           await imports.deleteDraft(batchId);
           continue;
@@ -310,10 +279,12 @@ export function createImportService(deps: ImportServiceDeps) {
 
     /**
      * Aplica (ou retoma) o lote em passos de no máximo `maxChunks` blocos atômicos de 30 linhas.
-     * Recusa lote `preparando` ou cujas linhas não batem com o resumo. Parar pelo orçamento deixa o
-     * lote `aplicando` (retomável); `falhou` só ocorre em erro real de gravação (as linhas do
-     * bloco viram `falha`, motivo genérico). Ocupação sobreposta surgida depois da prévia vira
-     * linha `conflito`. Chamar de novo continua de onde parou, sem duplicar.
+     * Recusa lote `preparando`, cujas linhas não batem com o resumo, ou (ao começar) preparado
+     * sobre uma versão que já não é a última aplicada. Numa nova versão, a fase de mudanças
+     * (cancelar e trocar responsável) termina antes de qualquer inserção. Parar pelo orçamento
+     * deixa o lote `aplicando` (retomável); `falhou` só ocorre em erro real de gravação (as linhas
+     * do bloco viram `falha`, motivo genérico). Ocupação sobreposta surgida depois da prévia vira
+     * linha `conflito`. Chamar de novo continua de onde parou, sem duplicar nem cancelar de novo.
      */
     async apply(
       batchId: string,
@@ -327,32 +298,46 @@ export function createImportService(deps: ImportServiceDeps) {
         return fail("conflict", INCOMPLETE_MESSAGE);
       }
       if (batch.status !== "aplicando") {
+        if (batch.status === "rascunho") {
+          const latest = await imports.latestAppliedBatchId(batch.semesterId);
+          if (latest !== batch.supersedesBatchId) return fail("conflict", STALE_MESSAGE);
+        }
         const started = await imports.transition(batchId, ["rascunho", "falhou"], {
           status: "aplicando",
           appliedAt: null,
         });
         if (!started) return fail("conflict", CHANGED_MESSAGE);
       }
-      const chunkBudget = options.maxChunks ?? DEFAULT_APPLY_CHUNKS;
-      const pending = await imports.pendingRows(batchId, chunkBudget * ROWS_PER_CHUNK);
+      let chunksLeft = options.maxChunks ?? DEFAULT_APPLY_CHUNKS;
       const createdAt = clock.now().toISOString();
+      const phases: ApplyPhase[] =
+        batch.summary.version === undefined ? ["insercoes"] : ["mudancas", "insercoes"];
       let errored = false;
-      for (const group of chunks(pending, ROWS_PER_CHUNK)) {
-        try {
-          await imports.applyRows(batchId, group, createdAt);
-        } catch {
-          await imports.markFailed(
-            batchId,
-            group.map((row) => row.rowKey),
-            FAILURE_CODE,
-            FAILURE_DETAIL,
-          );
-          errored = true;
-          break;
+      for (const phase of phases) {
+        if (errored || chunksLeft <= 0) break;
+        const limit = chunksLeft * ROWS_PER_CHUNK;
+        const pending = await imports.pendingRows(batchId, limit, phase);
+        for (const group of chunks(pending, ROWS_PER_CHUNK)) {
+          try {
+            if (phase === "mudancas") await imports.applyVersionRows(batchId, group, createdAt);
+            else await imports.applyRows(batchId, group, createdAt);
+          } catch {
+            await imports.markFailed(
+              batchId,
+              group.map((row) => row.rowKey),
+              FAILURE_CODE,
+              FAILURE_DETAIL,
+            );
+            errored = true;
+            break;
+          }
+          chunksLeft--;
         }
+        // Fase com mais linhas do que o orçamento: a próxima só começa quando esta terminar.
+        if (pending.length >= limit) break;
       }
       const counts = await imports.countRows(batchId);
-      const remaining = counts.pendente + counts.falha;
+      const remaining = pendingTotal(counts);
       const status = remaining === 0 ? "aplicado" : errored ? "falhou" : "aplicando";
       const appliedAt = status === "aplicado" ? clock.now().toISOString() : null;
       const summary = { ...batch.summary, counts };

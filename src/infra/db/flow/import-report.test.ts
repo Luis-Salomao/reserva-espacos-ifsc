@@ -4,7 +4,7 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { createImportReportService } from "#/application/import-report";
-import type { ImportBatch, ImportRow } from "#/domain/import-batch";
+import { EMPTY_COUNTS, type ImportBatch, type ImportRow } from "#/domain/import-batch";
 import { createImportRepository } from "#/infra/db/repos/import-repository";
 import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
@@ -12,12 +12,10 @@ import { createUserRepository } from "#/infra/db/repos/user-repository";
 import * as schema from "#/infra/db/schema";
 
 const counts = {
-  pendente: 0,
+  ...EMPTY_COUNTS,
   aplicada: 1,
   nao_aplicavel: 1,
   conflito: 1,
-  conflito_interno: 0,
-  falha: 0,
 };
 
 async function setup() {
@@ -55,6 +53,7 @@ async function setup() {
     createdBy: teacher.id,
     createdAt: "2026-11-02T10:00:00.000Z",
     appliedAt: "2026-11-02T10:01:00.000Z",
+    supersedesBatchId: null,
   };
   await imports.insertBatch(batch);
   await db.insert(schema.occupations).values({
@@ -75,6 +74,7 @@ async function setup() {
     conflictOccupationId: null,
     reasonCode: null,
     reasonDetail: null,
+    changeKind: null,
     responsibleUserId: null,
   };
   const rows: ImportRow[] = [
@@ -175,6 +175,7 @@ describe("relatório por linha do lote", () => {
       createdBy: env.teacherId,
       createdAt: "2026-10-01T10:00:00.000Z",
       appliedAt: "2026-10-01T10:01:00.000Z",
+      supersedesBatchId: null,
     };
     await env.imports.insertBatch(earlier);
     await env.db

@@ -134,6 +134,24 @@ type OccupationInfo = {
   batchId: string | null;
 };
 
+/** Ocupação importada da versão vigente do semestre (ativa ou cancelada à mão). */
+export type VersionOccupation = {
+  id: string;
+  spaceId: string;
+  startsAt: string;
+  endsAt: string;
+  title: string;
+  lessonId: string | null;
+  responsibleUserId: string | null;
+  status: "ativa" | "cancelada";
+};
+
+/**
+ * Fase de aplicação de uma nova versão: `mudancas` (cancelamentos e troca de responsável) termina
+ * antes de qualquer `insercoes`, para que uma inserção possa ocupar o lugar de uma aula cancelada.
+ */
+export type ApplyPhase = "mudancas" | "insercoes";
+
 export interface ImportRepository {
   findBatch(id: string): Promise<ImportBatch | null>;
   findBatchByHash(semesterId: string, fileHash: string): Promise<ImportBatch | null>;
@@ -145,8 +163,27 @@ export interface ImportRepository {
   rowKeys(batchId: string): Promise<string[]>;
   /** Apaga um lote `preparando` ou `rascunho` e suas linhas (nunca ocupações, nem de outros estados). */
   deleteDraft(id: string): Promise<void>;
-  /** Até `limit` linhas ainda por aplicar (`pendente` ou `falha`), em ordem estável. */
-  pendingRows(batchId: string, limit: number): Promise<ImportRow[]>;
+  /**
+   * Até `limit` linhas ainda por aplicar na fase, em ordem estável: `insercoes` = `pendente` ou
+   * `falha` de inserção; `mudancas` = `cancelar`, `responsavel` ou `falha` dessas linhas.
+   */
+  pendingRows(batchId: string, limit: number, phase: ApplyPhase): Promise<ImportRow[]>;
+  /**
+   * Aplica as linhas `cancelar` e `responsavel` de um bloco numa unidade atômica: só cancela (ou
+   * troca o responsável) se a ocupação importada ainda está `ativa`, e marca a linha na mesma unidade.
+   */
+  applyVersionRows(batchId: string, rows: readonly ImportRow[], now: string): Promise<void>;
+  /** Último lote `aplicado` do semestre (o mais recente por conclusão), ou `null`. */
+  latestAppliedBatchId(semesterId: string): Promise<string | null>;
+  /**
+   * Versão vigente: ocupações importadas dos lotes `aplicado` do semestre, ativas e canceladas à
+   * mão, com início em `[from, to)`. As canceladas por uma nova versão (`nova_versao`) não contam.
+   */
+  listVersionOccupations(
+    semesterId: string,
+    from: string,
+    to: string,
+  ): Promise<VersionOccupation[]>;
   /**
    * Aplica as linhas de um bloco numa unidade atômica: insere cada ocupação só se não houver
    * ocupação ativa sobreposta no espaço e registra, na mesma unidade, `aplicada` ou `conflito`.

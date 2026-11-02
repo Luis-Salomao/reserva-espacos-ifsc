@@ -1,27 +1,23 @@
-import { and, asc, desc, eq, gt, inArray, lt, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, or, type SQL, sql } from "drizzle-orm";
 import type { ImportRepository, RowFilter } from "#/application/ports";
-import type {
-  ImportBatch,
-  ImportBatchStatus,
-  ImportRow,
-  ImportRowCounts,
-  ImportRowStatus,
-  ImportSummary,
+import {
+  EMPTY_COUNTS,
+  type ImportBatch,
+  type ImportBatchStatus,
+  type ImportRow,
+  type ImportRowStatus,
+  type ImportSummary,
 } from "#/domain/import-batch";
 import { runAtomically, type Statement } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
 import { importBatches, importRows, occupations, spaces } from "#/infra/db/schema";
 
-const EMPTY_COUNTS: ImportRowCounts = {
-  pendente: 0,
-  aplicada: 0,
-  nao_aplicavel: 0,
-  conflito: 0,
-  conflito_interno: 0,
-  falha: 0,
-};
-
-const OPEN: ImportRowStatus[] = ["pendente", "falha"];
+const OPEN: ImportRowStatus[] = ["pendente", "falha", "cancelar", "responsavel"];
+/** Prefixos de `row_key` das linhas de mudança (cancelar e trocar o responsável). */
+const CANCEL_PREFIX = "c:";
+const RESPONSIBLE_PREFIX = "r:";
+const CANCEL_REASON = "nova_versao";
+const ALREADY_CANCELLED = "ja_cancelada";
 const DRAFT: ImportBatchStatus[] = ["preparando", "rascunho"];
 
 function rowInsert(x: AppDb, row: ImportRow) {
@@ -43,6 +39,7 @@ function rowInsert(x: AppDb, row: ImportRow) {
       reasonDetail: row.reasonDetail,
       occupationId: row.occupationId,
       conflictOccupationId: row.conflictOccupationId,
+      changeKind: row.changeKind,
     })
     .onConflictDoNothing();
 }
@@ -77,6 +74,7 @@ function parseSummary(json: string): ImportSummary {
     rows: parsed.rows ?? 0,
     notApplicable: parsed.notApplicable ?? {},
     counts: { ...EMPTY_COUNTS, ...parsed.counts },
+    ...(parsed.version === undefined ? {} : { version: parsed.version }),
   };
 }
 
@@ -91,6 +89,7 @@ function toBatch(row: typeof importBatches.$inferSelect): ImportBatch {
     createdBy: row.createdBy,
     createdAt: row.createdAt,
     appliedAt: row.appliedAt,
+    supersedesBatchId: row.supersedesBatchId,
   };
 }
 
@@ -125,6 +124,7 @@ export function createImportRepository(db: AppDb): ImportRepository {
           createdBy: batch.createdBy,
           createdAt: batch.createdAt,
           appliedAt: batch.appliedAt,
+          supersedesBatchId: batch.supersedesBatchId,
         })
         .onConflictDoNothing();
     },
@@ -149,11 +149,23 @@ export function createImportRepository(db: AppDb): ImportRepository {
           .where(and(eq(importBatches.id, id), inArray(importBatches.status, DRAFT))),
       ]);
     },
-    async pendingRows(batchId, limit) {
+    async pendingRows(batchId, limit, phase) {
+      const isChange = sql`(${importRows.rowKey} LIKE ${`${CANCEL_PREFIX}%`}
+        OR ${importRows.rowKey} LIKE ${`${RESPONSIBLE_PREFIX}%`})`;
+      const open =
+        phase === "mudancas"
+          ? or(
+              inArray(importRows.status, ["cancelar", "responsavel"]),
+              and(eq(importRows.status, "falha"), isChange),
+            )
+          : or(
+              eq(importRows.status, "pendente"),
+              and(eq(importRows.status, "falha"), sql`NOT ${isChange}`),
+            );
       return db
         .select()
         .from(importRows)
-        .where(and(eq(importRows.batchId, batchId), inArray(importRows.status, OPEN)))
+        .where(and(eq(importRows.batchId, batchId), open))
         .orderBy(asc(importRows.rowKey))
         .limit(limit);
     },
@@ -175,7 +187,7 @@ export function createImportRepository(db: AppDb): ImportRepository {
               .select(
                 sql`SELECT ${crypto.randomUUID()}, ${spaceId}, ${startsAt}, ${endsAt}, 'import',
                   ${batchId}, ${row.lessonId}, ${row.responsibleUserId}, ${row.title}, 'ativa',
-                  ${createdAt}
+                  ${createdAt}, NULL, NULL
                   WHERE NOT EXISTS (SELECT 1 FROM occupations o WHERE ${overlapping})`,
               )
               .onConflictDoNothing(),
@@ -212,6 +224,104 @@ export function createImportRepository(db: AppDb): ImportRepository {
         }
         return statements as [Statement, ...Statement[]];
       });
+    },
+    async applyVersionRows(batchId, rows, now) {
+      const first = rows[0];
+      if (first === undefined) return;
+      await runAtomically(db, (x) => {
+        const statements: Statement[] = [];
+        for (const row of rows) {
+          const occupationId = row.occupationId ?? "";
+          const open = and(
+            eq(importRows.batchId, batchId),
+            eq(importRows.rowKey, row.rowKey),
+            inArray(importRows.status, OPEN),
+          );
+          // Só ocupações importadas e ainda ativas: reserva avulsa nunca é tocada.
+          const importedActive = and(
+            eq(occupations.id, occupationId),
+            eq(occupations.status, "ativa"),
+            eq(occupations.source, "import"),
+          );
+          if (row.rowKey.startsWith(RESPONSIBLE_PREFIX)) {
+            const done = sql`EXISTS (SELECT 1 FROM occupations o WHERE o.id = ${occupationId}
+              AND o.status = 'ativa' AND o.source = 'import')`;
+            statements.push(
+              x
+                .update(occupations)
+                .set({ responsibleUserId: row.responsibleUserId })
+                .where(importedActive),
+              x
+                .update(importRows)
+                .set({
+                  status: "responsavel_atualizado",
+                  reasonCode: sql`CASE WHEN ${done} THEN NULL ELSE ${ALREADY_CANCELLED} END`,
+                  reasonDetail: sql`CASE WHEN ${done} THEN NULL
+                    ELSE 'A ocupação já não estava ativa; o responsável não foi alterado.' END`,
+                })
+                .where(open),
+            );
+            continue;
+          }
+          const done = sql`EXISTS (SELECT 1 FROM occupations o WHERE o.id = ${occupationId}
+            AND o.cancel_reason = ${CANCEL_REASON} AND o.cancelled_at = ${now})`;
+          statements.push(
+            x
+              .update(occupations)
+              .set({ status: "cancelada", cancelReason: CANCEL_REASON, cancelledAt: now })
+              .where(importedActive),
+            x
+              .update(importRows)
+              .set({
+                status: "cancelada_versao",
+                reasonCode: sql`CASE WHEN ${done} THEN NULL ELSE ${ALREADY_CANCELLED} END`,
+                reasonDetail: sql`CASE WHEN ${done} THEN NULL
+                  ELSE 'A ocupação já estava cancelada quando a nova versão foi aplicada.' END`,
+              })
+              .where(open),
+          );
+        }
+        return statements as [Statement, ...Statement[]];
+      });
+    },
+    async latestAppliedBatchId(semesterId) {
+      const [found] = await db
+        .select({ id: importBatches.id })
+        .from(importBatches)
+        .where(and(eq(importBatches.semesterId, semesterId), eq(importBatches.status, "aplicado")))
+        .orderBy(
+          desc(importBatches.appliedAt),
+          desc(importBatches.createdAt),
+          desc(importBatches.id),
+        )
+        .limit(1);
+      return found?.id ?? null;
+    },
+    async listVersionOccupations(semesterId, from, to) {
+      return db
+        .select({
+          id: occupations.id,
+          spaceId: occupations.spaceId,
+          startsAt: occupations.startsAt,
+          endsAt: occupations.endsAt,
+          title: occupations.title,
+          lessonId: occupations.lessonId,
+          responsibleUserId: occupations.responsibleUserId,
+          status: occupations.status,
+        })
+        .from(occupations)
+        .innerJoin(importBatches, eq(occupations.batchId, importBatches.id))
+        .where(
+          and(
+            eq(importBatches.semesterId, semesterId),
+            eq(importBatches.status, "aplicado"),
+            eq(occupations.source, "import"),
+            // Cancelada por uma nova versão é história, não parte da versão vigente.
+            sql`NOT (${occupations.status} = 'cancelada' AND COALESCE(${occupations.cancelReason}, '') = ${CANCEL_REASON})`,
+            gte(occupations.startsAt, from),
+            lt(occupations.startsAt, to),
+          ),
+        );
     },
     async markFailed(batchId, rowKeys, code, detail) {
       if (rowKeys.length === 0) return;

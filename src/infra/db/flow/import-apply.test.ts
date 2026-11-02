@@ -255,15 +255,17 @@ describe("prepare + apply", () => {
     expect(await env.db.select().from(schema.importBatches)).toHaveLength(1);
   });
 
-  test("hash diferente no mesmo semestre cria outro lote; conflita com o primeiro", async () => {
+  test("hash diferente em semestre já aplicado é nova versão: tudo inalterada, nada duplicado", async () => {
     const first = await env.service.prepare(prepareInput(env, [slot()]));
     if (!first.ok) throw new Error("prepare");
     await env.service.apply(first.value.batch.id);
     const second = await env.service.prepare(prepareInput(env, [slot()], [lesson("L1")], "h2"));
     expect(second.ok && second.value.reused).toBe(false);
     if (!second.ok) return;
-    expect(second.value.batch.summary.counts.conflito).toBe(3);
+    expect(second.value.batch.summary.counts.inalterada).toBe(3);
+    expect(second.value.batch.summary.counts.conflito).toBe(0);
     expect(second.value.batch.summary.counts.pendente).toBe(0);
+    expect(second.value.batch.supersedesBatchId).toBe(first.value.batch.id);
     const applied = await env.service.apply(second.value.batch.id);
     expect(applied.ok && applied.value.batch.status).toBe("aplicado");
     expect(await occupationCount(env.db)).toBe(3);

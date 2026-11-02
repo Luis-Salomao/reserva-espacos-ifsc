@@ -306,8 +306,8 @@ describe("etapas limitadas por chamada", () => {
     const env = await setup();
     const { slots, lessons } = manySlots(10);
     const prepared = await prepareAll(env, inputOf(env, slots, lessons));
-    expect(await env.imports.pendingRows(prepared.batch.id, 7)).toHaveLength(7);
-    expect(await env.imports.pendingRows(prepared.batch.id, 100)).toHaveLength(30);
+    expect(await env.imports.pendingRows(prepared.batch.id, 7, "insercoes")).toHaveLength(7);
+    expect(await env.imports.pendingRows(prepared.batch.id, 100, "insercoes")).toHaveLength(30);
   });
 });
 
@@ -403,7 +403,7 @@ describe("repositório", () => {
       status: "ativa",
       createdAt: "t",
     });
-    const rows = await env.imports.pendingRows(prepared.batch.id, 100);
+    const rows = await env.imports.pendingRows(prepared.batch.id, 100, "insercoes");
     await env.imports.applyRows(prepared.batch.id, rows, "t");
     const inserted = await env.db.select().from(schema.occupations);
     expect(inserted.map((o) => o.startsAt).sort()).toEqual([
