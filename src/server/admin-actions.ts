@@ -249,7 +249,15 @@ function semesterInput(body: Record<string, unknown> | null): SemesterInput | nu
   const end = body && text(body, "end");
   const rawTerms = body && listOf(body, "terms");
   const rawBlocks = body && listOf(body, "blocks");
-  if (!name || start === null || end === null || !rawTerms || !rawBlocks) return null;
+  if (
+    name === null ||
+    name === undefined ||
+    start === null ||
+    end === null ||
+    !rawTerms ||
+    !rawBlocks
+  )
+    return null;
   const terms = parseTerms(rawTerms);
   const blocks = parseBlocks(rawBlocks);
   return terms === null || blocks === null ? null : { name, start, end, terms, blocks };

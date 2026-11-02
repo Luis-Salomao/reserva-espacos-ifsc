@@ -486,3 +486,17 @@ describe("semestres (administrador e horários)", () => {
     expect(await ctx.deps.semesters.list()).toHaveLength(0);
   });
 });
+
+describe("semestres: nome vazio", () => {
+  test("vira erro de campo (400 com field=name), igual ao do serviço", async () => {
+    const ctx = await setup();
+    expect(
+      (await createSemester(ctx.deps, ctx.req(ctx.horarios.token), { ...SEMESTER, name: "  " }))
+        .response,
+    ).toMatchObject({ ok: false, status: 400, field: "name" });
+    expect(
+      (await createSemester(ctx.deps, ctx.req(ctx.horarios.token), { ...SEMESTER, name: "" }))
+        .response,
+    ).toMatchObject({ ok: false, status: 400, field: "name" });
+  });
+});

@@ -144,3 +144,27 @@ describe("chaves estrangeiras dos filhos", () => {
     }
   });
 });
+
+describe("atomicidade (bun:sqlite)", () => {
+  const dupBlocks = [
+    { number: 1, name: "A", short: "A", start: "08:00", end: "09:00" },
+    { number: 1, name: "B", short: "B", start: "09:00", end: "10:00" },
+  ];
+
+  test("replace que falha no meio mantém durações e blocos antigos", async () => {
+    const repo = createSemesterRepository(open());
+    const created = await repo.create(data);
+    await expect(
+      repo.replace(created.id, { ...data, name: "Mudou", terms: [], blocks: dupBlocks }),
+    ).rejects.toThrow();
+    expect(await repo.findById(created.id)).toEqual(created);
+  });
+
+  test("create que falha no meio não deixa semestre órfão e a repetição funciona", async () => {
+    const repo = createSemesterRepository(open());
+    await expect(repo.create({ ...data, blocks: dupBlocks })).rejects.toThrow();
+    expect(await repo.list()).toEqual([]);
+    const retry = await repo.create(data);
+    expect(await repo.list()).toEqual([retry]);
+  });
+});
