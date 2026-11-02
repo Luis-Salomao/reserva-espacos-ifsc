@@ -1,4 +1,4 @@
-import { and, count, eq, gte } from "drizzle-orm";
+import { and, count, eq, gte, lt } from "drizzle-orm";
 import type { LoginAttemptRepository } from "#/application/ports";
 import type { AppDb } from "#/infra/db/client";
 import { loginAttempts } from "#/infra/db/schema";
@@ -20,6 +20,9 @@ export function createLoginAttemptRepository(db: AppDb): LoginAttemptRepository 
           ),
         );
       return row?.total ?? 0;
+    },
+    async purgeOlderThan(before) {
+      await db.delete(loginAttempts).where(lt(loginAttempts.attemptedAt, before));
     },
     async clearFailures(email) {
       await db

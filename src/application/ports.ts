@@ -49,6 +49,8 @@ export interface LoginAttemptRepository {
   record(input: { email: string; attemptedAt: string; success: boolean }): Promise<void>;
   /** Falhas do email com `attemptedAt >= since` (ISO). */
   countFailuresSince(email: string, since: string): Promise<number>;
+  /** Apaga tentativas (sucesso ou falha) anteriores a `before` (ISO). */
+  purgeOlderThan(before: string): Promise<void>;
   /** Apaga as falhas registradas do email (após login bem-sucedido). */
   clearFailures(email: string): Promise<void>;
 }

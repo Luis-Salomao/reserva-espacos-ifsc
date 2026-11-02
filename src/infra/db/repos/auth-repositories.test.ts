@@ -189,6 +189,14 @@ describe("LoginAttemptRepository", () => {
     expect(await repo.countFailuresSince("c@x.br", "2026-11-02T10:00:00.000Z")).toBe(0);
   });
 
+  test("purgeOlderThan apaga tentativas antigas (sucesso ou falha) e mantém as recentes", async () => {
+    await repo.record({ email: "a@x.br", attemptedAt: "2026-11-01T10:00:00.000Z", success: false });
+    await repo.record({ email: "a@x.br", attemptedAt: "2026-11-01T10:00:00.000Z", success: true });
+    await repo.record({ email: "a@x.br", attemptedAt: "2026-11-02T11:00:00.000Z", success: false });
+    await repo.purgeOlderThan("2026-11-02T00:00:00.000Z");
+    expect(await repo.countFailuresSince("a@x.br", "2026-01-01T00:00:00.000Z")).toBe(1);
+  });
+
   test("limpa falhas do email sem afetar outros", async () => {
     await repo.record({ email: "a@x.br", attemptedAt: "2026-11-02T11:50:00.000Z", success: false });
     await repo.record({ email: "b@x.br", attemptedAt: "2026-11-02T11:50:00.000Z", success: false });

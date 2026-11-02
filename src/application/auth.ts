@@ -15,12 +15,9 @@ const RENEW_BELOW_MS = DAY_MS;
 const MAX_FAILURES = 5;
 const LOCK_WINDOW_MS = 15 * 60 * 1000;
 
-/**
- * Hash fixo e válido (salt e chave sem segredo): usado para que email inexistente também
- * execute um `verify`, igualando o tempo de resposta. Nunca confere com senha alguma na prática.
- */
-const DUMMY_HASH =
-  "scrypt$16384$8$1$AAAAAAAAAAAAAAAAAAAAAA==$AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=";
+const MAX_EMAIL_LENGTH = 254;
+const MAX_PASSWORD_LENGTH = 1024;
+const PURGE_ATTEMPTS_OLDER_THAN_MS = DAY_MS;
 
 export function validatePassword(password: string): string | null {
   return password.length >= MIN_PASSWORD_LENGTH
@@ -59,17 +56,37 @@ async function hashToken(token: string): Promise<string> {
 export function createAuthService(deps: AuthDeps) {
   const { users, sessions, hasher, attempts, clock, random } = deps;
 
+  // Hash fictício gerado pelo próprio hasher configurado (mesmo algoritmo e custo do real), para que
+  // email inexistente leve o mesmo tempo. Calculado uma vez, sob demanda, e memoizado.
+  let dummyHash: Promise<string> | undefined;
+  const getDummyHash = (): Promise<string> => {
+    dummyHash ??= hasher.hash(toBase64Url(random.bytes(16)));
+    return dummyHash;
+  };
+
   return {
     async login(email: string, password: string): Promise<LoginResult> {
+      if (email.length > MAX_EMAIL_LENGTH || password.length > MAX_PASSWORD_LENGTH) {
+        await hasher.verify(password.slice(0, MAX_PASSWORD_LENGTH), await getDummyHash());
+        return { ok: false, reason: "invalid" };
+      }
       const normalized = normalizeEmail(email);
       const now = clock.now();
+      await attempts.purgeOlderThan(
+        new Date(now.getTime() - PURGE_ATTEMPTS_OLDER_THAN_MS).toISOString(),
+      );
       const since = new Date(now.getTime() - LOCK_WINDOW_MS).toISOString();
+      // Limitação conhecida: contagem e registro não são atômicos (sem transação em D1), então
+      // requisições concorrentes podem ultrapassar o limite de 5 falhas por alguns instantes.
       if ((await attempts.countFailuresSince(normalized, since)) >= MAX_FAILURES) {
         return { ok: false, reason: "locked" };
       }
 
       const record = await users.findByEmail(normalized);
-      const passwordOk = await hasher.verify(password, record?.passwordHash ?? DUMMY_HASH);
+      const passwordOk = await hasher.verify(
+        password,
+        record?.passwordHash ?? (await getDummyHash()),
+      );
       if (!record?.active || !passwordOk) {
         await attempts.record({
           email: normalized,
@@ -111,7 +128,10 @@ export function createAuthService(deps: AuthDeps) {
         return null;
       }
       const user = await users.findById(session.userId);
-      if (!user?.active) return null;
+      if (!user?.active) {
+        await sessions.deleteByTokenHash(tokenHash);
+        return null;
+      }
       if (expiresAt - now.getTime() < RENEW_BELOW_MS) {
         await sessions.extend(session.id, {
           lastSeenAt: now.toISOString(),

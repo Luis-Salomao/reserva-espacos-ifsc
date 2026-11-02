@@ -47,7 +47,7 @@ function parseStored(stored: string): Parsed | null {
     const key = decodeBase64(parts[5] ?? "", KEY_BYTES);
     if (n === null || r === null || p === null || !salt || !key) return null;
     if (!isPowerOfTwo(n) || n < MIN_SCRYPT_N || n > MAX_SCRYPT_N) return null;
-    if (r < 1 || r > 16 || p < 1 || p > 4) return null;
+    if (r !== SCRYPT_R || p !== SCRYPT_P) return null;
     return { kind: "scrypt", n, r, p, salt, key };
   }
   if (parts[0] === "pbkdf2" && parts.length === 4) {
@@ -55,7 +55,7 @@ function parseStored(stored: string): Parsed | null {
     const salt = decodeBase64(parts[2] ?? "", SALT_BYTES);
     const key = decodeBase64(parts[3] ?? "", KEY_BYTES);
     if (iterations === null || !salt || !key) return null;
-    if (iterations < 1 || iterations > PBKDF2_ITERATIONS) return null;
+    if (iterations !== PBKDF2_ITERATIONS) return null;
     return { kind: "pbkdf2", iterations, salt, key };
   }
   return null;

@@ -84,6 +84,11 @@ function setup() {
     },
     countFailuresSince: async (email, since) =>
       attemptList.filter((a) => a.email === email && !a.success && a.attemptedAt >= since).length,
+    purgeOlderThan: async (before) => {
+      for (let i = attemptList.length - 1; i >= 0; i--) {
+        if ((attemptList[i]?.attemptedAt ?? "") < before) attemptList.splice(i, 1);
+      }
+    },
     clearFailures: async (email) => {
       for (let i = attemptList.length - 1; i >= 0; i--) {
         const a = attemptList[i];
@@ -104,6 +109,7 @@ function setup() {
     service,
     record,
     sessionMap,
+    attemptList,
     hasher: h,
     advance: (ms: number) => {
       current = new Date(current.getTime() + ms);
@@ -224,6 +230,86 @@ describe("login", () => {
   });
 });
 
+describe("login: entradas, expurgo e hash fictício", () => {
+  test("email ou senha enormes → invalid sem consultar banco nem registrar tentativa", async () => {
+    const ctx = setup();
+    const long = `${"a".repeat(250)}@x.br`;
+    expect(await ctx.service.login(long, SECRET)).toEqual({ ok: false, reason: "invalid" });
+    expect(await ctx.service.login("ana@ifsc.edu.br", "x".repeat(1025))).toEqual({
+      ok: false,
+      reason: "invalid",
+    });
+    expect(ctx.attemptList).toHaveLength(0);
+    expect(ctx.hasher.calls).toHaveLength(2);
+  });
+
+  test("expurga tentativas com mais de 24 h", async () => {
+    const ctx = setup();
+    await ctx.service.login("ana@ifsc.edu.br", WRONG);
+    ctx.advance(25 * 60 * MINUTE);
+    await ctx.service.login("ana@ifsc.edu.br", SECRET);
+    expect(
+      ctx.attemptList.every(
+        (a) => a.attemptedAt >= new Date(ctx.now().getTime() - DAY).toISOString(),
+      ),
+    ).toBe(true);
+    expect(ctx.attemptList).toHaveLength(1);
+  });
+
+  test("hash fictício vem do hasher configurado (pbkdf2) e é memoizado", async () => {
+    const ctx = setup();
+    const real: PasswordHasher = {
+      hash: async (p) => `pbkdf2$100000$${p}`,
+      verify: async (p, stored) => stored === `pbkdf2$100000$${p}`,
+      needsRehash: () => false,
+    };
+    const seen: string[] = [];
+    let hashCalls = 0;
+    const spy: PasswordHasher = {
+      hash: async (p) => {
+        hashCalls++;
+        return real.hash(p);
+      },
+      verify: async (p, stored) => {
+        seen.push(stored);
+        return real.verify(p, stored);
+      },
+      needsRehash: real.needsRehash,
+    };
+    const service = createAuthService({
+      users: {
+        findByEmail: async () => null,
+        findById: async () => null,
+        create: async () => {
+          throw new Error("x");
+        },
+        updatePasswordHash: async () => {},
+      },
+      sessions: {
+        create: async () => {},
+        findByTokenHash: async () => null,
+        extend: async () => {},
+        deleteByTokenHash: async () => {},
+      },
+      hasher: spy,
+      attempts: {
+        record: async () => {},
+        countFailuresSince: async () => 0,
+        clearFailures: async () => {},
+        purgeOlderThan: async () => {},
+      },
+      clock: { now: () => ctx.now() },
+      random: { bytes: (n) => new Uint8Array(n).fill(7) },
+    });
+    await service.login("a@x.br", SECRET);
+    await service.login("b@x.br", SECRET);
+    expect(hashCalls).toBe(1);
+    expect(seen).toHaveLength(2);
+    expect(seen[0]?.startsWith("pbkdf2$100000$")).toBe(true);
+    expect(seen[1]).toBe(seen[0] ?? "");
+  });
+});
+
 describe("authenticate e logout", () => {
   let ctx: ReturnType<typeof setup>;
   let token: string;
@@ -264,9 +350,10 @@ describe("authenticate e logout", () => {
     expect(ctx.sessionMap.size).toBe(0);
   });
 
-  test("usuário desativado perde a sessão", async () => {
+  test("usuário desativado perde a sessão (removida)", async () => {
     ctx.record.active = false;
     expect(await ctx.service.authenticate(token)).toBeNull();
+    expect(ctx.sessionMap.size).toBe(0);
   });
 
   test("logout revoga o token", async () => {

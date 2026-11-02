@@ -7,7 +7,8 @@ import { getDb } from "#db-client";
 import { planCreateAdmin } from "./create-admin-plan.ts";
 
 const USAGE = `Uso: bun run cli create-admin --email EMAIL --name NOME [--code SIGLA]
-                              [--target local|cloudflare] [--password-stdin]
+                              [--target local|cloudflare] [--shell posix|powershell]
+                              [--password-stdin]
 
 Cria uma conta com papel admin. A senha é pedida sem eco (ou lida de stdin com
 --password-stdin) e nunca é impressa.
@@ -22,6 +23,7 @@ function parse(argv: string[]) {
       name: { type: "string" },
       code: { type: "string" },
       target: { type: "string", default: "local" },
+      shell: { type: "string", default: "posix" },
       "password-stdin": { type: "boolean", default: false },
       help: { type: "boolean", short: "h", default: false },
     },
@@ -91,6 +93,11 @@ export async function runCreateAdmin(argv: string[]): Promise<number> {
     console.error(`Alvo inválido: ${target}. Use local ou cloudflare.`);
     return 1;
   }
+  const shell = values.shell;
+  if (shell !== "posix" && shell !== "powershell") {
+    console.error(`Shell inválido: ${shell}. Use posix ou powershell.`);
+    return 1;
+  }
   if (values.email === undefined || values.name === undefined) {
     console.error(`--email e --name são obrigatórios.\n\n${USAGE}`);
     return 1;
@@ -129,6 +136,7 @@ export async function runCreateAdmin(argv: string[]): Promise<number> {
       code: values.code,
       passwordHash: await hasher.hash(password),
       target,
+      shell,
       id: crypto.randomUUID(),
       now: new Date().toISOString(),
     });
@@ -139,7 +147,7 @@ export async function runCreateAdmin(argv: string[]): Promise<number> {
 
     if (plan.command !== undefined) {
       console.log(
-        "Execute o comando abaixo (shell bash/zsh) para criar o admin no D1 remoto.\nAtenção: o PASSWORD_PEPPER do Worker deve ser o mesmo usado aqui.\n",
+        `Execute o comando abaixo (shell ${shell}) para criar o admin no D1 remoto.\nAtenção: o PASSWORD_PEPPER do Worker deve ser o mesmo usado aqui.\n`,
       );
       console.log(plan.command);
       return 0;
