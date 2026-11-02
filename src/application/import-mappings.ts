@@ -108,15 +108,16 @@ export function createMappingsService(deps: {
         const base = { sourceId: teacher.id, short: teacher.short };
         const own = saved.find((mapping) => mapping.sourceTeacherId === teacher.id);
         if (own !== undefined) return { ...base, saved: { userId: own.userId }, suggestion: null };
-        const byShort = saved.find(
-          (mapping) => mapping.userId !== null && same(mapping.sourceShort, teacher.short),
+        const byShort = new Set(
+          saved
+            .filter(
+              (mapping) => mapping.userId !== null && same(mapping.sourceShort, teacher.short),
+            )
+            .map((mapping) => mapping.userId as string),
         );
-        if (byShort?.userId != null) {
-          return {
-            ...base,
-            saved: null,
-            suggestion: { userId: byShort.userId, origin: "sigla" },
-          };
+        const [onlyUser] = byShort;
+        if (byShort.size === 1 && onlyUser !== undefined) {
+          return { ...base, saved: null, suggestion: { userId: onlyUser, origin: "sigla" } };
         }
         const account = active.find((user) => same(user.code ?? "", teacher.short));
         return {

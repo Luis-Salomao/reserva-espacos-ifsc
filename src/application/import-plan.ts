@@ -28,6 +28,8 @@ type NotApplicableReason =
   | "room_ignored"
   | "term_without_dates"
   | "weeks_unsupported"
+  | "never_scheduled"
+  | "duplicate_occurrence"
   | "no_dates";
 
 type NotApplicable = {
@@ -100,6 +102,12 @@ function hasPartialWeeks(mask: string | null): boolean {
 
 type Block = { reason: NotApplicableReason; detail: string | null };
 
+/** Sigla da sala no arquivo (a id do aSc não significa nada para quem lê); cai para a id. */
+function roomLabel(timetable: AscTimetable, roomId: string): string {
+  const room = timetable.classrooms.find((item) => item.id === roomId);
+  return room === undefined ? roomId : room.short || room.name || roomId;
+}
+
 /** Motivo que impede o slot de virar ocupações (`null` = pode expandir). */
 function blockOf(slot: WeeklySlot, input: PlanInput): Block | null {
   if (slot.status === "no_room") {
@@ -114,10 +122,19 @@ function blockOf(slot: WeeklySlot, input: PlanInput): Block | null {
   const roomId = slot.classroomIds[0] ?? "";
   const target = input.roomMap.get(roomId);
   if (target === undefined) {
-    return { reason: "room_unmapped", detail: `A sala ${roomId} não foi vinculada a um espaço.` };
+    return {
+      reason: "room_unmapped",
+      detail: `A sala ${roomLabel(input.preview.timetable, roomId)} não foi vinculada a um espaço.`,
+    };
   }
   if (target === IGNORE_ROOM) {
-    return { reason: "room_ignored", detail: `A sala ${roomId} foi marcada para ignorar.` };
+    return {
+      reason: "room_ignored",
+      detail: `A sala ${roomLabel(input.preview.timetable, roomId)} foi marcada para ignorar.`,
+    };
+  }
+  if (slot.termsMask !== null && !slot.termsMask.includes("1")) {
+    return { reason: "never_scheduled", detail: "A aula não está marcada em nenhuma duração." };
   }
   if (hasPartialWeeks(slot.weeksMask)) {
     return {
@@ -199,6 +216,7 @@ export function planImport(input: PlanInput): ImportPlan {
   const { preview, semester } = input;
   const notApplicable: NotApplicable[] = [];
   const drafts = new Map<string, OccupationDraft>();
+  const seenDuplicates = new Set<string>();
 
   preview.slots.forEach((slot, index) => {
     const base = {
@@ -227,15 +245,33 @@ export function planImport(input: PlanInput): ImportPlan {
     const title = base.title;
     const responsibleUserId = responsibleOf(preview.timetable, slot.lessonId, input.teacherMap);
     for (const occurrence of occurrences) {
-      const startsAt = localDateTime(occurrence.date, occurrence.start);
+      // Se o semestre tem bloco com o mesmo número do período, o horário do bloco vence o do XML.
+      const block = semester.blocks.find((item) => item.number === occurrence.period);
+      const startsAt = localDateTime(occurrence.date, block?.start ?? occurrence.start);
+      const endsAt = localDateTime(occurrence.date, block?.end ?? occurrence.end);
       const rowKey = `o:${slot.lessonId}:${spaceId}:${startsAt}`;
-      if (drafts.has(rowKey)) continue;
+      const kept = drafts.get(rowKey);
+      if (kept !== undefined) {
+        const duplicateKey = `d:${rowKey}:${endsAt}`;
+        if (kept.endsAt !== endsAt && !seenDuplicates.has(duplicateKey)) {
+          seenDuplicates.add(duplicateKey);
+          notApplicable.push({
+            ...base,
+            rowKey: duplicateKey,
+            start: startsAt.slice(11),
+            end: endsAt.slice(11),
+            reason: "duplicate_occurrence",
+            detail: `Outro card da mesma aula na mesma sala começa às ${startsAt.slice(11)} e termina às ${endsAt.slice(11)} em ${startsAt.slice(0, 10)}.`,
+          });
+        }
+        continue;
+      }
       drafts.set(rowKey, {
         rowKey,
         lessonId: slot.lessonId,
         spaceId,
         startsAt,
-        endsAt: localDateTime(occurrence.date, occurrence.end),
+        endsAt,
         title,
         responsibleUserId,
       });

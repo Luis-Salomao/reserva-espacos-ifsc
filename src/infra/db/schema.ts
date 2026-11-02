@@ -110,7 +110,9 @@ export const importBatches = sqliteTable(
       .references(() => semesters.id),
     fileHash: text("file_hash").notNull(),
     summaryJson: text("summary_json").notNull(),
-    status: text("status", { enum: ["rascunho", "aplicando", "aplicado", "falhou"] }).notNull(),
+    status: text("status", {
+      enum: ["preparando", "rascunho", "aplicando", "aplicado", "falhou"],
+    }).notNull(),
     createdBy: text("created_by")
       .notNull()
       .references(() => users.id),
@@ -131,6 +133,7 @@ export const importRows = sqliteTable(
       .references(() => importBatches.id, { onDelete: "cascade" }),
     rowKey: text("row_key").notNull(),
     lessonId: text("lesson_id").notNull(),
+    weekday: integer("weekday"),
     spaceId: text("space_id"),
     date: text("date"),
     startTime: text("start_time").notNull(),
@@ -170,6 +173,7 @@ export const occupations = sqliteTable(
   },
   (table) => [
     index("occupations_space_starts_idx").on(table.spaceId, table.startsAt),
+    index("occupations_space_ends_idx").on(table.spaceId, table.endsAt),
     uniqueIndex("occupations_import_unique").on(
       table.batchId,
       table.lessonId,

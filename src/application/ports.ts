@@ -122,12 +122,16 @@ export interface TeacherMappingRepository {
 export interface ImportRepository {
   findBatch(id: string): Promise<ImportBatch | null>;
   findBatchByHash(semesterId: string, fileHash: string): Promise<ImportBatch | null>;
-  /** Grava lote e linhas em blocos; repetir é inofensivo (ignora chaves já gravadas). */
-  createBatch(batch: ImportBatch, rows: readonly ImportRow[]): Promise<void>;
-  /** Apaga um rascunho e suas linhas (nunca ocupações). */
+  /** Grava o lote; se já existe lote com o mesmo (hash, semestre) não faz nada. */
+  insertBatch(batch: ImportBatch): Promise<void>;
+  /** Grava um bloco de linhas (até 50) numa unidade atômica; chaves já gravadas são ignoradas. */
+  insertRows(rows: readonly ImportRow[]): Promise<void>;
+  /** Chaves das linhas já gravadas do lote. */
+  rowKeys(batchId: string): Promise<string[]>;
+  /** Apaga um lote `preparando` ou `rascunho` e suas linhas (nunca ocupações, nem de outros estados). */
   deleteDraft(id: string): Promise<void>;
-  /** Linhas ainda por aplicar (`pendente` ou `falha`), em ordem estável. */
-  pendingRows(batchId: string): Promise<ImportRow[]>;
+  /** Até `limit` linhas ainda por aplicar (`pendente` ou `falha`), em ordem estável. */
+  pendingRows(batchId: string, limit: number): Promise<ImportRow[]>;
   /**
    * Aplica as linhas de um bloco numa unidade atômica: insere cada ocupação só se não houver
    * ocupação ativa sobreposta no espaço e registra, na mesma unidade, `aplicada` ou `conflito`.
