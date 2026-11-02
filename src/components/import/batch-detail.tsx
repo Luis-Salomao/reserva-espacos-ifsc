@@ -36,7 +36,7 @@ export function BatchDetail({
         </p>
         {batch.supersedesAppliedAt !== null && (
           <p className="text-sm text-muted-foreground">
-            Nova versão da grade aplicada em {formatInstant(batch.supersedesAppliedAt, timeZone)}.
+            Substitui a versão aplicada em {formatInstant(batch.supersedesAppliedAt, timeZone)}.
           </p>
         )}
       </div>
