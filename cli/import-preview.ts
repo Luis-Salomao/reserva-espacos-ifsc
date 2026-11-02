@@ -12,6 +12,10 @@ export function runImportPreview(args: string[]): number {
     console.log(USAGE);
     return 0;
   }
+  if (flags.has("--full") && !flags.has("--json")) {
+    console.error(`--full só vale junto com --json.\n${USAGE}`);
+    return 1;
+  }
   if (path === undefined) {
     console.error(USAGE);
     return 1;

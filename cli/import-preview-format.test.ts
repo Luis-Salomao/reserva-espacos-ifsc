@@ -25,9 +25,9 @@ describe("formatPreviewText", () => {
 
   test("lista avisos agrupados com exemplos", () => {
     const text = formatPreviewText(load("minimal.xml"));
-    expect(text).toMatch(/\d+x \[arquivo\] A seção não existe/);
+    expect(text).toMatch(/\d+x \[arquivo\/\w+\] A seção não existe/);
     const grade = formatPreviewText(load("lessons-without-cards.xml"));
-    expect(grade).toMatch(/\[grade\] Aula sem nenhum card/);
+    expect(grade).toMatch(/\[grade\/lessons\] Aula sem nenhum card/);
   });
 
   test("mostra sobreposições quando existem", () => {
@@ -66,5 +66,24 @@ describe("previewForJson", () => {
     expect(json.timetable).toBeDefined();
     expect(json.slots).toBeDefined();
     expect(json.overlapsDetail).toBeDefined();
+  });
+});
+
+describe("avisos de truncamento e prévia parcial", () => {
+  test("informa 'mostrando N de M' quando o detalhe foi truncado", () => {
+    const preview = load("complete.xml");
+    const text = formatPreviewText({
+      ...preview,
+      overlaps: { certain: 900, possible: 100 },
+      overlapsTruncated: true,
+    });
+    expect(text).toContain(`Mostrando ${preview.overlapsDetail.length} de 1000`);
+  });
+
+  test("avisa quando a prévia é parcial", () => {
+    expect(formatPreviewText({ ...load("complete.xml"), partial: true })).toContain(
+      "prévia parcial",
+    );
+    expect(formatPreviewText(load("complete.xml"))).not.toContain("parcial");
   });
 });

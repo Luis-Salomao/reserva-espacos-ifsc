@@ -147,3 +147,74 @@ describe("previewAscXml com falha inesperada", () => {
     }
   });
 });
+
+describe("agrupamento por origem, seção e código", () => {
+  test("mesmo código em seções diferentes vira grupos distintos", () => {
+    const preview = previewOf("broken-refs.xml");
+    const unknown = preview.warnings.filter((w) => w.code === "unknown_reference");
+    expect(unknown.map((w) => w.section).sort()).toEqual(["cards", "lessons"]);
+    const lessons = unknown.find((w) => w.section === "lessons");
+    expect(lessons?.examples).toContain("L2 (subjectid)");
+    expect(lessons?.examples.every((example) => /^L\d \(\w+\)$/.test(example))).toBe(true);
+  });
+
+  test("grade: never_scheduled e invalid_days ficam em cards", () => {
+    const issue = previewOf("broken-refs.xml").warnings.filter((w) => w.source === "grade");
+    expect(issue.every((w) => ["cards", "lessons", "periods"].includes(w.section))).toBe(true);
+  });
+});
+
+function syntheticXml(lessonCount: number): string {
+  const lessons = Array.from(
+    { length: lessonCount },
+    (_, i) =>
+      `<lesson id="L${i}" classids="C1" subjectid="S1" periodspercard="1" classroomids="R1"/>`,
+  ).join("");
+  const cards = Array.from(
+    { length: lessonCount },
+    (_, i) => `<card lessonid="L${i}" classroomids="R1" period="1" days="10000"/>`,
+  ).join("");
+  return `<timetable>
+    <periods><period period="1" starttime="08:00" endtime="09:50"/></periods>
+    <daysdefs/><weeksdefs/><termsdefs/>
+    <subjects><subject id="S1" short="Mat"/></subjects><teachers/>
+    <classrooms><classroom id="R1" short="101"/></classrooms>
+    <classes><class id="C1" short="T1"/></classes>
+    <lessons>${lessons}</lessons><cards>${cards}</cards></timetable>`;
+}
+
+describe("limites de tamanho", () => {
+  test("2000 cards idênticos em uma sala: contagem exata, detalhe truncado, rápido", () => {
+    const started = performance.now();
+    const result = previewAscXml(new TextEncoder().encode(syntheticXml(2000)));
+    const elapsed = performance.now() - started;
+    if (!result.ok) throw new Error("rejeitado");
+    const { preview } = result;
+    expect(preview.overlaps).toEqual({ certain: 1_999_000, possible: 0 });
+    expect(preview.overlapsDetail).toHaveLength(200);
+    expect(preview.overlapsTruncated).toBe(true);
+    expect(preview.partial).toBe(false);
+    expect(JSON.stringify(preview).length).toBeLessThan(5_000_000);
+    expect(elapsed).toBeLessThan(2000);
+  });
+
+  test("mais de 5000 cards: prévia parcial com aviso too_many_cards", () => {
+    const result = previewAscXml(new TextEncoder().encode(syntheticXml(5001)));
+    if (!result.ok) throw new Error("rejeitado");
+    expect(result.preview.counts.cards).toBe(5000);
+    expect(result.preview.partial).toBe(true);
+    const group = result.preview.warnings.find((w) => w.code === "too_many_cards");
+    expect(group?.message).toContain("cards demais");
+  });
+
+  test("períodos da prévia são só os utilizáveis, em ordem de relógio", () => {
+    const xml = `<timetable><periods>
+      <period period="6" starttime="20:10" endtime="22:00"/>
+      <period period="7" starttime="19:00" endtime="22:00"/>
+      <period period="7" starttime="01:00" endtime="02:00"/>
+      <period period="8" starttime="10:00" endtime="10:00"/></periods></timetable>`;
+    const result = previewAscXml(new TextEncoder().encode(xml));
+    if (!result.ok) throw new Error("rejeitado");
+    expect(result.preview.periods.map((p) => p.number)).toEqual([7, 6]);
+  });
+});

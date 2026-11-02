@@ -68,8 +68,8 @@ export function WeeklyGrid({ room, periods }: Props) {
                         .filter(
                           (slot) =>
                             slot.weekday === day &&
-                            slot.periodFrom < period.number &&
-                            period.number <= slot.periodTo,
+                            slot.periodFrom !== period.number &&
+                            slot.periods.includes(period.number),
                         )
                         .map((slot) => (
                           <p

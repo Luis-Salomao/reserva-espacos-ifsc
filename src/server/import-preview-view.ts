@@ -9,6 +9,8 @@ export type SlotView = {
   end: string;
   periodFrom: number;
   periodTo: number;
+  /** Períodos de cada card do horário, em ordem de relógio (o primeiro é `periodFrom`). */
+  periods: number[];
   subject: string;
   classes: string;
   /** Apenas siglas de docentes. */
@@ -21,9 +23,11 @@ export type SlotView = {
 
 export type RoomView = { id: string; short: string; name: string; slots: SlotView[] };
 
-export type OverlapSide = { label: string; start: string; end: string };
+/** Um lado de uma sobreposição: sigla da disciplina e siglas das turmas. */
+export type OverlapSide = { label: string; classes: string; start: string; end: string };
 
 export type OverlapView = {
+  key: string;
   room: string;
   weekday: number;
   kind: "certain" | "possible";
@@ -38,6 +42,8 @@ export type PreviewView = {
   warnings: ImportPreview["warnings"];
   overlaps: ImportPreview["overlaps"];
   overlapsDetail: OverlapView[];
+  overlapsTruncated: boolean;
+  partial: boolean;
   termsUsed: ImportPreview["termsUsed"];
   periods: ImportPreview["periods"];
   rooms: RoomView[];
@@ -68,7 +74,9 @@ export function toPreviewView(preview: ImportPreview): PreviewView {
   const teachers = byId(timetable.teachers);
   const rooms = byId(timetable.classrooms);
   const termLabels = new Map(preview.termsUsed.map((term) => [term.mask, term.label]));
-  const roomName = (id: string) => rooms.get(id)?.short || id;
+  const roomName = (id: string) => rooms.get(id)?.short || rooms.get(id)?.name || id;
+  const classLabels = (lessonId: string): string =>
+    (lessons.get(lessonId)?.classIds ?? []).map((id) => classes.get(id)?.short || id).join(", ");
 
   const lessonLabel = (lessonId: string): string => {
     const subject = subjects.get(lessons.get(lessonId)?.subjectId ?? "");
@@ -84,6 +92,7 @@ export function toPreviewView(preview: ImportPreview): PreviewView {
       end: slot.end,
       periodFrom: slot.periodFrom,
       periodTo: slot.periodTo,
+      periods: slot.segments.map((segment) => segment.period),
       subject: lessonLabel(slot.lessonId),
       classes: (lesson?.classIds ?? []).map((id) => classes.get(id)?.short || id).join(", "),
       teachers: (lesson?.teacherIds ?? []).map((id) => teachers.get(id)?.short || id).join(", "),
@@ -102,6 +111,7 @@ export function toPreviewView(preview: ImportPreview): PreviewView {
   });
   const sideOf = (slot: ImportPreview["slots"][number]): OverlapSide => ({
     label: lessonLabel(slot.lessonId),
+    classes: classLabels(slot.lessonId),
     start: slot.start,
     end: slot.end,
   });
@@ -111,7 +121,10 @@ export function toPreviewView(preview: ImportPreview): PreviewView {
     slotsByStatus: preview.slotsByStatus,
     warnings: preview.warnings,
     overlaps: preview.overlaps,
-    overlapsDetail: preview.overlapsDetail.map((overlap) => ({
+    overlapsTruncated: preview.overlapsTruncated,
+    partial: preview.partial,
+    overlapsDetail: preview.overlapsDetail.map((overlap, index) => ({
+      key: `${index}:${overlap.classroomId}:${overlap.weekday}:${overlap.a.lessonId}:${overlap.b.lessonId}`,
       room: roomName(overlap.classroomId),
       weekday: overlap.weekday,
       kind: overlap.kind,
