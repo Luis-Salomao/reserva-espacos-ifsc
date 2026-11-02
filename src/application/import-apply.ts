@@ -25,7 +25,7 @@ const ROWS_PER_WRITE = 50;
  * `prepare` gasta ~8 consultas fixas (vínculos x2, ocupações, semestre, lote por hash, inserir
  * lote, chaves, contagem e fechar) + até `maxCalls` gravações de 50 linhas = 38 com o padrão 30
  * (1500 linhas). `apply` gasta ~6 fixas (lote, contagem, estado, pendentes, contagem, estado) +
- * até `maxChunks` blocos de 30 linhas = 36 com o padrão 30 (900 linhas). NÃO verificado: se o D1
+ * até `maxChunks` blocos de 30 linhas = 36 com o padrão 30 (900 linhas). Verificado só no D1 local (workerd): 20 blocos por passo rodaram sem erro; o limite do D1 remoto NÃO foi medido. Se o D1
  * conta cada instrução de um `batch` separadamente; se contar, reduza os padrões.
  */
 const DEFAULT_PREPARE_CALLS = 30;

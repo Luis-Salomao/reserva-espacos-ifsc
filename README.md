@@ -92,9 +92,9 @@ bun run dev:cf                # Vite + Workers
 bun run preview:cf            # build:cf + wrangler dev
 ```
 
-### Docker (alvo local) — não verificado ainda
+### Docker (alvo local)
 
-> O `Dockerfile` ainda não foi construído nem executado: o daemon do Docker não estava disponível no ambiente de desenvolvimento. Trate-o como não verificado até alguém rodar o build e o healthcheck.
+> Verificado no commit `d84abcc`: o build funciona, o contêiner fica saudável (healthcheck em `/api/health`, que informa o alvo `local`), roda como usuário não root (uid 1000) e o banco persiste no volume nomeado ao reiniciar o contêiner.
 
 ```bash
 docker build -t reserva .
@@ -110,6 +110,19 @@ bun run cli import-preview <arquivo.xml> [--json] [--full]
 ```
 
 Lê o XML exportado pelo aSc Horários e imprime um resumo em português (contagens, horários semanais por situação de sala, sobreposições, durações usadas, avisos agrupados e salas). **Não grava nada** no banco. Com `--json` imprime a prévia sem a grade completa; `--full` inclui `timetable`, `slots` e `overlapsDetail`. O resumo não contém dados pessoais de docentes. Arquivos reais ficam em `data/real/` (fora do Git); o teste `src/import-asc/real-file.test.ts` os usa se existirem e imprime só contagens.
+
+## Importação da grade (passo a passo)
+
+Quem tem o papel `admin` ou `horarios` importa em **Importar grade** (`/importar`). Antes, cadastre o semestre (com as datas de cada duração) em **Semestres** e os espaços em **Administração**.
+
+1. **Prévia**: envie o XML; nada é salvo e o arquivo nunca é guardado (o lote guarda só o hash e o resumo).
+2. **Semestre**: escolha o semestre. O aviso mostra durações usadas pelo arquivo que não têm datas nele (essas aulas ficam "não aplicáveis").
+3. **Salas**: vincule cada sala do arquivo a um espaço existente, crie um espaço com o nome dela ou ignore-a. Sala sem vínculo deixa suas aulas não aplicáveis. Vínculos salvos voltam pré-preenchidos.
+4. **Docentes**: o responsável é a conta do primeiro docente da aula que tiver vínculo; a sugestão compara a sigla com o código da conta.
+5. **Conferência**: prepara o lote em passos (com barra de progresso) e mostra as contagens por estado e motivo. Enviar o mesmo arquivo de novo no mesmo semestre é reconhecido: nada é duplicado.
+6. **Aplicação**: cria as ocupações em passos; se for interrompida, aplique de novo e ela continua de onde parou. Conflitos com ocupações existentes são listados e nunca inseridos.
+
+O **resultado por linha** (cada aula/ocorrência com estado, motivo, conflito e falha, com filtros, busca e paginação) aparece ao fim e também em **Lotes anteriores** (`/importar/lotes`).
 
 ## Licença
 

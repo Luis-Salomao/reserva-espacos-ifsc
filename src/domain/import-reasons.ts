@@ -11,7 +11,7 @@ const LABELS = {
   conflito_existente: "Conflito com ocupação existente",
   conflito_concorrente: "Conflito surgido durante a aplicação",
   conflito_interno: "Conflito com outra aula do arquivo",
-  erro_gravacao: "Falha ao gravar",
+  erro_gravacao: "Erro de gravação",
 } as const;
 
 /** Todos os códigos de motivo que o planejador e a aplicação podem gravar numa linha. */

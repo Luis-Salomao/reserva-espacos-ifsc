@@ -1,5 +1,5 @@
 import { createServerFn } from "@tanstack/react-start";
-import { getRequest, setResponseHeader, setResponseStatus } from "@tanstack/react-start/server";
+import { getRequest } from "@tanstack/react-start/server";
 import { createSemestersService } from "#/application/semesters";
 import { createSpacesService } from "#/application/spaces";
 import { createUsersService } from "#/application/users";
@@ -12,8 +12,6 @@ import { getEnv } from "#/infra/env";
 import { getDb, getRuntimeEnv } from "#db-client";
 import {
   type AdminDeps,
-  type AdminOutcome,
-  type AdminResponse,
   createAccount,
   createSemester,
   createSpace,
@@ -28,6 +26,7 @@ import {
   updateSpace,
 } from "./admin-actions.ts";
 import { getAuth } from "./auth-context.ts";
+import { finish } from "./finish.ts";
 
 /**
  * Funções de servidor da administração (contas e espaços: `admin`; semestres: `admin` ou
@@ -36,7 +35,7 @@ import { getAuth } from "./auth-context.ts";
  * ausente ou papel errado respondem HTTP 401/403 (o cliente recebe um erro); falhas de validação
  * voltam como resultado tipado com HTTP 200, para a tela mostrar a mensagem no campo.
  */
-export function getAdminDeps(): AdminDeps {
+function getAdminDeps(): AdminDeps {
   const env = getEnv(getRuntimeEnv());
   const db = getDb();
   const users = createUserRepository(db);
@@ -58,17 +57,7 @@ export function getAdminDeps(): AdminDeps {
   };
 }
 
-export function finish<T>(outcome: AdminOutcome<T>): AdminResponse<T> {
-  setResponseHeader("Cache-Control", "no-store");
-  if (outcome.setCookie !== null) setResponseHeader("Set-Cookie", outcome.setCookie);
-  const { response } = outcome;
-  if (!response.ok && (response.status === 401 || response.status === 403)) {
-    setResponseStatus(response.status);
-  }
-  return response;
-}
-
-const passthrough = (data: unknown): unknown => data;
+export const passthrough = (data: unknown): unknown => data;
 
 export const listAccountsFn = createServerFn({ method: "GET" }).handler(async () =>
   finish(await listAccounts(getAdminDeps(), getRequest())),

@@ -17,10 +17,14 @@ import { Route as AdminContasRouteImport } from './routes/admin.contas'
 import { Route as AdminEspacosRouteImport } from './routes/admin.espacos'
 import { Route as ApiEntrarRouteImport } from './routes/api/entrar'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
+import { Route as ApiImportPrepareRouteImport } from './routes/api/import-prepare'
 import { Route as ApiImportPreviewRouteImport } from './routes/api/import-preview'
 import { Route as ApiSairRouteImport } from './routes/api/sair'
+import { Route as ImportarIndexRouteImport } from './routes/importar.index'
 import { Route as SemestresIndexRouteImport } from './routes/semestres.index'
 import { Route as SemestresIdRouteImport } from './routes/semestres.$id'
+import { Route as ImportarLotesIndexRouteImport } from './routes/importar.lotes.index'
+import { Route as ImportarLotesIdRouteImport } from './routes/importar.lotes.$id'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -62,6 +66,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   path: '/api/health',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiImportPrepareRoute = ApiImportPrepareRouteImport.update({
+  id: '/api/import-prepare',
+  path: '/api/import-prepare',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiImportPreviewRoute = ApiImportPreviewRouteImport.update({
   id: '/api/import-preview',
   path: '/api/import-preview',
@@ -71,6 +80,11 @@ const ApiSairRoute = ApiSairRouteImport.update({
   id: '/api/sair',
   path: '/api/sair',
   getParentRoute: () => rootRouteImport,
+} as any)
+const ImportarIndexRoute = ImportarIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => ImportarRoute,
 } as any)
 const SemestresIndexRoute = SemestresIndexRouteImport.update({
   id: '/semestres/',
@@ -82,49 +96,70 @@ const SemestresIdRoute = SemestresIdRouteImport.update({
   path: '/semestres/$id',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ImportarLotesIndexRoute = ImportarLotesIndexRouteImport.update({
+  id: '/lotes/',
+  path: '/lotes/',
+  getParentRoute: () => ImportarRoute,
+} as any)
+const ImportarLotesIdRoute = ImportarLotesIdRouteImport.update({
+  id: '/lotes/$id',
+  path: '/lotes/$id',
+  getParentRoute: () => ImportarRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
-  '/importar': typeof ImportarRoute
+  '/importar': typeof ImportarRouteWithChildren
   '/admin/contas': typeof AdminContasRoute
   '/admin/espacos': typeof AdminEspacosRoute
   '/api/entrar': typeof ApiEntrarRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/import-prepare': typeof ApiImportPrepareRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/sair': typeof ApiSairRoute
   '/semestres/$id': typeof SemestresIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/importar/': typeof ImportarIndexRoute
   '/semestres/': typeof SemestresIndexRoute
+  '/importar/lotes/$id': typeof ImportarLotesIdRoute
+  '/importar/lotes/': typeof ImportarLotesIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
-  '/importar': typeof ImportarRoute
   '/admin/contas': typeof AdminContasRoute
   '/admin/espacos': typeof AdminEspacosRoute
   '/api/entrar': typeof ApiEntrarRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/import-prepare': typeof ApiImportPrepareRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/sair': typeof ApiSairRoute
   '/semestres/$id': typeof SemestresIdRoute
   '/admin': typeof AdminIndexRoute
+  '/importar': typeof ImportarIndexRoute
   '/semestres': typeof SemestresIndexRoute
+  '/importar/lotes/$id': typeof ImportarLotesIdRoute
+  '/importar/lotes': typeof ImportarLotesIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
-  '/importar': typeof ImportarRoute
+  '/importar': typeof ImportarRouteWithChildren
   '/admin/contas': typeof AdminContasRoute
   '/admin/espacos': typeof AdminEspacosRoute
   '/api/entrar': typeof ApiEntrarRoute
   '/api/health': typeof ApiHealthRoute
+  '/api/import-prepare': typeof ApiImportPrepareRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/sair': typeof ApiSairRoute
   '/semestres/$id': typeof SemestresIdRoute
   '/admin/': typeof AdminIndexRoute
+  '/importar/': typeof ImportarIndexRoute
   '/semestres/': typeof SemestresIndexRoute
+  '/importar/lotes/$id': typeof ImportarLotesIdRoute
+  '/importar/lotes/': typeof ImportarLotesIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -136,25 +171,32 @@ export interface FileRouteTypes {
     | '/admin/espacos'
     | '/api/entrar'
     | '/api/health'
+    | '/api/import-prepare'
     | '/api/import-preview'
     | '/api/sair'
     | '/semestres/$id'
     | '/admin/'
+    | '/importar/'
     | '/semestres/'
+    | '/importar/lotes/$id'
+    | '/importar/lotes/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
     | '/entrar'
-    | '/importar'
     | '/admin/contas'
     | '/admin/espacos'
     | '/api/entrar'
     | '/api/health'
+    | '/api/import-prepare'
     | '/api/import-preview'
     | '/api/sair'
     | '/semestres/$id'
     | '/admin'
+    | '/importar'
     | '/semestres'
+    | '/importar/lotes/$id'
+    | '/importar/lotes'
   id:
     | '__root__'
     | '/'
@@ -164,21 +206,26 @@ export interface FileRouteTypes {
     | '/admin/espacos'
     | '/api/entrar'
     | '/api/health'
+    | '/api/import-prepare'
     | '/api/import-preview'
     | '/api/sair'
     | '/semestres/$id'
     | '/admin/'
+    | '/importar/'
     | '/semestres/'
+    | '/importar/lotes/$id'
+    | '/importar/lotes/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EntrarRoute: typeof EntrarRoute
-  ImportarRoute: typeof ImportarRoute
+  ImportarRoute: typeof ImportarRouteWithChildren
   AdminContasRoute: typeof AdminContasRoute
   AdminEspacosRoute: typeof AdminEspacosRoute
   ApiEntrarRoute: typeof ApiEntrarRoute
   ApiHealthRoute: typeof ApiHealthRoute
+  ApiImportPrepareRoute: typeof ApiImportPrepareRoute
   ApiImportPreviewRoute: typeof ApiImportPreviewRoute
   ApiSairRoute: typeof ApiSairRoute
   SemestresIdRoute: typeof SemestresIdRoute
@@ -244,6 +291,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiHealthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/import-prepare': {
+      id: '/api/import-prepare'
+      path: '/api/import-prepare'
+      fullPath: '/api/import-prepare'
+      preLoaderRoute: typeof ApiImportPrepareRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/import-preview': {
       id: '/api/import-preview'
       path: '/api/import-preview'
@@ -257,6 +311,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/api/sair'
       preLoaderRoute: typeof ApiSairRouteImport
       parentRoute: typeof rootRouteImport
+    }
+    '/importar/': {
+      id: '/importar/'
+      path: '/'
+      fullPath: '/importar/'
+      preLoaderRoute: typeof ImportarIndexRouteImport
+      parentRoute: typeof ImportarRoute
     }
     '/semestres/': {
       id: '/semestres/'
@@ -272,17 +333,48 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SemestresIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/importar/lotes/': {
+      id: '/importar/lotes/'
+      path: '/lotes'
+      fullPath: '/importar/lotes/'
+      preLoaderRoute: typeof ImportarLotesIndexRouteImport
+      parentRoute: typeof ImportarRoute
+    }
+    '/importar/lotes/$id': {
+      id: '/importar/lotes/$id'
+      path: '/lotes/$id'
+      fullPath: '/importar/lotes/$id'
+      preLoaderRoute: typeof ImportarLotesIdRouteImport
+      parentRoute: typeof ImportarRoute
+    }
   }
 }
+
+interface ImportarRouteChildren {
+  ImportarIndexRoute: typeof ImportarIndexRoute
+  ImportarLotesIdRoute: typeof ImportarLotesIdRoute
+  ImportarLotesIndexRoute: typeof ImportarLotesIndexRoute
+}
+
+const ImportarRouteChildren: ImportarRouteChildren = {
+  ImportarIndexRoute: ImportarIndexRoute,
+  ImportarLotesIdRoute: ImportarLotesIdRoute,
+  ImportarLotesIndexRoute: ImportarLotesIndexRoute,
+}
+
+const ImportarRouteWithChildren = ImportarRoute._addFileChildren(
+  ImportarRouteChildren,
+)
 
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EntrarRoute: EntrarRoute,
-  ImportarRoute: ImportarRoute,
+  ImportarRoute: ImportarRouteWithChildren,
   AdminContasRoute: AdminContasRoute,
   AdminEspacosRoute: AdminEspacosRoute,
   ApiEntrarRoute: ApiEntrarRoute,
   ApiHealthRoute: ApiHealthRoute,
+  ApiImportPrepareRoute: ApiImportPrepareRoute,
   ApiImportPreviewRoute: ApiImportPreviewRoute,
   ApiSairRoute: ApiSairRoute,
   SemestresIdRoute: SemestresIdRoute,
