@@ -16,7 +16,6 @@ import * as schema from "#/infra/db/schema";
 import { systemClock } from "#/infra/runtime";
 import {
   applyImportBatch,
-  getImportReport,
   type ImportDeps,
   prepareImport,
   saveRoomMappings,
@@ -114,7 +113,6 @@ describe("ações de importação: controle de acesso", () => {
     ["saveTeacherMappings", (c, t) => saveTeacherMappings(c.deps, c.req(t), { items: [] })],
     ["prepareImport", (c, t) => prepareImport(c.deps, c.req(t), c.semester.id, XML)],
     ["applyImportBatch", (c, t) => applyImportBatch(c.deps, c.req(t), { batchId: "x" })],
-    ["getImportReport", (c, t) => getImportReport(c.deps, c.req(t), { batchId: "x" })],
   ];
 
   for (const [name, call] of calls) {
@@ -178,15 +176,6 @@ describe("ações de importação: fluxo", () => {
 
     const again = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
     expect(again.response.ok && again.response.data.reused).toBe(true);
-
-    const report = await getImportReport(ctx.deps, ctx.req("hor"), {
-      batchId,
-      status: "aplicada",
-      limit: 5,
-      offset: 0,
-    });
-    expect(report.response.ok && report.response.data.rows.length).toBeGreaterThan(0);
-    expect(report.response.ok && report.response.data.rows.length).toBeLessThanOrEqual(5);
   });
 
   test("corpos inválidos: 400", async () => {
@@ -232,21 +221,10 @@ describe("ações de importação: fluxo", () => {
     expect(bad(await applyImportBatch(ctx.deps, t, { batchId: "nao-existe" }))).toMatchObject({
       status: 404,
     });
-    expect(bad(await getImportReport(ctx.deps, t, {}))).toMatchObject({ status: 400 });
-    expect(
-      bad(await getImportReport(ctx.deps, t, { batchId: "x", status: "inventado" })),
-    ).toMatchObject({ status: 400 });
-    expect(bad(await getImportReport(ctx.deps, t, { batchId: "nao-existe" }))).toMatchObject({
-      status: 404,
-    });
   });
 
-  test("limit e offset precisam ser inteiros; prepare e apply aceitam orçamento inteiro", async () => {
+  test("prepare e apply só aceitam orçamento inteiro dentro do limite", async () => {
     const t = ctx.req("adm");
-    for (const extra of [{ limit: 1.5 }, { offset: -1 }, { limit: 0 }, { offset: 0.5 }]) {
-      const r = await getImportReport(ctx.deps, t, { batchId: "x", ...extra });
-      expect(r.response).toMatchObject({ ok: false, status: 400 });
-    }
     for (const bad of [0, 1.5, 1000, "3"]) {
       const r = await applyImportBatch(ctx.deps, t, { batchId: "x", maxChunks: bad });
       expect(r.response).toMatchObject({ ok: false, status: 400 });

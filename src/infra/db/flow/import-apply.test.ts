@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { createImportService, hashImportFile } from "#/application/import-apply";
 import type { ImportRepository } from "#/application/ports";
+import type { ImportBatch, ImportRow, ImportRowStatus } from "#/domain/import-batch";
 import type { Semester } from "#/domain/semester";
 import type { AscTimetable, Lesson } from "#/domain/timetable";
 import type { WeeklySlot } from "#/import-asc/slots";
@@ -24,6 +25,23 @@ function open(): AppDb {
   const db = drizzle(sqlite, { schema });
   migrate(db, { migrationsFolder: "drizzle" });
   return db;
+}
+
+type ReportEnv = { db: AppDb };
+
+/** Lote e linhas direto do repositório (o relatório da aplicação fica em import-report). */
+async function readReport(
+  env: ReportEnv,
+  batchId: string,
+  options: { status?: ImportRowStatus },
+): Promise<
+  { ok: true; value: { batch: ImportBatch; rows: ImportRow[] } } | { ok: false; kind: "not_found" }
+> {
+  const imports = createImportRepository(env.db);
+  const batch = await imports.findBatch(batchId);
+  if (batch === null) return { ok: false, kind: "not_found" };
+  const rows = await imports.listRows(batchId, { ...options, limit: 1000, offset: 0 });
+  return { ok: true, value: { batch, rows } };
 }
 
 function lesson(id: string): Lesson {
@@ -205,14 +223,14 @@ describe("prepare + apply", () => {
       title: "ALG — T1A",
       batchId: prepared.value.batch.id,
     });
-    const report = await env.service.report(prepared.value.batch.id, {});
+    const report = await readReport(env, prepared.value.batch.id, {});
     expect(report.ok && report.value.rows.map((r) => r.status).sort()).toEqual([
       "aplicada",
       "aplicada",
       "aplicada",
       "nao_aplicavel",
     ]);
-    const naoAplicavel = await env.service.report(prepared.value.batch.id, {
+    const naoAplicavel = await readReport(env, prepared.value.batch.id, {
       status: "nao_aplicavel",
     });
     expect(naoAplicavel.ok && naoAplicavel.value.rows).toHaveLength(1);
@@ -280,7 +298,7 @@ describe("prepare + apply", () => {
     expect(prepared.value.batch.summary.counts.conflito).toBe(1);
     await env.service.apply(prepared.value.batch.id);
     expect(await occupationCount(env.db)).toBe(3);
-    const conflicts = await env.service.report(prepared.value.batch.id, { status: "conflito" });
+    const conflicts = await readReport(env, prepared.value.batch.id, { status: "conflito" });
     expect(conflicts.ok && conflicts.value.rows[0]).toMatchObject({
       date: "2026-08-10",
       conflictOccupationId: "manual-1",
@@ -319,7 +337,7 @@ describe("prepare + apply", () => {
     const applied = await env.service.apply(prepared.value.batch.id);
     expect(applied.ok && applied.value.batch.status).toBe("aplicado");
     expect(await occupationCount(env.db)).toBe(3);
-    const conflicts = await env.service.report(prepared.value.batch.id, { status: "conflito" });
+    const conflicts = await readReport(env, prepared.value.batch.id, { status: "conflito" });
     expect(conflicts.ok && conflicts.value.rows).toHaveLength(1);
     expect(conflicts.ok && conflicts.value.rows[0]).toMatchObject({
       date: "2026-08-17",
@@ -332,7 +350,7 @@ describe("prepare + apply", () => {
     const missing = await env.service.apply("nao-existe");
     expect(missing.ok).toBe(false);
     expect(!missing.ok && missing.kind).toBe("not_found");
-    const report = await env.service.report("nao-existe", {});
+    const report = await readReport(env, "nao-existe", {});
     expect(!report.ok && report.kind).toBe("not_found");
     const noSemester = await env.service.prepare({
       ...prepareInput(env, [slot()]),
@@ -405,7 +423,7 @@ describe("retomada após falha", () => {
     expect(counts?.falha).toBe(30);
     expect(counts?.aplicada).toBe(30);
     expect(counts?.pendente).toBe(15);
-    const failed = await env.service.report(prepared.value.batch.id, { status: "falha" });
+    const failed = await readReport(env, prepared.value.batch.id, { status: "falha" });
     expect(failed.ok && failed.value.rows).toHaveLength(30);
     const reason = failed.ok ? failed.value.rows[0] : null;
     expect(reason?.reasonCode).toBe("erro_gravacao");
