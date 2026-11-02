@@ -1,13 +1,16 @@
 import { describe, expect, test } from "bun:test";
 import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-mappings";
+import { EMPTY_COUNTS } from "#/domain/import-batch";
 import {
+  applySentence,
   CREATE_VALUE,
-  EARLIER_BATCH_HINT,
+  discardState,
   formatDate,
   formatDateTime,
   formatInstant,
-  hasEarlierBatchConflict,
+  groupAlterations,
   IGNORE_VALUE,
+  resultCards,
   roomChoiceOf,
   roomMappingsToSave,
   roomsToCreate,
@@ -16,6 +19,8 @@ import {
   teacherMappingsToSave,
   termsWithoutDates,
   userValue,
+  versionCards,
+  viewFilter,
 } from "./flow-helpers";
 
 describe("termsWithoutDates", () => {
@@ -141,24 +146,164 @@ describe("formatação", () => {
   });
 });
 
-describe("aviso de grade alterada", () => {
-  const conflict = (fromEarlierBatch: boolean) =>
-    ({ title: "x", startsAt: "a", endsAt: "b", fromEarlierBatch }) as const;
+const version = {
+  supersedesBatchId: "b0",
+  inclusoes: 2,
+  alteracoes: 3,
+  bloqueadas: 1,
+  remocoes: 4,
+  responsaveis: 5,
+  inalteradas: 100,
+  mantidasCanceladas: 6,
+  affectedUserIds: [],
+};
 
-  test("detecta conflito com ocupação de lote anterior do mesmo semestre", () => {
-    expect(hasEarlierBatchConflict([{ conflictWith: null }])).toBe(false);
-    expect(hasEarlierBatchConflict([{ conflictWith: conflict(false) }])).toBe(false);
-    expect(
-      hasEarlierBatchConflict([
-        { conflictWith: conflict(false) },
-        { conflictWith: conflict(true) },
-      ]),
-    ).toBe(true);
-    expect(hasEarlierBatchConflict([])).toBe(false);
+describe("cartões da nova versão", () => {
+  test("rótulos e contagens na ordem da conferência", () => {
+    expect(versionCards(version).map((card) => [card.label, card.count])).toEqual([
+      ["Inclusões", 2],
+      ["Alterações", 3],
+      ["Bloqueadas", 1],
+      ["Remoções", 4],
+      ["Inalteradas", 100],
+      ["Canceladas mantidas", 6],
+      ["Troca de responsável", 5],
+    ]);
   });
 
-  test("a dica explica que a comparação de versões ainda não existe", () => {
-    expect(EARLIER_BATCH_HINT).toContain("versão alterada de um lote já aplicado");
-    expect(EARLIER_BATCH_HINT).toContain("comparação de versões ainda não está disponível");
+  test("cada cartão aponta para o filtro do servidor", () => {
+    expect(viewFilter("")).toEqual({});
+    expect(viewFilter("remocao")).toEqual({ changeKind: "remocao" });
+    expect(viewFilter("bloqueada")).toEqual({
+      changeKind: "alteracao",
+      status: "alteracao_bloqueada",
+    });
+  });
+});
+
+describe("frase de confirmação", () => {
+  test("cancela X e cria Y", () => {
+    expect(applySentence({ cancelar: 3, pendente: 5, responsavel: 0 })).toBe(
+      "Serão canceladas 3 ocupações e criadas 5.",
+    );
+    expect(applySentence({ cancelar: 1, pendente: 1, responsavel: 0 })).toBe(
+      "Será cancelada 1 ocupação e criada 1.",
+    );
+    expect(applySentence({ cancelar: 0, pendente: 0, responsavel: 2 })).toBe(
+      "Nenhuma ocupação será cancelada ou criada; 2 trocas de responsável.",
+    );
+    expect(applySentence({ cancelar: 2, pendente: 0, responsavel: 1 })).toBe(
+      "Serão canceladas 2 ocupações e criadas 0; 1 troca de responsável.",
+    );
+  });
+});
+
+describe("agrupamento de alterações", () => {
+  const row = (rowKey: string, title: string, date: string, status: string, startTime = "08:00") =>
+    ({ rowKey, title, date, status, startTime }) as const;
+
+  test("pareia cancelar e inserir pelo título e pela data", () => {
+    const groups = groupAlterations([
+      row("c:1", "Alg — T1", "2026-08-03", "cancelar"),
+      row("o:9", "Alg — T1", "2026-08-03", "pendente", "10:00"),
+      row("c:2", "Cal — T2", "2026-08-03", "cancelar"),
+      row("o:8", "Cal — T2", "2026-08-04", "pendente"),
+    ]);
+    expect(groups).toHaveLength(3);
+    expect(groups[0]?.before.map((r) => r.rowKey)).toEqual(["c:1"]);
+    expect(groups[0]?.after.map((r) => r.rowKey)).toEqual(["o:9"]);
+    expect(groups[1]?.before).toHaveLength(1);
+    expect(groups[1]?.after).toHaveLength(0);
+    expect(groups[2]?.before).toHaveLength(0);
+    expect(groups[2]?.after).toHaveLength(1);
+  });
+
+  test("grupo bloqueado: o que fica (b:) é antes; o impedido é depois", () => {
+    const [group] = groupAlterations([
+      row("b:1", "Alg — T1", "2026-08-03", "alteracao_bloqueada"),
+      row("o:9", "Alg — T1", "2026-08-03", "alteracao_bloqueada"),
+    ]);
+    expect(group?.blocked).toBe(true);
+    expect(group?.before.map((r) => r.rowKey)).toEqual(["b:1"]);
+    expect(group?.after.map((r) => r.rowKey)).toEqual(["o:9"]);
+  });
+
+  test("multiconjunto: duas ocupações da mesma aula e data ficam no mesmo grupo", () => {
+    const [group, ...rest] = groupAlterations([
+      row("c:1", "Alg — T1", "2026-08-03", "cancelar"),
+      row("c:2", "Alg — T1", "2026-08-03", "cancelar", "10:00"),
+      row("o:1", "Alg — T1", "2026-08-03", "pendente"),
+    ]);
+    expect(rest).toHaveLength(0);
+    expect(group?.before).toHaveLength(2);
+    expect(group?.after).toHaveLength(1);
+  });
+
+  test("linhas sem data ficam em grupo próprio e a ordem de chegada é mantida", () => {
+    const groups = groupAlterations([
+      row("n:0", "Fís — T3", "", "nao_aplicavel"),
+      row("c:1", "Alg — T1", "2026-08-03", "cancelar"),
+    ]);
+    expect(groups.map((g) => g.title)).toEqual(["Fís — T3", "Alg — T1"]);
+  });
+});
+
+describe("descarte do lote", () => {
+  const counts = (over: Record<string, number>) => ({ ...EMPTY_COUNTS, ...over });
+
+  test("rascunho e preparando sempre podem ser descartados", () => {
+    expect(
+      discardState({ status: "rascunho", summary: { counts: counts({ aplicada: 5 }) } }),
+    ).toEqual({
+      visible: true,
+      allowed: true,
+      reason: null,
+    });
+    expect(discardState({ status: "preparando", summary: { counts: counts({}) } }).allowed).toBe(
+      true,
+    );
+  });
+
+  test("falhou sem nada aplicado pode; com algo aplicado pede para retomar", () => {
+    expect(
+      discardState({ status: "falhou", summary: { counts: counts({ falha: 2 }) } }).allowed,
+    ).toBe(true);
+    for (const key of ["aplicada", "cancelada_versao", "responsavel_atualizado"]) {
+      const state = discardState({ status: "falhou", summary: { counts: counts({ [key]: 1 }) } });
+      expect(state.allowed).toBe(false);
+      expect(state.reason).toContain("retome a aplicação");
+    }
+  });
+
+  test("aplicando e aplicado não oferecem descarte", () => {
+    expect(discardState({ status: "aplicado", summary: { counts: counts({}) } }).visible).toBe(
+      false,
+    );
+    expect(discardState({ status: "aplicando", summary: { counts: counts({}) } }).visible).toBe(
+      false,
+    );
+  });
+});
+
+describe("cartões do resultado", () => {
+  test("canceladas, criadas, trocas, bloqueadas, conflitos e falhas", () => {
+    const cards = resultCards({
+      ...EMPTY_COUNTS,
+      cancelada_versao: 4,
+      aplicada: 5,
+      responsavel_atualizado: 1,
+      alteracao_bloqueada: 2,
+      conflito: 3,
+      conflito_interno: 1,
+      falha: 7,
+    });
+    expect(cards.map((c) => [c.label, c.count])).toEqual([
+      ["Ocupações canceladas", 4],
+      ["Ocupações criadas", 5],
+      ["Responsáveis trocados", 1],
+      ["Alterações bloqueadas", 2],
+      ["Conflitos", 4],
+      ["Falhas", 7],
+    ]);
   });
 });

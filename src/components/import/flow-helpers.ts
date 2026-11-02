@@ -1,5 +1,11 @@
 import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-mappings";
-import type { ImportRowStatus } from "#/domain/import-batch";
+import type {
+  ImportBatch,
+  ImportChangeKind,
+  ImportRowCounts,
+  ImportRowStatus,
+  VersionSummary,
+} from "#/domain/import-batch";
 import type { Semester } from "#/domain/semester";
 import type { PreviewView } from "#/server/import-preview-view";
 
@@ -161,6 +167,15 @@ export const STATUS_TONE: Record<ImportRowStatus, string> = {
   alteracao_bloqueada: "bg-occ-conflict",
 };
 
+export const CHANGE_KIND_LABELS: Record<ImportChangeKind, string> = {
+  inclusao: "Inclusão",
+  alteracao: "Alteração",
+  remocao: "Remoção",
+  inalterada: "Inalterada",
+  mantida_cancelada: "Cancelada mantida",
+  responsavel: "Troca de responsável",
+};
+
 export const BATCH_STATUS_LABELS = {
   preparando: "Preparando",
   rascunho: "Aguardando aplicação",
@@ -204,12 +219,142 @@ export function formatInstant(iso: string, timeZone: string): string {
   return `${part("day", parts)}/${part("month", parts)}/${part("year", parts)} ${part("hour", parts)}:${part("minute", parts)}`;
 }
 
-export const EARLIER_BATCH_HINT =
-  "Esta grade parece ser uma versão alterada de um lote já aplicado neste semestre. A comparação de versões ainda não está disponível: as aulas que mudaram aparecem como conflito com as ocupações do lote anterior e nada é substituído nem cancelado automaticamente.";
+/** Visão da nova versão: um tipo de mudança, ou as alterações seguradas por conflito. */
+export type VersionView = ImportChangeKind | "bloqueada";
 
-/** Alguma linha em conflito com ocupação de um lote anterior do mesmo semestre? */
-export function hasEarlierBatchConflict(
-  rows: ReadonlyArray<{ conflictWith: { fromEarlierBatch: boolean } | null }>,
-): boolean {
-  return rows.some((row) => row.conflictWith?.fromEarlierBatch === true);
+export type VersionCard = { view: VersionView; label: string; count: number };
+
+/** Cartões da conferência de uma nova versão, na ordem em que a tela os mostra. */
+export function versionCards(version: VersionSummary): VersionCard[] {
+  return [
+    { view: "inclusao", label: "Inclusões", count: version.inclusoes },
+    { view: "alteracao", label: "Alterações", count: version.alteracoes },
+    { view: "bloqueada", label: "Bloqueadas", count: version.bloqueadas },
+    { view: "remocao", label: "Remoções", count: version.remocoes },
+    { view: "inalterada", label: "Inalteradas", count: version.inalteradas },
+    { view: "mantida_cancelada", label: "Canceladas mantidas", count: version.mantidasCanceladas },
+    { view: "responsavel", label: "Troca de responsável", count: version.responsaveis },
+  ];
+}
+
+/** Filtro do servidor para uma visão ("" = todas as linhas). */
+export function viewFilter(view: VersionView | ""): {
+  changeKind?: ImportChangeKind;
+  status?: ImportRowStatus;
+} {
+  if (view === "") return {};
+  if (view === "bloqueada") return { changeKind: "alteracao", status: "alteracao_bloqueada" };
+  return { changeKind: view };
+}
+
+function plural(count: number, one: string, many: string): string {
+  return `${count} ${count === 1 ? one : many}`;
+}
+
+/** Frase da confirmação "Aplicar mudanças": quantas ocupações saem, quantas entram, trocas de responsável. */
+export function applySentence(
+  counts: Pick<ImportRowCounts, "cancelar" | "pendente" | "responsavel">,
+): string {
+  const swaps =
+    counts.responsavel > 0
+      ? plural(counts.responsavel, "troca de responsável", "trocas de responsável")
+      : null;
+  if (counts.cancelar === 0 && counts.pendente === 0) {
+    return swaps === null
+      ? "Nenhuma ocupação será cancelada ou criada."
+      : `Nenhuma ocupação será cancelada ou criada; ${swaps}.`;
+  }
+  const cancelled =
+    counts.cancelar === 1
+      ? "Será cancelada 1 ocupação"
+      : `Serão canceladas ${counts.cancelar} ocupações`;
+  const base = `${cancelled} e criadas ${counts.pendente}`.replace(/criadas 1$/, "criada 1");
+  return swaps === null ? `${base}.` : `${base}; ${swaps}.`;
+}
+
+/** Grupo de uma alteração: o que havia (antes) e o que passa a valer (depois), por aula + data. */
+export type AlterationGroup<T> = {
+  title: string;
+  date: string | null;
+  before: T[];
+  after: T[];
+  blocked: boolean;
+};
+
+type GroupableRow = { rowKey: string; title: string; date: string | null; status: string };
+
+/** Linhas que representam a ocupação anterior: cancelar (`c:`) ou mantida por bloqueio (`b:`). */
+function isBefore(rowKey: string): boolean {
+  return rowKey.startsWith("c:") || rowKey.startsWith("b:");
+}
+
+/**
+ * Pareia as linhas de alteração por (título, data): as de ocupações anteriores ficam em `before`
+ * e as novas em `after`. Linhas sem data (não aplicáveis) formam um grupo cada uma. A ordem do
+ * primeiro aparecimento é mantida.
+ */
+export function groupAlterations<T extends GroupableRow>(rows: readonly T[]): AlterationGroup<T>[] {
+  const groups = new Map<string, AlterationGroup<T>>();
+  for (const row of rows) {
+    const key = row.date ? `${row.date}|${row.title}` : `sem-data|${row.rowKey}`;
+    let group = groups.get(key);
+    if (group === undefined) {
+      group = { title: row.title, date: row.date || null, before: [], after: [], blocked: false };
+      groups.set(key, group);
+    }
+    (isBefore(row.rowKey) ? group.before : group.after).push(row);
+    if (row.status === "alteracao_bloqueada") group.blocked = true;
+  }
+  return [...groups.values()];
+}
+
+export type DiscardState = { visible: boolean; allowed: boolean; reason: string | null };
+
+const DISCARD_PARTIAL_HINT =
+  "Este lote já aplicou parte das mudanças; retome a aplicação para concluir em vez de descartar.";
+
+/** Quando o botão "Descartar" aparece e se pode ser usado (espelha a regra do servidor). */
+export function discardState(batch: {
+  status: ImportBatch["status"];
+  summary: { counts: ImportRowCounts };
+}): DiscardState {
+  if (batch.status === "rascunho" || batch.status === "preparando") {
+    return { visible: true, allowed: true, reason: null };
+  }
+  if (batch.status !== "falhou") return { visible: false, allowed: false, reason: null };
+  const { counts } = batch.summary;
+  const applied = counts.aplicada + counts.cancelada_versao + counts.responsavel_atualizado;
+  return applied > 0
+    ? { visible: true, allowed: false, reason: DISCARD_PARTIAL_HINT }
+    : { visible: true, allowed: true, reason: null };
+}
+
+/** Números finais de uma nova versão aplicada (o texto acompanha toda cor). */
+export function resultCards(
+  counts: ImportRowCounts,
+): Array<{ label: string; count: number; tone: string }> {
+  return [
+    {
+      label: "Ocupações canceladas",
+      count: counts.cancelada_versao,
+      tone: STATUS_TONE.cancelada_versao,
+    },
+    { label: "Ocupações criadas", count: counts.aplicada, tone: STATUS_TONE.aplicada },
+    {
+      label: "Responsáveis trocados",
+      count: counts.responsavel_atualizado,
+      tone: STATUS_TONE.responsavel_atualizado,
+    },
+    {
+      label: "Alterações bloqueadas",
+      count: counts.alteracao_bloqueada,
+      tone: STATUS_TONE.alteracao_bloqueada,
+    },
+    {
+      label: "Conflitos",
+      count: counts.conflito + counts.conflito_interno,
+      tone: STATUS_TONE.conflito,
+    },
+    { label: "Falhas", count: counts.falha, tone: STATUS_TONE.falha },
+  ];
 }

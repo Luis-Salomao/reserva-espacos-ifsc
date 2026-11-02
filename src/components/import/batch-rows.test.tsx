@@ -14,6 +14,9 @@ const batch: RowsPage["batch"] = {
   createdAt: "2026-11-02T10:00:00.000Z",
   appliedAt: null,
   hashPrefix: "abcdef01",
+  supersedesBatchId: null,
+  supersedesAppliedAt: null,
+  affectedNames: [],
   summary: {
     rows: 0,
     notApplicable: {},
@@ -33,6 +36,7 @@ const row = (over: Partial<RowView>): RowView => ({
   status: "aplicada",
   reasonCode: null,
   reasonDetail: null,
+  changeKind: null,
   conflictWith: null,
   ...over,
 });
@@ -124,11 +128,8 @@ describe("BatchRows", () => {
     expect(within(table).getByText("Segunda-feira")).toBeTruthy();
   });
 
-  test("avisa quando o conflito é com ocupação de um lote anterior do mesmo semestre", async () => {
+  test("não mostra mais o aviso provisório de comparação de versões", async () => {
     const { load } = loader();
-    const { rerender } = render(<BatchRows batchId="b1" load={load} />);
-    await screen.findByText("Cálculo — T2B");
-    expect(screen.queryByText(/versão alterada de um lote já aplicado/)).toBeNull();
     const earlier: LoadRows = async (query) => {
       const result = await load(query);
       if (!result.ok) return result;
@@ -144,9 +145,55 @@ describe("BatchRows", () => {
         },
       };
     };
-    rerender(<BatchRows batchId="b2" load={earlier} />);
-    expect(await screen.findByText(/versão alterada de um lote já aplicado/)).toBeTruthy();
-    expect(screen.getByText(/comparação de versões ainda não está disponível/)).toBeTruthy();
+    render(<BatchRows batchId="b2" load={earlier} />);
+    await screen.findByText("Cálculo — T2B");
+    expect(screen.queryByText(/comparação de versões ainda não está disponível/)).toBeNull();
+  });
+
+  test("numa visão de alterações pede o tipo ao servidor e mostra antes e depois lado a lado", async () => {
+    const queries: RowsQuery[] = [];
+    const versionRows: RowView[] = [
+      row({ rowKey: "c:1", status: "cancelar", changeKind: "alteracao", spaceName: "Sala 1" }),
+      row({ rowKey: "o:1", status: "pendente", changeKind: "alteracao", spaceName: "Sala 2" }),
+    ];
+    const load: LoadRows = async (query) => {
+      queries.push(query);
+      return {
+        ok: true,
+        data: {
+          batch,
+          total: 2,
+          limit: query.limit,
+          offset: 0,
+          rows: versionRows,
+          reasons: [],
+        },
+      };
+    };
+    render(<BatchRows batchId="b1" load={load} view="alteracao" />);
+    await screen.findByText("Antes");
+    expect(screen.getByText("Depois")).toBeTruthy();
+    expect(screen.getByText(/Sala 1/)).toBeTruthy();
+    expect(screen.getByText(/Sala 2/)).toBeTruthy();
+    expect(queries.at(-1)?.changeKind).toBe("alteracao");
+    expect(queries.at(-1)?.status).toBeUndefined();
+  });
+
+  test("a visão de bloqueadas filtra por situação além do tipo", async () => {
+    const queries: RowsQuery[] = [];
+    const load: LoadRows = async (query) => {
+      queries.push(query);
+      return {
+        ok: true,
+        data: { batch, total: 0, limit: query.limit, offset: 0, rows: [], reasons: [] },
+      };
+    };
+    render(<BatchRows batchId="b1" load={load} view="bloqueada" />);
+    await waitFor(() => expect(queries.length).toBeGreaterThan(0));
+    expect(queries.at(-1)).toMatchObject({
+      changeKind: "alteracao",
+      status: "alteracao_bloqueada",
+    });
   });
 
   test("filtra por estado e por motivo no servidor e volta à primeira página", async () => {

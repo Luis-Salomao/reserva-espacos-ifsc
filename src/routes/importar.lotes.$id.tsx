@@ -1,4 +1,4 @@
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "#/components/app-shell";
 import { BatchDetail } from "#/components/import/batch-detail";
 import { loadImportRows } from "#/components/import/load-rows";
@@ -16,9 +16,15 @@ export const Route = createFileRoute("/importar/lotes/$id")({
 function BatchPage() {
   const batch = Route.useLoaderData();
   const { session } = Route.useRouteContext();
+  const navigate = useNavigate();
   return (
     <AppShell wide>
-      <BatchDetail batch={batch} load={loadImportRows} timeZone={session.timeZone} />
+      <BatchDetail
+        batch={batch}
+        load={loadImportRows}
+        timeZone={session.timeZone}
+        onDiscarded={() => void navigate({ to: "/importar/lotes" })}
+      />
     </AppShell>
   );
 }

@@ -1,27 +1,28 @@
-import { useCallback, useEffect, useId, useRef, useState } from "react";
-import type { RowsPage, RowView } from "#/application/import-report";
+import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
+import type { BatchView, RowsPage } from "#/application/import-report";
 import type { ReasonCount } from "#/application/ports";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
-import type { ImportRowStatus } from "#/domain/import-batch";
+import type { ImportChangeKind, ImportRowStatus } from "#/domain/import-batch";
 import { describeReason } from "#/domain/import-reasons";
 import type { AdminResponse } from "#/server/admin-actions";
+import { AlterationList } from "./alteration-list";
 import {
-  EARLIER_BATCH_HINT,
-  formatDate,
-  formatDateTime,
-  hasEarlierBatchConflict,
+  CHANGE_KIND_LABELS,
   STATUS_LABELS,
   STATUS_ORDER,
-  STATUS_TONE,
+  VERSION_STATUS_ORDER,
+  type VersionView,
+  viewFilter,
 } from "./flow-helpers";
-import { weekdayName } from "./weekdays";
+import { dayLabel, Reason, StatusPill } from "./row-parts";
 
 export type RowsQuery = {
   batchId: string;
   status?: ImportRowStatus;
   reasonCode?: string;
+  changeKind?: ImportChangeKind;
   search?: string;
   limit: number;
   offset: number;
@@ -30,46 +31,12 @@ export type RowsQuery = {
 export type LoadRows = (query: RowsQuery) => Promise<AdminResponse<RowsPage>>;
 
 const PAGE_SIZE = 25;
+/** Alterações aparecem em grupos antes/depois; a página é maior para não cortar um grupo ao meio. */
+const GROUPED_PAGE_SIZE = 200;
 const SEARCH_DELAY_MS = 300;
 const LOAD_ERROR = "Não foi possível carregar as linhas do lote. Tente novamente.";
 const SELECT_CLASS =
   "h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring outline-none";
-
-/** "Seg 03/08" quando há data; só o dia da semana nas aulas sem data (não aplicáveis). */
-function dayLabel(row: RowView): string {
-  const name = row.weekday === null ? "" : weekdayName(row.weekday).slice(0, 3);
-  if (row.date === null) return row.weekday === null ? "—" : weekdayName(row.weekday);
-  return `${name} ${formatDate(row.date)}`.trim();
-}
-
-function StatusPill({ status }: { status: ImportRowStatus }) {
-  return (
-    <span
-      className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_TONE[status]}`}
-    >
-      {STATUS_LABELS[status]}
-    </span>
-  );
-}
-
-function Reason({ row }: { row: RowView }) {
-  if (row.reasonCode === null && row.reasonDetail === null && row.conflictWith === null) {
-    return <span className="text-muted-foreground">—</span>;
-  }
-  const reason = describeReason(row.reasonCode, row.reasonDetail);
-  return (
-    <div className="grid gap-0.5">
-      {row.reasonCode !== null && <span className="font-medium">{reason.label}</span>}
-      {reason.detail !== null && <span className="break-words">{reason.detail}</span>}
-      {row.conflictWith !== null && (
-        <span className="break-words">
-          Conflita com “{row.conflictWith.title}” ({formatDateTime(row.conflictWith.startsAt)}–
-          {row.conflictWith.endsAt.slice(11)}).
-        </span>
-      )}
-    </div>
-  );
-}
 
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -103,6 +70,10 @@ type Props = {
   load: LoadRows;
   /** Muda para recarregar (por exemplo, depois de aplicar). */
   refreshKey?: number;
+  /** Tipo de mudança (nova versão) a mostrar; "" = todas as linhas. */
+  view?: VersionView | "";
+  /** Avisa quando o lote (com a lista de afetados) foi carregado. */
+  onBatchLoaded?: (batch: BatchView) => void;
 };
 
 /**
@@ -110,7 +81,7 @@ type Props = {
  * motivo, conflito com a ocupação que impediu, falha com mensagem). Filtros por estado e motivo,
  * busca por texto e paginação no servidor; vale também ao reabrir um lote antigo.
  */
-export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
+export function BatchRows({ batchId, load, refreshKey = 0, view = "", onBatchLoaded }: Props) {
   const uid = useId();
   const [status, setStatus] = useState<ImportRowStatus | "">("");
   const [reasonCode, setReasonCode] = useState("");
@@ -121,6 +92,14 @@ export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   const latest = useRef(0);
+  const grouped = view === "alteracao" || view === "bloqueada";
+  const pageSize = grouped ? GROUPED_PAGE_SIZE : PAGE_SIZE;
+  const viewQuery = useMemo(() => viewFilter(view), [view]);
+
+  // biome-ignore lint/correctness/useExhaustiveDependencies: voltar à primeira página ao trocar de visão
+  useEffect(() => {
+    setOffset(0);
+  }, [view]);
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -135,10 +114,11 @@ export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
     setLoading(true);
     const result = await load({
       batchId,
+      ...viewQuery,
       ...(status === "" ? {} : { status }),
       ...(reasonCode === "" ? {} : { reasonCode }),
       ...(search.trim() === "" ? {} : { search: search.trim() }),
-      limit: PAGE_SIZE,
+      limit: pageSize,
       offset,
     }).catch(() => null);
     if (ticket !== latest.current) return;
@@ -146,10 +126,11 @@ export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
     if (result?.ok) {
       setPage(result.data);
       setError(null);
+      onBatchLoaded?.(result.data.batch);
     } else {
       setError(result === null ? LOAD_ERROR : result.message);
     }
-  }, [batchId, load, status, reasonCode, search, offset]);
+  }, [batchId, load, status, reasonCode, search, offset, pageSize, viewQuery, onBatchLoaded]);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: refreshKey força recarregar
   useEffect(() => {
@@ -160,7 +141,7 @@ export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
   const reasons = page === null ? [] : reasonOptions(page.reasons);
   const total = page?.total ?? 0;
   const first = total === 0 ? 0 : offset + 1;
-  const last = Math.min(offset + PAGE_SIZE, total);
+  const last = Math.min(offset + pageSize, total);
   const filtered = status !== "" || reasonCode !== "" || search.trim() !== "";
 
   return (
@@ -178,7 +159,10 @@ export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
             className={SELECT_CLASS}
           >
             <option value="">Todos os estados</option>
-            {STATUS_ORDER.map((item) => (
+            {[
+              ...STATUS_ORDER,
+              ...(page?.batch.summary.version === undefined ? [] : VERSION_STATUS_ORDER),
+            ].map((item) => (
               <option key={item} value={item}>
                 {STATUS_LABELS[item]} ({totals.get(item) ?? 0})
               </option>
@@ -235,13 +219,13 @@ export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
             : `Mostrando ${first}–${last} de ${total}${filtered ? " (filtrado)" : ""}.`}
       </p>
 
-      {page !== null && hasEarlierBatchConflict(page.rows) && (
-        <p role="note" className="rounded-lg border bg-muted p-3 text-sm">
-          {EARLIER_BATCH_HINT}
-        </p>
+      {page !== null && page.rows.length > 0 && grouped && (
+        <div className={loading ? "opacity-60" : undefined}>
+          <AlterationList rows={page.rows} />
+        </div>
       )}
 
-      {page !== null && page.rows.length > 0 && (
+      {page !== null && page.rows.length > 0 && !grouped && (
         <div className={loading ? "opacity-60" : undefined}>
           <table className="block w-full text-sm md:table">
             <caption className="sr-only">Linhas do lote de importação</caption>
@@ -287,6 +271,11 @@ export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
                   <Cell label="Responsável">{row.responsibleName ?? "—"}</Cell>
                   <Cell label="Estado">
                     <StatusPill status={row.status} />
+                    {row.changeKind !== null && (
+                      <span className="mt-1 block text-xs text-muted-foreground">
+                        {CHANGE_KIND_LABELS[row.changeKind]}
+                      </span>
+                    )}
                   </Cell>
                   <Cell label="Motivo">
                     <Reason row={row} />
@@ -298,22 +287,22 @@ export function BatchRows({ batchId, load, refreshKey = 0 }: Props) {
         </div>
       )}
 
-      {total > PAGE_SIZE && (
+      {total > pageSize && (
         <nav aria-label="Páginas" className="flex items-center justify-between gap-2">
           <Button
             variant="outline"
             disabled={offset === 0 || loading}
-            onClick={() => setOffset(Math.max(offset - PAGE_SIZE, 0))}
+            onClick={() => setOffset(Math.max(offset - pageSize, 0))}
           >
             Anterior
           </Button>
           <span className="text-sm text-muted-foreground">
-            Página {Math.floor(offset / PAGE_SIZE) + 1} de {Math.ceil(total / PAGE_SIZE)}
+            Página {Math.floor(offset / pageSize) + 1} de {Math.ceil(total / pageSize)}
           </span>
           <Button
             variant="outline"
-            disabled={offset + PAGE_SIZE >= total || loading}
-            onClick={() => setOffset(offset + PAGE_SIZE)}
+            disabled={offset + pageSize >= total || loading}
+            onClick={() => setOffset(offset + pageSize)}
           >
             Próxima
           </Button>
