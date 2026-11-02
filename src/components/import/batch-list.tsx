@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { BatchView } from "#/application/import-report";
+import { pendingTotal } from "#/domain/import-batch";
 import { DiscardBatchButton } from "./discard-button";
 import { BATCH_STATUS_LABELS, formatInstant } from "./flow-helpers";
 
@@ -52,7 +53,7 @@ export function BatchList({
               <span className="text-sm">
                 {counts.aplicada} aplicadas · {counts.nao_aplicavel} não aplicáveis ·{" "}
                 {counts.conflito + counts.conflito_interno} conflitos · {counts.falha} falhas ·{" "}
-                {counts.pendente} pendentes
+                {pendingTotal(counts)} pendentes
               </span>
             </Link>
             <div className="mt-2">

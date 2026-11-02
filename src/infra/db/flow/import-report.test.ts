@@ -265,6 +265,91 @@ describe("relatório por linha do lote", () => {
     expect(listed.find((item) => item.id === "b1")?.supersedesAppliedAt).toBeNull();
   });
 
+  test("por grupo: nenhuma aula+data é cortada entre páginas, mesmo passando de 200 linhas", async () => {
+    // 120 grupos (aula + data) de 2 linhas cada = 240 linhas, mais um grupo de 3 linhas (turmas
+    // divididas: 2 cancelar, 1 inserir) que atravessa a antiga fronteira de 200 linhas.
+    const base = {
+      batchId: "b1",
+      lessonId: "L9",
+      weekday: 0,
+      spaceId: null,
+      occupationId: null,
+      conflictOccupationId: null,
+      reasonCode: null,
+      reasonDetail: null,
+      responsibleUserId: null,
+      changeKind: "alteracao" as const,
+      startTime: "08:00",
+      endTime: "09:00",
+    };
+    const rows: ImportRow[] = [];
+    for (let day = 0; day < 120; day++) {
+      const date = `2027-${String(1 + Math.floor(day / 28)).padStart(2, "0")}-${String((day % 28) + 1).padStart(2, "0")}`;
+      const title = day === 99 ? "Aula 099" : `Aula ${String(day).padStart(3, "0")}`;
+      rows.push({ ...base, rowKey: `c:${day}`, date, title, status: "cancelar" });
+      rows.push({
+        ...base,
+        rowKey: `o9:${day}`,
+        date,
+        title,
+        status: "pendente",
+        startTime: "10:00",
+      });
+    }
+    rows.push({
+      ...base,
+      rowKey: "c:extra",
+      date: "2027-01-01",
+      title: "Aula 000",
+      status: "cancelar",
+      startTime: "09:00",
+    });
+    await env.imports.insertRows(rows);
+    const first = await page(env, { changeKind: "alteracao", groups: true, limit: 100, offset: 0 });
+    expect(first.total).toBe(120);
+    expect(first.rows.length).toBe(201);
+    const second = await page(env, {
+      changeKind: "alteracao",
+      groups: true,
+      limit: 100,
+      offset: 100,
+    });
+    expect(second.total).toBe(120);
+    expect(second.rows.length).toBe(40);
+    const keys = (r: { rows: { rowKey: string; date: string | null; title: string }[] }) =>
+      new Set(r.rows.map((row) => `${row.date}|${row.title}`));
+    for (const key of keys(first)) expect(keys(second).has(key)).toBe(false);
+    // Todo grupo vem inteiro: o de 3 linhas (2 antes + 1 depois) não é cortado.
+    const big = first.rows.filter((row) => row.date === "2027-01-01" && row.title === "Aula 000");
+    expect(big.map((row) => row.rowKey)).toEqual(["c:0", "c:extra", "o9:0"]);
+  });
+
+  test("por grupo: ordem por data, título e horário; linhas sem data por último", async () => {
+    await env.imports.insertRows([
+      {
+        batchId: "b1",
+        lessonId: "L1",
+        weekday: 0,
+        spaceId: null,
+        occupationId: null,
+        conflictOccupationId: null,
+        reasonCode: null,
+        reasonDetail: null,
+        responsibleUserId: null,
+        changeKind: "alteracao",
+        rowKey: "z:1",
+        date: null,
+        startTime: "07:00",
+        endTime: "08:00",
+        title: "Sem data",
+        status: "nao_aplicavel",
+      },
+    ]);
+    const result = await page(env, { changeKind: "alteracao", groups: true, limit: 5, offset: 0 });
+    expect(result.rows.map((row) => row.rowKey)).toEqual(["z:1"]);
+    expect(result.total).toBe(1);
+  });
+
   test("busca trata % e _ como texto comum", async () => {
     expect((await page(env, { search: "100%" })).rows.map((row) => row.rowKey)).toEqual(["o:2"]);
     expect((await page(env, { search: "%" })).total).toBe(1);

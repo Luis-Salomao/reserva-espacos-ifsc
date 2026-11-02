@@ -77,6 +77,8 @@ export function getImportRows(deps: ImportFlowDeps, request: RequestLike, data: 
     const rawStatus = body.status;
     const status = IMPORT_ROW_STATUSES.find((item) => item === rawStatus);
     if (rawStatus !== undefined && status === undefined) return reject(400, BAD_REQUEST);
+    const groups = body.groups;
+    if (groups !== undefined && typeof groups !== "boolean") return reject(400, BAD_REQUEST);
     const rawKind = body.changeKind;
     const changeKind = IMPORT_CHANGE_KINDS.find((item) => item === rawKind);
     if (rawKind !== undefined && changeKind === undefined) return reject(400, BAD_REQUEST);
@@ -100,6 +102,7 @@ export function getImportRows(deps: ImportFlowDeps, request: RequestLike, data: 
         ...(reasonCode === undefined ? {} : { reasonCode }),
         ...(search === undefined ? {} : { search }),
         ...(changeKind === undefined ? {} : { changeKind }),
+        ...(groups === undefined ? {} : { groups }),
         ...(limit === undefined ? {} : { limit }),
         ...(offset === undefined ? {} : { offset }),
       }),

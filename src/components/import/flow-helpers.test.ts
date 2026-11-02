@@ -10,6 +10,7 @@ import {
   formatInstant,
   groupAlterations,
   IGNORE_VALUE,
+  pairBeforeAfter,
   resultCards,
   roomChoiceOf,
   roomMappingsToSave,
@@ -305,5 +306,17 @@ describe("cartões do resultado", () => {
       ["Conflitos", 4],
       ["Falhas", 7],
     ]);
+  });
+});
+
+describe("pares antes/depois", () => {
+  test("casa um a um na ordem e deixa a sobra sem par", () => {
+    expect(pairBeforeAfter(["a1", "a2", "a3"], ["d1"])).toEqual([
+      { before: "a1", after: "d1" },
+      { before: "a2", after: null },
+      { before: "a3", after: null },
+    ]);
+    expect(pairBeforeAfter([], ["d1"])).toEqual([{ before: null, after: "d1" }]);
+    expect(pairBeforeAfter([], [])).toEqual([]);
   });
 });

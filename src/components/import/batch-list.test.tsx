@@ -50,6 +50,20 @@ describe("BatchList", () => {
     expect(screen.getAllByText("Nova versão de 02/11/2026")).toHaveLength(1);
   });
 
+  test("pendentes inclui cancelar e troca de responsável, não só pendente", async () => {
+    await renderList([
+      view({
+        status: "rascunho",
+        summary: {
+          rows: 0,
+          notApplicable: {},
+          counts: { ...EMPTY_COUNTS, pendente: 2, cancelar: 3, responsavel: 4, falha: 1 },
+        },
+      }),
+    ]);
+    expect(screen.getByText(/10 pendentes/)).toBeTruthy();
+  });
+
   test("Descartar aparece só em lotes que ainda não foram aplicados", async () => {
     await renderList([
       view({ id: "b3", status: "rascunho" }),

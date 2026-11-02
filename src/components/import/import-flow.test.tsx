@@ -36,6 +36,7 @@ const batch = (status: ImportBatch["status"]): ImportBatch => ({
 const applyCalls: string[] = [];
 const discardCalls: string[] = [];
 let inProgress: unknown[] = [];
+let rowsResponse: unknown = { ok: false, status: 404, message: "sem linhas no teste" };
 
 mock.module("#/server/import-fns", () => ({
   getImportTargetsFn: async () => ({
@@ -51,7 +52,7 @@ mock.module("#/server/import-fns", () => ({
     await new Promise((resolve) => setTimeout(resolve, 30));
     return { ok: true, data: { batch: { ...batch("aplicado") }, done: true, remaining: 0 } };
   },
-  getImportRowsFn: async () => ({ ok: false, status: 404, message: "sem linhas no teste" }),
+  getImportRowsFn: async () => rowsResponse,
   listImportBatchesFn: async () => ({ ok: true, data: inProgress }),
   discardImportBatchFn: async ({ data }: { data: { batchId: string } }) => {
     discardCalls.push(data.batchId);
@@ -76,6 +77,7 @@ beforeEach(() => {
   applyCalls.length = 0;
   discardCalls.length = 0;
   inProgress = [];
+  rowsResponse = { ok: false, status: 404, message: "sem linhas no teste" };
   globalThis.fetch = (async () => {
     prepareCalls++;
     await new Promise<void>((resolve) => {
@@ -180,6 +182,17 @@ describe("ImportFlow: nova versão da grade", () => {
       ok: true,
       data: { batch: versionBatch(), reused: false, done: true, remaining: 0 },
     });
+    rowsResponse = {
+      ok: true,
+      data: {
+        batch: { ...versionBatch(), affectedNames: ["Beltrana Teste", "Fulano Teste"] },
+        total: 0,
+        limit: 1,
+        offset: 0,
+        rows: [],
+        reasons: [],
+      },
+    };
     const { button } = await renderFlow();
     fireEvent.click(button);
     await screen.findByRole("heading", { name: "Nova versão da grade" });
@@ -195,6 +208,8 @@ describe("ImportFlow: nova versão da grade", () => {
       expect(screen.getByRole("button", { name: new RegExp(label) })).toBeTruthy();
     }
     expect(screen.getByText("Responsáveis afetados: 2")).toBeTruthy();
+    // Os nomes chegam junto do lote, sem esperar a tabela de linhas.
+    expect(screen.getByText("Beltrana Teste, Fulano Teste")).toBeTruthy();
     expect(screen.getByText("Serão canceladas 3 ocupações e criadas 5.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Aplicar mudanças" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Aplicar importação" })).toBeNull();

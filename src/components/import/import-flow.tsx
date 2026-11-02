@@ -239,6 +239,11 @@ export function ImportFlow({ view, file }: Props) {
       setFailure({ ...outcome.failure, again: () => void prepare() });
       return;
     }
+    // Nomes dos responsáveis afetados vêm junto do lote (sem piscar depois das linhas).
+    if (outcome.last.batch.summary.version !== undefined) {
+      const loaded = await loadImportRows({ batchId: outcome.last.batch.id, limit: 1, offset: 0 });
+      setRowsBatch(loaded.ok ? loaded.data.batch : null);
+    }
     setBatch(outcome.last.batch);
     setVersionView("");
     setReused(outcome.last.reused);
