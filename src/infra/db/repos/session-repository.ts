@@ -22,5 +22,8 @@ export function createSessionRepository(db: AppDb): SessionRepository {
     async deleteByTokenHash(tokenHash) {
       await db.delete(sessions).where(eq(sessions.tokenHash, tokenHash));
     },
+    async revokeAllForUser(userId) {
+      await db.delete(sessions).where(eq(sessions.userId, userId));
+    },
   };
 }

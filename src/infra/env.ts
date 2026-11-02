@@ -9,6 +9,7 @@ export type AppEnv = {
   PASSWORD_HASH: "scrypt" | "pbkdf2";
   PASSWORD_SCRYPT_N: number;
   PASSWORD_PEPPER?: string;
+  COOKIE_SECURE: "auto" | "true" | "false";
 };
 
 type EnvSource = Record<string, string | undefined>;
@@ -34,6 +35,7 @@ export function getEnv(source: EnvSource): AppEnv {
         .refine((n) => (n & (n - 1)) === 0, "deve ser potência de 2")
         .default(16384),
       PASSWORD_PEPPER: z.string().min(1).optional(),
+      COOKIE_SECURE: z.enum(["auto", "true", "false"]).default("auto"),
     },
     runtimeEnv: source,
     isServer: true,
@@ -56,6 +58,7 @@ export function getEnv(source: EnvSource): AppEnv {
     PUBLIC_READ: parsed.PUBLIC_READ,
     PASSWORD_HASH: parsed.PASSWORD_HASH,
     PASSWORD_SCRYPT_N: parsed.PASSWORD_SCRYPT_N,
+    COOKIE_SECURE: parsed.COOKIE_SECURE,
     ...(parsed.PASSWORD_PEPPER === undefined ? {} : { PASSWORD_PEPPER: parsed.PASSWORD_PEPPER }),
     ...(parsed.DATABASE_PATH === undefined ? {} : { DATABASE_PATH: parsed.DATABASE_PATH }),
   };

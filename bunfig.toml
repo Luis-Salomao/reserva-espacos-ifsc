@@ -13,6 +13,8 @@ coveragePathIgnorePatterns = [
   "src/lib/**",
   # Server function que só delega ao repositório (ligado ao banco via #db-client); sem lógica própria.
   "src/server/spaces.ts",
+  # Ligação das funções de servidor da administração; lógica e controle de acesso ficam em admin-actions.ts (testado).
+  "src/server/admin.ts",
   "src/router.tsx",
   "src/routeTree.gen.ts",
   # Depende de cloudflare:workers; só roda dentro do Worker.

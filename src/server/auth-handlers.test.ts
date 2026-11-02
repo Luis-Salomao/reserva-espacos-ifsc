@@ -61,6 +61,83 @@ describe("processLogin", () => {
     );
   });
 
+  test("COOKIE_SECURE=false tira Secure em rede local com HTTP; true força em localhost", async () => {
+    const { auth } = fakeAuth();
+    const lan = await processLogin(
+      {
+        email: "ana@ifsc.edu.br",
+        password: FAKE_PASSWORD,
+        voltar: "",
+        url: "http://192.168.0.10:3000/api/entrar",
+        cookieSecure: "false",
+      },
+      auth,
+    );
+    expect(lan.setCookie).not.toContain("Secure");
+    const forced = await processLogin(
+      {
+        email: "ana@ifsc.edu.br",
+        password: FAKE_PASSWORD,
+        voltar: "",
+        url: LOCAL,
+        cookieSecure: "true",
+      },
+      auth,
+    );
+    expect(forced.setCookie).toContain("Secure");
+  });
+
+  test("revoga a sessão anterior ao entrar de novo", async () => {
+    const { auth, calls } = fakeAuth();
+    await processLogin(
+      {
+        email: "ana@ifsc.edu.br",
+        password: FAKE_PASSWORD,
+        voltar: "",
+        url: HTTPS,
+        previousToken: "antigo-1",
+      },
+      auth,
+    );
+    expect(calls).toEqual(["login:ana@ifsc.edu.br", "logout:antigo-1"]);
+  });
+
+  test("login recusado mantém a sessão anterior", async () => {
+    const { auth, calls } = fakeAuth();
+    await processLogin(
+      {
+        email: "ana@ifsc.edu.br",
+        password: OTHER_PASSWORD,
+        voltar: "",
+        url: HTTPS,
+        previousToken: "antigo-1",
+      },
+      auth,
+    );
+    expect(calls).toEqual(["login:ana@ifsc.edu.br"]);
+  });
+
+  test("handleLogin repassa o cookie sid anterior", async () => {
+    const { auth, calls } = fakeAuth();
+    const body = new URLSearchParams({
+      email: "ana@ifsc.edu.br",
+      password: FAKE_PASSWORD,
+    }).toString();
+    const request = {
+      method: "POST",
+      url: "http://192.168.0.10:3000/api/entrar",
+      headers: new Headers({
+        "content-type": "application/x-www-form-urlencoded",
+        "content-length": String(new TextEncoder().encode(body).length),
+        cookie: "sid=antigo-2",
+      }),
+      body: new Response(body).body,
+    } as unknown as Request;
+    const response = await handleLogin(request, auth, "false");
+    expect(response.status).toBe(303);
+    expect(calls).toContain("logout:antigo-2");
+  });
+
   test("em localhost o cookie não leva Secure", async () => {
     const { auth } = fakeAuth();
     const outcome = await processLogin(

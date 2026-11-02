@@ -6,7 +6,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { User } from "#/domain/user";
 import type { SessionInfo } from "#/server/session";
@@ -87,6 +87,19 @@ describe("AppShell", () => {
   test("admin vê Importar grade", async () => {
     await renderShell("x", { user: { ...ana, roles: ["admin"] }, publicRead: true });
     expect(screen.getByRole("link", { name: "Importar grade" })).toBeDefined();
+  });
+
+  test("só admin vê Administração", async () => {
+    await renderShell("x", { user: { ...ana, roles: ["admin"] }, publicRead: true });
+    expect(screen.getByRole("link", { name: "Administração" }).getAttribute("href")).toBe(
+      "/admin/contas",
+    );
+    cleanup();
+    await renderShell("x", { user: { ...ana, roles: ["horarios"] }, publicRead: true });
+    expect(screen.queryByRole("link", { name: "Administração" })).toBeNull();
+    cleanup();
+    await renderShell("x", anonymous);
+    expect(screen.queryByRole("link", { name: "Administração" })).toBeNull();
   });
 
   test("alternar o tema muda data-theme e persiste a escolha", async () => {

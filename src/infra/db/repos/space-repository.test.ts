@@ -33,4 +33,17 @@ describe("SpaceRepository", () => {
     await repo.create({ name: "Lab 1", capacity: null });
     await expect(repo.create({ name: "Lab 1", capacity: 10 })).rejects.toThrow();
   });
+
+  test("atualiza nome e capacidade; retorna nulo se não existe; nome duplicado falha", async () => {
+    const lab = await repo.create({ name: "Lab 1", capacity: 10 });
+    await repo.create({ name: "Lab 2", capacity: null });
+    expect(await repo.update(lab.id, { name: "Laboratório", capacity: null })).toEqual({
+      id: lab.id,
+      name: "Laboratório",
+      capacity: null,
+    });
+    expect((await repo.list()).map((s) => s.name)).toEqual(["Lab 2", "Laboratório"]);
+    expect(await repo.update("nao-existe", { name: "X", capacity: 1 })).toBeNull();
+    await expect(repo.update(lab.id, { name: "Lab 2", capacity: 1 })).rejects.toThrow();
+  });
 });

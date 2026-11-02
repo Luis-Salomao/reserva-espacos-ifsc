@@ -12,7 +12,7 @@ export type User = {
   active: boolean;
 };
 
-function isRole(value: string): value is Role {
+export function isRole(value: string): value is Role {
   return (ROLES as readonly string[]).includes(value);
 }
 

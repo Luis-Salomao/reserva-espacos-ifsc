@@ -30,6 +30,11 @@ export function getAuth() {
   });
 }
 
+/** Modo do atributo Secure do cookie (`COOKIE_SECURE`), lido do ambiente da requisição. */
+export function getCookieSecure() {
+  return getEnv(getRuntimeEnv()).COOKIE_SECURE;
+}
+
 /** Sessão da requisição em curso + configuração de leitura pública; renova o cookie se válido. */
 export async function getRequestSession() {
   const request = getRequest();
@@ -37,6 +42,7 @@ export async function getRequestSession() {
     request.headers.get("cookie"),
     request.url,
     getAuth(),
+    getCookieSecure(),
   );
   if (setCookie !== null) setResponseHeader("Set-Cookie", setCookie);
   setResponseHeader("Cache-Control", "no-store");

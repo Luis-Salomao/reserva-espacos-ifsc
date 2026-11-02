@@ -99,6 +99,74 @@ describe("UserRepository", () => {
     expect((await repo.findByEmail("a@x.br"))?.passwordHash).toBe("novo");
   });
 
+  test("lista contas ordenadas por nome, sem hash", async () => {
+    const base = { code: null, roles: ["docente"], passwordHash: "h" } as const;
+    await repo.create({ ...base, email: "b@x.br", name: "Bia", roles: ["docente"] });
+    await repo.create({ ...base, email: "a@x.br", name: "Ana", roles: ["admin"] });
+    const all = await repo.list();
+    expect(all.map((u) => u.name)).toEqual(["Ana", "Bia"]);
+    expect(all[0]).not.toHaveProperty("passwordHash");
+    expect(all[0]?.roles).toEqual(["admin"]);
+  });
+
+  test("busca por sigla exata", async () => {
+    const created = await repo.create({
+      email: "a@x.br",
+      name: "A",
+      code: "ANA",
+      roles: ["docente"],
+      passwordHash: "h",
+    });
+    expect(await repo.findByCode("ANA")).toEqual(created);
+    expect(await repo.findByCode("ana")).toBeNull();
+  });
+
+  test("atualiza nome, sigla e papéis; retorna nulo se não existe; sigla duplicada falha", async () => {
+    const a = await repo.create({
+      email: "a@x.br",
+      name: "A",
+      code: "AA",
+      roles: ["docente"],
+      passwordHash: "h",
+    });
+    await repo.create({
+      email: "b@x.br",
+      name: "B",
+      code: "BB",
+      roles: ["docente"],
+      passwordHash: "h",
+    });
+    const updated = await repo.update(a.id, {
+      name: "Novo",
+      code: null,
+      roles: ["admin", "horarios"],
+    });
+    expect(updated).toEqual({
+      ...a,
+      name: "Novo",
+      code: null,
+      roles: ["admin", "horarios"],
+    });
+    expect(await repo.findById(a.id)).toEqual(updated);
+    expect(await repo.update("nao-existe", { name: "X", code: null, roles: [] })).toBeNull();
+    await expect(repo.update(a.id, { name: "N", code: "BB", roles: ["admin"] })).rejects.toThrow();
+  });
+
+  test("ativa e desativa sem tocar na senha", async () => {
+    const user = await repo.create({
+      email: "a@x.br",
+      name: "A",
+      code: null,
+      roles: [],
+      passwordHash: "h",
+    });
+    await repo.setActive(user.id, false);
+    expect((await repo.findById(user.id))?.active).toBe(false);
+    await repo.setActive(user.id, true);
+    expect((await repo.findById(user.id))?.active).toBe(true);
+    expect((await repo.findByEmail("a@x.br"))?.passwordHash).toBe("h");
+  });
+
   test("lê o flag active", async () => {
     const user = await repo.create({
       email: "a@x.br",
@@ -115,6 +183,7 @@ describe("UserRepository", () => {
 describe("SessionRepository", () => {
   let repo: SessionRepository;
   let userId: string;
+  let otherUserId: string;
 
   const session = (overrides: Partial<Session> = {}): Session => ({
     id: "s1",
@@ -136,6 +205,15 @@ describe("SessionRepository", () => {
       passwordHash: "h",
     });
     userId = user.id;
+    otherUserId = (
+      await createUserRepository(db).create({
+        email: "b@x.br",
+        name: "B",
+        code: null,
+        roles: [],
+        passwordHash: "h",
+      })
+    ).id;
     repo = createSessionRepository(db);
   });
 
@@ -161,6 +239,16 @@ describe("SessionRepository", () => {
     await repo.create(session());
     await repo.deleteByTokenHash("hash-do-token");
     expect(await repo.findByTokenHash("hash-do-token")).toBeNull();
+  });
+
+  test("revoga todas as sessões do usuário e preserva as de outros", async () => {
+    await repo.create(session({ id: "s1", tokenHash: "t1" }));
+    await repo.create(session({ id: "s2", tokenHash: "t2" }));
+    await repo.create(session({ id: "s3", tokenHash: "t3", userId: otherUserId }));
+    await repo.revokeAllForUser(userId);
+    expect(await repo.findByTokenHash("t1")).toBeNull();
+    expect(await repo.findByTokenHash("t2")).toBeNull();
+    expect(await repo.findByTokenHash("t3")).not.toBeNull();
   });
 
   test("hash do token é único e usuário precisa existir", async () => {

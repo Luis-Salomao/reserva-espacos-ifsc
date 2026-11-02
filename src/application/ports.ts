@@ -4,6 +4,8 @@ import type { Role, User } from "#/domain/user";
 export interface SpaceRepository {
   list(): Promise<Space[]>;
   create(input: { name: string; capacity: number | null }): Promise<Space>;
+  /** Atualiza nome e capacidade; `null` se o espaço não existe. */
+  update(id: string, input: { name: string; capacity: number | null }): Promise<Space | null>;
 }
 
 export interface PasswordHasher {
@@ -26,6 +28,16 @@ export interface UserRepository {
     passwordHash: string;
   }): Promise<User>;
   updatePasswordHash(id: string, passwordHash: string): Promise<void>;
+  /** Todas as contas (sem hash), ordenadas por nome. */
+  list(): Promise<User[]>;
+  /** Busca por sigla exata. */
+  findByCode(code: string): Promise<User | null>;
+  /** Atualiza nome, sigla e papéis; `null` se a conta não existe. */
+  update(
+    id: string,
+    input: { name: string; code: string | null; roles: Role[] },
+  ): Promise<User | null>;
+  setActive(id: string, active: boolean): Promise<void>;
 }
 
 /** Sessão persistida. Só o SHA-256 do token existe no banco. Datas em ISO 8601 UTC. */
@@ -43,6 +55,8 @@ export interface SessionRepository {
   findByTokenHash(tokenHash: string): Promise<Session | null>;
   extend(id: string, input: { lastSeenAt: string; expiresAt: string }): Promise<void>;
   deleteByTokenHash(tokenHash: string): Promise<void>;
+  /** Revoga todas as sessões do usuário (desativação, redefinição de senha). */
+  revokeAllForUser(userId: string): Promise<void>;
 }
 
 export interface LoginAttemptRepository {

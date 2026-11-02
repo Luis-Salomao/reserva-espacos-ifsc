@@ -3,13 +3,24 @@ import type { Role, User } from "#/domain/user";
 /** Papéis que podem importar (e, depois, aplicar) a grade. */
 export const IMPORT_ROLES: readonly Role[] = ["admin", "horarios"];
 
+/** Papéis que gerem contas e espaços. */
+export const ADMIN_ROLES: readonly Role[] = ["admin"];
+
 export const SESSION_COOKIE = "sid";
 export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;
 
 const TOKEN_PATTERN = /^[A-Za-z0-9_-]{1,128}$/;
 
-/** Só `http://localhost` e `http://127.0.0.1` dispensam o atributo Secure do cookie. */
-export function isSecureUrl(url: string): boolean {
+/** `COOKIE_SECURE`: `auto` decide pela URL; `true`/`false` forçam o atributo Secure. */
+export type CookieSecureMode = "auto" | "true" | "false";
+
+/**
+ * No modo `auto`, só `http://localhost` e `http://127.0.0.1` dispensam o atributo Secure do
+ * cookie. `false` serve a rede local sem HTTPS (sem Secure) e `true` o força sempre.
+ */
+export function isSecureUrl(url: string, mode: CookieSecureMode = "auto"): boolean {
+  if (mode === "true") return true;
+  if (mode === "false") return false;
   const parsed = new URL(url);
   const local = parsed.hostname === "localhost" || parsed.hostname === "127.0.0.1";
   return !(parsed.protocol === "http:" && local);

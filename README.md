@@ -70,6 +70,12 @@ Importante: o build (`build:cf`) grava `.wrangler/deploy/config.json`, que faz o
 
 Dados reais (`data/`), arquivos `.env`, `.dev.vars` e bancos SQLite nunca entram no Git. O hook de pre-commit executa o Betterleaks nos arquivos em stage e rejeita o commit se encontrar segredos. Para varrer o histórico: `bun run secrets`.
 
+O cookie de sessão (`sid`) é `HttpOnly; SameSite=Lax` e leva `Secure`, exceto em `http://localhost` e `http://127.0.0.1`. A variável opcional `COOKIE_SECURE` muda isso: `auto` (padrão), `true` (sempre Secure) ou `false` (nunca). **Use `false` só em rede local sem HTTPS**; em produção mantenha `auto` ou `true`. Ao entrar de novo, a sessão anterior do navegador é revogada.
+
+## Administração
+
+Contas e espaços são geridos por quem tem o papel `admin`, em `/admin/contas` e `/admin/espacos` (menu "Administração"). O primeiro administrador nasce pela CLI (`bun run cli create-admin`). Desativar uma conta ou redefinir sua senha encerra todas as sessões dela, e o último administrador ativo não pode se desativar nem perder o papel `admin`. Espaços não têm exclusão nesta etapa.
+
 ## Desenvolvimento
 
 ```bash
