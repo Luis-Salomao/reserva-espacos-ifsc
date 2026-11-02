@@ -395,3 +395,22 @@ describe("hash fictício", () => {
     expect(result).toEqual({ ok: false, reason: "invalid" });
   });
 });
+
+describe("hash fictício compartilhado", () => {
+  test("duas instâncias do serviço com o mesmo hasher calculam o hash fictício uma só vez", async () => {
+    let hashCalls = 0;
+    const shared: PasswordHasher = {
+      async hash(password) {
+        hashCalls++;
+        return `fake:${password}`;
+      },
+      verify: async (password, stored) => stored === `fake:${password}`,
+      needsRehash: () => false,
+    };
+    const first = setup(shared);
+    const second = setup(shared);
+    await first.service.login("ninguem@ifsc.edu.br", WRONG);
+    await second.service.login("outro@ifsc.edu.br", WRONG);
+    expect(hashCalls).toBe(1);
+  });
+});

@@ -4,7 +4,7 @@ import { createImportReportService } from "#/application/import-report";
 import { createSemestersService } from "#/application/semesters";
 import { createSpacesService } from "#/application/spaces";
 import { createUsersService } from "#/application/users";
-import { createPasswordHasher } from "#/infra/auth/password-hasher";
+import { createConfiguredHasher } from "#/infra/auth/configured-hasher";
 import { createImportRepository } from "#/infra/db/repos/import-repository";
 import { createMappingRepositories } from "#/infra/db/repos/mapping-repositories";
 import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
@@ -35,11 +35,7 @@ export function getImportFlowDeps(): ImportFlowDeps {
     users: createUsersService({
       users,
       sessions: createSessionRepository(db),
-      hasher: createPasswordHasher({
-        algorithm: env.PASSWORD_HASH,
-        scryptN: env.PASSWORD_SCRYPT_N,
-        ...(env.PASSWORD_PEPPER === undefined ? {} : { pepper: env.PASSWORD_PEPPER }),
-      }),
+      hasher: createConfiguredHasher(env),
     }),
     spaces: createSpacesService({ spaces }),
     semesters: createSemestersService({ semesters }),

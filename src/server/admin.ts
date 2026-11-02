@@ -3,7 +3,7 @@ import { getRequest } from "@tanstack/react-start/server";
 import { createSemestersService } from "#/application/semesters";
 import { createSpacesService } from "#/application/spaces";
 import { createUsersService } from "#/application/users";
-import { createPasswordHasher } from "#/infra/auth/password-hasher";
+import { createConfiguredHasher } from "#/infra/auth/configured-hasher";
 import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSessionRepository } from "#/infra/db/repos/session-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
@@ -45,11 +45,7 @@ function getAdminDeps(): AdminDeps {
     users: createUsersService({
       users,
       sessions,
-      hasher: createPasswordHasher({
-        algorithm: env.PASSWORD_HASH,
-        scryptN: env.PASSWORD_SCRYPT_N,
-        ...(env.PASSWORD_PEPPER === undefined ? {} : { pepper: env.PASSWORD_PEPPER }),
-      }),
+      hasher: createConfiguredHasher(env),
     }),
     spaces: createSpacesService({ spaces: createSpaceRepository(db) }),
     semesters: createSemestersService({ semesters: createSemesterRepository(db) }),

@@ -1,6 +1,6 @@
 import { parseArgs } from "node:util";
 import { validatePassword } from "#/application/auth.ts";
-import { createPasswordHasher } from "#/infra/auth/password-hasher.ts";
+import { createConfiguredHasher } from "#/infra/auth/configured-hasher.ts";
 import { createUserRepository } from "#/infra/db/repos/user-repository.ts";
 import { getEnv } from "#/infra/env.ts";
 import { getDb } from "#db-client";
@@ -125,11 +125,7 @@ export async function runCreateAdmin(argv: string[]): Promise<number> {
       DEPLOY_TARGET: target,
       ...(target === "cloudflare" ? { DATABASE_PATH: undefined } : {}),
     });
-    const hasher = createPasswordHasher({
-      algorithm: env.PASSWORD_HASH,
-      scryptN: env.PASSWORD_SCRYPT_N,
-      ...(env.PASSWORD_PEPPER === undefined ? {} : { pepper: env.PASSWORD_PEPPER }),
-    });
+    const hasher = createConfiguredHasher(env);
     const plan = planCreateAdmin({
       email: values.email,
       name: values.name,
