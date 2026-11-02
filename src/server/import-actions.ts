@@ -168,3 +168,15 @@ export function applyImportBatch(deps: ImportDeps, request: RequestLike, data: u
     );
   });
 }
+
+/** Descarta um lote `preparando`, `rascunho` ou `falhou` sem nada aplicado (nunca um com mudanças já aplicadas). */
+export function discardImportBatch(deps: ImportDeps, request: RequestLike, data: unknown) {
+  return asImporter<null>(deps, request, async () => {
+    const body = record(data);
+    const batchId = body && text(body, "batchId");
+    if (batchId === null || batchId === undefined || batchId === "") {
+      return reject(400, BAD_REQUEST);
+    }
+    return fromResult(await deps.imports.discardBatch(batchId));
+  });
+}

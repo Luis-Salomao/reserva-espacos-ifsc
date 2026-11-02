@@ -164,6 +164,19 @@ export interface ImportRepository {
   /** Apaga um lote `preparando` ou `rascunho` e suas linhas (nunca ocupações, nem de outros estados). */
   deleteDraft(id: string): Promise<void>;
   /**
+   * Apaga o lote e as linhas numa unidade atômica: `preparando`/`rascunho` sempre; `falhou` só se
+   * nenhuma linha foi aplicada/cancelada e nenhuma ocupação nasceu dele. `false` = nada apagado.
+   */
+  discardBatch(id: string): Promise<boolean>;
+  /** Outro lote do semestre `aplicando` ou `falhou` (no máximo um por semestre), ou `null`. */
+  findInProgressBatch(semesterId: string): Promise<ImportBatch | null>;
+  /**
+   * Começa a aplicar numa única instrução condicional: o lote está `rascunho`/`falhou`, nenhum
+   * outro lote do semestre está `aplicando`/`falhou` e o último `aplicado` do semestre é o lote
+   * que ele substitui (ambos null-safe). Em caso de recusa diz qual foi a situação.
+   */
+  claimForApply(id: string): Promise<"ok" | "busy" | "stale" | "changed">;
+  /**
    * Até `limit` linhas ainda por aplicar na fase, em ordem estável: `insercoes` = `pendente` ou
    * `falha` de inserção; `mudancas` = `cancelar`, `responsavel` ou `falha` dessas linhas.
    */

@@ -45,6 +45,11 @@ const CHANGED_MESSAGE =
 const PREPARING_MESSAGE = "O lote ainda está sendo preparado. Conclua o preparo antes de aplicar.";
 const INCOMPLETE_MESSAGE =
   "O lote está incompleto (faltam linhas). Envie o arquivo de novo para refazer o preparo.";
+const BUSY_MESSAGE =
+  "Há outro lote deste semestre em andamento (aplicando ou interrompido). Conclua-o, ou descarte-o se nada foi aplicado, antes de continuar.";
+const DISCARD_APPLIED_MESSAGE = "Lote aplicado ou em aplicação não pode ser descartado.";
+const DISCARD_PARTIAL_MESSAGE =
+  "Este lote já aplicou parte das mudanças; retome a aplicação para concluir.";
 const STALE_MESSAGE =
   "Outra versão da grade foi aplicada depois deste preparo. Envie o arquivo de novo para refazer a conferência.";
 
@@ -153,6 +158,28 @@ export function createImportService(deps: ImportServiceDeps) {
 
   return {
     /**
+     * Descarta um lote `preparando`/`rascunho`, ou `falhou` que ainda não aplicou nada. Um lote
+     * interrompido que já cancelou ou inseriu algo só pode ser retomado (descartar deixaria meio estado).
+     */
+    async discardBatch(batchId: string): Promise<Result<null>> {
+      const batch = await imports.findBatch(batchId);
+      if (batch === null) return fail("not_found", "Lote de importação não encontrado.");
+      if (batch.status === "aplicado" || batch.status === "aplicando") {
+        return fail("conflict", DISCARD_APPLIED_MESSAGE);
+      }
+      if (batch.status === "falhou") {
+        const counts = await imports.countRows(batchId);
+        if (counts.aplicada + counts.cancelada_versao + counts.responsavel_atualizado > 0) {
+          return fail("conflict", DISCARD_PARTIAL_MESSAGE);
+        }
+      }
+      if (!(await imports.discardBatch(batchId))) {
+        return fail("conflict", DISCARD_PARTIAL_MESSAGE);
+      }
+      return ok(null);
+    },
+
+    /**
      * Prepara o lote em passos (cada chamada grava no máximo `maxCalls` blocos de 50 linhas).
      * Estados: `preparando` (linhas sendo gravadas) → `rascunho` (completo e conferido: linhas ==
      * resumo). Um lote `preparando` do mesmo (arquivo, semestre) é retomado, nunca reutilizado;
@@ -176,6 +203,11 @@ export function createImportService(deps: ImportServiceDeps) {
       const known = await imports.findBatchByHash(input.semesterId, input.fileHash);
       if (known !== null && known.status !== "preparando" && known.status !== "rascunho") {
         return ok({ batch: known, reused: true, done: true, remaining: 0 });
+      }
+
+      // No máximo um lote por semestre em andamento (aplicando ou interrompido).
+      if ((await imports.findInProgressBatch(input.semesterId)) !== null) {
+        return fail("conflict", BUSY_MESSAGE);
       }
 
       const maps = await loadMaps();
@@ -298,15 +330,11 @@ export function createImportService(deps: ImportServiceDeps) {
         return fail("conflict", INCOMPLETE_MESSAGE);
       }
       if (batch.status !== "aplicando") {
-        if (batch.status === "rascunho") {
-          const latest = await imports.latestAppliedBatchId(batch.semesterId);
-          if (latest !== batch.supersedesBatchId) return fail("conflict", STALE_MESSAGE);
-        }
-        const started = await imports.transition(batchId, ["rascunho", "falhou"], {
-          status: "aplicando",
-          appliedAt: null,
-        });
-        if (!started) return fail("conflict", CHANGED_MESSAGE);
+        // Uma única instrução condicional: sem outro lote em andamento no semestre e ainda sobre a última versão.
+        const claim = await imports.claimForApply(batchId);
+        if (claim === "busy") return fail("conflict", BUSY_MESSAGE);
+        if (claim === "stale") return fail("conflict", STALE_MESSAGE);
+        if (claim === "changed") return fail("conflict", CHANGED_MESSAGE);
       }
       let chunksLeft = options.maxChunks ?? DEFAULT_APPLY_CHUNKS;
       const createdAt = clock.now().toISOString();

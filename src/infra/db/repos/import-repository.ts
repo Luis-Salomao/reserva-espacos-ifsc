@@ -1,4 +1,4 @@
-import { and, asc, desc, eq, gt, gte, inArray, lt, or, type SQL, sql } from "drizzle-orm";
+import { and, asc, desc, eq, gt, gte, inArray, lt, ne, or, type SQL, sql } from "drizzle-orm";
 import type { ImportRepository, RowFilter } from "#/application/ports";
 import {
   EMPTY_COUNTS,
@@ -139,6 +139,78 @@ export function createImportRepository(db: AppDb): ImportRepository {
         .from(importRows)
         .where(eq(importRows.batchId, batchId));
       return found.map((row) => row.rowKey);
+    },
+    async discardBatch(id) {
+      const noWork = sql`NOT EXISTS (SELECT 1 FROM import_rows r WHERE r.batch_id = ${id}
+        AND r.status IN ('aplicada', 'cancelada_versao', 'responsavel_atualizado'))
+        AND NOT EXISTS (SELECT 1 FROM occupations o WHERE o.batch_id = ${id})`;
+      const discardable = sql`EXISTS (SELECT 1 FROM import_batches b WHERE b.id = ${id}
+        AND (b.status IN ('preparando', 'rascunho') OR (b.status = 'falhou' AND ${noWork})))`;
+      await runAtomically(db, (x) => [
+        x.delete(importRows).where(and(eq(importRows.batchId, id), discardable)),
+        x
+          .delete(importBatches)
+          .where(
+            and(
+              eq(importBatches.id, id),
+              sql`(${importBatches.status} IN ('preparando', 'rascunho') OR (${importBatches.status} = 'falhou' AND ${noWork}))`,
+            ),
+          ),
+      ]);
+      const [left] = await db
+        .select({ id: importBatches.id })
+        .from(importBatches)
+        .where(eq(importBatches.id, id));
+      return left === undefined;
+    },
+    async findInProgressBatch(semesterId) {
+      const [row] = await db
+        .select()
+        .from(importBatches)
+        .where(
+          and(
+            eq(importBatches.semesterId, semesterId),
+            inArray(importBatches.status, ["aplicando", "falhou"]),
+          ),
+        )
+        .limit(1);
+      return row ? toBatch(row) : null;
+    },
+    async claimForApply(id) {
+      const claimed = await db
+        .update(importBatches)
+        .set({ status: "aplicando", appliedAt: null })
+        .where(
+          and(
+            eq(importBatches.id, id),
+            inArray(importBatches.status, ["rascunho", "falhou"]),
+            sql`NOT EXISTS (SELECT 1 FROM import_batches o
+              WHERE o.semester_id = ${importBatches.semesterId} AND o.id <> ${importBatches.id}
+                AND o.status IN ('aplicando', 'falhou'))`,
+            sql`(SELECT l.id FROM import_batches l WHERE l.semester_id = ${importBatches.semesterId}
+              AND l.status = 'aplicado'
+              ORDER BY l.applied_at DESC, l.created_at DESC, l.id DESC LIMIT 1)
+              IS ${importBatches.supersedesBatchId}`,
+          ),
+        )
+        .returning({ id: importBatches.id });
+      if (claimed.length > 0) return "ok";
+      const [batch] = await db.select().from(importBatches).where(eq(importBatches.id, id));
+      if (batch === undefined || (batch.status !== "rascunho" && batch.status !== "falhou")) {
+        return "changed";
+      }
+      const [other] = await db
+        .select({ id: importBatches.id })
+        .from(importBatches)
+        .where(
+          and(
+            eq(importBatches.semesterId, batch.semesterId),
+            ne(importBatches.id, id),
+            inArray(importBatches.status, ["aplicando", "falhou"]),
+          ),
+        )
+        .limit(1);
+      return other === undefined ? "stale" : "busy";
     },
     async deleteDraft(id) {
       const open = sql`EXISTS (SELECT 1 FROM import_batches b WHERE b.id = ${id} AND b.status IN ('preparando', 'rascunho'))`;
