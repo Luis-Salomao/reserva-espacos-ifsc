@@ -3,7 +3,7 @@ import type { ImportWarning, WarningCode } from "./warnings.ts";
 
 export type Warn = (code: WarningCode, ref?: string, detail?: string) => void;
 
-const TIME = /^(\d{1,2}):(\d{2})$/;
+const TIME = /^(\d{1,2}):(\d{2})(?::(\d{2}))?$/;
 const MASK = /^[01]+$/;
 const INTEGER = /^\d+$/;
 
@@ -27,13 +27,14 @@ export function idList(value: string | undefined): string[] {
   return [...new Set(parts)];
 }
 
-/** "8:00" -> "08:00"; `null` se inválido. */
+/** "8:00" -> "08:00", "08:00:00" -> "08:00" (segundos descartados); `null` se inválido. */
 export function parseTime(value: string | undefined): string | null {
   const match = value === undefined ? null : TIME.exec(value);
   if (match === null) return null;
   const hours = Number(match[1]);
   const minutes = Number(match[2]);
-  if (hours > 23 || minutes > 59) return null;
+  const seconds = match[3] === undefined ? 0 : Number(match[3]);
+  if (hours > 23 || minutes > 59 || seconds > 59) return null;
   return `${String(hours).padStart(2, "0")}:${match[2]}`;
 }
 
@@ -77,11 +78,13 @@ export function readSection<T>(
   spec: SectionSpec<T>,
   warnings: ImportWarning[],
 ): Entry<T>[] {
-  const container = root.children.find((child) => child.name === spec.section);
+  const containers = root.children.filter((child) => child.name === spec.section);
+  const container = containers[0];
   if (container === undefined) {
     warnings.push({ code: "section_missing", section: spec.section });
     return [];
   }
+  if (containers.length > 1) warnings.push({ code: "section_repeated", section: spec.section });
   const warn: Warn = (code, ref, detail) => {
     const warning: ImportWarning = { code, section: spec.section };
     if (ref !== undefined) warning.ref = ref;

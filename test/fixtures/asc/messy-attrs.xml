@@ -13,6 +13,7 @@
     <Classroom Name="SemId" Short="X"/>
     <Mystery foo="bar"/>
   </Classrooms>
+  <Classes><Class ID="A" Name="Turma A" Short="A"/><Class ID="B" Name="Turma B" Short="B"/></Classes>
   <Lessons>
     <Lesson ID="L1" ClassIDs="A, B," SubjectID="" PeriodsPerCard="abc" TermsDefID="BAD" ClassroomIDs=" R1 , R2,"/>
     <Lesson ID="L2"/>

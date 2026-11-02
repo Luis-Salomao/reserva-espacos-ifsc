@@ -131,3 +131,10 @@ describe("readAscXml", () => {
     expect(readAscXml(ok).ok).toBe(true);
   });
 });
+
+describe("espaço antes da declaração XML", () => {
+  test("remove espaços e quebras de linha antes de <?xml", () => {
+    const result = readAscXml(enc.encode('\n  \r\n<?xml version="1.0"?><timetable/>'));
+    expect(result.ok).toBe(true);
+  });
+});

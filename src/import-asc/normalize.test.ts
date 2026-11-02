@@ -219,3 +219,109 @@ describe("normalizeAsc com messy-attrs.xml", () => {
     expect(codes(warnings)).toContain("invalid_number:classrooms");
   });
 });
+
+const BASE = `
+  <periods><period period="1" starttime="08:00:00" endtime="09:50:00"/></periods>
+  <daysdefs><daysdef id="D1" days="10000"/></daysdefs>
+  <weeksdefs><weeksdef id="W1" weeks="1"/></weeksdefs>
+  <termsdefs><termsdef id="T1" terms="1111"/></termsdefs>
+  <subjects><subject id="S1" short="Mat"/></subjects>
+  <teachers><teacher id="P1" short="FT"/></teachers>
+  <classrooms><classroom id="R1" short="101"/></classrooms>
+  <classes><class id="C1" short="T1"/></classes>`;
+
+function doc(lessons: string, cards: string, extra = "") {
+  return `<timetable>${BASE}<lessons>${lessons}</lessons><cards>${cards}</cards>${extra}</timetable>`;
+}
+
+const GOOD_LESSON =
+  '<lesson id="L1" classids="C1" subjectid="S1" periodspercard="1" teacherids="P1" classroomids="R1" termsdefid="T1" weeksdefid="W1" daysdefid="D1"/>';
+const GOOD_CARD = '<card lessonid="L1" classroomids="R1" period="1" days="10000"/>';
+
+describe("referências inexistentes (§7.2)", () => {
+  test("arquivo consistente não gera avisos; horário com segundos vira HH:MM", () => {
+    const { warnings, timetable } = inline(doc(GOOD_LESSON, GOOD_CARD));
+    expect(warnings).toEqual([]);
+    expect(timetable.periods[0]).toMatchObject({ start: "08:00", end: "09:50" });
+  });
+
+  test("lesson com referências quebradas: aviso por atributo, só ids, e descarta o inexistente", () => {
+    const lesson =
+      '<lesson id="L1" classids="C1,CX" subjectid="SX" teacherids="PX" classroomids="R1,RX" termsdefid="TX" weeksdefid="WX" daysdefid="DX"/>';
+    const { warnings, timetable } = inline(doc(lesson, GOOD_CARD));
+    const unknown = warnings.filter((w) => w.code === "unknown_reference");
+    expect(unknown.map((w) => `${w.section}:${w.ref}:${w.detail}`).sort()).toEqual([
+      "lessons:L1:classids",
+      "lessons:L1:classroomids",
+      "lessons:L1:daysdefid",
+      "lessons:L1:subjectid",
+      "lessons:L1:teacherids",
+      "lessons:L1:termsdefid",
+      "lessons:L1:weeksdefid",
+    ]);
+    expect(JSON.stringify(warnings)).not.toMatch(/SX|PX|RX|CX/);
+    expect(timetable.lessons[0]).toMatchObject({
+      subjectId: null,
+      classIds: ["C1"],
+      teacherIds: [],
+      classroomIds: ["R1"],
+      termsDefId: null,
+      weeksDefId: null,
+      daysDefId: null,
+    });
+  });
+
+  test("card com sala inexistente: aviso e a sala some", () => {
+    const { warnings, timetable } = inline(
+      doc(GOOD_LESSON, '<card lessonid="L1" classroomids="RX" period="1" days="10000"/>'),
+    );
+    expect(
+      warnings
+        .filter((w) => w.code === "unknown_reference")
+        .map((w) => [w.section, w.ref, w.detail]),
+    ).toEqual([["cards", "L1", "classroomids"]]);
+    expect(timetable.cards[0]).toMatchObject({ classroomIds: [], roomsUnknown: true });
+  });
+
+  test("lesson sem turma gera lesson_without_class", () => {
+    const { warnings } = inline(
+      doc('<lesson id="L1" subjectid="S1" periodspercard="1" classroomids="R1"/>', GOOD_CARD),
+    );
+    expect(warnings.map((w) => [w.code, w.section, w.ref])).toEqual([
+      ["lesson_without_class", "lessons", "L1"],
+    ]);
+  });
+});
+
+describe("limites e duplicatas", () => {
+  test("mais de 5000 cards: mantém os 5000 primeiros e avisa too_many_cards", () => {
+    const cards = Array.from({ length: 5001 }, () => GOOD_CARD).join("");
+    const many = inline(doc(GOOD_LESSON, cards));
+    // idênticos são deduplicados antes do limite
+    expect(many.timetable.cards).toHaveLength(1);
+    const distinct = Array.from(
+      { length: 5001 },
+      (_, i) => `<card lessonid="L1" classroomids="R1" period="${i + 1}" days="10000"/>`,
+    ).join("");
+    const result = inline(doc(GOOD_LESSON, distinct));
+    expect(result.timetable.cards).toHaveLength(5000);
+    expect(result.warnings.filter((w) => w.code === "too_many_cards")).toEqual([
+      { code: "too_many_cards", section: "cards", detail: "5001" },
+    ]);
+  });
+
+  test("cards idênticos são deduplicados com aviso duplicate_card", () => {
+    const { timetable, warnings } = inline(doc(GOOD_LESSON, GOOD_CARD + GOOD_CARD));
+    expect(timetable.cards).toHaveLength(1);
+    expect(warnings.map((w) => [w.code, w.section, w.ref])).toEqual([
+      ["duplicate_card", "cards", "L1"],
+    ]);
+  });
+
+  test("seção repetida: mantém a primeira e avisa section_repeated", () => {
+    const extra = `<cards><card lessonid="L1" classroomids="R1" period="1" days="01000"/></cards>`;
+    const { timetable, warnings } = inline(doc(GOOD_LESSON, GOOD_CARD, extra));
+    expect(timetable.cards).toHaveLength(1);
+    expect(warnings.map((w) => [w.code, w.section])).toEqual([["section_repeated", "cards"]]);
+  });
+});
