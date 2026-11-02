@@ -28,7 +28,7 @@ export type ImportDeps = {
   cookieSecure: CookieSecureMode;
 };
 
-const STATUSES: readonly ImportRowStatus[] = [
+export const STATUSES: readonly ImportRowStatus[] = [
   "pendente",
   "aplicada",
   "nao_aplicavel",
@@ -37,7 +37,7 @@ const STATUSES: readonly ImportRowStatus[] = [
   "falha",
 ];
 
-function asImporter<T>(
+export function asImporter<T>(
   deps: ImportDeps,
   request: RequestLike,
   run: (actorId: string) => Promise<AdminResponse<T>>,
@@ -46,10 +46,10 @@ function asImporter<T>(
 }
 
 const MAX_STEP = 100;
-const MAX_PAGE = 1000;
+export const MAX_PAGE = 1000;
 
 /** Inteiro em [min, max]; `undefined` quando ausente; `null` quando inválido. */
-function boundedInt(value: unknown, min: number, max: number): number | null | undefined {
+export function boundedInt(value: unknown, min: number, max: number): number | null | undefined {
   if (value === undefined) return undefined;
   return typeof value === "number" && Number.isInteger(value) && value >= min && value <= max
     ? value

@@ -1,5 +1,5 @@
-import { and, asc, eq, gt, inArray, lt, sql } from "drizzle-orm";
-import type { ImportRepository } from "#/application/ports";
+import { and, asc, desc, eq, gt, inArray, lt, type SQL, sql } from "drizzle-orm";
+import type { ImportRepository, RowFilter } from "#/application/ports";
 import type {
   ImportBatch,
   ImportBatchStatus,
@@ -10,7 +10,7 @@ import type {
 } from "#/domain/import-batch";
 import { runAtomically, type Statement } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
-import { importBatches, importRows, occupations } from "#/infra/db/schema";
+import { importBatches, importRows, occupations, spaces } from "#/infra/db/schema";
 
 const EMPTY_COUNTS: ImportRowCounts = {
   pendente: 0,
@@ -45,6 +45,30 @@ function rowInsert(x: AppDb, row: ImportRow) {
       conflictOccupationId: row.conflictOccupationId,
     })
     .onConflictDoNothing();
+}
+
+const ESCAPE = "\\";
+
+/** Escapa `%`, `_` e a barra invertida para uso em `LIKE ... ESCAPE`. */
+function likePattern(search: string): string {
+  return `%${search.replace(/[\\%_]/g, (char) => ESCAPE + char)}%`;
+}
+
+function rowWhere(batchId: string, filter: RowFilter): SQL {
+  const parts: SQL[] = [eq(importRows.batchId, batchId)];
+  if (filter.status !== undefined) parts.push(eq(importRows.status, filter.status));
+  if (filter.reasonCode !== undefined) parts.push(eq(importRows.reasonCode, filter.reasonCode));
+  const term = filter.search?.trim();
+  if (term !== undefined && term !== "") {
+    const pattern = likePattern(term);
+    parts.push(
+      sql`(${importRows.title} LIKE ${pattern} ESCAPE ${ESCAPE}
+        OR ${importRows.reasonDetail} LIKE ${pattern} ESCAPE ${ESCAPE}
+        OR ${importRows.spaceId} IN (SELECT ${spaces.id} FROM ${spaces}
+          WHERE ${spaces.name} LIKE ${pattern} ESCAPE ${ESCAPE}))`,
+    );
+  }
+  return and(...parts) as SQL;
 }
 
 function parseSummary(json: string): ImportSummary {
@@ -225,17 +249,53 @@ export function createImportRepository(db: AppDb): ImportRepository {
       return counts;
     },
     async listRows(batchId, options) {
-      const where =
-        options.status === undefined
-          ? eq(importRows.batchId, batchId)
-          : and(eq(importRows.batchId, batchId), eq(importRows.status, options.status));
       return db
         .select()
         .from(importRows)
-        .where(where)
+        .where(rowWhere(batchId, options))
         .orderBy(asc(importRows.date), asc(importRows.startTime), asc(importRows.rowKey))
         .limit(options.limit)
         .offset(options.offset);
+    },
+    async countFilteredRows(batchId, filter) {
+      const [found] = await db
+        .select({ total: sql<number>`count(*)` })
+        .from(importRows)
+        .where(rowWhere(batchId, filter));
+      return Number(found?.total ?? 0);
+    },
+    async reasonCounts(batchId) {
+      const grouped = await db
+        .select({
+          status: importRows.status,
+          reasonCode: importRows.reasonCode,
+          total: sql<number>`count(*)`,
+        })
+        .from(importRows)
+        .where(eq(importRows.batchId, batchId))
+        .groupBy(importRows.status, importRows.reasonCode);
+      return grouped.map((entry) => ({ ...entry, total: Number(entry.total) }));
+    },
+    async listBatches(limit) {
+      const found = await db
+        .select()
+        .from(importBatches)
+        .orderBy(desc(importBatches.createdAt), desc(importBatches.id))
+        .limit(limit);
+      return found.map(toBatch);
+    },
+    async describeOccupations(ids) {
+      if (ids.length === 0) return [];
+      return db
+        .select({
+          id: occupations.id,
+          spaceId: occupations.spaceId,
+          startsAt: occupations.startsAt,
+          endsAt: occupations.endsAt,
+          title: occupations.title,
+        })
+        .from(occupations)
+        .where(inArray(occupations.id, [...ids]));
     },
     async listActiveOccupations(from, to) {
       return db
