@@ -1,3 +1,4 @@
+import { useEffect } from "react";
 import type { AdminResponse } from "#/server/admin-actions";
 
 export const ROLE_LABELS = {
@@ -30,4 +31,15 @@ export function fieldError<T>(result: AdminResponse<T> | null, field: string): s
 /** Mensagem geral: falhas sem campo associado. */
 export function generalError<T>(result: AdminResponse<T> | null): string | undefined {
   return result !== null && !result.ok && result.field === undefined ? result.message : undefined;
+}
+
+/**
+ * Depois de uma falha ligada a um campo, leva o foco ao campo inválido (o id é `<uid>-<campo>`,
+ * o mesmo usado pelos rótulos), para leitores de tela e teclado.
+ */
+export function useFocusInvalidField<T>(result: AdminResponse<T> | null, uid: string): void {
+  useEffect(() => {
+    if (result === null || result.ok || result.field === undefined) return;
+    document.getElementById(`${uid}-${result.field}`)?.focus();
+  }, [result, uid]);
 }

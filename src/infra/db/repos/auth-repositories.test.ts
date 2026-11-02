@@ -160,11 +160,69 @@ describe("UserRepository", () => {
       roles: [],
       passwordHash: "h",
     });
-    await repo.setActive(user.id, false);
+    expect(await repo.setActive(user.id, false)).toBe(true);
     expect((await repo.findById(user.id))?.active).toBe(false);
     await repo.setActive(user.id, true);
     expect((await repo.findById(user.id))?.active).toBe(true);
     expect((await repo.findByEmail("a@x.br"))?.passwordHash).toBe("h");
+  });
+
+  describe("proteção atômica do último administrador", () => {
+    const base = { code: null, passwordHash: "h" } as const;
+
+    test("desativar o único admin ativo é recusado e nada muda", async () => {
+      const admin = await repo.create({ ...base, email: "a@x.br", name: "A", roles: ["admin"] });
+      expect(await repo.setActive(admin.id, false)).toBe(false);
+      expect((await repo.findById(admin.id))?.active).toBe(true);
+    });
+
+    test("com outro admin ativo, desativar é aplicado", async () => {
+      const a = await repo.create({ ...base, email: "a@x.br", name: "A", roles: ["admin"] });
+      await repo.create({ ...base, email: "b@x.br", name: "B", roles: ["docente", "admin"] });
+      expect(await repo.setActive(a.id, false)).toBe(true);
+      expect((await repo.findById(a.id))?.active).toBe(false);
+    });
+
+    test("outro admin inativo não conta", async () => {
+      const a = await repo.create({ ...base, email: "a@x.br", name: "A", roles: ["admin"] });
+      const b = await repo.create({ ...base, email: "b@x.br", name: "B", roles: ["admin"] });
+      sqlite.run("UPDATE users SET active = 0 WHERE id = ?", [b.id]);
+      expect(await repo.setActive(a.id, false)).toBe(false);
+    });
+
+    test("papel parecido com admin não conta como admin", async () => {
+      const a = await repo.create({ ...base, email: "a@x.br", name: "A", roles: ["admin"] });
+      const b = await repo.create({ ...base, email: "b@x.br", name: "B", roles: ["docente"] });
+      sqlite.run("UPDATE users SET roles = 'superadmin,docente' WHERE id = ?", [b.id]);
+      expect(await repo.setActive(a.id, false)).toBe(false);
+    });
+
+    test("desativar quem não é admin e reativar sempre funcionam", async () => {
+      await repo.create({ ...base, email: "a@x.br", name: "A", roles: ["admin"] });
+      const d = await repo.create({ ...base, email: "d@x.br", name: "D", roles: ["docente"] });
+      expect(await repo.setActive(d.id, false)).toBe(true);
+      expect(await repo.setActive(d.id, true)).toBe(true);
+      expect(await repo.setActive("nao-existe", false)).toBe(false);
+    });
+
+    test("tirar o papel admin do único admin é recusado; mantê-lo é permitido", async () => {
+      const a = await repo.create({ ...base, email: "a@x.br", name: "A", roles: ["admin"] });
+      expect(await repo.update(a.id, { name: "A", code: null, roles: ["docente"] })).toBeNull();
+      expect((await repo.findById(a.id))?.roles).toEqual(["admin"]);
+      const kept = await repo.update(a.id, {
+        name: "Novo",
+        code: null,
+        roles: ["admin", "docente"],
+      });
+      expect(kept?.name).toBe("Novo");
+    });
+
+    test("com outro admin ativo, tirar o papel admin é aplicado", async () => {
+      const a = await repo.create({ ...base, email: "a@x.br", name: "A", roles: ["admin"] });
+      await repo.create({ ...base, email: "b@x.br", name: "B", roles: ["admin"] });
+      const updated = await repo.update(a.id, { name: "A", code: null, roles: ["docente"] });
+      expect(updated?.roles).toEqual(["docente"]);
+    });
   });
 
   test("lê o flag active", async () => {

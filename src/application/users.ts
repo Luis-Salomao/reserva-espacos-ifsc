@@ -72,15 +72,6 @@ const LAST_ADMIN = "Não é possível deixar o sistema sem administrador ativo."
 export function createUsersService(deps: UsersDeps) {
   const { users, sessions, hasher } = deps;
 
-  /** Verdadeiro se `target` é o único administrador ativo (perdê-lo deixaria o sistema sem admin). */
-  async function isLastActiveAdmin(target: User): Promise<boolean> {
-    if (!target.active || !target.roles.includes("admin")) return false;
-    const others = (await users.list()).filter(
-      (user) => user.id !== target.id && user.active && user.roles.includes("admin"),
-    );
-    return others.length === 0;
-  }
-
   async function codeTaken(code: string | null, ownId: string | null): Promise<boolean> {
     if (code === null) return false;
     const other = await users.findByCode(code);
@@ -141,23 +132,34 @@ export function createUsersService(deps: UsersDeps) {
       const target = await users.findById(id);
       if (target === null) return fail("not_found", NOT_FOUND);
       if (await codeTaken(code.value, id)) return fail("conflict", DUPLICATE_CODE, "code");
-      if (!roles.value.includes("admin") && (await isLastActiveAdmin(target))) {
-        return fail("last_admin", LAST_ADMIN, "roles");
+      // A proteção do último admin é atômica no repositório (uma única instrução condicional).
+      let updated: User | null;
+      try {
+        updated = await users.update(id, {
+          name: name.value,
+          code: code.value,
+          roles: roles.value,
+        });
+      } catch (error) {
+        // Corrida entre a checagem e a gravação: a restrição de unicidade da sigla decide.
+        if (await codeTaken(code.value, id)) return fail("conflict", DUPLICATE_CODE, "code");
+        throw error;
       }
-      const updated = await users.update(id, {
-        name: name.value,
-        code: code.value,
-        roles: roles.value,
-      });
-      return updated === null ? fail("not_found", NOT_FOUND) : ok(updated);
+      if (updated !== null) return ok(updated);
+      return (await users.findById(id)) === null
+        ? fail("not_found", NOT_FOUND)
+        : fail("last_admin", LAST_ADMIN, "roles");
     },
 
     /** Desativar revoga todas as sessões da conta; reativar só volta a permitir o login. */
     async setActive(id: string, active: boolean): Promise<Result<User>> {
       const target = await users.findById(id);
       if (target === null) return fail("not_found", NOT_FOUND);
-      if (!active && (await isLastActiveAdmin(target))) return fail("last_admin", LAST_ADMIN);
-      await users.setActive(id, active);
+      if (!(await users.setActive(id, active))) {
+        return (await users.findById(id)) === null
+          ? fail("not_found", NOT_FOUND)
+          : fail("last_admin", LAST_ADMIN);
+      }
       if (!active) await sessions.revokeAllForUser(id);
       return ok({ ...target, active });
     },

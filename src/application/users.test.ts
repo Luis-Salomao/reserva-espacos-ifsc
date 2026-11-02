@@ -17,6 +17,11 @@ function setup() {
   const strip = ({ passwordHash: _hash, ...user }: UserRecord): User => user;
   const revoked: string[] = [];
   let failNextCreate = false;
+  let failNextUpdate = false;
+  const isActiveAdmin = (r: UserRecord) => r.active && r.roles.includes("admin");
+  const onlyActiveAdmin = (target: UserRecord) =>
+    isActiveAdmin(target) &&
+    ![...records.values()].some((r) => r.id !== target.id && isActiveAdmin(r));
 
   const users: UserRepository = {
     findByEmail: async (email) => [...records.values()].find((u) => u.email === email) ?? null,
@@ -50,12 +55,25 @@ function setup() {
     update: async (id, input) => {
       const found = records.get(id);
       if (!found) return null;
+      if (failNextUpdate) {
+        failNextUpdate = false;
+        // Simula a corrida: outra conta passa a ter a sigla antes da gravação falhar.
+        if (input.code !== null) {
+          const rival = [...records.values()].find((r) => r.id !== id);
+          if (rival) rival.code = input.code;
+        }
+        throw new Error("UNIQUE constraint failed");
+      }
+      if (!input.roles.includes("admin") && onlyActiveAdmin(found)) return null;
       Object.assign(found, input);
       return strip(found);
     },
     setActive: async (id, active) => {
       const found = records.get(id);
-      if (found) found.active = active;
+      if (!found) return false;
+      if (!active && onlyActiveAdmin(found)) return false;
+      found.active = active;
+      return true;
     },
     updatePasswordHash: async (id, passwordHash) => {
       const found = records.get(id);
@@ -91,6 +109,9 @@ function setup() {
     valid,
     failNextCreate: () => {
       failNextCreate = true;
+    },
+    failNextUpdate: () => {
+      failNextUpdate = true;
     },
   };
 }
@@ -203,7 +224,7 @@ describe("corrida na criação", () => {
           throw new Error("UNIQUE constraint failed");
         },
         update: async () => null,
-        setActive: async () => {},
+        setActive: async () => true,
         updatePasswordHash: async () => {},
       },
       sessions: {
@@ -238,7 +259,7 @@ describe("corrida na criação", () => {
           throw new Error("UNIQUE constraint failed");
         },
         update: async () => null,
-        setActive: async () => {},
+        setActive: async () => true,
         updatePasswordHash: async () => {},
       },
       sessions: {
@@ -352,6 +373,89 @@ describe("editar conta", () => {
       roles: ["docente"],
     });
     expect(result).toMatchObject({ ok: false, kind: "last_admin" });
+  });
+
+  test("corrida na sigla durante a gravação vira conflito; outro erro propaga", async () => {
+    ctx.failNextUpdate();
+    expect(
+      await ctx.service.update(otherId, { name: "A", code: "RIVAL", roles: ["docente"] }),
+    ).toMatchObject({ ok: false, kind: "conflict", field: "code" });
+    ctx.failNextUpdate();
+    await expect(
+      ctx.service.update(otherId, { name: "A", code: "", roles: ["docente"] }),
+    ).rejects.toThrow("UNIQUE");
+  });
+
+  test("repositório recusa de forma atômica mesmo que a leitura prévia veja outro admin", async () => {
+    const stale = createUsersService({
+      users: {
+        findByEmail: async () => null,
+        findByCode: async () => null,
+        list: async () => [],
+        create: async () => {
+          throw new Error("x");
+        },
+        findById: async () => ({
+          id: "a",
+          email: "a@x.br",
+          name: "A",
+          code: null,
+          roles: ["admin"],
+          active: true,
+        }),
+        update: async () => null,
+        setActive: async () => false,
+        updatePasswordHash: async () => {},
+      },
+      sessions: {
+        create: async () => {},
+        findByTokenHash: async () => null,
+        extend: async () => {},
+        deleteByTokenHash: async () => {},
+        revokeAllForUser: async () => {
+          throw new Error("não deveria revogar");
+        },
+      },
+      hasher: { hash: async (p) => p, verify: async () => true, needsRehash: () => false },
+    });
+    expect(await stale.setActive("a", false)).toMatchObject({ ok: false, kind: "last_admin" });
+    expect(await stale.update("a", { name: "A", code: "", roles: ["docente"] })).toMatchObject({
+      ok: false,
+      kind: "last_admin",
+      field: "roles",
+    });
+  });
+
+  test("conta removida entre a leitura e a gravação vira não encontrada", async () => {
+    let calls = 0;
+    const vanishing = createUsersService({
+      users: {
+        findByEmail: async () => null,
+        findByCode: async () => null,
+        list: async () => [],
+        create: async () => {
+          throw new Error("x");
+        },
+        findById: async () => {
+          calls += 1;
+          return calls === 1
+            ? { id: "a", email: "a@x.br", name: "A", code: null, roles: ["docente"], active: true }
+            : null;
+        },
+        update: async () => null,
+        setActive: async () => false,
+        updatePasswordHash: async () => {},
+      },
+      sessions: {
+        create: async () => {},
+        findByTokenHash: async () => null,
+        extend: async () => {},
+        deleteByTokenHash: async () => {},
+        revokeAllForUser: async () => {},
+      },
+      hasher: { hash: async (p) => p, verify: async () => true, needsRehash: () => false },
+    });
+    expect(await vanishing.setActive("a", false)).toMatchObject({ ok: false, kind: "not_found" });
   });
 
   test("mantém o papel admin ao editar o último administrador", async () => {
