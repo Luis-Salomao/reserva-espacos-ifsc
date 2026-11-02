@@ -1,6 +1,6 @@
 import type { ImportSummary } from "#/domain/import-batch";
 import { describeReason } from "#/domain/import-reasons";
-import { STATUS_LABELS, STATUS_ORDER, STATUS_TONE } from "./flow-helpers";
+import { STATUS_LABELS, STATUS_ORDER, STATUS_TONE, VERSION_STATUS_ORDER } from "./flow-helpers";
 
 /** Contagens do lote por estado e, nas não aplicáveis, por motivo. O texto acompanha toda cor. */
 export function BatchCounts({ summary }: { summary: ImportSummary }) {
@@ -11,12 +11,14 @@ export function BatchCounts({ summary }: { summary: ImportSummary }) {
         {summary.rows} {summary.rows === 1 ? "linha" : "linhas"} no lote.
       </p>
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
-        {STATUS_ORDER.map((status) => (
-          <div key={status} className={`rounded-lg border px-3 py-2 ${STATUS_TONE[status]}`}>
-            <dt className="text-sm">{STATUS_LABELS[status]}</dt>
-            <dd className="text-xl font-semibold">{summary.counts[status]}</dd>
-          </div>
-        ))}
+        {[...STATUS_ORDER, ...(summary.version === undefined ? [] : VERSION_STATUS_ORDER)].map(
+          (status) => (
+            <div key={status} className={`rounded-lg border px-3 py-2 ${STATUS_TONE[status]}`}>
+              <dt className="text-sm">{STATUS_LABELS[status]}</dt>
+              <dd className="text-xl font-semibold">{summary.counts[status]}</dd>
+            </div>
+          ),
+        )}
       </dl>
       {reasons.length > 0 && (
         <div className="grid gap-1">

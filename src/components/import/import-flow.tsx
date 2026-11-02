@@ -5,7 +5,7 @@ import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-map
 import { runAdminAction } from "#/components/admin/use-admin-action";
 import { Button } from "#/components/ui/button";
 import { Label } from "#/components/ui/label";
-import type { ImportBatch } from "#/domain/import-batch";
+import { type ImportBatch, pendingTotal } from "#/domain/import-batch";
 import type { AdminResponse } from "#/server/admin-actions";
 import type { ImportTargets } from "#/server/import-flow";
 import { applyImportBatchFn, getImportTargetsFn, suggestMappingsFn } from "#/server/import-fns";
@@ -211,7 +211,7 @@ export function ImportFlow({ view, file }: Props) {
     abort.current = controller;
     const batchId = batch.id;
     setFailure(null);
-    const total = batch.summary.counts.pendente + batch.summary.counts.falha;
+    const total = pendingTotal(batch.summary.counts);
     setProgress({ label: "Aplicando", done: 0, total });
     const outcome = await runSteps<StepOutput>(
       () =>
@@ -254,8 +254,7 @@ export function ImportFlow({ view, file }: Props) {
 
   const readyToApply =
     batch !== null && batch.status !== "aplicado" && batch.status !== "preparando";
-  const pendingCount =
-    batch === null ? 0 : batch.summary.counts.pendente + batch.summary.counts.falha;
+  const pendingCount = batch === null ? 0 : pendingTotal(batch.summary.counts);
 
   return (
     <>

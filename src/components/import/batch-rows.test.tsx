@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, test } from "bun:test";
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { RowsPage, RowView } from "#/application/import-report";
+import { EMPTY_COUNTS } from "#/domain/import-batch";
 import { BatchRows, type LoadRows, type RowsQuery } from "./batch-rows";
 
 afterEach(cleanup);
@@ -16,14 +17,7 @@ const batch: RowsPage["batch"] = {
   summary: {
     rows: 0,
     notApplicable: {},
-    counts: {
-      pendente: 0,
-      aplicada: 0,
-      nao_aplicavel: 0,
-      conflito: 0,
-      conflito_interno: 0,
-      falha: 0,
-    },
+    counts: { ...EMPTY_COUNTS },
   },
 };
 

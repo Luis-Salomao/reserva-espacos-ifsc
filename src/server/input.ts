@@ -10,6 +10,12 @@ export const IMPORT_ROW_STATUSES: readonly ImportRowStatus[] = [
   "conflito",
   "conflito_interno",
   "falha",
+  "inalterada",
+  "mantida_cancelada",
+  "cancelar",
+  "cancelada_versao",
+  "responsavel",
+  "responsavel_atualizado",
 ];
 
 export const MAX_STEP = 100;
