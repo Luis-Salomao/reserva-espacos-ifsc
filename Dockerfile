@@ -6,6 +6,8 @@ COPY package.json bun.lock ./
 RUN bun install --frozen-lockfile --ignore-scripts
 COPY . .
 RUN bun run build:local
+# CLI enxuta de criação do primeiro administrador (só banco local, hasher, repositórios e migrações).
+RUN bun build cli/image-entry.ts --target bun --outfile .output/cli.mjs
 
 FROM oven/bun:1.4.2 AS runtime
 WORKDIR /app
