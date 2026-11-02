@@ -20,7 +20,7 @@ const ana: User = {
   roles: ["horarios"],
   active: true,
 };
-const anonymous: SessionInfo = { user: null, publicRead: true };
+const anonymous: SessionInfo = { user: null, publicRead: true, timeZone: "America/Sao_Paulo" };
 
 beforeEach(() => {
   delete document.documentElement.dataset.theme;
@@ -52,7 +52,7 @@ describe("AppShell", () => {
   });
 
   test("navegação leva a início e à importação da grade", async () => {
-    await renderShell("x", { user: ana, publicRead: true });
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     const nav = screen.getByRole("navigation", { name: "Principal" });
     expect(screen.getByRole("link", { name: "Início" }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("link", { name: "Importar grade" }).getAttribute("href")).toBe(
@@ -70,7 +70,7 @@ describe("AppShell", () => {
   });
 
   test("usuário logado vê o nome e Sair (POST em /api/sair), sem Entrar", async () => {
-    await renderShell("x", { user: ana, publicRead: true });
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     expect(screen.getByText("Ana Souza")).toBeDefined();
     const button = screen.getByRole("button", { name: "Sair" });
     const form = button.closest("form");
@@ -80,23 +80,39 @@ describe("AppShell", () => {
   });
 
   test("docente não vê Importar grade", async () => {
-    await renderShell("x", { user: { ...ana, roles: ["docente"] }, publicRead: true });
+    await renderShell("x", {
+      user: { ...ana, roles: ["docente"] },
+      publicRead: true,
+      timeZone: "America/Sao_Paulo",
+    });
     expect(screen.queryByRole("link", { name: "Importar grade" })).toBeNull();
     expect(screen.getByRole("link", { name: "Início" })).toBeDefined();
   });
 
   test("admin vê Importar grade", async () => {
-    await renderShell("x", { user: { ...ana, roles: ["admin"] }, publicRead: true });
+    await renderShell("x", {
+      user: { ...ana, roles: ["admin"] },
+      publicRead: true,
+      timeZone: "America/Sao_Paulo",
+    });
     expect(screen.getByRole("link", { name: "Importar grade" })).toBeDefined();
   });
 
   test("só admin vê Administração", async () => {
-    await renderShell("x", { user: { ...ana, roles: ["admin"] }, publicRead: true });
+    await renderShell("x", {
+      user: { ...ana, roles: ["admin"] },
+      publicRead: true,
+      timeZone: "America/Sao_Paulo",
+    });
     expect(screen.getByRole("link", { name: "Administração" }).getAttribute("href")).toBe(
       "/admin/contas",
     );
     cleanup();
-    await renderShell("x", { user: { ...ana, roles: ["horarios"] }, publicRead: true });
+    await renderShell("x", {
+      user: { ...ana, roles: ["horarios"] },
+      publicRead: true,
+      timeZone: "America/Sao_Paulo",
+    });
     expect(screen.queryByRole("link", { name: "Administração" })).toBeNull();
     cleanup();
     await renderShell("x", anonymous);
@@ -105,11 +121,19 @@ describe("AppShell", () => {
 
   test("Semestres para admin e horários, não para docente nem visitante", async () => {
     for (const role of ["admin", "horarios"] as const) {
-      await renderShell("x", { user: { ...ana, roles: [role] }, publicRead: true });
+      await renderShell("x", {
+        user: { ...ana, roles: [role] },
+        publicRead: true,
+        timeZone: "America/Sao_Paulo",
+      });
       expect(screen.getByRole("link", { name: "Semestres" })).toBeDefined();
       cleanup();
     }
-    await renderShell("x", { user: { ...ana, roles: ["docente"] }, publicRead: true });
+    await renderShell("x", {
+      user: { ...ana, roles: ["docente"] },
+      publicRead: true,
+      timeZone: "America/Sao_Paulo",
+    });
     expect(screen.queryByRole("link", { name: "Semestres" })).toBeNull();
     cleanup();
     await renderShell("x", anonymous);

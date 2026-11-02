@@ -131,7 +131,10 @@ describe("formatação", () => {
     expect(formatDate("sem data")).toBe("sem data");
     expect(formatDateTime("2026-08-03T08:00")).toBe("03/08 08:00");
     expect(formatDateTime("lixo")).toBe("lixo");
-    expect(formatInstant("não é data")).toBe("não é data");
-    expect(formatInstant("2026-11-02T13:30:00.000Z")).toMatch(/^\d{2}\/\d{2}\/\d{2,4}/);
+    expect(formatInstant("não é data", "America/Sao_Paulo")).toBe("não é data");
+    expect(formatInstant("2026-11-02T13:30:00.000Z", "America/Sao_Paulo")).toBe("02/11/2026 10:30");
+    // Independe do fuso do processo: o servidor e o navegador mostram o mesmo texto.
+    expect(formatInstant("2026-11-02T13:30:00.000Z", "UTC")).toBe("02/11/2026 13:30");
+    expect(formatInstant("2026-11-02T01:30:00.000Z", "America/Sao_Paulo")).toBe("01/11/2026 22:30");
   });
 });

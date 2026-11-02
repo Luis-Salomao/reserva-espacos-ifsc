@@ -3,7 +3,13 @@ import type { BatchView } from "#/application/import-report";
 import { BATCH_STATUS_LABELS, formatInstant } from "./flow-helpers";
 
 /** Lista de lotes: semestre, data, estado e contagens; cada um abre o resultado por linha. */
-export function BatchList({ batches }: { batches: readonly BatchView[] }) {
+export function BatchList({
+  batches,
+  timeZone,
+}: {
+  batches: readonly BatchView[];
+  timeZone: string;
+}) {
   if (batches.length === 0) {
     return (
       <p className="text-muted-foreground">
@@ -32,7 +38,7 @@ export function BatchList({ batches }: { batches: readonly BatchView[] }) {
                 <span className="text-sm">{BATCH_STATUS_LABELS[batch.status]}</span>
               </span>
               <span className="text-sm text-muted-foreground">
-                {formatInstant(batch.createdAt)} · arquivo {batch.hashPrefix}
+                {formatInstant(batch.createdAt, timeZone)} · arquivo {batch.hashPrefix}
               </span>
               <span className="text-sm">
                 {counts.aplicada} aplicadas · {counts.nao_aplicavel} não aplicáveis ·{" "}

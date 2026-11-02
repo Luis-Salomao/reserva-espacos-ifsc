@@ -1,13 +1,8 @@
-import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
-import { decideRouteAccess, IMPORT_ROLES } from "#/server/session";
+import { createFileRoute, Outlet } from "@tanstack/react-router";
+import { guardImport } from "./-admin-guard";
 
 export const Route = createFileRoute("/importar")({
-  // Só admin ou horários; sem sessão vai ao login e volta para cá depois.
-  beforeLoad: ({ context }) => {
-    const access = decideRouteAccess(context.session.user, IMPORT_ROLES, "/importar");
-    if (access.kind === "login")
-      throw redirect({ to: "/entrar", search: { voltar: access.voltar } });
-    if (access.kind === "forbidden") throw redirect({ to: "/" });
-  },
+  // Só admin ou horários; sem sessão vai ao login e volta ao caminho pedido (inclui as rotas filhas).
+  beforeLoad: ({ context, location }) => guardImport(context, location),
   component: Outlet,
 });

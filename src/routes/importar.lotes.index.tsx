@@ -15,6 +15,7 @@ export const Route = createFileRoute("/importar/lotes/")({
 
 function BatchesPage() {
   const batches = Route.useLoaderData();
+  const { session } = Route.useRouteContext();
   return (
     <AppShell wide>
       <h1 className="text-2xl font-semibold">Lotes de importação</h1>
@@ -22,7 +23,7 @@ function BatchesPage() {
         Cada arquivo importado vira um lote por semestre. Abra um lote para ver o resultado de cada
         aula.
       </p>
-      <BatchList batches={batches} />
+      <BatchList batches={batches} timeZone={session.timeZone} />
     </AppShell>
   );
 }
