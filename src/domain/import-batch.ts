@@ -126,3 +126,13 @@ export type TeacherMapping = {
   sourceShort: string;
   userId: string | null;
 };
+
+/** Todos os tipos de mudança de uma nova versão (validação de filtros e abas da tela). */
+export const IMPORT_CHANGE_KINDS: readonly ImportChangeKind[] = [
+  "inclusao",
+  "alteracao",
+  "remocao",
+  "inalterada",
+  "mantida_cancelada",
+  "responsavel",
+];

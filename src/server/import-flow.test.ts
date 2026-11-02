@@ -169,6 +169,8 @@ describe("ações do fluxo de importação", () => {
       { batchId, reasonCode: 3 },
       { batchId, search: "x".repeat(101) },
       { batchId, search: 4 },
+      { batchId, changeKind: "inventado" },
+      { batchId, changeKind: 3 },
       { batchId, limit: 0 },
       { batchId, offset: -1 },
       "texto",

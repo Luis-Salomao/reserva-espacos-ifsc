@@ -15,6 +15,11 @@ coveragePathIgnorePatterns = [
   "src/server/spaces.ts",
   # Ligação das funções de servidor da administração; lógica e controle de acesso ficam em admin-actions.ts (testado).
   "src/server/admin.ts",
+  # Ligação das funções de servidor da importação (carregada pelos testes de componentes); a lógica fica em import-actions.ts e import-flow.ts (testados).
+  "src/server/import-fns.ts",
+  "src/server/import-deps.ts",
+  "src/server/auth-context.ts",
+  "src/server/finish.ts",
   "src/router.tsx",
   "src/routeTree.gen.ts",
   # Depende de cloudflare:workers; só roda dentro do Worker.

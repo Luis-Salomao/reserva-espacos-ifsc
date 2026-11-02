@@ -2,6 +2,7 @@ import type { ExistingOccupation } from "#/application/import-plan";
 import type {
   ImportBatch,
   ImportBatchStatus,
+  ImportChangeKind,
   ImportRow,
   ImportRowCounts,
   ImportRowStatus,
@@ -120,7 +121,12 @@ export interface TeacherMappingRepository {
 }
 
 /** Filtro das linhas do lote; `search` casa com título, sala e detalhe do motivo. */
-export type RowFilter = { status?: ImportRowStatus; reasonCode?: string; search?: string };
+export type RowFilter = {
+  status?: ImportRowStatus;
+  reasonCode?: string;
+  search?: string;
+  changeKind?: ImportChangeKind;
+};
 
 export type ReasonCount = { status: ImportRowStatus; reasonCode: string | null; total: number };
 
