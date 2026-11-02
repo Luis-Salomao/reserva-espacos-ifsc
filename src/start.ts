@@ -1,8 +1,10 @@
 import { createCsrfMiddleware, createMiddleware, createStart } from "@tanstack/react-start";
+import { getEnv } from "#/infra/env";
 import { THEME_SCRIPT } from "#/lib/theme-script";
 import { createNonce, runWithNonce } from "#/server/request-nonce";
 import { applySecurityHeaders } from "#/server/security-headers";
-import { csrfRejection } from "#/server/session";
+import { allowedOrigin, csrfRejection } from "#/server/session";
+import { getRuntimeEnv } from "#db-client";
 
 const MUTATING = new Set(["POST", "PUT", "PATCH", "DELETE"]);
 
@@ -16,7 +18,10 @@ const securityMiddleware = createMiddleware({ type: "request" }).server(
   async ({ request, next }) => {
     const nonce = createNonce();
     const csp = { dev: import.meta.env.DEV, themeScript: THEME_SCRIPT, nonce };
-    const rejection = csrfRejection(request);
+    const publicOrigin = MUTATING.has(request.method.toUpperCase())
+      ? getEnv(getRuntimeEnv()).PUBLIC_ORIGIN
+      : undefined;
+    const rejection = csrfRejection(request, publicOrigin);
     if (rejection !== null) return applySecurityHeaders(rejection, csp);
     const result = await runWithNonce(nonce, () => next());
     return { ...result, response: applySecurityHeaders(result.response, csp) };
@@ -24,8 +29,12 @@ const securityMiddleware = createMiddleware({ type: "request" }).server(
 );
 
 // Camada adicional do próprio Start (Sec-Fetch-Site/Origin), só para métodos que alteram estado.
+// O `origin` é o mesmo do nosso middleware (PUBLIC_ORIGIN ou a origem da requisição); sem isso, atrás
+// de proxy com TLS o Start compararia o Origin público com a URL interna e recusaria tudo.
 const startCsrf = createCsrfMiddleware({
   filter: ({ request }) => MUTATING.has(request.method.toUpperCase()),
+  origin: (value, { request }) =>
+    value === allowedOrigin(request.url, getEnv(getRuntimeEnv()).PUBLIC_ORIGIN),
 });
 
 export const startInstance = createStart(() => ({

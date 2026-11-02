@@ -65,4 +65,37 @@ describe("getEnv: senha", () => {
     expect(() => getEnv({ ...base, PASSWORD_SCRYPT_N: "1000" })).toThrow("PASSWORD_SCRYPT_N");
     expect(() => getEnv({ ...base, PASSWORD_SCRYPT_N: "512" })).toThrow("PASSWORD_SCRYPT_N");
   });
+
+  describe("PUBLIC_ORIGIN", () => {
+    const base = { DEPLOY_TARGET: "local", DATABASE_PATH: "x.sqlite" };
+
+    test("ausente: sem origem pública e COOKIE_SECURE como configurado", () => {
+      const env = getEnv(base);
+      expect(env.PUBLIC_ORIGIN).toBeUndefined();
+      expect(env.COOKIE_SECURE).toBe("auto");
+    });
+
+    test("https: normaliza e força cookie Secure", () => {
+      const env = getEnv({ ...base, PUBLIC_ORIGIN: "https://reservas.campus.edu.br/" });
+      expect(env.PUBLIC_ORIGIN).toBe("https://reservas.campus.edu.br");
+      expect(env.COOKIE_SECURE).toBe("true");
+    });
+
+    test("http: cookie sem Secure", () => {
+      const env = getEnv({ ...base, PUBLIC_ORIGIN: "http://reservas.lan:8080" });
+      expect(env.PUBLIC_ORIGIN).toBe("http://reservas.lan:8080");
+      expect(env.COOKIE_SECURE).toBe("false");
+    });
+
+    test("recusa valor sem esquema/host ou com caminho", () => {
+      for (const value of [
+        "reservas.campus.edu.br",
+        "ftp://x.br",
+        "https://x.br/app",
+        "https://",
+      ]) {
+        expect(() => getEnv({ ...base, PUBLIC_ORIGIN: value })).toThrow("PUBLIC_ORIGIN");
+      }
+    });
+  });
 });
