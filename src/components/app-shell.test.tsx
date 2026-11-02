@@ -1,14 +1,26 @@
 import { beforeEach, describe, expect, test } from "bun:test";
 import {
   createMemoryHistory,
-  createRootRoute,
+  createRootRouteWithContext,
   createRoute,
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
 import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
+import type { User } from "#/domain/user";
+import type { SessionInfo } from "#/server/session";
 import { AppShell } from "./app-shell";
+
+const ana: User = {
+  id: "u1",
+  email: "ana@ifsc.edu.br",
+  name: "Ana Souza",
+  code: null,
+  roles: ["horarios"],
+  active: true,
+};
+const anonymous: SessionInfo = { user: null, publicRead: true };
 
 beforeEach(() => {
   delete document.documentElement.dataset.theme;
@@ -16,14 +28,17 @@ beforeEach(() => {
 });
 
 /** Renderiza o AppShell dentro de um roteador em memória (os links precisam do contexto). */
-async function renderShell(children: ReactNode) {
-  const root = createRootRoute({ component: () => <AppShell>{children}</AppShell> });
-  const routes = ["/", "/importar"].map((path) =>
+async function renderShell(children: ReactNode, session: SessionInfo = anonymous) {
+  const root = createRootRouteWithContext<{ session: SessionInfo }>()({
+    component: () => <AppShell>{children}</AppShell>,
+  });
+  const routes = ["/", "/importar", "/entrar"].map((path) =>
     createRoute({ getParentRoute: () => root, path }),
   );
   const router = createRouter({
     routeTree: root.addChildren(routes),
     history: createMemoryHistory({ initialEntries: ["/"] }),
+    context: { session },
   });
   render(<RouterProvider router={router} />);
   await screen.findByRole("banner");
@@ -37,13 +52,41 @@ describe("AppShell", () => {
   });
 
   test("navegação leva a início e à importação da grade", async () => {
-    await renderShell("x");
+    await renderShell("x", { user: ana, publicRead: true });
     const nav = screen.getByRole("navigation", { name: "Principal" });
     expect(screen.getByRole("link", { name: "Início" }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("link", { name: "Importar grade" }).getAttribute("href")).toBe(
       "/importar",
     );
     expect(nav.querySelectorAll("a")).toHaveLength(2);
+  });
+
+  test("visitante vê Entrar e não vê Importar grade nem Sair", async () => {
+    await renderShell("x");
+    expect(screen.getByRole("link", { name: "Entrar" }).getAttribute("href")).toBe("/entrar");
+    expect(screen.queryByRole("link", { name: "Importar grade" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Sair" })).toBeNull();
+  });
+
+  test("usuário logado vê o nome e Sair (POST em /api/sair), sem Entrar", async () => {
+    await renderShell("x", { user: ana, publicRead: true });
+    expect(screen.getByText("Ana Souza")).toBeDefined();
+    const button = screen.getByRole("button", { name: "Sair" });
+    const form = button.closest("form");
+    expect(form?.getAttribute("method")?.toLowerCase()).toBe("post");
+    expect(form?.getAttribute("action")).toBe("/api/sair");
+    expect(screen.queryByRole("link", { name: "Entrar" })).toBeNull();
+  });
+
+  test("docente não vê Importar grade", async () => {
+    await renderShell("x", { user: { ...ana, roles: ["docente"] }, publicRead: true });
+    expect(screen.queryByRole("link", { name: "Importar grade" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Início" })).toBeDefined();
+  });
+
+  test("admin vê Importar grade", async () => {
+    await renderShell("x", { user: { ...ana, roles: ["admin"] }, publicRead: true });
+    expect(screen.getByRole("link", { name: "Importar grade" })).toBeDefined();
   });
 
   test("alternar o tema muda data-theme e persiste a escolha", async () => {

@@ -1,13 +1,23 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useRouteContext } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 import { ThemeToggle } from "#/components/theme-toggle";
+import { Button } from "#/components/ui/button";
 import { cn } from "#/lib/utils";
+import { IMPORT_ROLES, type SessionInfo } from "#/server/session";
 
 type Props = { children: ReactNode; wide?: boolean };
+
+/** Lê o usuário do contexto da raiz (ausente em roteadores de teste sem sessão). */
+function useSessionUser(): SessionInfo["user"] {
+  const context: { session?: SessionInfo } = useRouteContext({ strict: false });
+  return context.session?.user ?? null;
+}
 
 /** Estrutura base das páginas: cabeçalho com nome do sistema, navegação e área principal. */
 export function AppShell({ children, wide = false }: Props) {
   const width = wide ? "max-w-6xl" : "max-w-3xl";
+  const user = useSessionUser();
+  const canImport = user?.roles.some((role) => IMPORT_ROLES.includes(role)) ?? false;
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
       <header className="border-b bg-surface">
@@ -18,15 +28,32 @@ export function AppShell({ children, wide = false }: Props) {
           )}
         >
           <span className="text-base font-semibold">Reserva de Espaços</span>
-          <div className="flex items-center gap-1">
+          <div className="flex flex-wrap items-center gap-1">
             <nav aria-label="Principal" className="flex items-center gap-1 text-sm">
               <Link to="/" className="rounded-md px-2 py-2 hover:bg-surface-2">
                 Início
               </Link>
-              <Link to="/importar" className="rounded-md px-2 py-2 hover:bg-surface-2">
-                Importar grade
-              </Link>
+              {canImport && (
+                <Link to="/importar" className="rounded-md px-2 py-2 hover:bg-surface-2">
+                  Importar grade
+                </Link>
+              )}
+              {user === null && (
+                <Link to="/entrar" className="rounded-md px-2 py-2 hover:bg-surface-2">
+                  Entrar
+                </Link>
+              )}
             </nav>
+            {user !== null && (
+              <div className="flex items-center gap-2 text-sm">
+                <span className="max-w-40 truncate px-1 text-muted-foreground">{user.name}</span>
+                <form method="post" action="/api/sair">
+                  <Button type="submit" variant="outline" size="sm">
+                    Sair
+                  </Button>
+                </form>
+              </div>
+            )}
             <ThemeToggle />
           </div>
         </div>

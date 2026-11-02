@@ -1,8 +1,14 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { AppShell } from "#/components/app-shell";
+import { canViewHome } from "#/server/session";
 import { listSpaces } from "#/server/spaces";
 
 export const Route = createFileRoute("/")({
+  // Com PUBLIC_READ=false a página inicial exige login.
+  beforeLoad: ({ context }) => {
+    const { user, publicRead } = context.session;
+    if (!canViewHome(publicRead, user)) throw redirect({ to: "/entrar" });
+  },
   loader: () => listSpaces(),
   component: Home,
   errorComponent: HomeError,

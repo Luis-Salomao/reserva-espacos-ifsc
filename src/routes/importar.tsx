@@ -1,4 +1,4 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import { type ReactNode, useState } from "react";
 import { AppShell } from "#/components/app-shell";
 import { ImportSummary } from "#/components/import/import-summary";
@@ -11,8 +11,16 @@ import { WeeklyGrid } from "#/components/import/weekly-grid";
 import { Label } from "#/components/ui/label";
 import type { PreviewImportResult } from "#/server/import-preview";
 import type { PreviewView } from "#/server/import-preview-view";
+import { decideRouteAccess, IMPORT_ROLES } from "#/server/session";
 
 export const Route = createFileRoute("/importar")({
+  // Só admin ou horários; sem sessão vai ao login e volta para cá depois.
+  beforeLoad: ({ context }) => {
+    const access = decideRouteAccess(context.session.user, IMPORT_ROLES, "/importar");
+    if (access.kind === "login")
+      throw redirect({ to: "/entrar", search: { voltar: access.voltar } });
+    if (access.kind === "forbidden") throw redirect({ to: "/" });
+  },
   component: ImportPage,
 });
 
