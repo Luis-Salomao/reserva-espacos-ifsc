@@ -137,3 +137,14 @@ describe("sobreposições na visão", () => {
     expect(slot?.periods[0]).toBe(slot?.periodFrom);
   });
 });
+
+describe("docentes da visão", () => {
+  test("expõe só id e sigla, para o de-para com as contas", () => {
+    const { view } = viewOf("complete.xml");
+    expect(view.teachers).toEqual([
+      { id: "P1", short: "FT" },
+      { id: "P2", short: "BE" },
+    ]);
+    expect(JSON.stringify(view)).not.toContain("Fulano");
+  });
+});

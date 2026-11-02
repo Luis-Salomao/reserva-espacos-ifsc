@@ -36,7 +36,7 @@ import { getAuth } from "./auth-context.ts";
  * ausente ou papel errado respondem HTTP 401/403 (o cliente recebe um erro); falhas de validação
  * voltam como resultado tipado com HTTP 200, para a tela mostrar a mensagem no campo.
  */
-function getAdminDeps(): AdminDeps {
+export function getAdminDeps(): AdminDeps {
   const env = getEnv(getRuntimeEnv());
   const db = getDb();
   const users = createUserRepository(db);
@@ -58,7 +58,7 @@ function getAdminDeps(): AdminDeps {
   };
 }
 
-function finish<T>(outcome: AdminOutcome<T>): AdminResponse<T> {
+export function finish<T>(outcome: AdminOutcome<T>): AdminResponse<T> {
   setResponseHeader("Cache-Control", "no-store");
   if (outcome.setCookie !== null) setResponseHeader("Set-Cookie", outcome.setCookie);
   const { response } = outcome;

@@ -119,6 +119,19 @@ export interface TeacherMappingRepository {
   saveMany(items: readonly TeacherMapping[], updatedAt: string): Promise<void>;
 }
 
+/** Filtro das linhas do lote; `search` casa com título, sala e detalhe do motivo. */
+export type RowFilter = { status?: ImportRowStatus; reasonCode?: string; search?: string };
+
+export type ReasonCount = { status: ImportRowStatus; reasonCode: string | null; total: number };
+
+export type OccupationInfo = {
+  id: string;
+  spaceId: string;
+  startsAt: string;
+  endsAt: string;
+  title: string;
+};
+
 export interface ImportRepository {
   findBatch(id: string): Promise<ImportBatch | null>;
   findBatchByHash(semesterId: string, fileHash: string): Promise<ImportBatch | null>;
@@ -155,8 +168,16 @@ export interface ImportRepository {
   countRows(batchId: string): Promise<ImportRowCounts>;
   listRows(
     batchId: string,
-    options: { status?: ImportRowStatus; limit: number; offset: number },
+    options: RowFilter & { limit: number; offset: number },
   ): Promise<ImportRow[]>;
+  /** Quantas linhas do lote passam pelo filtro (para paginar). */
+  countFilteredRows(batchId: string, filter: RowFilter): Promise<number>;
+  /** Linhas do lote agrupadas por situação e motivo. */
+  reasonCounts(batchId: string): Promise<ReasonCount[]>;
+  /** Lotes do mais recente para o mais antigo (no máximo `limit`). */
+  listBatches(limit: number): Promise<ImportBatch[]>;
+  /** Dados das ocupações pelas ids (para explicar com qual ocupação uma linha conflitou). */
+  describeOccupations(ids: readonly string[]): Promise<OccupationInfo[]>;
   /** Ocupações ativas que se sobrepõem a `[from, to)`. */
   listActiveOccupations(from: string, to: string): Promise<ExistingOccupation[]>;
 }
