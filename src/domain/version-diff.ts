@@ -32,17 +32,22 @@ export type VersionDiff = {
   added: VersionOccurrence[];
 };
 
+/** Comparação de texto por unidades de código (determinística, sem depender de locale). */
+function cmp(a: string, b: string): number {
+  return a < b ? -1 : a > b ? 1 : 0;
+}
+
 function compareOccurrences(a: VersionOccurrence, b: VersionOccurrence): number {
   return (
-    a.date.localeCompare(b.date) ||
-    a.lessonKey.localeCompare(b.lessonKey) ||
-    a.startsAt.localeCompare(b.startsAt) ||
-    a.spaceId.localeCompare(b.spaceId) ||
-    a.endsAt.localeCompare(b.endsAt) ||
+    cmp(a.date, b.date) ||
+    cmp(a.lessonKey, b.lessonKey) ||
+    cmp(a.startsAt, b.startsAt) ||
+    cmp(a.spaceId, b.spaceId) ||
+    cmp(a.endsAt, b.endsAt) ||
     // Ativas antes das canceladas: a correspondência exata consome a ativa primeiro.
     Number(a.status === "cancelada") - Number(b.status === "cancelada") ||
-    (a.responsibleUserId ?? "").localeCompare(b.responsibleUserId ?? "") ||
-    (a.occupationId ?? "").localeCompare(b.occupationId ?? "")
+    cmp(a.responsibleUserId ?? "", b.responsibleUserId ?? "") ||
+    cmp(a.occupationId ?? "", b.occupationId ?? "")
   );
 }
 
@@ -93,9 +98,24 @@ export function diffVersions(current: VersionOccurrence[], next: VersionOccurren
       if (bucket) bucket.push(o);
       else available.set(k, [o]);
     }
+    // Duas passadas: primeiro o mesmo horário com o mesmo responsável; depois o mesmo horário
+    // com qualquer responsável (o que sobrou vira só troca de responsável, não cancelamento).
+    const matches = new Map<VersionOccurrence, VersionOccurrence>();
+    for (const sameResponsible of [true, false]) {
+      for (const n of nxt) {
+        if (matches.has(n)) continue;
+        const bucket = available.get(slotKey(n));
+        const index =
+          bucket?.findIndex(
+            (c) => !sameResponsible || c.responsibleUserId === n.responsibleUserId,
+          ) ?? -1;
+        const match = index >= 0 ? bucket?.splice(index, 1)[0] : undefined;
+        if (match) matches.set(n, match);
+      }
+    }
     const leftoverNext: VersionOccurrence[] = [];
     for (const n of nxt) {
-      const match = available.get(slotKey(n))?.shift();
+      const match = matches.get(n);
       if (!match) {
         leftoverNext.push(n);
         continue;
@@ -129,9 +149,7 @@ export function diffVersions(current: VersionOccurrence[], next: VersionOccurren
   result.unchanged.sort(comparePairs);
   result.keptCancelled.sort(comparePairs);
   result.responsibleChanged.sort(comparePairs);
-  result.changed.sort(
-    (a, b) => a.date.localeCompare(b.date) || a.lessonKey.localeCompare(b.lessonKey),
-  );
+  result.changed.sort((a, b) => cmp(a.date, b.date) || cmp(a.lessonKey, b.lessonKey));
   result.removed.sort(compareOccurrences);
   result.removedAlreadyCancelled.sort(compareOccurrences);
   result.added.sort(compareOccurrences);

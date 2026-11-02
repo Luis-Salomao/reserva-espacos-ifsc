@@ -94,6 +94,49 @@ describe("diffVersions", () => {
     expect(r1.unchanged.map((p) => p.current.lessonKey)).toEqual(["B", "A"]);
   });
 
+  test("cancelada atual casada com uma nova de outro responsável continua mantida cancelada", () => {
+    const r = diffVersions(
+      [occ({ status: "cancelada", responsibleUserId: "u1" })],
+      [occ({ responsibleUserId: "u2" })],
+    );
+    expect(r.keptCancelled).toHaveLength(1);
+    expect(r.responsibleChanged).toHaveLength(0);
+    expect(r.added).toHaveLength(0);
+    expect(r.changed).toHaveLength(0);
+  });
+
+  test("atual [ativa X, cancelada X] contra [X]: inalterada e a cancelada sobra sem inserir nada", () => {
+    const r = diffVersions([occ({ status: "cancelada" }), occ()], [occ()]);
+    expect(r.unchanged).toHaveLength(1);
+    expect(r.unchanged[0]?.current.status).toBe("ativa");
+    expect(r.removedAlreadyCancelled).toHaveLength(1);
+    expect(r.keptCancelled).toHaveLength(0);
+    expect(r.added).toHaveLength(0);
+    expect(r.changed).toHaveLength(0);
+    expect(r.removed).toHaveLength(0);
+  });
+
+  test("duas passadas: o mesmo horário com o mesmo responsável casa antes de qualquer responsável", () => {
+    const r = diffVersions(
+      [occ({ responsibleUserId: "u1" }), occ({ responsibleUserId: "u2" })],
+      [occ({ responsibleUserId: "u2" })],
+    );
+    expect(r.unchanged.map((p) => p.current.responsibleUserId)).toEqual(["u2"]);
+    expect(r.responsibleChanged).toHaveLength(0);
+    expect(r.removed.map((o) => o.responsibleUserId)).toEqual(["u1"]);
+  });
+
+  test("duas passadas: sobra de responsável diferente ainda casa pelo horário na segunda passada", () => {
+    const r = diffVersions(
+      [occ({ responsibleUserId: "u1" }), occ({ responsibleUserId: "u2" })],
+      [occ({ responsibleUserId: "u2" }), occ({ responsibleUserId: "u3" })],
+    );
+    expect(r.unchanged).toHaveLength(1);
+    expect(r.responsibleChanged.map((p) => p.next.responsibleUserId)).toEqual(["u3"]);
+    expect(r.removed).toHaveLength(0);
+    expect(r.added).toHaveLength(0);
+  });
+
   test("desempenho com 20 000 ocorrências por lado", () => {
     const make = (shift: number) =>
       Array.from({ length: 20000 }, (_, i) => {
