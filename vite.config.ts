@@ -14,7 +14,7 @@ const target = process.env.DEPLOY_TARGET === "cloudflare" ? "cloudflare" : "loca
 const serverPlugin =
   target === "cloudflare"
     ? cloudflare({ viteEnvironment: { name: "ssr" } })
-    : nitro({ preset: "bun" });
+    : nitro({ preset: "bun", compressPublicAssets: { gzip: true, brotli: true } });
 
 const config = defineConfig({
   resolve: {
