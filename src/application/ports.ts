@@ -253,3 +253,64 @@ export interface ImportRepository {
   /** Ocupações ativas que se sobrepõem a `[from, to)`. */
   listActiveOccupations(from: string, to: string): Promise<ExistingOccupation[]>;
 }
+
+/** Ocupação como o repositório a entrega (horários locais "YYYY-MM-DDTHH:MM"). */
+export type OccupationRecord = {
+  id: string;
+  spaceId: string;
+  startsAt: string;
+  endsAt: string;
+  source: "import" | "manual";
+  batchId: string | null;
+  responsibleUserId: string | null;
+  createdBy: string | null;
+  title: string;
+  status: "ativa" | "cancelada";
+};
+
+export type OccupationWithSpace = OccupationRecord & { spaceName: string };
+
+/** Ocupação que impediu uma reserva (só título e horários). */
+type BlockingOccupation = { title: string; startsAt: string; endsAt: string };
+
+type NewManualOccupation = {
+  id: string;
+  spaceId: string;
+  startsAt: string;
+  endsAt: string;
+  title: string;
+  createdBy: string;
+  createdAt: string;
+};
+
+export interface OccupationRepository {
+  /** Ocupações ativas do espaço que tocam `[from, to)`, por início. */
+  listActiveInRange(spaceId: string, from: string, to: string): Promise<OccupationRecord[]>;
+  findById(id: string): Promise<OccupationRecord | null>;
+  /**
+   * Insere a reserva avulsa só se nenhuma ocupação ativa do espaço se sobrepõe, numa única
+   * instrução (`INSERT … SELECT … WHERE NOT EXISTS`): de duas reservas concorrentes, uma entra.
+   * Sem inserção, devolve a ocupação que bloqueou (ou `null` se já foi cancelada nesse meio-tempo).
+   */
+  insertManualIfFree(
+    input: NewManualOccupation,
+  ): Promise<{ inserted: true } | { inserted: false; blocking: BlockingOccupation | null }>;
+  /** Cancela uma ocupação ativa; `false` se já não estava ativa. */
+  cancelOne(id: string, reason: string, at: string): Promise<boolean>;
+  /** Datas "YYYY-MM-DD" (ordenadas) das ocupações ativas da série da âncora a partir de `fromLocal`. */
+  seriesDates(anchor: OccupationRecord, fromLocal: string): Promise<string[]>;
+  /** Cancela a âncora e a série (mesmo lote, título, espaço, dia da semana e horário) a partir de `fromLocal`. */
+  cancelSeries(
+    anchor: OccupationRecord,
+    fromLocal: string,
+    reason: string,
+    at: string,
+  ): Promise<number>;
+  /** Próximas ocupações ativas criadas pelo usuário ou sob sua responsabilidade (termina depois de `fromLocal`). */
+  listMine(
+    userId: string,
+    fromLocal: string,
+    limit: number,
+    offset: number,
+  ): Promise<OccupationWithSpace[]>;
+}

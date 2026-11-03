@@ -1,5 +1,5 @@
 /** Resultado tipado dos casos de uso: erros esperados não são lançados. */
-export type FailureKind = "validation" | "conflict" | "not_found" | "last_admin";
+export type FailureKind = "validation" | "conflict" | "not_found" | "last_admin" | "forbidden";
 
 export type Failure = { ok: false; kind: FailureKind; message: string; field?: string };
 
