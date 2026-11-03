@@ -122,6 +122,10 @@ bun run dev:cf                # Vite + Workers
 bun run preview:cf            # build:cf + wrangler dev
 ```
 
+### Regressão das reservas no D1 local
+
+`RUN_D1_TESTS=1 bun test src/infra/db/flow/booking-d1.test.ts` roda criar, conflito, corrida, cancelar e série por posse contra o D1 local (workerd via `getPlatformProxy`, estado em pasta temporária; nada remoto). Sem a variável o teste é pulado, então `bun run check` continua rápido e offline.
+
 ### Docker (alvo local)
 
 > Verificado no commit `d84abcc`: o build funciona, o contêiner fica saudável (healthcheck em `/api/health`, que informa o alvo `local`), roda como usuário não root (uid 1000) e o banco persiste no volume nomeado ao reiniciar o contêiner.

@@ -104,6 +104,7 @@ export function insertImported(
     title: string;
     responsibleUserId: string | null;
     batchId?: string;
+    lessonId?: string;
     status?: "ativa" | "cancelada";
   },
 ) {
@@ -115,7 +116,7 @@ export function insertImported(
       endsAt: `${input.date}T${input.end}`,
       source: "import",
       batchId: input.batchId ?? "batch-1",
-      lessonId: `L-${input.id}`,
+      lessonId: input.lessonId ?? `L-${input.id}`,
       responsibleUserId: input.responsibleUserId,
       title: input.title,
       status: input.status ?? "ativa",

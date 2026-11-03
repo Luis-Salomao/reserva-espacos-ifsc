@@ -26,6 +26,7 @@ import {
 } from "#/domain/import-batch";
 import { runAtomically, type Statement } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
+import { occupationSelectList } from "#/infra/db/occupation-insert";
 import { importBatches, importRows, occupations, spaces } from "#/infra/db/schema";
 
 const OPEN: ImportRowStatus[] = ["pendente", "falha", "cancelar", "responsavel"];
@@ -293,9 +294,22 @@ export function createImportRepository(db: AppDb): ImportRepository {
             x
               .insert(occupations)
               .select(
-                sql`SELECT ${crypto.randomUUID()}, ${spaceId}, ${startsAt}, ${endsAt}, 'import',
-                  ${batchId}, ${row.lessonId}, ${row.responsibleUserId}, ${row.title}, 'ativa',
-                  ${createdAt}, NULL, NULL, NULL
+                sql`SELECT ${occupationSelectList({
+                  id: crypto.randomUUID(),
+                  spaceId,
+                  startsAt,
+                  endsAt,
+                  source: "import",
+                  batchId,
+                  lessonId: row.lessonId,
+                  responsibleUserId: row.responsibleUserId,
+                  title: row.title,
+                  status: "ativa",
+                  createdAt,
+                  cancelReason: null,
+                  cancelledAt: null,
+                  createdBy: null,
+                })}
                   WHERE NOT EXISTS (SELECT 1 FROM occupations o WHERE ${overlapping})`,
               )
               .onConflictDoNothing(),

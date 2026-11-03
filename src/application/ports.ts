@@ -262,6 +262,7 @@ export type OccupationRecord = {
   endsAt: string;
   source: "import" | "manual";
   batchId: string | null;
+  lessonId: string | null;
   responsibleUserId: string | null;
   createdBy: string | null;
   title: string;
@@ -297,12 +298,21 @@ export interface OccupationRepository {
   ): Promise<{ inserted: true } | { inserted: false; blocking: BlockingOccupation | null }>;
   /** Cancela uma ocupação ativa; `false` se já não estava ativa. */
   cancelOne(id: string, reason: string, at: string): Promise<boolean>;
-  /** Datas "YYYY-MM-DD" (ordenadas) das ocupações ativas da série da âncora a partir de `fromLocal`. */
-  seriesDates(anchor: OccupationRecord, fromLocal: string): Promise<string[]>;
-  /** Cancela a âncora e a série (mesmo lote, título, espaço, dia da semana e horário) a partir de `fromLocal`. */
+  /**
+   * Datas "YYYY-MM-DD" (ordenadas) da série da âncora a partir de `fromLocal`: mesma aula, lote,
+   * espaço, dia da semana e horário. `onlyResponsible` restringe às linhas desse responsável
+   * (não-admin; `NULL` nunca casa); `null` (admin) traz a série inteira.
+   */
+  seriesDates(
+    anchor: OccupationRecord,
+    fromLocal: string,
+    onlyResponsible: string | null,
+  ): Promise<string[]>;
+  /** Cancela a âncora e a série pela MESMA condição de `seriesDates`. */
   cancelSeries(
     anchor: OccupationRecord,
     fromLocal: string,
+    onlyResponsible: string | null,
     reason: string,
     at: string,
   ): Promise<number>;

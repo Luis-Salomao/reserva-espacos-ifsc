@@ -30,6 +30,7 @@ export type BookingDeps = {
 };
 
 const MAX_OFFSET = 100_000;
+const MAX_SERIES = 1000;
 
 /** Visitante só entra se `PUBLIC_READ=true`; o espectador (ou `null`) segue para a consulta. */
 async function asReader<T>(
@@ -99,22 +100,34 @@ export function createBookingAction(deps: BookingDeps, request: RequestLike, dat
     if (spaceId == null || date == null || start == null || end == null || purpose == null) {
       return reject(400, BAD_REQUEST);
     }
-    return fromResult(
-      await deps.bookings.createBooking(user, { spaceId, date, start, end, purpose }),
-    );
+    const result = await deps.bookings.createBooking(user, { spaceId, date, start, end, purpose });
+    const response = fromResult(result);
+    if (response.ok || result.ok || result.conflict === undefined) return response;
+    const { title, date: day, start: from, end: to } = result.conflict;
+    return { ...response, conflict: { title, date: day, start: from, end: to } };
   });
 }
 
-/** Cancela uma data (`scope: "data"`) ou a série (`"serie"`); a posse é checada no serviço (403). */
+/**
+ * Cancela uma data (`scope: "data"`) ou a série (`"serie"`); a posse é checada no serviço (403).
+ * `expectedCount` opcional (tamanho da prévia): série de outro tamanho -> 409.
+ */
 export function cancelOccupationAction(deps: BookingDeps, request: RequestLike, data: unknown) {
   return asAccount<{ cancelled: number }>(deps, request, async (user) => {
     const body = record(data);
     const occupationId = body && text(body, "occupationId");
     const scope = body?.scope;
-    if (occupationId == null || (scope !== "data" && scope !== "serie")) {
+    const expectedCount = body && boundedInt(body.expectedCount, 0, MAX_SERIES);
+    if (occupationId == null || (scope !== "data" && scope !== "serie") || expectedCount === null) {
       return reject(400, BAD_REQUEST);
     }
-    return fromResult(await deps.bookings.cancelOccupation(user, { occupationId, scope }));
+    return fromResult(
+      await deps.bookings.cancelOccupation(user, {
+        occupationId,
+        scope,
+        ...(expectedCount === undefined ? {} : { expectedCount }),
+      }),
+    );
   });
 }
 
