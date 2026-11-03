@@ -1,5 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import type { BatchView } from "#/application/import-report";
+import { Card } from "#/components/page";
 import { pendingTotal } from "#/domain/import-batch";
 import { DiscardBatchButton } from "./discard-button";
 import { BATCH_STATUS_LABELS, formatInstant } from "./flow-helpers";
@@ -30,44 +31,46 @@ export function BatchList({
       {batches.map((batch) => {
         const { counts } = batch.summary;
         return (
-          <li key={batch.id} className="rounded-lg border bg-surface p-3">
-            <Link
-              to="/importar/lotes/$id"
-              params={{ id: batch.id }}
-              className="grid gap-1 rounded-md focus-visible:ring-[3px] focus-visible:ring-ring"
-            >
-              <span className="flex flex-wrap items-baseline justify-between gap-x-4">
-                <span className="break-words font-medium text-accent-text underline">
-                  Semestre {batch.semesterName}
+          <li key={batch.id}>
+            <Card compact>
+              <Link
+                to="/importar/lotes/$id"
+                params={{ id: batch.id }}
+                className="grid gap-1 rounded-xl focus-visible:ring-[3px] focus-visible:ring-ring"
+              >
+                <span className="flex flex-wrap items-baseline justify-between gap-x-4">
+                  <span className="break-words font-medium text-accent-text underline">
+                    Semestre {batch.semesterName}
+                  </span>
+                  <span className="text-sm">{BATCH_STATUS_LABELS[batch.status]}</span>
                 </span>
-                <span className="text-sm">{BATCH_STATUS_LABELS[batch.status]}</span>
-              </span>
-              <span className="text-sm text-muted-foreground">
-                {formatInstant(batch.createdAt, timeZone)} · arquivo {batch.hashPrefix}
-              </span>
-              {batch.supersedesAppliedAt !== null && (
-                <span className="text-sm font-medium">
-                  Nova versão de {formatInstant(batch.supersedesAppliedAt, timeZone).slice(0, 10)}
+                <span className="text-sm text-muted-foreground">
+                  {formatInstant(batch.createdAt, timeZone)} · arquivo {batch.hashPrefix}
                 </span>
-              )}
-              <span className="text-sm">
-                {counts.aplicada} aplicadas
-                {batch.summary.version !== undefined &&
-                  ` · ${counts.cancelada_versao} canceladas · ${counts.responsavel_atualizado} responsáveis atualizados · ${counts.alteracao_bloqueada} ${counts.alteracao_bloqueada === 1 ? "bloqueada" : "bloqueadas"}`}{" "}
-                · {counts.nao_aplicavel} não aplicáveis ·{" "}
-                {counts.conflito + counts.conflito_interno} conflitos · {counts.falha} falhas ·{" "}
-                {pendingTotal(counts)} pendentes
-              </span>
-              {batch.outdated && (
-                <span role="note" className="text-sm font-medium">
-                  versão desatualizada — envie novamente o arquivo para preparar sobre a versão
-                  atual
+                {batch.supersedesAppliedAt !== null && (
+                  <span className="text-sm font-medium">
+                    Nova versão de {formatInstant(batch.supersedesAppliedAt, timeZone).slice(0, 10)}
+                  </span>
+                )}
+                <span className="text-sm">
+                  {counts.aplicada} aplicadas
+                  {batch.summary.version !== undefined &&
+                    ` · ${counts.cancelada_versao} canceladas · ${counts.responsavel_atualizado} responsáveis atualizados · ${counts.alteracao_bloqueada} ${counts.alteracao_bloqueada === 1 ? "bloqueada" : "bloqueadas"}`}{" "}
+                  · {counts.nao_aplicavel} não aplicáveis ·{" "}
+                  {counts.conflito + counts.conflito_interno} conflitos · {counts.falha} falhas ·{" "}
+                  {pendingTotal(counts)} pendentes
                 </span>
-              )}
-            </Link>
-            <div className="mt-2">
-              <DiscardBatchButton batch={batch} onDiscarded={onChanged} />
-            </div>
+                {batch.outdated && (
+                  <span role="note" className="text-sm font-medium">
+                    versão desatualizada — envie novamente o arquivo para preparar sobre a versão
+                    atual
+                  </span>
+                )}
+              </Link>
+              <div className="mt-2">
+                <DiscardBatchButton batch={batch} onDiscarded={onChanged} />
+              </div>
+            </Card>
           </li>
         );
       })}

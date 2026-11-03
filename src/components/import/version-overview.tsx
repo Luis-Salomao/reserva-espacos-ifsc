@@ -1,3 +1,4 @@
+import { Card } from "#/components/page";
 import type { ImportRowCounts, VersionSummary } from "#/domain/import-batch";
 import { resultCards, type VersionView, versionCards } from "./flow-helpers";
 
@@ -26,7 +27,7 @@ export function VersionOverview({
                 type="button"
                 aria-pressed={selected}
                 onClick={() => onSelect(selected ? "" : card.view)}
-                className={`w-full rounded-lg border px-3 py-2 text-left focus-visible:ring-[3px] focus-visible:ring-ring ${
+                className={`w-full rounded-2xl border px-3 py-2.5 text-left focus-visible:ring-[3px] focus-visible:ring-ring ${
                   selected ? "border-primary bg-occ-imported" : "bg-surface-2"
                 }`}
               >
@@ -55,10 +56,10 @@ export function VersionResult({ counts }: { counts: ImportRowCounts }) {
   return (
     <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3" aria-label="Resultado da nova versão">
       {resultCards(counts).map((card) => (
-        <div key={card.label} className={`rounded-lg border px-3 py-2 ${card.tone}`}>
+        <Card key={card.label} compact tone={card.tone} className="shadow-none">
           <dt className="text-sm">{card.label}</dt>
           <dd className="text-xl font-semibold">{card.count}</dd>
-        </div>
+        </Card>
       ))}
     </dl>
   );

@@ -1,5 +1,7 @@
 import { useRouter } from "@tanstack/react-router";
 import { type FormEvent, useId, useState } from "react";
+import { ChoiceCard, Tag } from "#/components/ds";
+import { Card, Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
@@ -24,9 +26,9 @@ import {
 function GeneralError({ message }: { message: string | undefined }) {
   if (message === undefined) return null;
   return (
-    <p role="alert" className="rounded-lg border bg-occ-conflict p-3 text-sm">
+    <Notice tone="error" role="alert">
       {message}
-    </p>
+    </Notice>
   );
 }
 
@@ -42,20 +44,18 @@ function RolesField({ idPrefix, value, onChange, error }: RolesFieldProps) {
   return (
     <fieldset className="grid gap-2" aria-describedby={error === undefined ? undefined : errorId}>
       <legend className="text-sm font-medium">Papéis</legend>
-      <div className="flex flex-wrap gap-x-4 gap-y-1">
+      <div className="flex flex-wrap gap-2">
         {ROLE_OPTIONS.map((role, index) => (
-          <label key={role} className="flex min-h-9 items-center gap-2 text-sm">
-            <input
-              id={index === 0 ? `${idPrefix}-roles` : undefined}
-              type="checkbox"
-              className="size-4"
-              checked={value.includes(role)}
-              onChange={(event) =>
-                onChange(event.target.checked ? [...value, role] : value.filter((r) => r !== role))
-              }
-            />
-            {ROLE_LABELS[role]}
-          </label>
+          <ChoiceCard
+            key={role}
+            type="checkbox"
+            title={ROLE_LABELS[role]}
+            id={index === 0 ? `${idPrefix}-roles` : undefined}
+            checked={value.includes(role)}
+            onChange={(event) =>
+              onChange(event.target.checked ? [...value, role] : value.filter((r) => r !== role))
+            }
+          />
         ))}
       </div>
       <FieldError id={errorId} message={error} />
@@ -98,84 +98,86 @@ function CreateAccountForm() {
   const codeError = fieldError(result, "code");
   const passwordError = fieldError(result, "password");
   return (
-    <form onSubmit={onSubmit} className="grid gap-4 rounded-lg border bg-surface p-4">
-      <h2 className="text-xl font-semibold">Nova conta</h2>
-      <GeneralError message={generalError(result)} />
-      {result?.ok === true && (
-        <p role="status" className="rounded-lg border p-3 text-sm">
-          Conta criada.
-        </p>
-      )}
-      <div className="grid gap-2">
-        <Label htmlFor={`${uid}-email`}>E-mail</Label>
-        <Input
-          id={`${uid}-email`}
-          type="email"
-          autoComplete="off"
-          autoCapitalize="none"
-          spellCheck={false}
-          required
-          maxLength={254}
-          value={email}
-          onChange={(event) => setEmail(event.target.value)}
-          aria-invalid={emailError === undefined ? undefined : true}
-          aria-describedby={emailError === undefined ? undefined : `${uid}-email-error`}
+    <Card>
+      <form onSubmit={onSubmit} className="grid gap-4">
+        <h2 className="text-lg font-semibold tracking-tight">Nova conta</h2>
+        <GeneralError message={generalError(result)} />
+        {result?.ok === true && (
+          <Notice tone="ok" role="status">
+            Conta criada.
+          </Notice>
+        )}
+        <div className="grid gap-2">
+          <Label htmlFor={`${uid}-email`}>E-mail</Label>
+          <Input
+            id={`${uid}-email`}
+            type="email"
+            autoComplete="off"
+            autoCapitalize="none"
+            spellCheck={false}
+            required
+            maxLength={254}
+            value={email}
+            onChange={(event) => setEmail(event.target.value)}
+            aria-invalid={emailError === undefined ? undefined : true}
+            aria-describedby={emailError === undefined ? undefined : `${uid}-email-error`}
+          />
+          <FieldError id={`${uid}-email-error`} message={emailError} />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor={`${uid}-name`}>Nome</Label>
+          <Input
+            id={`${uid}-name`}
+            required
+            maxLength={120}
+            value={name}
+            onChange={(event) => setName(event.target.value)}
+            aria-invalid={nameError === undefined ? undefined : true}
+            aria-describedby={nameError === undefined ? undefined : `${uid}-name-error`}
+          />
+          <FieldError id={`${uid}-name-error`} message={nameError} />
+        </div>
+        <div className="grid gap-2">
+          <Label htmlFor={`${uid}-code`}>Sigla (opcional)</Label>
+          <Input
+            id={`${uid}-code`}
+            maxLength={16}
+            autoCapitalize="characters"
+            spellCheck={false}
+            value={code}
+            onChange={(event) => setCode(event.target.value)}
+            aria-invalid={codeError === undefined ? undefined : true}
+            aria-describedby={codeError === undefined ? undefined : `${uid}-code-error`}
+          />
+          <FieldError id={`${uid}-code-error`} message={codeError} />
+        </div>
+        <RolesField
+          idPrefix={uid}
+          value={roles}
+          onChange={setRoles}
+          error={fieldError(result, "roles")}
         />
-        <FieldError id={`${uid}-email-error`} message={emailError} />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor={`${uid}-name`}>Nome</Label>
-        <Input
-          id={`${uid}-name`}
-          required
-          maxLength={120}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          aria-invalid={nameError === undefined ? undefined : true}
-          aria-describedby={nameError === undefined ? undefined : `${uid}-name-error`}
-        />
-        <FieldError id={`${uid}-name-error`} message={nameError} />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor={`${uid}-code`}>Sigla (opcional)</Label>
-        <Input
-          id={`${uid}-code`}
-          maxLength={16}
-          autoCapitalize="characters"
-          spellCheck={false}
-          value={code}
-          onChange={(event) => setCode(event.target.value)}
-          aria-invalid={codeError === undefined ? undefined : true}
-          aria-describedby={codeError === undefined ? undefined : `${uid}-code-error`}
-        />
-        <FieldError id={`${uid}-code-error`} message={codeError} />
-      </div>
-      <RolesField
-        idPrefix={uid}
-        value={roles}
-        onChange={setRoles}
-        error={fieldError(result, "roles")}
-      />
-      <div className="grid gap-2">
-        <Label htmlFor={`${uid}-password`}>Senha inicial (mínimo 10 caracteres)</Label>
-        <Input
-          id={`${uid}-password`}
-          type="password"
-          autoComplete="new-password"
-          required
-          minLength={10}
-          maxLength={1024}
-          value={password}
-          onChange={(event) => setPassword(event.target.value)}
-          aria-invalid={passwordError === undefined ? undefined : true}
-          aria-describedby={passwordError === undefined ? undefined : `${uid}-password-error`}
-        />
-        <FieldError id={`${uid}-password-error`} message={passwordError} />
-      </div>
-      <Button type="submit" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
-        {pending ? "Criando…" : "Criar conta"}
-      </Button>
-    </form>
+        <div className="grid gap-2">
+          <Label htmlFor={`${uid}-password`}>Senha inicial (mínimo 10 caracteres)</Label>
+          <Input
+            id={`${uid}-password`}
+            type="password"
+            autoComplete="new-password"
+            required
+            minLength={10}
+            maxLength={1024}
+            value={password}
+            onChange={(event) => setPassword(event.target.value)}
+            aria-invalid={passwordError === undefined ? undefined : true}
+            aria-describedby={passwordError === undefined ? undefined : `${uid}-password-error`}
+          />
+          <FieldError id={`${uid}-password-error`} message={passwordError} />
+        </div>
+        <Button type="submit" disabled={pending} className="w-full sm:w-auto sm:justify-self-start">
+          {pending ? "Criando…" : "Criar conta"}
+        </Button>
+      </form>
+    </Card>
   );
 }
 
@@ -346,56 +348,56 @@ function AccountItem({ user, isSelf }: { user: User; isSelf: boolean }) {
 
   const toView = () => setMode("view");
   return (
-    <li className="rounded-lg border bg-surface p-4">
-      <div className="flex flex-wrap items-start justify-between gap-2">
-        <div className="min-w-0">
-          <p className="break-words font-medium">{user.name}</p>
-          <p className="break-all text-sm text-muted-foreground">{user.email}</p>
-          <p className="mt-1 text-sm">
-            {user.roles.map((role) => ROLE_LABELS[role]).join(", ")}
-            {user.code !== null && ` · Sigla ${user.code}`}
-          </p>
+    <li>
+      <Card>
+        <div className="flex flex-wrap items-start justify-between gap-2">
+          <div className="min-w-0">
+            <p className="break-words font-medium">{user.name}</p>
+            <p className="break-all text-sm text-muted-foreground">{user.email}</p>
+            <p className="mt-1 text-sm">
+              {user.roles.map((role) => ROLE_LABELS[role]).join(", ")}
+              {user.code !== null && ` · Sigla ${user.code}`}
+            </p>
+          </div>
+          <Tag tone={user.active ? "free" : "conflict"}>{user.active ? "Ativa" : "Inativa"}</Tag>
         </div>
-        <span
-          className={
-            user.active
-              ? "rounded-md border px-2 py-1 text-xs"
-              : "rounded-md border bg-occ-conflict px-2 py-1 text-xs"
-          }
-        >
-          {user.active ? "Ativa" : "Inativa"}
-        </span>
-      </div>
-      <div className="mt-3 flex flex-wrap gap-2">
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          aria-expanded={mode === "edit"}
-          onClick={() => setMode(mode === "edit" ? "view" : "edit")}
-        >
-          Editar
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          aria-expanded={mode === "password"}
-          onClick={() => setMode(mode === "password" ? "view" : "password")}
-        >
-          Redefinir senha
-        </Button>
-        <Button type="button" size="sm" variant="outline" disabled={pending} onClick={toggleActive}>
-          {user.active ? "Desativar" : "Reativar"}
-        </Button>
-      </div>
-      {result !== null && !result.ok && (
-        <p role="alert" className="mt-3 rounded-lg border bg-occ-conflict p-3 text-sm">
-          {result.message}
-        </p>
-      )}
-      {mode === "edit" && <EditAccountForm user={user} onDone={toView} />}
-      {mode === "password" && <ResetPasswordForm user={user} isSelf={isSelf} onDone={toView} />}
+        <div className="mt-3 flex flex-wrap gap-2">
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            aria-expanded={mode === "edit"}
+            onClick={() => setMode(mode === "edit" ? "view" : "edit")}
+          >
+            Editar
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            aria-expanded={mode === "password"}
+            onClick={() => setMode(mode === "password" ? "view" : "password")}
+          >
+            Redefinir senha
+          </Button>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            disabled={pending}
+            onClick={toggleActive}
+          >
+            {user.active ? "Desativar" : "Reativar"}
+          </Button>
+        </div>
+        {result !== null && !result.ok && (
+          <Notice tone="error" role="alert" className="mt-3">
+            {result.message}
+          </Notice>
+        )}
+        {mode === "edit" && <EditAccountForm user={user} onDone={toView} />}
+        {mode === "password" && <ResetPasswordForm user={user} isSelf={isSelf} onDone={toView} />}
+      </Card>
     </li>
   );
 }
@@ -411,7 +413,7 @@ export function AccountsManager({
     <div className="grid gap-6">
       <CreateAccountForm />
       <section aria-labelledby="accounts-title" className="grid gap-3">
-        <h2 id="accounts-title" className="text-xl font-semibold">
+        <h2 id="accounts-title" className="text-lg font-semibold tracking-tight">
           Contas ({users.length})
         </h2>
         <ul className="grid gap-3">

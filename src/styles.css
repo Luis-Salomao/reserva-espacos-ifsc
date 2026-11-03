@@ -4,6 +4,10 @@
 
 @plugin "@tailwindcss/typography";
 
+/* Só o código da aplicação gera classes: o protótipo em docs/ e a saída do build ficam de fora. */
+@source not "../docs";
+@source not "../.output";
+
 /* Tema escuro: data-theme="dark" ou, sem data-theme="light", a preferência do sistema. */
 @custom-variant dark {
   &:where([data-theme="dark"], [data-theme="dark"] *) {
@@ -67,6 +71,10 @@
   --color-occ-booked: var(--occ-booked);
   --color-occ-imported: var(--occ-imported);
   --color-occ-conflict: var(--occ-conflict);
+  --color-line-free: var(--line-free);
+  --color-line-booked: var(--line-booked);
+  --color-line-imported: var(--line-imported);
+  --color-line-conflict: var(--line-conflict);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
@@ -86,6 +94,8 @@
     background-color: var(--background);
     color: var(--foreground);
     font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.45;
     -webkit-font-smoothing: antialiased;
   }
   :focus-visible {

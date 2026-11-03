@@ -1,5 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
 import { type FormEvent, useId, useState } from "react";
+import { Card, Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
@@ -49,9 +50,9 @@ function SpaceForm({ space, onDone }: FormProps) {
   return (
     <form onSubmit={onSubmit} className="grid gap-3">
       {general !== undefined && (
-        <p role="alert" className="rounded-lg border bg-occ-conflict p-3 text-sm">
+        <Notice tone="error" role="alert">
           {general}
-        </p>
+        </Notice>
       )}
       <div className="grid gap-2">
         <Label htmlFor={`${uid}-name`}>Nome</Label>
@@ -95,29 +96,31 @@ function SpaceForm({ space, onDone }: FormProps) {
 function SpaceItem({ space }: { space: Space }) {
   const [editing, setEditing] = useState(false);
   return (
-    <li className="rounded-lg border bg-surface p-4">
-      <div className="flex flex-wrap items-center justify-between gap-2">
-        <div className="min-w-0">
-          <p className="break-words font-medium">{space.name}</p>
-          <p className="text-sm text-muted-foreground">
-            {space.capacity === null ? "Capacidade não informada" : `${space.capacity} lugares`}
-          </p>
+    <li>
+      <Card>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <div className="min-w-0">
+            <p className="break-words font-medium">{space.name}</p>
+            <p className="text-sm text-muted-foreground">
+              {space.capacity === null ? "Capacidade não informada" : `${space.capacity} lugares`}
+            </p>
+          </div>
+          <Button
+            type="button"
+            size="sm"
+            variant="outline"
+            aria-expanded={editing}
+            onClick={() => setEditing(!editing)}
+          >
+            Editar
+          </Button>
         </div>
-        <Button
-          type="button"
-          size="sm"
-          variant="outline"
-          aria-expanded={editing}
-          onClick={() => setEditing(!editing)}
-        >
-          Editar
-        </Button>
-      </div>
-      {editing && (
-        <div className="mt-3 border-t pt-3">
-          <SpaceForm space={space} onDone={() => setEditing(false)} />
-        </div>
-      )}
+        {editing && (
+          <div className="mt-3 border-t pt-3">
+            <SpaceForm space={space} onDone={() => setEditing(false)} />
+          </div>
+        )}
+      </Card>
     </li>
   );
 }
@@ -125,20 +128,20 @@ function SpaceItem({ space }: { space: Space }) {
 export function SpacesManager({ spaces }: { spaces: Space[] }) {
   return (
     <div className="grid gap-6">
-      <section aria-labelledby="new-space-title" className="rounded-lg border bg-surface p-4">
-        <h2 id="new-space-title" className="mb-3 text-xl font-semibold">
-          Novo espaço
-        </h2>
-        <SpaceForm space={null} onDone={() => {}} />
+      <section aria-labelledby="new-space-title">
+        <Card>
+          <h2 id="new-space-title" className="mb-3 text-lg font-semibold tracking-tight">
+            Novo espaço
+          </h2>
+          <SpaceForm space={null} onDone={() => {}} />
+        </Card>
       </section>
       <section aria-labelledby="spaces-title" className="grid gap-3">
-        <h2 id="spaces-title" className="text-xl font-semibold">
+        <h2 id="spaces-title" className="text-lg font-semibold tracking-tight">
           Espaços ({spaces.length})
         </h2>
         {spaces.length === 0 ? (
-          <p className="rounded-lg border bg-surface p-6 text-center text-muted-foreground">
-            Nenhum espaço cadastrado
-          </p>
+          <Notice className="p-6 text-muted-foreground">Nenhum espaço cadastrado</Notice>
         ) : (
           <ul className="grid gap-3">
             {spaces.map((space) => (

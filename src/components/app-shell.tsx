@@ -68,6 +68,12 @@ export function AppShell({ children, wide = false }: Props) {
   const items = navItems(user);
   return (
     <div className="flex min-h-screen flex-col bg-background text-foreground">
+      <a
+        href="#conteudo"
+        className="sr-only z-50 rounded-lg bg-background px-4 py-2 text-sm font-semibold focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+      >
+        Pular para o conteúdo
+      </a>
       <header className="sticky top-0 z-20 border-b bg-background">
         <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center gap-2 px-4 py-2 sm:px-6">
           <Brand />
@@ -105,11 +111,23 @@ export function AppShell({ children, wide = false }: Props) {
               <Link to="/entrar">Entrar</Link>
             </Button>
           )}
+          {user === null && (
+            <Button asChild size="sm" className="md:hidden">
+              <Link to="/entrar">Entrar</Link>
+            </Button>
+          )}
           <ThemeToggle />
-          <MobileMenu items={items} user={user} />
+          {/* Visitante só teria "Agenda" (a marca já leva a ela): sem menu, sobra espaço ao nome. */}
+          {user !== null && <MobileMenu items={items} user={user} />}
         </div>
       </header>
-      <main className={cn("mx-auto w-full flex-1 px-4 py-8 sm:px-6", width)}>{children}</main>
+      <main
+        id="conteudo"
+        tabIndex={-1}
+        className={cn("mx-auto w-full flex-1 px-4 py-8 outline-none sm:px-6", width)}
+      >
+        {children}
+      </main>
     </div>
   );
 }
@@ -125,15 +143,26 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
     if (!open) return;
     function onKey(event: KeyboardEvent) {
       if (event.key !== "Escape") return;
+      const hadFocus = root.current?.contains(document.activeElement) ?? false;
       setOpen(false);
-      root.current?.querySelector("button")?.focus();
+      if (hadFocus) root.current?.querySelector("button")?.focus();
     }
     function onPointer(event: PointerEvent) {
       if (root.current !== null && !root.current.contains(event.target as Node)) setOpen(false);
     }
+    // Fecha quando o foco sai do menu (Tab para fora); ignora a troca de foco entre itens dele.
+    function onFocusOut(event: FocusEvent) {
+      const next = event.relatedTarget;
+      if (next instanceof Node && root.current !== null && !root.current.contains(next)) {
+        setOpen(false);
+      }
+    }
+    const container = root.current;
+    container?.addEventListener("focusout", onFocusOut);
     document.addEventListener("keydown", onKey);
     document.addEventListener("pointerdown", onPointer);
     return () => {
+      container?.removeEventListener("focusout", onFocusOut);
       document.removeEventListener("keydown", onKey);
       document.removeEventListener("pointerdown", onPointer);
     };
@@ -176,19 +205,13 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
               {item.label}
             </Link>
           ))}
-          <div className="mt-1 border-t pt-1">
-            {user !== null ? (
-              <form method="post" action="/api/sair">
-                <button type="submit" className={itemClass}>
-                  Sair
-                </button>
-              </form>
-            ) : (
-              <Link to="/entrar" className={itemClass} onClick={() => setOpen(false)}>
-                Entrar
-              </Link>
-            )}
-          </div>
+          {user !== null && (
+            <form method="post" action="/api/sair" className="mt-1 border-t pt-1">
+              <button type="submit" className={itemClass}>
+                Sair
+              </button>
+            </form>
+          )}
         </div>
       )}
     </div>

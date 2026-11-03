@@ -62,7 +62,10 @@ describe("AppShell", () => {
 
   test("visitante vê Entrar e não vê Importar nem Sair", async () => {
     await renderShell("x");
-    expect(screen.getByRole("link", { name: "Entrar" }).getAttribute("href")).toBe("/entrar");
+    // Um Entrar na barra (computador) e outro ao lado do tema (celular); só um aparece por tamanho.
+    const entrar = screen.getAllByRole("link", { name: "Entrar" });
+    expect(entrar).toHaveLength(2);
+    for (const link of entrar) expect(link.getAttribute("href")).toBe("/entrar");
     expect(screen.queryByRole("link", { name: "Importar" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Sair" })).toBeNull();
   });
@@ -179,16 +182,73 @@ describe("AppShell, estilo agenda", () => {
     expect(screen.getByRole("link", { name: "Importar" }).getAttribute("aria-current")).toBeNull();
   });
 
-  test("menu do celular abre com links e Sair, e fecha com Esc", async () => {
-    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+  const logged: SessionInfo = { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" };
+
+  test("menu do celular: aria-controls aponta para o painel com os links", async () => {
+    await renderShell("x", logged);
     const trigger = screen.getByRole("button", { name: "Menu" });
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.getElementById(trigger.getAttribute("aria-controls") ?? "")).toBeNull();
     fireEvent.click(trigger);
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
-    expect(document.getElementById(trigger.getAttribute("aria-controls") ?? "")).not.toBeNull();
-    expect(screen.getAllByRole("button", { name: "Sair" })).toHaveLength(2);
+    const panel = document.getElementById(trigger.getAttribute("aria-controls") ?? "");
+    expect(panel).not.toBeNull();
+    expect(panel?.querySelectorAll("a")).toHaveLength(3);
+    expect(panel?.querySelector("form[action='/api/sair'] button")?.textContent).toBe("Sair");
+  });
+
+  test("menu do celular fecha ao tocar fora", async () => {
+    await renderShell("x", logged);
+    const trigger = screen.getByRole("button", { name: "Menu" });
+    fireEvent.click(trigger);
+    fireEvent.pointerDown(screen.getByRole("main"));
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  test("menu do celular fecha ao escolher um link", async () => {
+    await renderShell("x", logged);
+    const trigger = screen.getByRole("button", { name: "Menu" });
+    fireEvent.click(trigger);
+    const panel = document.getElementById(trigger.getAttribute("aria-controls") ?? "");
+    const link = panel?.querySelector("a[href='/semestres']");
+    expect(link).not.toBeNull();
+    fireEvent.click(link as Element);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  test("Esc fecha o menu e devolve o foco ao botão só se o foco estava dentro", async () => {
+    await renderShell("x", logged);
+    const trigger = screen.getByRole("button", { name: "Menu" });
+    fireEvent.click(trigger);
+    const panel = document.getElementById(trigger.getAttribute("aria-controls") ?? "");
+    const first = panel?.querySelector("a");
+    expect(first).not.toBeNull();
+    (first as HTMLElement).focus();
     fireEvent.keyDown(document, { key: "Escape" });
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
-    expect(screen.getAllByRole("button", { name: "Sair" })).toHaveLength(1);
+    expect(document.activeElement).toBe(trigger);
+
+    // Foco fora do menu: Esc fecha, mas não rouba o foco.
+    fireEvent.click(trigger);
+    const outside = screen.getByRole("main");
+    outside.focus();
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(document.activeElement).toBe(outside);
+  });
+
+  test("o menu fecha quando o foco sai dele", async () => {
+    await renderShell("x", logged);
+    const trigger = screen.getByRole("button", { name: "Menu" });
+    fireEvent.click(trigger);
+    fireEvent.focusOut(trigger, { relatedTarget: screen.getByRole("main") });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  test("link para pular ao conteúdo aponta para o main", async () => {
+    await renderShell("x", logged);
+    const skip = screen.getByRole("link", { name: "Pular para o conteúdo" });
+    expect(skip.getAttribute("href")).toBe("#conteudo");
+    expect(screen.getByRole("main").id).toBe("conteudo");
   });
 });

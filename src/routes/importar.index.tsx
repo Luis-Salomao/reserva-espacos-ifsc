@@ -34,7 +34,7 @@ function RoomGrid({ view }: { view: PreviewView }) {
           id="room-select"
           value={room.id}
           onChange={(event) => setRoomId(event.target.value)}
-          className="h-9 w-full min-w-0 truncate rounded-md border bg-background px-3 text-sm"
+          className="h-10 w-full min-w-0 truncate rounded-lg border bg-background px-3 text-sm"
         >
           {view.rooms.map((candidate) => (
             <option key={candidate.id} value={candidate.id}>

@@ -1,4 +1,5 @@
 import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-mappings";
+import type { TagTone } from "#/components/ds";
 import type {
   ImportBatch,
   ImportChangeKind,
@@ -151,20 +152,20 @@ export const VERSION_STATUS_ORDER: readonly ImportRowStatus[] = [
 ];
 
 /** Classe de fundo por situação; o texto do rótulo sempre acompanha a cor. */
-export const STATUS_TONE: Record<ImportRowStatus, string> = {
-  pendente: "bg-surface-2",
-  aplicada: "bg-occ-imported",
-  nao_aplicavel: "bg-surface-2",
-  conflito: "bg-occ-conflict",
-  conflito_interno: "bg-occ-conflict",
-  falha: "bg-occ-conflict",
-  inalterada: "bg-surface-2",
-  mantida_cancelada: "bg-surface-2",
-  cancelar: "bg-surface-2",
-  cancelada_versao: "bg-occ-imported",
-  responsavel: "bg-surface-2",
-  responsavel_atualizado: "bg-occ-imported",
-  alteracao_bloqueada: "bg-occ-conflict",
+export const STATUS_TONE: Record<ImportRowStatus, TagTone> = {
+  pendente: "neutral",
+  aplicada: "imported",
+  nao_aplicavel: "neutral",
+  conflito: "conflict",
+  conflito_interno: "conflict",
+  falha: "conflict",
+  inalterada: "neutral",
+  mantida_cancelada: "neutral",
+  cancelar: "neutral",
+  cancelada_versao: "imported",
+  responsavel: "neutral",
+  responsavel_atualizado: "imported",
+  alteracao_bloqueada: "conflict",
 };
 
 export const CHANGE_KIND_LABELS: Record<ImportChangeKind, string> = {
@@ -346,7 +347,7 @@ export function discardState(batch: {
 /** Números finais de uma nova versão aplicada (o texto acompanha toda cor). */
 export function resultCards(
   counts: ImportRowCounts,
-): Array<{ label: string; count: number; tone: string }> {
+): Array<{ label: string; count: number; tone: TagTone }> {
   return [
     {
       label: "Ocupações canceladas",

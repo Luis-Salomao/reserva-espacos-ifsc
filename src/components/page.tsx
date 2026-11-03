@@ -1,4 +1,5 @@
 import type { ComponentProps, ReactNode } from "react";
+import { type TagTone, TONE_SURFACE } from "#/components/ds";
 import { cn } from "#/lib/utils";
 
 type HeaderProps = {
@@ -17,7 +18,7 @@ export function PageHeader({ title, description, actions, back }: HeaderProps) {
       {back !== undefined && <div className="text-sm">{back}</div>}
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="grid min-w-0 gap-1">
-          <h1 className="text-2xl font-bold tracking-tight">{title}</h1>
+          <h1 className="text-[22px] leading-tight font-bold tracking-[-0.02em]">{title}</h1>
           {description !== undefined && (
             <p className="max-w-prose text-muted-foreground">{description}</p>
           )}
@@ -55,27 +56,54 @@ export function PageSection({ title, description, children, className }: Section
 }
 
 /** Cartão padrão: superfície suave, borda fina e cantos arredondados. */
-export function Card({ className, ...props }: ComponentProps<"div">) {
+export function Card({
+  className,
+  tone,
+  compact = false,
+  ...props
+}: ComponentProps<"div"> & { tone?: TagTone; compact?: boolean }) {
   return (
     <div
       data-slot="card"
-      className={cn("rounded-xl border bg-surface p-4 shadow-xs sm:p-5", className)}
+      className={cn(
+        "rounded-2xl border bg-surface shadow-xs",
+        compact ? "p-3" : "p-4 sm:p-5",
+        tone !== undefined && TONE_SURFACE[tone],
+        className,
+      )}
       {...props}
     />
   );
 }
 
-type NoticeProps = ComponentProps<"p"> & { tone?: "error" | "neutral" };
+/** Mensagem em bloco com conteúdo composto (div): mesmo visual de `Notice`. */
+export function Callout({
+  tone = "neutral",
+  className,
+  ...props
+}: ComponentProps<"div"> & { tone?: "error" | "ok" | "info" | "neutral" }) {
+  return (
+    <div
+      className={cn("rounded-xl border p-3 text-sm sm:p-4", NOTICE_TONE[tone], className)}
+      {...props}
+    />
+  );
+}
 
-/** Aviso em bloco (erro de carregamento, estado vazio). Sempre com texto, nunca só cor. */
+type NoticeProps = ComponentProps<"p"> & { tone?: "error" | "ok" | "info" | "neutral" };
+
+const NOTICE_TONE = {
+  error: "border-line-conflict bg-occ-conflict font-medium",
+  ok: "border-line-free bg-occ-free",
+  info: "border-line-imported bg-occ-imported",
+  neutral: "bg-surface text-center",
+} as const;
+
+/** Mensagem em bloco (erro, sucesso, estado vazio), como .err/.okmsg do protótipo. Sempre com texto. */
 export function Notice({ tone = "neutral", className, ...props }: NoticeProps) {
   return (
     <p
-      className={cn(
-        "rounded-xl border p-4 text-sm",
-        tone === "error" ? "border-destructive/40 bg-occ-conflict" : "bg-surface text-center",
-        className,
-      )}
+      className={cn("rounded-xl border p-3 text-sm sm:p-4", NOTICE_TONE[tone], className)}
       {...props}
     />
   );

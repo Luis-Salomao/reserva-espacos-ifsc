@@ -1,4 +1,5 @@
 import type { RowView } from "#/application/import-report";
+import { Tag } from "#/components/ds";
 import type { ImportRowStatus } from "#/domain/import-batch";
 import { describeReason } from "#/domain/import-reasons";
 import { formatDate, formatDateTime, STATUS_LABELS, STATUS_TONE } from "./flow-helpers";
@@ -12,13 +13,7 @@ export function dayLabel(row: RowView): string {
 }
 
 export function StatusPill({ status }: { status: ImportRowStatus }) {
-  return (
-    <span
-      className={`inline-block rounded-full border px-2 py-0.5 text-xs font-medium ${STATUS_TONE[status]}`}
-    >
-      {STATUS_LABELS[status]}
-    </span>
-  );
+  return <Tag tone={STATUS_TONE[status]}>{STATUS_LABELS[status]}</Tag>;
 }
 
 export function Reason({ row }: { row: RowView }) {

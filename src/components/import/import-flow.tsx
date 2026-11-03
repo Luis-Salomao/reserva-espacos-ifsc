@@ -4,6 +4,7 @@ import type { PrepareOutput, StepOutput } from "#/application/import-apply";
 import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-mappings";
 import type { BatchView } from "#/application/import-report";
 import { runAdminAction } from "#/components/admin/use-admin-action";
+import { Callout, Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Label } from "#/components/ui/label";
 import { type ImportBatch, pendingTotal } from "#/domain/import-batch";
@@ -55,8 +56,8 @@ async function postPrepare(
 function Step({ number, title, children }: { number: number; title: string; children: ReactNode }) {
   return (
     <section className="mt-8 grid gap-3" aria-labelledby={`passo-${number}`}>
-      <h2 id={`passo-${number}`} className="text-xl font-semibold">
-        <span className="mr-2 inline-flex size-7 items-center justify-center rounded-full bg-primary text-sm text-primary-foreground">
+      <h2 id={`passo-${number}`} className="text-lg font-semibold tracking-tight">
+        <span className="mr-2 inline-flex size-7 items-center justify-center rounded-full bg-primary text-sm font-bold text-primary-foreground">
           {number}
         </span>
         {title}
@@ -100,7 +101,7 @@ function ErrorBox({
   onRetry: () => void;
 }) {
   return (
-    <div role="alert" className="grid gap-2 rounded-lg border bg-occ-conflict p-4">
+    <Callout tone="error" role="alert" className="grid gap-2">
       <p>{message}</p>
       {conflict && (
         <p className="text-sm">
@@ -110,7 +111,7 @@ function ErrorBox({
       <Button variant="outline" className="justify-self-start" onClick={onRetry}>
         Tentar de novo
       </Button>
-    </div>
+    </Callout>
   );
 }
 
@@ -293,12 +294,12 @@ export function ImportFlow({ view, file, timeZone }: Props) {
 
   if (loadError !== null) {
     return (
-      <div role="alert" className="mt-8 grid gap-2 rounded-lg border bg-occ-conflict p-4">
+      <Callout tone="error" role="alert" className="mt-8 grid gap-2">
         <p>{loadError}</p>
         <Button variant="outline" className="justify-self-start" onClick={() => void loadTargets()}>
           Tentar de novo
         </Button>
-      </div>
+      </Callout>
     );
   }
   if (targets === null || suggestions === null) {
@@ -334,7 +335,7 @@ export function ImportFlow({ view, file, timeZone }: Props) {
                 setSemesterId(event.target.value);
                 invalidate();
               }}
-              className="h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring outline-none"
+              className="h-10 w-full min-w-0 rounded-lg border bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring outline-none"
             >
               {targets.semesters.map((item) => (
                 <option key={item.id} value={item.id}>
@@ -345,7 +346,7 @@ export function ImportFlow({ view, file, timeZone }: Props) {
           </div>
         )}
         {semester !== undefined && missing !== null && missing.positions.length > 0 && (
-          <div role="alert" className="grid gap-1 rounded-lg border bg-occ-conflict p-4">
+          <Callout tone="error" role="alert" className="grid gap-1">
             <p>
               O arquivo usa {missing.positions.length === 1 ? "a duração" : "as durações"}{" "}
               {missing.positions.join(", ")}, sem datas neste semestre. {missing.slots}{" "}
@@ -359,7 +360,7 @@ export function ImportFlow({ view, file, timeZone }: Props) {
             >
               Configurar as datas do semestre
             </Link>
-          </div>
+          </Callout>
         )}
       </Step>
 
@@ -440,16 +441,16 @@ export function ImportFlow({ view, file, timeZone }: Props) {
               {BATCH_STATUS_LABELS[batch.status]}
             </p>
             {reused && batch.status === "aplicado" && supersededAt !== null && (
-              <p role="status" className="rounded-lg border bg-occ-imported p-4">
+              <Notice tone="info" role="status">
                 Este arquivo corresponde a uma versão anterior da grade, substituída em{" "}
                 {formatInstant(supersededAt, timeZone).slice(0, 10)}. Voltar a uma versão anterior
                 ainda não é suportado; para reaplicá-la, gere uma nova exportação.
-              </p>
+              </Notice>
             )}
             {reused && batch.status === "aplicado" && supersededAt === null && (
-              <p role="status" className="rounded-lg border bg-occ-imported p-4">
+              <Notice tone="info" role="status">
                 Este arquivo já foi importado neste semestre. Nada foi duplicado.
-              </p>
+              </Notice>
             )}
             {version !== undefined && (
               <VersionOverview
@@ -520,7 +521,7 @@ export function ImportFlow({ view, file, timeZone }: Props) {
 
       {batch !== null && (
         <section className="mt-8 grid gap-3" aria-labelledby="resultado">
-          <h2 id="resultado" className="text-xl font-semibold">
+          <h2 id="resultado" className="text-lg font-semibold tracking-tight">
             Resultado por linha
           </h2>
           <BatchRows

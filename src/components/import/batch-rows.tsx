@@ -1,11 +1,14 @@
 import { useCallback, useEffect, useId, useMemo, useRef, useState } from "react";
 import type { BatchView, RowsPage } from "#/application/import-report";
 import type { ReasonCount } from "#/application/ports";
+import { DataTable, TABLE } from "#/components/ds";
+import { Callout } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import type { ImportChangeKind, ImportRowStatus } from "#/domain/import-batch";
 import { describeReason } from "#/domain/import-reasons";
+import { cn } from "#/lib/utils";
 import type { AdminResponse } from "#/server/admin-actions";
 import { AlterationList } from "./alteration-list";
 import {
@@ -38,7 +41,7 @@ const GROUPED_PAGE_SIZE = 25;
 const SEARCH_DELAY_MS = 300;
 const LOAD_ERROR = "Não foi possível carregar as linhas do lote. Tente novamente.";
 const SELECT_CLASS =
-  "h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring outline-none";
+  "h-10 w-full min-w-0 rounded-lg border bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring outline-none";
 
 function Cell({ label, children }: { label: string; children: React.ReactNode }) {
   return (
@@ -215,12 +218,12 @@ export function BatchRows({ batchId, load, refreshKey = 0, view = "", onBatchLoa
       </div>
 
       {error !== null && (
-        <div role="alert" className="grid gap-2 rounded-lg border bg-occ-conflict p-4">
+        <Callout tone="error" role="alert" className="grid gap-2">
           <p>{error}</p>
           <Button variant="outline" className="justify-self-start" onClick={() => void fetchPage()}>
             Tentar de novo
           </Button>
-        </div>
+        </Callout>
       )}
 
       <p className="text-sm text-muted-foreground" aria-live="polite">
@@ -241,63 +244,68 @@ export function BatchRows({ batchId, load, refreshKey = 0, view = "", onBatchLoa
 
       {page !== null && page.rows.length > 0 && !grouped && (
         <div className={loading ? "opacity-60" : undefined}>
-          <table className="block w-full text-sm md:table">
-            <caption className="sr-only">Linhas do lote de importação</caption>
-            <thead className="sr-only md:not-sr-only md:table-header-group">
-              <tr className="text-left md:border-b">
-                <th scope="col" className="px-3 py-2">
-                  Dia/data
-                </th>
-                <th scope="col" className="px-3 py-2">
-                  Horário
-                </th>
-                <th scope="col" className="px-3 py-2">
-                  Sala
-                </th>
-                <th scope="col" className="px-3 py-2">
-                  Aula
-                </th>
-                <th scope="col" className="px-3 py-2">
-                  Responsável
-                </th>
-                <th scope="col" className="px-3 py-2">
-                  Estado
-                </th>
-                <th scope="col" className="px-3 py-2">
-                  Motivo / detalhe
-                </th>
-              </tr>
-            </thead>
-            <tbody className="block md:table-row-group">
-              {page.rows.map((row) => (
-                <tr
-                  key={row.rowKey}
-                  className="mb-2 block rounded-lg border bg-surface py-2 md:mb-0 md:table-row md:rounded-none md:border-0 md:border-b md:bg-transparent md:py-0"
-                >
-                  <Cell label="Dia/data">{dayLabel(row)}</Cell>
-                  <Cell label="Horário">
-                    {row.startTime}–{row.endTime}
-                  </Cell>
-                  <Cell label="Sala">{row.spaceName ?? "—"}</Cell>
-                  <Cell label="Aula">
-                    <span className="break-words">{row.title}</span>
-                  </Cell>
-                  <Cell label="Responsável">{row.responsibleName ?? "—"}</Cell>
-                  <Cell label="Estado">
-                    <StatusPill status={row.status} />
-                    {row.changeKind !== null && (
-                      <span className="mt-1 block text-xs text-muted-foreground">
-                        {CHANGE_KIND_LABELS[row.changeKind]}
-                      </span>
-                    )}
-                  </Cell>
-                  <Cell label="Motivo">
-                    <Reason row={row} />
-                  </Cell>
+          <DataTable
+            label="Linhas do lote de importação"
+            className="max-md:overflow-visible max-md:rounded-none max-md:border-0 max-md:bg-transparent"
+          >
+            <table className={cn(TABLE.table, "block md:table")}>
+              <caption className="sr-only">Linhas do lote de importação</caption>
+              <thead className="sr-only md:not-sr-only md:table-header-group">
+                <tr className={cn("text-left", TABLE.head)}>
+                  <th scope="col" className={cn(TABLE.th, TABLE.head, "border-b-0")}>
+                    Dia/data
+                  </th>
+                  <th scope="col" className={cn(TABLE.th, TABLE.head, "border-b-0")}>
+                    Horário
+                  </th>
+                  <th scope="col" className={cn(TABLE.th, TABLE.head, "border-b-0")}>
+                    Sala
+                  </th>
+                  <th scope="col" className={cn(TABLE.th, TABLE.head, "border-b-0")}>
+                    Aula
+                  </th>
+                  <th scope="col" className={cn(TABLE.th, TABLE.head, "border-b-0")}>
+                    Responsável
+                  </th>
+                  <th scope="col" className={cn(TABLE.th, TABLE.head, "border-b-0")}>
+                    Estado
+                  </th>
+                  <th scope="col" className={cn(TABLE.th, TABLE.head, "border-b-0")}>
+                    Motivo / detalhe
+                  </th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="block md:table-row-group">
+                {page.rows.map((row) => (
+                  <tr
+                    key={row.rowKey}
+                    className="mb-2 block rounded-2xl border bg-surface py-2 md:mb-0 md:table-row md:rounded-none md:border-0 md:border-b md:bg-transparent md:py-0 md:last:border-b-0"
+                  >
+                    <Cell label="Dia/data">{dayLabel(row)}</Cell>
+                    <Cell label="Horário">
+                      {row.startTime}–{row.endTime}
+                    </Cell>
+                    <Cell label="Sala">{row.spaceName ?? "—"}</Cell>
+                    <Cell label="Aula">
+                      <span className="break-words">{row.title}</span>
+                    </Cell>
+                    <Cell label="Responsável">{row.responsibleName ?? "—"}</Cell>
+                    <Cell label="Estado">
+                      <StatusPill status={row.status} />
+                      {row.changeKind !== null && (
+                        <span className="mt-1 block text-xs text-muted-foreground">
+                          {CHANGE_KIND_LABELS[row.changeKind]}
+                        </span>
+                      )}
+                    </Cell>
+                    <Cell label="Motivo">
+                      <Reason row={row} />
+                    </Cell>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </DataTable>
         </div>
       )}
 

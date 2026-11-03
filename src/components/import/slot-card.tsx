@@ -4,7 +4,7 @@ import { SLOT_STATUS_LABEL } from "./weekdays";
 /** Bloco de um horário importado: cor de ocupação importada e sempre com texto. */
 export function SlotCard({ slot, showRooms = false }: { slot: SlotView; showRooms?: boolean }) {
   return (
-    <div className="min-w-0 break-words rounded-md border bg-occ-imported px-2 py-1.5 text-sm text-foreground">
+    <div className="min-w-0 break-words rounded-[10px] border-l-4 border-line-imported bg-occ-imported px-2.5 py-1.5 text-sm text-foreground">
       <p className="font-medium">{slot.subject}</p>
       <p>
         {slot.start}–{slot.end}
