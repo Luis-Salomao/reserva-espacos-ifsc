@@ -65,6 +65,8 @@ export type VersionSummary = {
   responsaveis: number;
   inalteradas: number;
   mantidasCanceladas: number;
+  /** Quantas das inclusões caíram em conflito (ausente em resumos antigos = nenhuma). */
+  inclusoesEmConflito?: number;
   /**
    * Responsáveis a avisar (regra 4, comunicação futura): de ocupações canceladas, de trocas de
    * responsável e de toda ocorrência nova do arquivo (inclusão, alteração), inclusive as que viraram

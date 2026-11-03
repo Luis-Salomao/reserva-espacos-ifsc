@@ -35,6 +35,8 @@ export type BatchView = {
   supersedesAppliedAt: string | null;
   /** Nomes das contas locais afetadas pela nova versão (nunca nomes de docentes do XML). */
   affectedNames: string[];
+  /** Rascunho preparado sobre uma versão que já não é a última aplicada (precisa ser reenviado). */
+  outdated: boolean;
 };
 
 export type RowView = {
@@ -94,6 +96,7 @@ export function createImportReportService(deps: {
     names: Map<string, string>,
     supersedesAppliedAt: string | null,
     accountNames: Map<string, string>,
+    outdated: boolean,
   ): BatchView {
     return {
       id: batch.id,
@@ -106,11 +109,21 @@ export function createImportReportService(deps: {
       summary: batch.summary,
       supersedesBatchId: batch.supersedesBatchId,
       supersedesAppliedAt,
+      outdated,
       affectedNames: (batch.summary.version?.affectedUserIds ?? [])
         .map((id) => accountNames.get(id))
         .filter((name): name is string => name !== undefined)
         .sort((a, b) => a.localeCompare(b, "pt-BR")),
     };
+  }
+
+  /** Só rascunho/preparo: a base (`supersedesBatchId`) já não é o último lote aplicado do semestre. */
+  async function isOutdated(
+    batch: ImportBatch,
+    latestOf: (semesterId: string) => Promise<string | null>,
+  ): Promise<boolean> {
+    if (batch.status !== "rascunho" && batch.status !== "preparando") return false;
+    return (await latestOf(batch.semesterId)) !== batch.supersedesBatchId;
   }
 
   async function supersededAt(batch: ImportBatch): Promise<string | null> {
@@ -176,7 +189,13 @@ export function createImportReportService(deps: {
       const spaceNames = new Map(allSpaces.map((space) => [space.id, space.name]));
       const userNames = new Map(accounts.map((user) => [user.id, user.name]));
       return ok({
-        batch: toView(batch, names, await supersededAt(batch), userNames),
+        batch: toView(
+          batch,
+          names,
+          await supersededAt(batch),
+          userNames,
+          await isOutdated(batch, (id) => imports.latestAppliedBatchId(id)),
+        ),
         total,
         limit,
         offset,
@@ -234,6 +253,16 @@ export function createImportReportService(deps: {
         ),
       ];
       for (const batch of await imports.findBatches(missing)) known.set(batch.id, batch);
+      // Uma consulta por semestre que tem rascunho (poucos), não por lote.
+      const latest = new Map<string, string | null>();
+      for (const batch of list) {
+        if (
+          (batch.status === "rascunho" || batch.status === "preparando") &&
+          !latest.has(batch.semesterId)
+        ) {
+          latest.set(batch.semesterId, await imports.latestAppliedBatchId(batch.semesterId));
+        }
+      }
       return list.map((batch) => {
         const previous =
           batch.supersedesBatchId === null ? undefined : known.get(batch.supersedesBatchId);
@@ -242,6 +271,8 @@ export function createImportReportService(deps: {
           names,
           previous === undefined ? null : (previous.appliedAt ?? previous.createdAt),
           userNames,
+          (batch.status === "rascunho" || batch.status === "preparando") &&
+            latest.get(batch.semesterId) !== batch.supersedesBatchId,
         );
       });
     },

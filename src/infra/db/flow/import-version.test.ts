@@ -5,6 +5,7 @@ import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import { createImportService } from "#/application/import-apply";
 import type { ImportRepository } from "#/application/ports";
+import { CANCEL_REASONS } from "#/domain/cancel-reasons";
 import { EMPTY_COUNTS, type ImportRow } from "#/domain/import-batch";
 import type { Semester } from "#/domain/semester";
 import type { AscTimetable, Lesson } from "#/domain/timetable";
@@ -257,6 +258,7 @@ describe("nova versão: classificação e aplicação", () => {
       responsaveis: 0,
       inalteradas: 3,
       mantidasCanceladas: 0,
+      inclusoesEmConflito: 0,
       affectedUserIds: [],
     });
     const applied = await applyAll(env, prepared.batch.id);
@@ -306,7 +308,7 @@ describe("nova versão: classificação e aplicação", () => {
     expect(applied.batch.status).toBe("aplicado");
     const old = await occupationsOf(env, first.id);
     expect(old.map((o) => [o.spaceId, o.status, o.cancelReason])).toEqual(
-      Array(3).fill([env.spaces.R1, "cancelada", "nova_versao"]),
+      Array(3).fill([env.spaces.R1, "cancelada", CANCEL_REASONS.novaVersao]),
     );
     expect(old.every((o) => o.cancelledAt?.startsWith("2026-08-01T12:00"))).toBe(true);
     const fresh = await occupationsOf(env, prepared.batch.id);
@@ -362,9 +364,9 @@ describe("nova versão: classificação e aplicação", () => {
     const all = await occupationsOf(env);
     const l2 = all.filter((o) => o.lessonId === "B2");
     expect(l2).toHaveLength(3);
-    expect(l2.every((o) => o.status === "cancelada" && o.cancelReason === "nova_versao")).toBe(
-      true,
-    );
+    expect(
+      l2.every((o) => o.status === "cancelada" && o.cancelReason === CANCEL_REASONS.novaVersao),
+    ).toBe(true);
     expect(all.filter((o) => o.lessonId === "B3" && o.status === "ativa")).toHaveLength(3);
     const kept = all.filter((o) => o.lessonId === "L1");
     expect(kept.every((o) => o.status === "ativa" && o.batchId === first.id)).toBe(true);
@@ -551,6 +553,10 @@ describe("nova versão: classificação e aplicação", () => {
     expect(rows.find((r) => r.status === "conflito")).toMatchObject({
       date: "2026-08-10",
       conflictOccupationId: kept.id,
+    });
+    expect(prepared.batch.summary.version).toMatchObject({
+      inclusoes: 3,
+      inclusoesEmConflito: 3,
     });
     await applyAll(env, prepared.batch.id);
     expect(await occupationsOf(env, prepared.batch.id)).toHaveLength(0);
@@ -769,9 +775,9 @@ describe("nova versão: aula aplicada cuja nova ocorrência não é aplicável",
     expect(done).toHaveLength(3);
     expect(done.every((r) => r.reasonCode === "room_ignored")).toBe(true);
     const old = (await occupationsOf(env)).filter((o) => o.source === "import");
-    expect(old.every((o) => o.status === "cancelada" && o.cancelReason === "nova_versao")).toBe(
-      true,
-    );
+    expect(
+      old.every((o) => o.status === "cancelada" && o.cancelReason === CANCEL_REASONS.novaVersao),
+    ).toBe(true);
   });
 
   test("seguradas contam como permanecendo: outra aula não entra no lugar delas", async () => {

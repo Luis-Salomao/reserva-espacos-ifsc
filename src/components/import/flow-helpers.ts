@@ -222,19 +222,33 @@ export function formatInstant(iso: string, timeZone: string): string {
 /** Visão da nova versão: um tipo de mudança, ou as alterações seguradas por conflito. */
 export type VersionView = ImportChangeKind | "bloqueada";
 
-export type VersionCard = { view: VersionView; label: string; count: number };
+export type VersionCard = {
+  view: VersionView;
+  label: string;
+  count: number;
+  /** Texto do número no cartão (Inclusões acrescenta "(M em conflito)"). */
+  display: string;
+};
 
 /** Cartões da conferência de uma nova versão, na ordem em que a tela os mostra. */
 export function versionCards(version: VersionSummary): VersionCard[] {
-  return [
-    { view: "inclusao", label: "Inclusões", count: version.inclusoes },
-    { view: "alteracao", label: "Alterações", count: version.alteracoes },
-    { view: "bloqueada", label: "Bloqueadas", count: version.bloqueadas },
-    { view: "remocao", label: "Remoções", count: version.remocoes },
-    { view: "inalterada", label: "Inalteradas", count: version.inalteradas },
-    { view: "mantida_cancelada", label: "Canceladas mantidas", count: version.mantidasCanceladas },
-    { view: "responsavel", label: "Troca de responsável", count: version.responsaveis },
+  const conflicts = version.inclusoesEmConflito ?? 0;
+  const cards: Array<[VersionView, string, number]> = [
+    ["inclusao", "Inclusões", version.inclusoes],
+    ["alteracao", "Alterações", version.alteracoes],
+    ["bloqueada", "Bloqueadas", version.bloqueadas],
+    ["remocao", "Remoções", version.remocoes],
+    ["inalterada", "Inalteradas", version.inalteradas],
+    ["mantida_cancelada", "Canceladas mantidas", version.mantidasCanceladas],
+    ["responsavel", "Troca de responsável", version.responsaveis],
   ];
+  return cards.map(([view, label, count]) => ({
+    view,
+    label,
+    count,
+    display:
+      view === "inclusao" && conflicts > 0 ? `${count} (${conflicts} em conflito)` : `${count}`,
+  }));
 }
 
 /** Filtro do servidor para uma visão ("" = todas as linhas). */

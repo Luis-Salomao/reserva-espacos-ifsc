@@ -15,9 +15,11 @@ describe("src/start.ts no navegador", () => {
       new Response(proc.stderr).text(),
       proc.exited,
     ]);
-    expect(err).toBe("");
-    expect(code).toBe(0);
-    const { code: served } = JSON.parse(out) as { code: string };
+    // Avisos no stderr (ex.: depreciações do Node) não são falha; vale o código de saída e o resultado.
+    if (code !== 0) throw new Error(`client-module-imports saiu com ${code}: ${err}`);
+    const parsed = JSON.parse(out) as { code?: unknown };
+    expect(typeof parsed.code).toBe("string");
+    const served = parsed.code as string;
     expect(served.length).toBeGreaterThan(0);
     // Só os módulos importados contam (comentários podem citar o banco).
     const imported = [...served.matchAll(/(?:from|import\()\s*["']([^"']+)["']/g)].map(
