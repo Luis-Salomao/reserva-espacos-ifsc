@@ -37,7 +37,6 @@ const CANCELLED_NO_MATCH =
 const HELD_PREFIX = "Nova versão não aplicável: ";
 
 const dateOf = (startsAt: string) => startsAt.slice(0, 10);
-const lessonDay = (title: string, date: string) => `${title}\u0000${date}`;
 
 type NotApplicableItem = ReturnType<typeof planImport>["notApplicable"][number];
 
@@ -188,15 +187,14 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
   // Aulas vigentes cujo horário novo não é aplicável: seguradas (nada é cancelado nem inserido).
   // O card não aplicável e a cobertura são casados por (título, dia da semana, horário do período):
   // o horário vem do período do card com o bloco do semestre por cima, como na expansão.
-  const nextSlots = new Map<string, Array<{ startsAt: string; endsAt: string }>>();
-  for (const o of next) {
-    const key = lessonDay(o.lessonKey, o.date);
-    const list = nextSlots.get(key);
-    if (list === undefined) nextSlots.set(key, [o]);
-    else list.push(o);
-  }
-  const covered = (o: VersionOccurrence) =>
-    (nextSlots.get(lessonDay(o.lessonKey, o.date)) ?? []).some((n) => intervalsOverlap(n, o));
+  // Cobertura = contraparte exata no arquivo novo (mesmo título, data, espaço e horários: o que
+  // `diffVersions` pareia como inalterada). Uma irmã de mesmo título em outra sala ou horário NÃO
+  // cobre. Trade-off aceito: se uma irmã mudou de sala no mesmo horário enquanto outro card do
+  // título ficou não aplicável, a ocupação antiga é segurada e a nova inserida (erra por manter dados).
+  const exactKey = (o: VersionOccurrence) =>
+    JSON.stringify([o.lessonKey, o.date, o.spaceId, o.startsAt, o.endsAt]);
+  const nextExact = new Set(next.map(exactKey));
+  const covered = (o: VersionOccurrence) => nextExact.has(exactKey(o));
   const scopes = (kind: "unusable" | "ignored") =>
     plan.notApplicable
       .filter((item) => item.reason !== "duplicate_occurrence") // a outra via do mesmo card vale
