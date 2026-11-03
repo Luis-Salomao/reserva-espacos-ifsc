@@ -882,6 +882,47 @@ describe("nova versão: escopo da retenção por horário e duração", () => {
     expect(summary?.affectedUserIds).toContain("user-t2");
   });
 
+  test("PA: card de dois segmentos; irmã de mesmo título sobrepondo o segundo não o descobre", async () => {
+    const env = await setup();
+    const two: Partial<WeeklySlot> = {
+      periodFrom: 11,
+      periodTo: 12,
+      segments: [
+        { period: 11, start: "18:00", end: "18:50" },
+        { period: 12, start: "19:00", end: "19:50" },
+      ],
+    };
+    const sibling: Partial<WeeklySlot> = {
+      periodFrom: 12,
+      periodTo: 12,
+      segments: [{ period: 12, start: "19:00", end: "22:00" }],
+    };
+    await publish(env, version("h1", [at("L1", "R1", 18, two), at("L2", "R2", 19, sibling)]));
+    const prepared = await prepareAll(
+      env,
+      version("h2", [at("L1", "R1", 18, { ...two, ...multi }), at("L2", "R2", 19, sibling)]),
+    );
+    const rows = await rowsOf(env, prepared.batch.id);
+    expect(heldRows(rows)).toHaveLength(6);
+    expect(rows.some((r) => r.status === "cancelar")).toBe(false);
+    expect(prepared.batch.summary.version?.remocoes).toBe(0);
+    expect(prepared.batch.summary.version?.bloqueadas).toBe(6);
+  });
+
+  test("PB: duas aulas de mesmo título no mesmo horário em salas diferentes; a não aplicável é segurada", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1"), at("L2", "R2")]));
+    const prepared = await prepareAll(
+      env,
+      version("h2", [at("L1", "R1", 8, multi), at("L2", "R2")]),
+    );
+    const rows = await rowsOf(env, prepared.batch.id);
+    expect(heldRows(rows)).toHaveLength(3);
+    expect(heldRows(rows).every((r) => r.spaceId === env.spaces.R1)).toBe(true);
+    expect(rows.some((r) => r.status === "cancelar")).toBe(false);
+    expect(prepared.batch.summary.version?.bloqueadas).toBe(3);
+  });
+
   test("máscara de duração: o card só da duração 1 segura apenas as datas dessa duração", async () => {
     const env = await setup(undefined, {
       ...semesterData,
