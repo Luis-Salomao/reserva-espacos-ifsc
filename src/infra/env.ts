@@ -13,7 +13,12 @@ export type AppEnv = {
   PUBLIC_ORIGIN?: string;
   /** Com PUBLIC_ORIGIN definida, é derivada dela: "true" se https, "false" se http. */
   COOKIE_SECURE: "auto" | "true" | "false";
+  /** Expediente da agenda ("HH:MM"): janela em que se pode reservar. Padrão 06:00 a 23:00. */
+  AGENDA_OPENS_AT: string;
+  AGENDA_CLOSES_AT: string;
 };
+
+const HOUR_MINUTE = /^([01]\d|2[0-3]):[0-5]\d$/;
 
 /** Origem canônica (esquema + host, sem caminho/consulta); `null` se o valor não for assim. */
 function parsePublicOrigin(value: string): string | null {
@@ -58,6 +63,8 @@ export function getEnv(source: EnvSource): AppEnv {
         .refine((value) => parsePublicOrigin(value) !== null, "origem inválida")
         .optional(),
       COOKIE_SECURE: z.enum(["auto", "true", "false"]).default("auto"),
+      AGENDA_OPENS_AT: z.string().regex(HOUR_MINUTE, "use HH:MM").default("06:00"),
+      AGENDA_CLOSES_AT: z.string().regex(HOUR_MINUTE, "use HH:MM").default("23:00"),
     },
     runtimeEnv: source,
     isServer: true,
@@ -71,6 +78,12 @@ export function getEnv(source: EnvSource): AppEnv {
   if (parsed.DEPLOY_TARGET === "local" && parsed.DATABASE_PATH === undefined) {
     throw new Error(
       "Variáveis de ambiente inválidas: DATABASE_PATH (obrigatória quando DEPLOY_TARGET=local)",
+    );
+  }
+
+  if (parsed.AGENDA_OPENS_AT >= parsed.AGENDA_CLOSES_AT) {
+    throw new Error(
+      "Variáveis de ambiente inválidas: AGENDA_OPENS_AT, AGENDA_CLOSES_AT (a abertura deve ser antes do fechamento)",
     );
   }
 
@@ -93,6 +106,8 @@ export function getEnv(source: EnvSource): AppEnv {
     PASSWORD_HASH: parsed.PASSWORD_HASH,
     PASSWORD_SCRYPT_N: parsed.PASSWORD_SCRYPT_N,
     COOKIE_SECURE: cookieSecure,
+    AGENDA_OPENS_AT: parsed.AGENDA_OPENS_AT,
+    AGENDA_CLOSES_AT: parsed.AGENDA_CLOSES_AT,
     ...(publicOrigin === undefined ? {} : { PUBLIC_ORIGIN: publicOrigin }),
     ...(parsed.PASSWORD_PEPPER === undefined ? {} : { PASSWORD_PEPPER: parsed.PASSWORD_PEPPER }),
     ...(parsed.DATABASE_PATH === undefined ? {} : { DATABASE_PATH: parsed.DATABASE_PATH }),

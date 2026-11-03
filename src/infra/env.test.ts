@@ -99,3 +99,30 @@ describe("getEnv: senha", () => {
     });
   });
 });
+
+describe("getEnv: expediente da agenda", () => {
+  const base = { DEPLOY_TARGET: "cloudflare" };
+
+  test("padrão 06:00 a 23:00", () => {
+    const env = getEnv(base);
+    expect(env.AGENDA_OPENS_AT).toBe("06:00");
+    expect(env.AGENDA_CLOSES_AT).toBe("23:00");
+  });
+
+  test("aceita valores válidos", () => {
+    const env = getEnv({ ...base, AGENDA_OPENS_AT: "07:30", AGENDA_CLOSES_AT: "22:15" });
+    expect(env.AGENDA_OPENS_AT).toBe("07:30");
+    expect(env.AGENDA_CLOSES_AT).toBe("22:15");
+  });
+
+  test("recusa formato inválido e abertura que não é antes do fechamento", () => {
+    expect(() => getEnv({ ...base, AGENDA_OPENS_AT: "7h" })).toThrow("AGENDA_OPENS_AT");
+    expect(() => getEnv({ ...base, AGENDA_CLOSES_AT: "25:00" })).toThrow("AGENDA_CLOSES_AT");
+    expect(() => getEnv({ ...base, AGENDA_OPENS_AT: "23:00", AGENDA_CLOSES_AT: "06:00" })).toThrow(
+      "AGENDA_OPENS_AT",
+    );
+    expect(() => getEnv({ ...base, AGENDA_OPENS_AT: "08:00", AGENDA_CLOSES_AT: "08:00" })).toThrow(
+      "AGENDA_CLOSES_AT",
+    );
+  });
+});

@@ -18,6 +18,9 @@ coveragePathIgnorePatterns = [
   # Ligação das funções de servidor da importação (carregada pelos testes de componentes); a lógica fica em import-actions.ts e import-flow.ts (testados).
   "src/server/import-fns.ts",
   "src/server/import-deps.ts",
+  # Ligação das funções de servidor da agenda e das reservas; lógica e acesso ficam em booking-actions.ts (testado).
+  "src/server/booking-fns.ts",
+  "src/server/booking-deps.ts",
   "src/server/auth-context.ts",
   "src/server/finish.ts",
   "src/router.tsx",

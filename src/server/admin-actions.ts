@@ -32,6 +32,7 @@ const STATUS_BY_KIND: Record<Failure["kind"], AdminStatus> = {
   conflict: 409,
   not_found: 404,
   last_admin: 409,
+  forbidden: 403,
 };
 
 export const BAD_REQUEST = "Requisição inválida.";
