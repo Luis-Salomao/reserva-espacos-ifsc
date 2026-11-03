@@ -168,9 +168,9 @@ describe("diffVersions", () => {
     expect(withActive.changed).toHaveLength(0);
   });
 
-  test("desempenho com 20 000 ocorrências por lado", () => {
-    const make = (shift: number) =>
-      Array.from({ length: 20000 }, (_, i) => {
+  test("desempenho escala de forma aproximadamente linear (5 000 -> 20 000)", () => {
+    const make = (n: number, shift: number) =>
+      Array.from({ length: n }, (_, i) => {
         const date = `2026-08-${String((i % 28) + 1).padStart(2, "0")}`;
         return occ({
           lessonKey: `L${i}`,
@@ -180,11 +180,25 @@ describe("diffVersions", () => {
           spaceId: i % 100 === 0 ? `s${shift}` : "s",
         });
       });
-    const start = performance.now();
-    const r = diffVersions(make(0), make(1));
-    const ms = performance.now() - start;
-    expect(r.changed).toHaveLength(200);
-    expect(r.unchanged).toHaveLength(19800);
-    expect(ms).toBeLessThan(200);
+    // Entradas montadas fora da medição; aquecimento e melhor de 3 reduzem ruído da máquina.
+    const bestOf3 = (n: number) => {
+      const before = make(n, 0);
+      const after = make(n, 1);
+      diffVersions(before, after);
+      let best = Number.POSITIVE_INFINITY;
+      for (let run = 0; run < 3; run++) {
+        const start = performance.now();
+        diffVersions(before, after);
+        best = Math.min(best, performance.now() - start);
+      }
+      return best;
+    };
+    const t5k = bestOf3(5000);
+    const t20k = bestOf3(20000);
+    const result = diffVersions(make(20000, 0), make(20000, 1));
+    expect(result.changed).toHaveLength(200);
+    expect(result.unchanged).toHaveLength(19800);
+    // Quadruplicar a entrada deve custar bem menos que 10x (um algoritmo quadrático daria ~16x).
+    expect(t20k / Math.max(t5k, 1)).toBeLessThan(10);
   });
 });
