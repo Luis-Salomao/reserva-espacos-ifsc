@@ -2,6 +2,7 @@ import { and, asc, eq, gt, gte, lt, or, sql } from "drizzle-orm";
 import type { OccupationRecord, OccupationRepository } from "#/application/ports";
 import { weekdaySqlite } from "#/domain/availability";
 import type { AppDb } from "#/infra/db/client";
+import { occupationSelectList } from "#/infra/db/occupation-insert";
 import { occupations, spaces } from "#/infra/db/schema";
 
 const columns = {
@@ -11,27 +12,39 @@ const columns = {
   endsAt: occupations.endsAt,
   source: occupations.source,
   batchId: occupations.batchId,
+  lessonId: occupations.lessonId,
   responsibleUserId: occupations.responsibleUserId,
   createdBy: occupations.createdBy,
   title: occupations.title,
   status: occupations.status,
 };
 
-/** Série da âncora: mesmo lote, título, espaço, dia da semana e horário, ativas, de `fromLocal` em diante. */
-function seriesCondition(anchor: OccupationRecord, fromLocal: string) {
+/**
+ * Série da âncora (a MESMA condição serve à prévia e ao cancelamento): ocupações ATIVAS da mesma
+ * aula (`lesson_id`), lote, espaço, dia da semana e horário de início/fim, com `starts_at >= fromLocal`
+ * (o corte é o instante atual em hora de parede: aulas que já começaram não entram, exceto a própria
+ * âncora, que sempre entra). `onlyResponsible` (não-admin): só linhas cujo responsável é exatamente
+ * esse usuário (`NULL` nunca casa); `null` = admin, a série inteira.
+ */
+function seriesCondition(
+  anchor: OccupationRecord,
+  fromLocal: string,
+  onlyResponsible: string | null,
+) {
   const startTime = anchor.startsAt.slice(11, 16);
   const endTime = anchor.endsAt.slice(11, 16);
   const weekday = weekdaySqlite(anchor.startsAt.slice(0, 10));
   const sameSeries =
-    anchor.batchId === null
+    anchor.batchId === null || anchor.lessonId === null
       ? sql`0`
       : and(
           eq(occupations.batchId, anchor.batchId),
-          eq(occupations.title, anchor.title),
+          eq(occupations.lessonId, anchor.lessonId),
           gte(occupations.startsAt, fromLocal),
           sql`substr(${occupations.startsAt}, 12, 5) = ${startTime}`,
           sql`substr(${occupations.endsAt}, 12, 5) = ${endTime}`,
           sql`CAST(strftime('%w', substr(${occupations.startsAt}, 1, 10)) AS INTEGER) = ${weekday}`,
+          onlyResponsible === null ? undefined : eq(occupations.responsibleUserId, onlyResponsible),
         );
   return and(
     eq(occupations.status, "ativa"),
@@ -71,9 +84,24 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
       const inserted = await db
         .insert(occupations)
         .select(
-          sql`SELECT ${input.id}, ${input.spaceId}, ${input.startsAt}, ${input.endsAt}, 'manual',
-            NULL, NULL, ${input.createdBy}, ${input.title}, 'ativa', ${input.createdAt}, NULL, NULL,
-            ${input.createdBy}
+          sql`SELECT ${occupationSelectList({
+            id: input.id,
+            spaceId: input.spaceId,
+            startsAt: input.startsAt,
+            endsAt: input.endsAt,
+            source: "manual",
+            batchId: null,
+            lessonId: null,
+            // O criador também é o responsável: "Minhas reservas" e o 403 usam o mesmo critério das
+            // importadas (responsável) e a coluna fica preenchida para quem consulta por responsável.
+            responsibleUserId: input.createdBy,
+            title: input.title,
+            status: "ativa",
+            createdAt: input.createdAt,
+            cancelReason: null,
+            cancelledAt: null,
+            createdBy: input.createdBy,
+          })}
             WHERE NOT EXISTS (SELECT 1 FROM occupations o WHERE ${overlapping})`,
         )
         .returning({ id: occupations.id });
@@ -107,20 +135,20 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
       return changed.length > 0;
     },
 
-    async seriesDates(anchor, fromLocal) {
+    async seriesDates(anchor, fromLocal, onlyResponsible) {
       const rows = await db
         .select({ startsAt: occupations.startsAt })
         .from(occupations)
-        .where(seriesCondition(anchor, fromLocal))
+        .where(seriesCondition(anchor, fromLocal, onlyResponsible))
         .orderBy(asc(occupations.startsAt));
       return rows.map((row) => row.startsAt.slice(0, 10));
     },
 
-    async cancelSeries(anchor, fromLocal, reason, at) {
+    async cancelSeries(anchor, fromLocal, onlyResponsible, reason, at) {
       const changed = await db
         .update(occupations)
         .set({ status: "cancelada", cancelReason: reason, cancelledAt: at })
-        .where(seriesCondition(anchor, fromLocal))
+        .where(seriesCondition(anchor, fromLocal, onlyResponsible))
         .returning({ id: occupations.id });
       return changed.length;
     },

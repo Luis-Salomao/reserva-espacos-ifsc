@@ -18,10 +18,19 @@ export type AdminDeps = {
 
 export type AdminStatus = 400 | 401 | 403 | 404 | 409;
 
+/** Ocupação que impediu uma reserva: só título e horários, sem pessoas nem ids. */
+export type ConflictDetails = { title: string; date: string; start: string; end: string };
+
 /** Resposta serializável das ações administrativas (sempre HTTP 200 no corpo; o status vai à parte). */
 export type AdminResponse<T> =
   | { ok: true; data: T }
-  | { ok: false; status: AdminStatus; message: string; field?: string };
+  | {
+      ok: false;
+      status: AdminStatus;
+      message: string;
+      field?: string;
+      conflict?: ConflictDetails;
+    };
 
 export type AdminOutcome<T> = { response: AdminResponse<T>; setCookie: string | null };
 

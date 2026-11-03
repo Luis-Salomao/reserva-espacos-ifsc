@@ -187,6 +187,7 @@ describe("cancelOccupation", () => {
       start: "10:10",
       end: "12:00",
       title: "MAT1",
+      lessonId: "L1",
       responsibleUserId: ctx.s.docA.id,
     };
     // terças futuras do mesmo lote e uma passada
@@ -205,6 +206,7 @@ describe("cancelOccupation", () => {
       date: "2026-11-10",
       spaceId: ctx.s.sala2.id,
       title: "FIS",
+      lessonId: "LF",
       responsibleUserId: ctx.s.docB.id,
     });
     return ctx;
@@ -330,6 +332,70 @@ describe("cancelOccupation", () => {
     expect(past.ok && past.value.occupations.map((item) => item.id)).toEqual(["p"]);
   });
 
+  test("série por posse: docente só alcança as próprias linhas; admin, a série toda; outra aula com o mesmo título fica fora", async () => {
+    const { db, s, svc } = await setup();
+    const base = {
+      spaceId: s.sala1.id,
+      start: "10:10",
+      end: "12:00",
+      title: "MAT1",
+      lessonId: "L1",
+    };
+    insertImported(db, { ...base, id: "a1", date: "2026-11-10", responsibleUserId: s.docA.id });
+    insertImported(db, { ...base, id: "a2", date: "2026-11-17", responsibleUserId: s.docB.id });
+    insertImported(db, { ...base, id: "a3", date: "2026-11-24", responsibleUserId: null });
+    insertImported(db, { ...base, id: "a4", date: "2026-12-01", responsibleUserId: s.docA.id });
+    insertImported(db, {
+      ...base,
+      id: "x1",
+      date: "2026-12-08",
+      lessonId: "L9",
+      responsibleUserId: s.docA.id,
+    });
+    expect(await svc.previewSeries(s.docA, "a1")).toEqual({
+      ok: true,
+      value: { dates: ["2026-11-10", "2026-12-01"] },
+    });
+    expect(await svc.previewSeries(s.admin, "a1")).toEqual({
+      ok: true,
+      value: { dates: ["2026-11-10", "2026-11-17", "2026-11-24", "2026-12-01"] },
+    });
+    expect(await svc.cancelOccupation(s.docA, { occupationId: "a1", scope: "serie" })).toEqual({
+      ok: true,
+      value: { cancelled: 2 },
+    });
+    const rest = await svc.dayAgenda(s.admin, { spaceId: s.sala1.id, date: "2026-11-17" });
+    expect(rest.ok && rest.value.occupations.map((item) => item.id)).toEqual(["a2"]);
+    const rest2 = await svc.dayAgenda(s.admin, { spaceId: s.sala1.id, date: "2026-11-24" });
+    expect(rest2.ok && rest2.value.occupations.map((item) => item.id)).toEqual(["a3"]);
+    expect(await svc.cancelOccupation(s.admin, { occupationId: "a2", scope: "serie" })).toEqual({
+      ok: true,
+      value: { cancelled: 2 },
+    });
+  });
+
+  test("expectedCount: diferente da série recalculada é conflito e nada é cancelado", async () => {
+    const { s, svc } = await withImported();
+    const wrong = await svc.cancelOccupation(s.docA, {
+      occupationId: "t1",
+      scope: "serie",
+      expectedCount: 2,
+    });
+    expect(wrong).toMatchObject({ ok: false, kind: "conflict" });
+    const mine = await svc.myBookings(s.docA, {});
+    expect(mine.ok && mine.value.items.length).toBe(4);
+    expect(
+      await svc.cancelOccupation(s.docA, { occupationId: "t1", scope: "serie", expectedCount: 3 }),
+    ).toEqual({ ok: true, value: { cancelled: 3 } });
+  });
+
+  test("expectedCount em escopo 'data' é ignorado", async () => {
+    const { s, svc } = await withImported();
+    expect(
+      await svc.cancelOccupation(s.docA, { occupationId: "t1", scope: "data", expectedCount: 9 }),
+    ).toEqual({ ok: true, value: { cancelled: 1 } });
+  });
+
   test("série de avulsa é recusada com mensagem clara; prévia também", async () => {
     const { s, svc } = await setup();
     const created = await svc.createBooking(s.docA, book(s));
@@ -384,6 +450,7 @@ describe("agenda", () => {
       { label: "Noite 2", short: "N2", start: "19:35", end: "20:20" },
     ]);
     expect(result.value.hours).toEqual({ opens: "06:00", closes: "23:00" });
+    expect(result.value.now).toBe("2026-11-03T09:00");
   });
 
   test("canCancel e mine por espectador; visitante nunca vê nomes nem ids de pessoas", async () => {
@@ -511,6 +578,19 @@ describe("agenda", () => {
       date: "2026-11-10",
     });
     expect(none.ok && none.value.blocks).toEqual([]);
+  });
+
+  test("semana exige segunda-feira e expõe 'now' local", async () => {
+    const { s, svc } = await setup();
+    expect(
+      await svc.weekAgenda(null, { spaceId: s.sala1.id, weekStart: "2026-11-10" }),
+    ).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "weekStart",
+    });
+    const week = await svc.weekAgenda(null, { spaceId: s.sala1.id, weekStart: "2026-11-09" });
+    expect(week.ok && week.value.now).toBe("2026-11-03T09:00");
   });
 
   test("validações: espaço inexistente, data inválida", async () => {

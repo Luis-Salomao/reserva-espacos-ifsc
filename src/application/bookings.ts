@@ -15,7 +15,7 @@ import {
   type TimeRange,
   validateBookingWhen,
 } from "#/domain/availability";
-import { addDays } from "#/domain/calendar";
+import { addDays, weekdayOf } from "#/domain/calendar";
 import { CANCEL_REASONS } from "#/domain/cancel-reasons";
 import { isValidDate, type Semester } from "#/domain/semester";
 import type { User } from "#/domain/user";
@@ -31,6 +31,7 @@ const FORBIDDEN_BOOK = "Sem permissão para reservar.";
 const FORBIDDEN_CANCEL = "Sem permissão para cancelar esta ocupação.";
 const ENDED = "Esta ocupação já terminou e não pode ser cancelada.";
 const ALREADY_CANCELLED = "Esta ocupação já foi cancelada.";
+const SERIES_CHANGED = "A série mudou desde a confirmação. Revise as datas e confirme de novo.";
 const RACE_LOST = "O horário foi ocupado por outra reserva. Atualize a agenda e escolha outro.";
 
 /** Item da agenda: sem nomes nem ids de pessoas; `mine`/`canCancel` valem para quem consulta. */
@@ -53,6 +54,8 @@ type AgendaBlock = { label: string; short: string; start: string; end: string };
 export type DayAgenda = {
   spaceId: string;
   date: string;
+  /** Agora em hora de parede do TIMEZONE ("YYYY-MM-DDTHH:MM"): a tela desabilita o horário passado. */
+  now: string;
   hours: Hours;
   occupations: AgendaItem[];
   free: TimeRange[];
@@ -60,7 +63,12 @@ export type DayAgenda = {
   blocks: AgendaBlock[];
 };
 
-export type WeekAgenda = { spaceId: string; weekStart: string; days: DayAgenda[] };
+export type WeekAgenda = {
+  spaceId: string;
+  weekStart: string;
+  now: string;
+  days: DayAgenda[];
+};
 
 export type BookingView = {
   id: string;
@@ -114,6 +122,11 @@ function ownsOccupation(user: User, item: OccupationRecord): boolean {
   return item.source === "manual" ? item.createdBy === user.id : item.responsibleUserId === user.id;
 }
 
+/** Restrição de posse da série: `null` para admin (série inteira), senão o próprio usuário. */
+function seriesOwner(user: User): string | null {
+  return user.roles.includes("admin") ? null : user.id;
+}
+
 function isMine(user: User | null, item: OccupationRecord): boolean {
   return user !== null && (item.createdBy === user.id || item.responsibleUserId === user.id);
 }
@@ -147,6 +160,7 @@ function blocksFor(date: string, semesters: readonly Semester[]): AgendaBlock[] 
 function buildDay(
   spaceId: string,
   date: string,
+  now: string,
   hours: Hours,
   items: readonly AgendaItem[],
   semesters: readonly Semester[],
@@ -154,6 +168,7 @@ function buildDay(
   return {
     spaceId,
     date,
+    now,
     hours,
     occupations: [...items],
     free: freeIntervals(hours, items),
@@ -204,16 +219,19 @@ export function createBookingsService(deps: BookingsDeps) {
         semesters.list(),
       ]);
       const items = found.map((item) => toItem(item, viewer, now));
-      return ok(buildDay(input.spaceId, input.date, hours, items, all));
+      return ok(buildDay(input.spaceId, input.date, now, hours, items, all));
     },
 
-    /** Sete dias a partir de `weekStart` (a tela passa a segunda-feira), com uma única consulta de ocupações. */
+    /** Sete dias a partir de `weekStart` (obrigatoriamente uma segunda-feira), com uma única consulta de ocupações. */
     async weekAgenda(
       viewer: User | null,
       input: { spaceId: string; weekStart: string },
     ): Promise<Result<WeekAgenda>> {
       if (!isValidDate(input.weekStart)) {
         return fail("validation", "Informe uma data válida.", "weekStart");
+      }
+      if (weekdayOf(input.weekStart) !== 0) {
+        return fail("validation", "A semana deve começar numa segunda-feira.", "weekStart");
       }
       if ((await spaceName(input.spaceId)) === null) {
         return fail("not_found", "Espaço não encontrado.");
@@ -237,9 +255,9 @@ export function createBookingsService(deps: BookingsDeps) {
       const days: DayAgenda[] = [];
       for (let offset = 0; offset < 7; offset++) {
         const date = addDays(input.weekStart, offset);
-        days.push(buildDay(input.spaceId, date, hours, byDate.get(date) ?? [], all));
+        days.push(buildDay(input.spaceId, date, now, hours, byDate.get(date) ?? [], all));
       }
-      return ok({ spaceId: input.spaceId, weekStart: input.weekStart, days });
+      return ok({ spaceId: input.spaceId, weekStart: input.weekStart, now, days });
     },
 
     /**
@@ -298,21 +316,32 @@ export function createBookingsService(deps: BookingsDeps) {
     },
 
     /**
-     * Cancela uma data ou a série. Série só existe para importada (mesmo lote, título, espaço,
-     * dia da semana e horário, de agora em diante); em avulsa é recusada.
+     * Cancela uma data ou a série. Série só existe para importada: mesma aula (`lesson_id`), lote,
+     * espaço, dia da semana e horário, de agora em diante (corte: hora de parede atual; a âncora
+     * sempre entra). O admin cancela a série inteira; os demais, só as linhas em que SÃO o
+     * responsável (uma nova versão pode ter trocado o responsável de algumas datas). Em avulsa a
+     * série é recusada. Com `expectedCount` (o tamanho mostrado na prévia), uma série recalculada
+     * de outro tamanho não é cancelada (conflito).
      */
     async cancelOccupation(
       user: User,
-      input: { occupationId: string; scope: CancelScope },
+      input: { occupationId: string; scope: CancelScope; expectedCount?: number },
     ): Promise<Result<{ cancelled: number }>> {
       const anchor = await loadCancellable(user, input.occupationId);
       if (!anchor.ok) return anchor;
       const at = clock.now().toISOString();
       if (input.scope === "serie") {
         if (anchor.value.source === "manual") return fail("validation", SERIES_ON_MANUAL);
+        const from = nowLocal();
+        const owner = seriesOwner(user);
+        if (input.expectedCount !== undefined) {
+          const current = await occupations.seriesDates(anchor.value, from, owner);
+          if (current.length !== input.expectedCount) return fail("conflict", SERIES_CHANGED);
+        }
         const cancelled = await occupations.cancelSeries(
           anchor.value,
-          nowLocal(),
+          from,
+          owner,
           CANCEL_REASONS.usuario,
           at,
         );
@@ -327,7 +356,9 @@ export function createBookingsService(deps: BookingsDeps) {
       const anchor = await loadCancellable(user, occupationId);
       if (!anchor.ok) return anchor;
       if (anchor.value.source === "manual") return fail("validation", SERIES_ON_MANUAL);
-      return ok({ dates: await occupations.seriesDates(anchor.value, nowLocal()) });
+      return ok({
+        dates: await occupations.seriesDates(anchor.value, nowLocal(), seriesOwner(user)),
+      });
     },
 
     /**

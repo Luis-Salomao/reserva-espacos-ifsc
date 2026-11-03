@@ -181,6 +181,13 @@ describe("reservar", () => {
       status: 409,
       message: "Conflita com MAT1 — ADM 2, 10:10–12:00.",
     });
+    expect(conflict.response).toEqual({
+      ok: false,
+      status: 409,
+      message: "Conflita com MAT1 — ADM 2, 10:10–12:00.",
+      conflict: { title: "MAT1", date: "2026-11-10", start: "10:10", end: "12:00" },
+    });
+    expect(JSON.stringify(conflict.response)).not.toContain(s.docB.id);
   });
 });
 
@@ -192,6 +199,7 @@ describe("cancelar", () => {
       start: "10:10",
       end: "12:00",
       title: "MAT1",
+      lessonId: "L1",
       responsibleUserId: ctx.s.docA.id,
     };
     insertImported(ctx.db, { ...base, id: "t1", date: "2026-11-10" });
@@ -245,6 +253,30 @@ describe("cancelar", () => {
       (await cancelOccupationAction(deps, req("adm"), { occupationId: "t1", scope: "data" }))
         .response,
     ).toMatchObject({ ok: false, status: 409 });
+  });
+
+  test("expectedCount viaja da prévia: divergente é 409, válido cancela; inválido é 400", async () => {
+    const { deps, req } = await withLesson();
+    const wrong = await cancelOccupationAction(deps, req("doca"), {
+      occupationId: "t1",
+      scope: "serie",
+      expectedCount: 5,
+    });
+    expect(wrong.response).toMatchObject({ ok: false, status: 409 });
+    for (const bad of [-1, 1.5, "2", 10_001]) {
+      const result = await cancelOccupationAction(deps, req("doca"), {
+        occupationId: "t1",
+        scope: "serie",
+        expectedCount: bad,
+      });
+      expect(result.response).toMatchObject({ ok: false, status: 400 });
+    }
+    const ok = await cancelOccupationAction(deps, req("doca"), {
+      occupationId: "t1",
+      scope: "serie",
+      expectedCount: 2,
+    });
+    expect(ok.response).toEqual({ ok: true, data: { cancelled: 2 } });
   });
 
   test("entradas inválidas: 400; inexistente: 404", async () => {
