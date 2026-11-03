@@ -295,7 +295,7 @@ export function createImportRepository(db: AppDb): ImportRepository {
               .select(
                 sql`SELECT ${crypto.randomUUID()}, ${spaceId}, ${startsAt}, ${endsAt}, 'import',
                   ${batchId}, ${row.lessonId}, ${row.responsibleUserId}, ${row.title}, 'ativa',
-                  ${createdAt}, NULL, NULL
+                  ${createdAt}, NULL, NULL, NULL
                   WHERE NOT EXISTS (SELECT 1 FROM occupations o WHERE ${overlapping})`,
               )
               .onConflictDoNothing(),
