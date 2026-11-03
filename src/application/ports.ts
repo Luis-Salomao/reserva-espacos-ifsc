@@ -163,6 +163,8 @@ export interface ImportRepository {
   /** Vários lotes numa só consulta (os que não existem mais ficam de fora). */
   findBatches(ids: readonly string[]): Promise<ImportBatch[]>;
   findBatchByHash(semesterId: string, fileHash: string): Promise<ImportBatch | null>;
+  /** Lote `aplicado` do semestre que substituiu este (o seguinte da cadeia), ou `null`. */
+  findAppliedSuccessor(batchId: string): Promise<ImportBatch | null>;
   /** Grava o lote; se já existe lote com o mesmo (hash, semestre) não faz nada. */
   insertBatch(batch: ImportBatch): Promise<void>;
   /** Grava um bloco de linhas (até 50) numa unidade atômica; chaves já gravadas são ignoradas. */

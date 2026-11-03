@@ -136,6 +136,17 @@ export function createImportRepository(db: AppDb): ImportRepository {
         .where(and(eq(importBatches.semesterId, semesterId), eq(importBatches.fileHash, fileHash)));
       return row ? toBatch(row) : null;
     },
+    async findAppliedSuccessor(batchId) {
+      const [row] = await db
+        .select()
+        .from(importBatches)
+        .where(
+          and(eq(importBatches.supersedesBatchId, batchId), eq(importBatches.status, "aplicado")),
+        )
+        .orderBy(asc(importBatches.appliedAt), asc(importBatches.id))
+        .limit(1);
+      return row ? toBatch(row) : null;
+    },
     async insertBatch(batch) {
       await db
         .insert(importBatches)

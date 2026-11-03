@@ -101,6 +101,7 @@ function ImportPage() {
   const [view, setView] = useState<PreviewView | null>(null);
   const [file, setFile] = useState<File | null>(null);
   const [runId, setRunId] = useState(0);
+  const { session } = Route.useRouteContext();
 
   async function handleSubmit(upload: File) {
     setPending(true);
@@ -147,7 +148,7 @@ function ImportPage() {
       )}
       {view !== null && <PreviewResult view={view} />}
       {view !== null && file !== null && !view.partial && (
-        <ImportFlow key={runId} view={view} file={file} />
+        <ImportFlow key={runId} view={view} file={file} timeZone={session.timeZone} />
       )}
     </AppShell>
   );

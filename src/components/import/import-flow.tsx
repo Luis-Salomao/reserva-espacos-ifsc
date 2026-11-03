@@ -19,6 +19,7 @@ import {
   applySentence,
   BATCH_STATUS_LABELS,
   formatDate,
+  formatInstant,
   termsWithoutDates,
   type VersionView,
 } from "./flow-helpers";
@@ -145,13 +146,13 @@ function FailureBox({
   return <ErrorBox message={failure.message} conflict={failure.conflict} onRetry={failure.again} />;
 }
 
-type Props = { view: PreviewView; file: File };
+type Props = { view: PreviewView; file: File; timeZone: string };
 
 /**
  * Fluxo da importação depois da prévia: semestre, de-para de salas e docentes, conferência
  * (preparo em passos) e aplicação (em passos), terminando no resultado por linha.
  */
-export function ImportFlow({ view, file }: Props) {
+export function ImportFlow({ view, file, timeZone }: Props) {
   const [targets, setTargets] = useState<ImportTargets | null>(null);
   const [suggestions, setSuggestions] = useState<{
     rooms: RoomSuggestion[];
@@ -163,6 +164,7 @@ export function ImportFlow({ view, file }: Props) {
   const [teachersDirty, setTeachersDirty] = useState(false);
   const [batch, setBatch] = useState<ImportBatch | null>(null);
   const [reused, setReused] = useState(false);
+  const [supersededAt, setSupersededAt] = useState<string | null>(null);
   const [progress, setProgress] = useState<Progress | null>(null);
   const [failure, setFailure] = useState<Failure | null>(null);
   const [versionView, setVersionView] = useState<VersionView | "">("");
@@ -247,6 +249,7 @@ export function ImportFlow({ view, file }: Props) {
     setBatch(outcome.last.batch);
     setVersionView("");
     setReused(outcome.last.reused);
+    setSupersededAt(outcome.last.superseded?.appliedAt ?? null);
     setRefreshKey((key) => key + 1);
   }
 
@@ -433,9 +436,17 @@ export function ImportFlow({ view, file }: Props) {
         {batch !== null && (
           <div className="grid gap-3">
             <p className="text-sm">
-              Lote {batch.fileHash.slice(0, 8)} · {BATCH_STATUS_LABELS[batch.status]}
+              Importação do arquivo {batch.fileHash.slice(0, 8)} ·{" "}
+              {BATCH_STATUS_LABELS[batch.status]}
             </p>
-            {reused && batch.status === "aplicado" && (
+            {reused && batch.status === "aplicado" && supersededAt !== null && (
+              <p role="status" className="rounded-lg border bg-occ-imported p-4">
+                Este arquivo corresponde a uma versão anterior da grade, substituída em{" "}
+                {formatInstant(supersededAt, timeZone).slice(0, 10)}. Voltar a uma versão anterior
+                ainda não é suportado; para reaplicá-la, gere uma nova exportação.
+              </p>
+            )}
+            {reused && batch.status === "aplicado" && supersededAt === null && (
               <p role="status" className="rounded-lg border bg-occ-imported p-4">
                 Este arquivo já foi importado neste semestre. Nada foi duplicado.
               </p>
