@@ -696,6 +696,120 @@ describe("nova versão: classificação e aplicação", () => {
   });
 });
 
+describe("nova versão: aula aplicada cuja nova ocorrência não é aplicável", () => {
+  const heldRows = (rows: ImportRow[]) => rows.filter((r) => r.status === "alteracao_bloqueada");
+
+  async function expectHeld(env: Env, v2: Version, label: string) {
+    const prepared = await prepareAll(env, v2);
+    const rows = await rowsOf(env, prepared.batch.id);
+    const held = heldRows(rows);
+    expect(held).toHaveLength(3);
+    for (const row of held) {
+      expect(row).toMatchObject({
+        changeKind: "alteracao",
+        reasonCode: "versao_nao_aplicavel",
+        reasonDetail: `Nova versão não aplicável: ${label}`,
+      });
+    }
+    expect(rows.some((r) => r.status === "cancelar")).toBe(false);
+    expect(prepared.batch.summary.version?.remocoes).toBe(0);
+    expect(prepared.batch.summary.version?.bloqueadas).toBe(3);
+    await applyAll(env, prepared.batch.id);
+    const mine = (await occupationsOf(env)).filter((o) => o.source === "import");
+    expect(mine.every((o) => o.status === "ativa" && o.cancelReason === null)).toBe(true);
+  }
+
+  test("várias salas na nova versão: as ocupações são seguradas, não canceladas", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    await expectHeld(
+      env,
+      version("h2", [at("L1", "R1", 8, { status: "multiple_rooms", classroomIds: ["R1", "R2"] })]),
+      "Aula com várias salas",
+    );
+  });
+
+  test("sala sem vínculo na nova versão: seguradas", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    await expectHeld(env, version("h2", [at("L1", "R9")]), "Sala sem vínculo");
+  });
+
+  test("duração sem datas na nova versão: seguradas", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    await expectHeld(
+      env,
+      version("h2", [at("L1", "R1", 8, { termsMask: "1" })]),
+      "Duração sem datas no semestre",
+    );
+  });
+
+  test("sala ignorada na nova versão: continua cancelando, com o motivo na linha", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    await createMappingRepositories(env.db).rooms.saveMany(
+      [{ sourceRoomId: "R9", sourceShort: "R9", spaceId: null, ignored: true }],
+      "t",
+    );
+    const prepared = await prepareAll(env, version("h2", [at("L1", "R9")]));
+    const rows = await rowsOf(env, prepared.batch.id);
+    const cancels = rows.filter((r) => r.status === "cancelar");
+    expect(cancels).toHaveLength(3);
+    for (const row of cancels) {
+      expect(row).toMatchObject({ changeKind: "remocao", reasonCode: "room_ignored" });
+    }
+    await applyAll(env, prepared.batch.id);
+    const done = (await rowsOf(env, prepared.batch.id)).filter(
+      (r) => r.status === "cancelada_versao",
+    );
+    expect(done).toHaveLength(3);
+    expect(done.every((r) => r.reasonCode === "room_ignored")).toBe(true);
+    const old = (await occupationsOf(env)).filter((o) => o.source === "import");
+    expect(old.every((o) => o.status === "cancelada" && o.cancelReason === "nova_versao")).toBe(
+      true,
+    );
+  });
+
+  test("seguradas contam como permanecendo: outra aula não entra no lugar delas", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    const prepared = await prepareAll(
+      env,
+      version(
+        "h2",
+        [
+          at("L1", "R1", 8, { status: "multiple_rooms", classroomIds: ["R1", "R2"] }),
+          at("B1", "R1"),
+        ],
+        [lesson("L1"), lesson("B1", ["T1"], "S2")],
+      ),
+    );
+    const rows = await rowsOf(env, prepared.batch.id);
+    expect(heldRows(rows)).toHaveLength(3);
+    const incoming = rows.filter((r) => r.lessonId === "B1");
+    expect(incoming).toHaveLength(3);
+    expect(incoming.every((r) => r.status === "conflito")).toBe(true);
+  });
+
+  test("misto: dias aplicáveis seguem o diff e os não aplicáveis ficam segurados", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1"), at("L1", "R1", 8, { weekday: 2 })]));
+    const prepared = await prepareAll(
+      env,
+      version("h2", [
+        at("L1", "R2"),
+        at("L1", "R1", 8, { weekday: 2, status: "multiple_rooms", classroomIds: ["R1", "R2"] }),
+      ]),
+    );
+    const rows = await rowsOf(env, prepared.batch.id);
+    const held = heldRows(rows);
+    expect(held.map((r) => r.weekday)).toEqual([2, 2, 2]);
+    expect(rows.filter((r) => r.status === "cancelar").map((r) => r.weekday)).toEqual([0, 0, 0]);
+    expect(rows.filter((r) => r.status === "pendente")).toHaveLength(3);
+  });
+});
+
 describe("nova versão: bloqueios em cascata", () => {
   test("P1: ocupação segurada por grupo bloqueado ocupa o lugar; outra aula não é movida para lá", async () => {
     const env = await setup();

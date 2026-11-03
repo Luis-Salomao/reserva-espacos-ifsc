@@ -15,6 +15,7 @@ import {
   sql,
 } from "drizzle-orm";
 import type { ImportRepository, RowFilter } from "#/application/ports";
+import { CANCEL_REASONS } from "#/domain/cancel-reasons";
 import {
   EMPTY_COUNTS,
   type ImportBatch,
@@ -31,7 +32,7 @@ const OPEN: ImportRowStatus[] = ["pendente", "falha", "cancelar", "responsavel"]
 /** Prefixos de `row_key` das linhas de mudança (cancelar e trocar o responsável). */
 const CANCEL_PREFIX = "c:";
 const RESPONSIBLE_PREFIX = "r:";
-const CANCEL_REASON = "nova_versao";
+const CANCEL_REASON = CANCEL_REASONS.novaVersao;
 const ALREADY_CANCELLED = "ja_cancelada";
 const DRAFT: ImportBatchStatus[] = ["preparando", "rascunho"];
 
@@ -370,8 +371,9 @@ export function createImportRepository(db: AppDb): ImportRepository {
               .update(importRows)
               .set({
                 status: "cancelada_versao",
-                reasonCode: sql`CASE WHEN ${done} THEN NULL ELSE ${ALREADY_CANCELLED} END`,
-                reasonDetail: sql`CASE WHEN ${done} THEN NULL
+                // Feito agora: mantém o motivo planejado (ex.: sala ignorada); senão, já estava cancelada.
+                reasonCode: sql`CASE WHEN ${done} THEN ${importRows.reasonCode} ELSE ${ALREADY_CANCELLED} END`,
+                reasonDetail: sql`CASE WHEN ${done} THEN ${importRows.reasonDetail}
                   ELSE 'A ocupação já estava cancelada quando a nova versão foi aplicada.' END`,
               })
               .where(open),

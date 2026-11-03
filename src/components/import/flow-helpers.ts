@@ -283,9 +283,9 @@ export type AlterationGroup<T> = {
 
 type GroupableRow = { rowKey: string; title: string; date: string | null; status: string };
 
-/** Linhas que representam a ocupação anterior: cancelar (`c:`) ou mantida por bloqueio (`b:`). */
+/** Linhas que representam a ocupação anterior: cancelar (`c:`) ou mantida por bloqueio (`b:`, `h:`). */
 function isBefore(rowKey: string): boolean {
-  return rowKey.startsWith("c:") || rowKey.startsWith("b:");
+  return rowKey.startsWith("c:") || rowKey.startsWith("b:") || rowKey.startsWith("h:");
 }
 
 /**
