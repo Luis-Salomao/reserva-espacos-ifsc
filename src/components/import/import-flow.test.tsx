@@ -99,7 +99,9 @@ afterEach(() => {
 
 async function renderFlow() {
   const root = createRootRoute({
-    component: () => <ImportFlow view={view} file={new File(["<x/>"], "a.xml")} />,
+    component: () => (
+      <ImportFlow view={view} file={new File(["<x/>"], "a.xml")} timeZone="America/Sao_Paulo" />
+    ),
   });
   const router = createRouter({
     routeTree: root,
@@ -169,6 +171,49 @@ const versionBatch = (): ImportBatch => ({
       affectedUserIds: ["u1", "u2"],
     },
   },
+});
+
+describe("ImportFlow: arquivo de versão anterior", () => {
+  const applied = (): ImportBatch => ({
+    ...batch("aplicado"),
+    appliedAt: "2026-11-01T10:00:00.000Z",
+    summary: { rows: 2, notApplicable: {}, counts: { ...EMPTY_COUNTS, aplicada: 2 } },
+  });
+
+  test("versão substituída: explica que voltar não é suportado, sem dizer que já foi importada", async () => {
+    prepareReturns({
+      ok: true,
+      data: {
+        batch: applied(),
+        reused: true,
+        done: true,
+        remaining: 0,
+        superseded: { appliedAt: "2026-11-02T15:00:00.000Z" },
+      },
+    });
+    const { button } = await renderFlow();
+    fireEvent.click(button);
+    const notice = await screen.findByRole("status");
+    expect(notice.textContent).toContain(
+      "Este arquivo corresponde a uma versão anterior da grade, substituída em 02/11/2026.",
+    );
+    expect(notice.textContent).toContain(
+      "Voltar a uma versão anterior ainda não é suportado; para reaplicá-la, gere uma nova exportação.",
+    );
+    expect(document.body.textContent).not.toContain("Nada foi duplicado");
+    expect(document.body.textContent).toContain("arquivo abcdef01");
+    expect(document.body.textContent).not.toContain("Lote abcdef01");
+  });
+
+  test("arquivo da versão vigente continua dizendo que nada foi duplicado", async () => {
+    prepareReturns({
+      ok: true,
+      data: { batch: applied(), reused: true, done: true, remaining: 0 },
+    });
+    const { button } = await renderFlow();
+    fireEvent.click(button);
+    await screen.findByText(/Nada foi duplicado/);
+  });
 });
 
 function prepareReturns(body: unknown, status = 200) {

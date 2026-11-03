@@ -629,9 +629,12 @@ describe("nova versão: classificação e aplicação", () => {
     const again = await env.service.prepare(input(env, version("h2", [at("L1", "R2")])));
     expect(again.ok && again.value.reused).toBe(true);
     expect(again.ok && again.value.batch.id).toBe(v2.id);
+    expect(again.ok && again.value.superseded).toBeUndefined();
     const old = await env.service.prepare(input(env, version("h1", [at("L1", "R1")])));
     expect(old.ok && old.value.batch.id).toBe(v1.id);
     expect(old.ok && old.value.reused).toBe(true);
+    // v1 foi substituída pela v2: o resultado diz isso e quando (nada é refeito nem revertido).
+    expect(old.ok && old.value.superseded).toEqual({ appliedAt: v2.appliedAt as string });
     expect(await env.db.select().from(schema.importBatches)).toHaveLength(2);
     expect((await occupationsOf(env)).filter((o) => o.status === "ativa")).toHaveLength(3);
   });

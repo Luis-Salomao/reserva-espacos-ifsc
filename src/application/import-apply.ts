@@ -79,6 +79,11 @@ export type StepOutput = { batch: ImportBatch; done: boolean; remaining: number 
 export type PrepareOutput = StepOutput & {
   /** `true` quando o mesmo arquivo já tinha lote concluído neste semestre (nada novo é criado). */
   reused: boolean;
+  /**
+   * Presente quando o arquivo é de uma versão JÁ SUBSTITUÍDA por outra aplicada (`appliedAt` = quando
+   * a substituta foi aplicada). Voltar a uma versão anterior não é suportado: nada é refeito.
+   */
+  superseded?: { appliedAt: string };
 };
 
 function summarize(rows: readonly ImportRow[], version?: VersionSummary): ImportSummary {
@@ -199,7 +204,13 @@ export function createImportService(deps: ImportServiceDeps) {
       // Mesmo arquivo já aplicado (ou em aplicação): reconhecido pelo hash, sem planejar nem comparar.
       const known = await imports.findBatchByHash(input.semesterId, input.fileHash);
       if (known !== null && known.status !== "preparando" && known.status !== "rascunho") {
-        return ok({ batch: known, reused: true, done: true, remaining: 0 });
+        const successor =
+          known.status === "aplicado" ? await imports.findAppliedSuccessor(known.id) : null;
+        const superseded =
+          successor === null
+            ? {}
+            : { superseded: { appliedAt: successor.appliedAt ?? successor.createdAt } };
+        return ok({ batch: known, reused: true, done: true, remaining: 0, ...superseded });
       }
 
       // No máximo um lote por semestre em andamento (aplicando ou interrompido).
