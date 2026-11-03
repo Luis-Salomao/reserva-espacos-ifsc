@@ -1,5 +1,6 @@
 import { createFileRoute } from "@tanstack/react-router";
 import { AppShell } from "#/components/app-shell";
+import { Notice, PageHeader } from "#/components/page";
 import { SemestersManager } from "#/components/semesters/semesters-manager";
 import { listSemestersFn } from "#/server/admin";
 import { guardSemesters } from "./-admin-guard";
@@ -19,11 +20,10 @@ function SemestersPage() {
   const semesters = Route.useLoaderData();
   return (
     <AppShell>
-      <h1 className="mb-1 text-2xl font-semibold">Semestres</h1>
-      <p className="mb-4 text-muted-foreground">
-        Vigência, datas de cada duração e blocos de horário, configurados uma vez e reutilizados nas
-        importações.
-      </p>
+      <PageHeader
+        title="Semestres"
+        description="Vigência, datas de cada duração e blocos de horário, configurados uma vez e reutilizados nas importações."
+      />
       <SemestersManager semesters={semesters} />
     </AppShell>
   );
@@ -32,9 +32,9 @@ function SemestersPage() {
 function SemestersError() {
   return (
     <AppShell>
-      <p role="alert" className="rounded-lg border bg-occ-conflict p-4">
+      <Notice tone="error" role="alert">
         Não foi possível carregar os semestres. Tente novamente em instantes.
-      </p>
+      </Notice>
     </AppShell>
   );
 }

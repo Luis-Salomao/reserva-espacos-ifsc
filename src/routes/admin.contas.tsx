@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AccountsManager } from "#/components/admin/accounts-manager";
 import { AdminNav } from "#/components/admin/admin-nav";
 import { AppShell } from "#/components/app-shell";
+import { Notice, PageHeader } from "#/components/page";
 import { listAccountsFn } from "#/server/admin";
 import { guardAdmin } from "./-admin-guard";
 
@@ -21,8 +22,7 @@ function AccountsPage() {
   const { session } = Route.useRouteContext();
   return (
     <AppShell>
-      <h1 className="mb-1 text-2xl font-semibold">Administração</h1>
-      <p className="mb-4 text-muted-foreground">Contas de acesso e papéis.</p>
+      <PageHeader title="Administração" description="Contas de acesso e papéis." />
       <AdminNav />
       <AccountsManager users={users} currentUserId={session.user?.id ?? ""} />
     </AppShell>
@@ -32,9 +32,9 @@ function AccountsPage() {
 function AdminError() {
   return (
     <AppShell>
-      <p role="alert" className="rounded-lg border bg-occ-conflict p-4">
+      <Notice tone="error" role="alert">
         Não foi possível carregar as contas. Tente novamente em instantes.
-      </p>
+      </Notice>
     </AppShell>
   );
 }

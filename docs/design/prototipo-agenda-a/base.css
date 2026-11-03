@@ -1,0 +1,67 @@
+/* Base compartilhada dos prototipos. Cada direcao ajusta --r (raio) e estilos proprios. */
+:root{--r:10px;--line-free:#2f8f50;--line-booked:#c25a08;--line-imported:#3f6fae;--line-conflict:#c42b27;--shadow:0 1px 2px rgb(0 0 0/.06),0 8px 24px rgb(0 0 0/.08);
+ --font:ui-sans-serif,system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;--mono:ui-monospace,SFMono-Regular,Menlo,Consolas,monospace}
+:root[data-theme=dark]{--line-free:#4cc27a;--line-booked:#f38020;--line-imported:#6d98d6;--line-conflict:#ef6a66;--shadow:0 1px 2px rgb(0 0 0/.5),0 12px 32px rgb(0 0 0/.5)}
+@media(prefers-color-scheme:dark){:root:not([data-theme=light]){--line-free:#4cc27a;--line-booked:#f38020;--line-imported:#6d98d6;--line-conflict:#ef6a66;--shadow:0 1px 2px rgb(0 0 0/.5),0 12px 32px rgb(0 0 0/.5)}}
+*,*::before,*::after{box-sizing:border-box}
+html{-webkit-text-size-adjust:100%}
+body{margin:0;background:var(--bg);color:var(--text);font:400 15px/1.45 var(--font);overflow-x:hidden}
+button,input,select{font:inherit;color:inherit}
+button{cursor:pointer}
+h1,h2,h3,p{margin:0}
+:focus-visible{outline:2px solid var(--focus);outline-offset:2px}
+.sr-only{position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0 0 0 0);white-space:nowrap}
+.i{width:1.15em;height:1.15em;stroke:currentColor;fill:none;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;flex:none}
+[hidden]{display:none!important}
+.btn{display:inline-flex;align-items:center;justify-content:center;gap:8px;min-height:40px;padding:0 16px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg);font-weight:500;white-space:nowrap;transition:background .15s,border-color .15s,transform .1s}
+.btn:hover{background:var(--surface-2)}
+.btn:active{transform:translateY(1px)}
+.btn-primary{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast);font-weight:650}
+.btn-primary:hover{background:var(--accent);filter:brightness(1.07)}
+.btn-primary[disabled]{opacity:.45;cursor:not-allowed;filter:none}
+.btn-danger{border-color:var(--line-conflict);color:var(--text);background:var(--occ-conflict)}
+.btn-danger:hover{background:var(--occ-conflict);filter:brightness(.97)}
+.btn-icon{display:inline-grid;place-items:center;width:40px;height:40px;border-radius:var(--r);border:1px solid transparent;background:transparent}
+.btn-icon:hover{background:var(--surface-2)}
+.btn-link{background:none;border:0;padding:4px 0;color:var(--accent-text);text-decoration:underline;text-underline-offset:3px;font-size:13px}
+/* tipos de ocupacao: sempre com rotulo textual */
+.occ{--c:var(--occ-free);--l:var(--line-free)}
+.occ-booked{--c:var(--occ-booked);--l:var(--line-booked)}
+.occ-imported{--c:var(--occ-imported);--l:var(--line-imported)}
+.occ-conflict{--c:var(--occ-conflict);--l:var(--line-conflict)}
+.tag{display:inline-flex;align-items:center;gap:4px;padding:1px 8px;border-radius:999px;font-size:11.5px;font-weight:600;background:var(--c);border:1px solid var(--l);color:var(--text);white-space:nowrap}
+.stripes{background-image:repeating-linear-gradient(135deg,transparent 0 6px,rgb(196 43 39/.16) 6px 12px)}
+/* dialog */
+dialog.dlg{padding:0;border:1px solid var(--border);background:var(--bg);color:var(--text);border-radius:calc(var(--r) + 6px);width:min(440px,calc(100vw - 24px));max-height:calc(100dvh - 24px);box-shadow:var(--shadow);overflow:auto}
+dialog.dlg::backdrop{background:rgb(0 0 0/.5)}
+.dlg-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:18px 20px 6px}
+.dlg-head h2{font-size:18px;letter-spacing:-.01em}
+.dlg-body{padding:8px 20px 12px;display:grid;gap:14px}
+.dlg-foot{display:flex;gap:10px;justify-content:flex-end;padding:12px 20px 20px;flex-wrap:wrap}
+.field{display:grid;gap:6px}
+.field label,.field legend{font-size:13px;font-weight:600}
+.field input,.field select{height:42px;padding:0 12px;border:1px solid var(--border);border-radius:var(--r);background:var(--bg);width:100%;min-width:0}
+.field input:hover,.field select:hover{border-color:var(--text-muted)}
+.row2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.chips{display:flex;flex-wrap:wrap;gap:6px}
+.chipbtn{border:1px solid var(--border);background:var(--surface);border-radius:999px;padding:4px 10px;font-size:12.5px}
+.chipbtn:hover{border-color:var(--accent)}
+.err{display:flex;gap:8px;align-items:flex-start;padding:10px 12px;border-radius:var(--r);background:var(--occ-conflict);border:1px solid var(--line-conflict);font-size:13.5px;font-weight:550}
+.okmsg{display:flex;gap:8px;align-items:center;padding:8px 12px;border-radius:var(--r);background:var(--occ-free);border:1px solid var(--line-free);font-size:13.5px}
+.muted{color:var(--text-muted)}
+.radio{display:flex;gap:10px;align-items:flex-start;padding:12px;border:1px solid var(--border);border-radius:var(--r);cursor:pointer}
+.radio:has(input:checked){border-color:var(--accent);background:var(--surface-2);box-shadow:0 0 0 1px var(--accent) inset}
+.radio input{accent-color:var(--accent);margin-top:3px;width:18px;height:18px}
+.radio b{display:block}
+.radio span span{color:var(--text-muted);font-size:13px}
+.done{display:grid;justify-items:center;text-align:center;gap:8px;padding:24px 20px 4px}
+.done .ring{width:56px;height:56px;border-radius:50%;display:grid;place-items:center;background:var(--occ-free);border:2px solid var(--line-free);font-size:26px}
+.summary{display:grid;gap:4px;padding:12px;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);text-align:left;width:100%;font-size:14px}
+.toast{position:fixed;left:50%;bottom:84px;transform:translateX(-50%);background:var(--text);color:var(--bg);padding:10px 16px;border-radius:999px;font-size:14px;z-index:99;box-shadow:var(--shadow);max-width:calc(100vw - 32px)}
+@media(prefers-reduced-motion:no-preference){
+ dialog.dlg[open]{animation:pop .18s ease-out}dialog.dlg[open]::backdrop{animation:fade .18s}
+ .toast{animation:pop .2s ease-out}.done .ring{animation:pop .35s cubic-bezier(.3,1.6,.5,1)}
+ @keyframes pop{from{opacity:0;transform:translateY(8px) scale(.98)}}@keyframes fade{from{opacity:0}}
+ .toast{animation-name:toastin}@keyframes toastin{from{opacity:0;transform:translate(-50%,8px)}}
+}
+@media(prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important;scroll-behavior:auto!important}}

@@ -9,6 +9,7 @@
       "!**/worker-configuration.d.ts",
       "!**/drizzle",
       "!**/src/styles.css",
+      "!**/docs/design/prototipo-agenda-a",
       "!**/bun.lock",
       "!**/*.md"
     ]

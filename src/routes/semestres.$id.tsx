@@ -1,5 +1,6 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { AppShell } from "#/components/app-shell";
+import { Card, Notice, PageHeader } from "#/components/page";
 import { SemesterForm } from "#/components/semesters/semester-form";
 import { getSemesterFn } from "#/server/admin";
 import { guardSemesters } from "./-admin-guard";
@@ -19,16 +20,21 @@ function SemesterPage() {
   const semester = Route.useLoaderData();
   return (
     <AppShell>
-      <p className="mb-2 text-sm">
-        <Link to="/semestres" className="underline">
-          Voltar aos semestres
-        </Link>
-      </p>
-      <h1 className="mb-4 text-2xl font-semibold">Editar semestre</h1>
-      <div className="rounded-lg border bg-surface p-4">
+      <PageHeader
+        title="Editar semestre"
+        back={
+          <Link
+            to="/semestres"
+            className="font-medium text-accent-text underline underline-offset-4"
+          >
+            Voltar aos semestres
+          </Link>
+        }
+      />
+      <Card>
         {/* A chave refaz o estado do formulário ao trocar de semestre. */}
         <SemesterForm key={semester.id} semester={semester} />
-      </div>
+      </Card>
     </AppShell>
   );
 }
@@ -36,9 +42,9 @@ function SemesterPage() {
 function SemesterError() {
   return (
     <AppShell>
-      <p role="alert" className="rounded-lg border bg-occ-conflict p-4">
+      <Notice tone="error" role="alert">
         Não foi possível carregar o semestre. Ele pode ter sido removido ou você não tem permissão.
-      </p>
+      </Notice>
       <p className="mt-3 text-sm">
         <Link to="/semestres" className="underline">
           Voltar aos semestres

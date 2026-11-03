@@ -1,0 +1,229 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Direção A — Calendário limpo</title>
+<link rel="stylesheet" href="tokens.css">
+<link rel="stylesheet" href="base.css">
+<style>
+:root{--r:12px}
+.skip{position:absolute;left:-999px;top:8px;background:var(--bg);padding:8px 12px;border-radius:8px;z-index:100}.skip:focus{left:8px}
+.top{position:sticky;top:0;z-index:20;display:flex;align-items:center;gap:8px;padding:10px 16px;background:color-mix(in srgb,var(--bg) 88%,transparent);backdrop-filter:blur(10px);border-bottom:1px solid var(--border)}
+.brand{display:flex;align-items:center;gap:10px;font-weight:700;letter-spacing:-.01em;text-decoration:none;color:inherit;min-width:0}
+.brand .logo{width:34px;height:34px;border-radius:10px;background:var(--accent);color:var(--accent-contrast);display:grid;place-items:center;font-size:18px;flex:none}
+.brand small{display:block;font-weight:500;color:var(--text-muted);font-size:12px;letter-spacing:0}
+.brand span{min-width:0}
+.brand .bt{display:none}
+.nav{display:flex;gap:4px;margin-left:12px}
+.nav button{border:0;background:none;padding:8px 14px;border-radius:999px;font-weight:550;color:var(--text-muted);display:flex;gap:6px;align-items:center}
+.nav button:hover{background:var(--surface-2);color:var(--text)}
+.nav button[aria-current=page]{background:var(--surface-2);color:var(--text);box-shadow:inset 0 -2px 0 var(--accent)}
+.sp{flex:1}
+.who{display:flex;align-items:center;gap:8px}
+.avatar{width:34px;height:34px;border-radius:50%;background:var(--surface-2);border:1px solid var(--border);display:grid;place-items:center;font-size:12px;font-weight:700}
+.who .nm{display:none;font-size:13px;line-height:1.2}.who .nm small{display:block;color:var(--text-muted)}
+.back{font-size:13px;color:var(--text-muted);text-decoration:none;padding:6px 8px;border-radius:8px}.back:hover{background:var(--surface-2)}
+.mnav{display:flex;gap:4px;padding:8px 16px 0}
+.mnav button{flex:1;border:1px solid var(--border);background:var(--bg);border-radius:999px;padding:8px;font-weight:550;display:flex;gap:6px;align-items:center;justify-content:center}
+.mnav button[aria-current=page]{background:var(--text);color:var(--bg);border-color:var(--text)}
+details.why{margin:12px 16px 0;border:1px solid var(--border);border-radius:var(--r);background:var(--surface);font-size:13.5px}
+details.why summary{padding:10px 14px;cursor:pointer;font-weight:600}
+details.why p{padding:0 14px 12px;color:var(--text-muted)}
+.banner{margin:12px 16px 0;padding:10px 14px;border-radius:var(--r);background:var(--surface-2);border:1px solid var(--border);display:flex;gap:10px;align-items:center;flex-wrap:wrap;font-size:14px}
+.banner .btn{min-height:34px;margin-left:auto}
+.layout{display:grid;gap:0;padding:0 0 96px}
+.side{display:none}
+.main{min-width:0;padding:16px}
+.mctl{display:grid;gap:12px;margin-bottom:12px}
+.wk{display:grid;grid-template-columns:36px repeat(5,1fr) 36px;gap:4px;align-items:center}
+.wk .d{display:grid;justify-items:center;gap:2px;padding:6px 0;border:1px solid transparent;border-radius:14px;background:none;font-size:11.5px;color:var(--text-muted);text-transform:uppercase;letter-spacing:.04em}
+.wk .d b{font-size:17px;color:var(--text);letter-spacing:0;width:34px;height:34px;display:grid;place-items:center;border-radius:50%}
+.wk .d[aria-pressed=true] b{background:var(--accent);color:var(--accent-contrast)}
+.wk .d.today:not([aria-pressed=true]) b{box-shadow:inset 0 0 0 2px var(--accent)}
+.wk .btn-icon{width:36px;height:36px}
+.rooms-m{display:flex;gap:8px;overflow-x:auto;padding:2px 2px 6px;margin:0 -16px;padding-inline:16px;scrollbar-width:none}
+.rooms-m button{flex:none;border:1px solid var(--border);background:var(--bg);padding:8px 14px;border-radius:999px;font-weight:550;white-space:nowrap}
+.rooms-m button[aria-pressed=true]{background:var(--accent);border-color:var(--accent);color:var(--accent-contrast)}
+.toolbar{display:none}
+.title{display:flex;align-items:baseline;gap:10px;flex-wrap:wrap;margin:6px 0 14px}
+.title h1{font-size:22px;letter-spacing:-.02em}
+.title .rm{color:var(--text-muted)}
+.grid{display:grid;grid-template-columns:44px 1fr;border:1px solid var(--border);border-radius:calc(var(--r) + 4px);background:var(--bg);overflow:hidden}
+.axis{position:relative;border-right:1px solid var(--border);background:var(--surface)}
+.axis span{position:absolute;right:6px;transform:translateY(-50%);font-size:11px;color:var(--text-muted);font-variant-numeric:tabular-nums}
+.axis span:first-child{transform:none}
+.cols{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;min-width:0}
+.col{position:relative;border-left:1px solid var(--border);min-width:0}
+.col:first-child{border-left:0}
+.col .hl{position:absolute;left:0;right:0;border-top:1px solid var(--border);opacity:.6}
+.colh{display:none}
+.hdrs{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;margin-left:44px;border:1px solid var(--border);border-bottom:0;border-radius:calc(var(--r) + 4px) calc(var(--r) + 4px) 0 0;background:var(--surface)}
+.hdrs button{border:0;border-left:1px solid var(--border);background:none;padding:10px 6px;display:flex;gap:6px;align-items:baseline;justify-content:center;color:var(--text-muted);font-size:13px}
+.hdrs button:first-child{border-left:0}
+.hdrs b{font-size:20px;color:var(--text);letter-spacing:-.02em}
+.hdrs button.sel{background:var(--bg)}.hdrs button.sel b{color:var(--accent-text)}
+.hdrs button.today b{background:var(--accent);color:var(--accent-contrast);border-radius:999px;padding:0 8px}
+.ev,.gap{position:absolute;text-align:left;border-radius:10px;overflow:hidden;font-size:12.5px;line-height:1.3}
+.ev{background:var(--c);border:0;border-left:4px solid var(--l);padding:6px 9px;color:var(--text);transition:transform .15s,box-shadow .15s;margin:0 2px}
+.ev:hover{box-shadow:var(--shadow);transform:translateY(-1px);z-index:3}
+.ev b{display:block;font-size:13px;letter-spacing:-.005em}
+.ev .tm{color:var(--text-muted);font-variant-numeric:tabular-nums}
+.ev .tag{margin-top:4px;font-size:11px}
+.gap{border:1.5px dashed color-mix(in srgb,var(--line-free) 55%,transparent);background:transparent;color:var(--text-muted);margin:1px 3px;display:flex;align-items:center;gap:6px;padding:0 9px;transition:background .15s,border-color .15s,color .15s}
+.gap span{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gap:hover,.gap:focus-visible{background:var(--occ-free);border-style:solid;border-color:var(--line-free);color:var(--text)}
+.gap .plus{display:none;margin-left:auto}.gap:hover .plus{display:inline-flex}
+.gap.long{flex-direction:column;align-items:flex-start;justify-content:center;gap:2px}
+.legend{display:flex;gap:14px;flex-wrap:wrap;margin-top:14px;font-size:12.5px;color:var(--text-muted)}
+.legend i{display:inline-block;width:12px;height:12px;border-radius:4px;background:var(--c);border:1.5px solid var(--l);vertical-align:-2px;margin-right:6px}
+.legend i.dash{background:transparent;border-style:dashed}
+/* minhas */
+.list{display:grid;gap:12px;max-width:760px}
+.item{display:grid;grid-template-columns:56px 1fr;gap:14px;padding:16px;border:1px solid var(--border);border-radius:calc(var(--r) + 4px);background:var(--bg);align-items:start;transition:box-shadow .2s,border-color .2s}
+.item:hover{box-shadow:var(--shadow)}
+.item.new{border-color:var(--accent);box-shadow:0 0 0 3px color-mix(in srgb,var(--accent) 25%,transparent)}
+.dt{display:grid;justify-items:center;padding:8px 0;border-radius:12px;background:var(--surface-2);line-height:1.1}
+.dt b{font-size:22px}.dt small{text-transform:uppercase;letter-spacing:.06em;color:var(--text-muted);font-size:11px}
+.item h3{font-size:16px;letter-spacing:-.01em}
+.item .meta{color:var(--text-muted);font-size:13.5px;margin:2px 0 8px}
+.item .tags{display:flex;gap:6px;flex-wrap:wrap}
+.item .act{grid-column:1/-1;display:flex;justify-content:flex-end}
+.empty{padding:40px 20px;text-align:center;border:1px dashed var(--border);border-radius:var(--r);color:var(--text-muted);display:grid;gap:12px;justify-items:center}
+.fab{position:fixed;right:16px;bottom:16px;z-index:15;box-shadow:var(--shadow);min-height:52px;padding:0 20px;border-radius:999px}
+dialog.dlg{margin:auto}
+@media(max-width:640px){dialog.dlg{margin:auto auto 0;width:100vw;max-width:100vw;border-radius:20px 20px 0 0;border-bottom:0}}
+@media(min-width:640px){.brand .bt{display:block}.who .nm{display:block}.item{grid-template-columns:64px 1fr auto}.item .act{grid-column:auto;align-self:center}}
+@media(min-width:1024px){
+ .mnav,.mctl{display:none}.layout{grid-template-columns:288px 1fr;padding-bottom:40px}
+ .side{display:grid;gap:28px;align-content:start;padding:20px 16px 20px 20px;position:sticky;top:61px;height:calc(100vh - 61px);overflow:auto}
+ .main{padding:20px 24px 24px 8px}.fab{display:none}
+ .toolbar{display:flex;align-items:center;gap:8px;margin-bottom:16px}
+ .seg{display:flex;border:1px solid var(--border);border-radius:999px;padding:3px;background:var(--surface)}
+ .seg button{border:0;background:none;padding:6px 14px;border-radius:999px;font-weight:550;color:var(--text-muted)}
+ .seg button[aria-pressed=true]{background:var(--bg);color:var(--text);box-shadow:0 1px 2px rgb(0 0 0/.12)}
+}
+@media(max-width:1023px){.hdrs{display:none}.grid{border-radius:calc(var(--r) + 4px)}}
+.mc h3{font-size:14px;display:flex;align-items:center;justify-content:space-between;margin-bottom:8px;text-transform:capitalize}
+.mc .gr{display:grid;grid-template-columns:repeat(7,1fr);gap:2px;text-align:center}
+.mc .gr span{font-size:11px;color:var(--text-muted);padding:4px 0}
+.mc .gr button{aspect-ratio:1;border:0;background:none;border-radius:50%;font-size:13px;font-variant-numeric:tabular-nums}
+.mc .gr button:hover{background:var(--surface-2)}
+.mc .gr button.we{color:var(--text-muted)}
+.mc .gr button.today{box-shadow:inset 0 0 0 1.5px var(--accent)}
+.mc .gr button[aria-pressed=true]{background:var(--accent);color:var(--accent-contrast);font-weight:700}
+.side h4{font-size:11.5px;text-transform:uppercase;letter-spacing:.08em;color:var(--text-muted);margin-bottom:8px}
+.rl{display:grid;gap:2px}
+.rl button{display:flex;align-items:center;gap:10px;border:0;background:none;padding:9px 10px;border-radius:10px;text-align:left;font-weight:500}
+.rl button:hover{background:var(--surface-2)}
+.rl button[aria-pressed=true]{background:var(--surface-2);font-weight:650;box-shadow:inset 3px 0 0 var(--accent)}
+.rl .i{color:var(--text-muted)}
+</style>
+</head>
+<body>
+<a class="skip" href="#main">Pular para o conteúdo</a>
+<header class="top">
+ <a class="back" href="index.html" aria-label="Voltar às direções">←</a>
+ <a class="brand" href="#"><span class="logo" id="logo"></span><span class="bt">Reserva de espaços<small>IFSC Câmpus Garopaba</small></span></a>
+ <nav class="nav" id="nav" aria-label="Principal"></nav>
+ <span class="sp"></span>
+ <button class="btn-icon" id="theme"></button>
+ <div class="who" id="who"></div>
+</header>
+<div class="mnav" id="mnav"></div>
+<details class="why"><summary>Direção A — Calendário limpo</summary><p>Calma e arejada, no espírito de um app de calendário conhecido, mas só com a nossa paleta: muito branco, bordas finas, laranja usado apenas em ação principal e seleção. No desktop mostra a semana de uma sala (colunas seg–sex) com mini calendário e lista de salas ao lado; no celular vira linha do tempo de um dia com faixa semanal no topo e chips de sala. Bom para quem usa a agenda de vez em quando e precisa entender tudo sem treino.</p></details>
+<div id="app"></div>
+<dialog id="dlg" class="dlg" aria-labelledby="dlg-title"><div id="dlgbody"></div></dialog>
+<script src="core.js"></script>
+<script>
+const $=s=>document.querySelector(s);
+C.themeInit();
+const S={view:'agenda',date:C.TODAY,room:'A-202',mode:'week',month:C.TODAY.slice(0,7),newId:null};
+const mq=matchMedia('(min-width:1024px)');
+$('#logo').innerHTML=C.ic('door');
+C.bindTheme($('#theme'));
+const dlg=$('#dlg'),host=$('#dlgbody');
+const close=()=>{if(dlg.open)dlg.close()};
+dlg.addEventListener('click',e=>{if(e.target===dlg)close()});
+dlg.addEventListener('close',()=>{render()});
+function open(fn){fn();if(!dlg.open)dlg.showModal()}
+const cbBase={onClose:close};
+function openBook(room,date,s,e){
+ if(!C.auth.in){open(()=>C.gateView(host,{onClose:close,onLogin:()=>{C.auth.set(true);close();chrome();render();C.toast('Você entrou como docente.')}}));return}
+ open(()=>C.bookingForm(host,{room,date,s,e},{onClose:close,onView:b=>{S.newId=b.id;S.view='minhas';close();chrome()}}));
+}
+function openCancel(o){open(()=>C.cancelForm(host,o,{onClose:close,onDone:m=>{close();C.toast(m)}}))}
+function openInfo(ev,d){open(()=>C.infoView(host,ev,d,S.room,{onClose:close,onCancel:o=>C.cancelForm(host,o,{onClose:close,onDone:m=>{close();C.toast(m)}})}))}
+function chrome(){
+ const tabs=[['agenda','calendar','Agenda'],['minhas','list','Minhas reservas']];
+ const mk=(cls)=>tabs.map(([k,i,l])=>{const lock=k==='minhas'&&!C.auth.in;return `<button data-view="${k}" ${S.view===k?'aria-current="page"':''}>${C.ic(lock?'lock':i)}${l}</button>`}).join('');
+ $('#nav').innerHTML=mk();$('#nav').style.display=mq.matches?'flex':'none';
+ $('#mnav').innerHTML=mk();
+ $('#who').innerHTML=C.auth.in?`<span class="nm">Docente<small>Perfil professor</small></span><span class="avatar" aria-hidden="true">DC</span><button class="btn-icon" id="out" aria-label="Sair" title="Sair">${C.ic('logout')}</button>`
+  :`<button class="btn btn-primary" id="inb">${C.ic('login')}Entrar</button>`;
+ const o=$('#out');if(o)o.onclick=()=>{C.auth.set(false);if(S.view==='minhas')S.view='agenda';chrome();render();C.toast('Você saiu. Agora vê a agenda como visitante.')};
+ const i=$('#inb');if(i)i.onclick=()=>{C.auth.set(true);chrome();render();C.toast('Você entrou como docente.')};
+}
+document.addEventListener('click',e=>{const b=e.target.closest('[data-view]');if(!b)return;
+ if(b.dataset.view==='minhas'&&!C.auth.in){open(()=>C.gateView(host,{onClose:close,onLogin:()=>{C.auth.set(true);S.view='minhas';close();chrome();render()}}));return}
+ S.view=b.dataset.view;chrome();render()});
+const H=()=>mq.matches?0.95:1.15;
+function hours(h){let s='';for(let m=C.D0;m<=C.D1;m+=60)s+=`<span style="top:${(m-C.D0)*h}px">${C.t(m)}</span>`;return s}
+function hlines(h){let s='';for(let m=C.D0;m<=C.D1;m+=60)s+=`<div class="hl" style="top:${(m-C.D0)*h}px"></div>`;return s}
+function col(room,d,h){
+ const evs=C.dayEvents(room,d),gs=C.gaps(room,d),wk=C.dow(d)===0||C.dow(d)===6;
+ let s=hlines(h);
+ gs.forEach(g=>{const hh=(g.e-g.s)*h-2,long=hh>=46;
+  s+=`<button class="gap${long?' long':''}" data-gap="${d}|${g.s}|${g.e}" style="top:${(g.s-C.D0)*h}px;height:${hh}px;left:0;right:0" aria-label="Livre, ${g.label}, ${C.rng(g.s,g.e)}. Reservar"><span><b>${g.label}</b> ${long||hh>=20?'':''}${C.rng(g.s,g.e)}</span><span class="plus">${C.ic('plus')}</span></button>`});
+ evs.forEach(ev=>{const w=100/ev.lanes,k=ev.conflict?'conflict':ev.type,lb=ev.conflict?'Conflito':ev.type==='imported'?'Aula importada':'Reserva';
+  s+=`<button class="ev occ occ-${k}${ev.conflict?' stripes':''}" data-ev="${ev.id}|${d}" style="top:${(ev.start-C.D0)*h}px;height:${(ev.end-ev.start)*h-2}px;left:calc(${ev.lane*w}% + 0px);width:calc(${w}% - 4px)"><b>${C.esc(ev.title)}</b><span class="tm">${C.rng(ev.start,ev.end)}</span><br><span class="tag">${ev.mine?C.ic('user'):''}${lb}${ev.mine?' · sua':''}</span></button>`});
+ return `<div class="col" style="height:${(C.D1-C.D0)*h}px">${s}</div>`;
+}
+function agenda(){
+ const h=H(),desk=mq.matches,week=desk&&S.mode==='week',dates=week?C.weekDates(S.date):[S.date];
+ const wk=C.weekDates(S.date);
+ const dl=C.long(S.date);
+ const hd=week?`<div class="hdrs">${dates.map(d=>`<button data-day="${d}" class="${d===S.date?'sel':''} ${d===C.TODAY?'today':''}">${C.DS[C.dow(d)]} <b>${C.pd(d).getDate()}</b></button>`).join('')}</div>`:'';
+ const mini=(()=>{const[y,m]=S.month.split('-').map(Number),first=new Date(y,m-1,1),off=(first.getDay()+6)%7,n=new Date(y,m,0).getDate();
+  let c='';for(let i=0;i<off;i++)c+='<span></span>';
+  for(let d=1;d<=n;d++){const id=C.iso(new Date(y,m-1,d)),w=[0,6].includes(C.dow(id));c+=`<button data-day="${id}" class="${w?'we':''} ${id===C.TODAY?'today':''}" aria-pressed="${id===S.date}" aria-label="${C.long(id)}">${d}</button>`}
+  return `<div class="mc"><h3><span>${C.ML[m-1]} ${y}</span><span><button class="btn-icon" data-mon="-1" aria-label="Mês anterior" style="width:32px;height:32px">${C.ic('chevL')}</button><button class="btn-icon" data-mon="1" aria-label="Próximo mês" style="width:32px;height:32px">${C.ic('chevR')}</button></span></h3><div class="gr">${'SEG TER QUA QUI SEX SÁB DOM'.split(' ').map(x=>`<span>${x[0]}</span>`).join('')}${c}</div></div>`})();
+ const rooms=C.ROOMS.map(r=>`<button data-room="${r}" aria-pressed="${r===S.room}">${C.ic('door')}${r}</button>`).join('');
+ const legend=`<div class="legend"><span><i class="occ occ-imported"></i>Aula importada</span><span><i class="occ occ-booked"></i>Reserva</span><span><i class="occ occ-conflict"></i>Conflito</span><span><i class="occ dash"></i>Livre</span></div>`;
+ const banner=C.auth.in?'':`<div class="banner">${C.ic('eye')}<span>Você está vendo como <b>visitante</b>. Qualquer pessoa pode consultar; para reservar, entre.</span><button class="btn btn-primary" data-login>Entrar</button></div>`;
+ return `${banner}<div class="layout"><aside class="side" aria-label="Filtros"><button class="btn btn-primary" data-new style="min-height:46px">${C.ic('plus')}Nova reserva</button>${mini}<div><h4>Salas</h4><div class="rl">${rooms}</div></div></aside>
+ <main class="main" id="main">
+  <div class="mctl"><div class="wk"><button class="btn-icon" data-step="-7" aria-label="Semana anterior">${C.ic('chevL')}</button>${wk.map(d=>`<button class="d ${d===C.TODAY?'today':''}" data-day="${d}" aria-pressed="${d===S.date}" aria-label="${C.long(d)}">${C.DS[C.dow(d)]}<b>${C.pd(d).getDate()}</b></button>`).join('')}<button class="btn-icon" data-step="7" aria-label="Próxima semana">${C.ic('chevR')}</button></div>
+  <div class="rooms-m" role="group" aria-label="Sala">${C.ROOMS.map(r=>`<button data-room="${r}" aria-pressed="${r===S.room}">${r}</button>`).join('')}</div></div>
+  <div class="toolbar"><button class="btn" data-today>Hoje</button><button class="btn-icon" data-step="${week?-7:-1}" aria-label="Anterior">${C.ic('chevL')}</button><button class="btn-icon" data-step="${week?7:1}" aria-label="Próximo">${C.ic('chevR')}</button><span class="sp"></span><div class="seg" role="group" aria-label="Visão"><button data-mode="day" aria-pressed="${S.mode==='day'}">Dia</button><button data-mode="week" aria-pressed="${S.mode==='week'}">Semana</button></div></div>
+  <div class="title"><h1>${week?`${C.pd(dates[0]).getDate()}–${C.pd(dates[4]).getDate()} de ${C.ML[C.pd(dates[4]).getMonth()]}`:dl}</h1><span class="rm">${S.room}</span></div>
+  ${hd}<div class="grid" style="${week?'border-radius:0 0 16px 16px':''}"><div class="axis" style="height:${(C.D1-C.D0)*h}px">${hours(h)}</div><div class="cols">${dates.map(d=>col(S.room,d,h)).join('')}</div></div>
+  ${legend}</main></div><button class="btn btn-primary fab" data-new>${C.ic('plus')}Reservar</button>`;
+}
+function minhas(){
+ if(!C.auth.in)return `<main class="main" id="main" style="max-width:800px;margin:auto"><div class="empty">${C.ic('lock')}<b style="color:var(--text)">Entre para ver suas reservas</b><span>Visitantes podem consultar a agenda, mas não têm reservas.</span><button class="btn btn-primary" data-login>Entrar</button></div></main>`;
+ const l=C.mine();
+ return `<main class="main" id="main" style="max-width:800px;margin:auto"><div class="title"><h1>Minhas reservas</h1><span class="rm">${l.length} próximas</span></div><div class="list">${l.map(({item:it,iso})=>{const d=C.pd(iso),imp=it.type==='imported';
+  return `<article class="item ${S.newId===it.id?'new':''}"><div class="dt"><small>${C.MS[d.getMonth()]}</small><b>${d.getDate()}</b><small>${C.DS[d.getDay()]}</small></div>
+  <div><h3>${C.esc(it.title)}</h3><p class="meta">${C.esc(it.room)} · ${C.rng(it.s,it.e)}</p><div class="tags"><span class="tag occ occ-${it.type}">${imp?'Aula importada · você é responsável':'Reserva manual'}</span>${it.date?'':`<span class="tag" style="--c:var(--surface-2);--l:var(--border)">${C.ic('repeat')}Toda ${C.DL[C.dow(iso)].split('-')[0]}</span>`}</div></div>
+  <div class="act"><button class="btn" data-cancel="${it.id}|${iso}">Cancelar…</button></div></article>`}).join('')||'<div class="empty">Nenhuma reserva futura.</div>'}</div></main><button class="btn btn-primary fab" data-new>${C.ic('plus')}Reservar</button>`;
+}
+function render(){S.view==='agenda'?$('#app').innerHTML=agenda():$('#app').innerHTML=minhas();if(S.view!=='minhas')S.newId=null;chrome()}
+$('#app').addEventListener('click',e=>{const t=e.target.closest('button');if(!t)return;const d=t.dataset;
+ if(d.day){S.date=d.day;S.month=d.day.slice(0,7);if(!mq.matches)S.mode='day';render()}
+ else if(d.room){S.room=d.room;render()}
+ else if(d.step){S.date=C.add(S.date,+d.step);S.month=S.date.slice(0,7);render()}
+ else if(d.mon){const[y,m]=S.month.split('-').map(Number),n=new Date(y,m-1+ +d.mon,1);S.month=n.getFullYear()+'-'+String(n.getMonth()+1).padStart(2,'0');render()}
+ else if(d.mode){S.mode=d.mode;render()}
+ else if(d.today!==undefined){S.date=C.TODAY;S.month=C.TODAY.slice(0,7);render()}
+ else if(d.gap){const[dd,s,en]=d.gap.split('|');openBook(S.room,dd,+s,Math.min(+en,+s+120))}
+ else if(d.ev){const[id,dd]=d.ev.split('|'),ev=C.dayEvents(S.room,dd).find(x=>x.id===id);openInfo(ev,dd)}
+ else if(d.new!==undefined){openBook(S.room,S.date,570,660)}
+ else if(d.login!==undefined){C.auth.set(true);chrome();render();C.toast('Você entrou como docente.')}
+ else if(d.cancel){const[id,iso]=d.cancel.split('|'),it=C.mine().find(x=>x.item.id===id).item;openCancel({item:it,iso})}
+});
+mq.addEventListener('change',()=>{chrome();render()});
+chrome();render();
+</script>
+</body>
+</html>
