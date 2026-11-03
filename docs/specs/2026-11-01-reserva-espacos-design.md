@@ -163,10 +163,16 @@ Diff de arquivo alterado (regra 6) é **Fase 1b**: implementado após o fluxo b�
 
 ## 8. Design system
 
-Tokens CSS (variáveis) em `light` e `dark`, consumidos por Tailwind/shadcn. Claro: fundo branco, cinzas
-neutros frios, destaque azul. Escuro: grafite quase preto, bordas sutis, destaque
-índigo/violeta. Cores por estado de ocupação (livre, reservado, importado, conflito) com contraste
-AA nos dois temas. Mobile-first (360 px). Identidade visual própria.
+Tokens CSS (variáveis) em `light` e `dark`, consumidos por Tailwind/shadcn. Atualizado em 02/11/2026 [Luis]:
+claro = branco e preto com destaque laranja; escuro = preto e branco com o mesmo laranja; componentes
+prontos de registros que entregam o código (shadcn e afins), personalizados. Cores por estado de ocupação
+(livre, reservado, importado, conflito) com contraste AA nos dois temas, sempre com rótulo de texto.
+Mobile-first (360 px). Identidade visual própria.
+
+**Direção visual escolhida em 03/11/2026 [Luis]: "A, calendário limpo"** (protótipo em
+`docs/design/prototipo-agenda-a/`): calmo e arejado; no desktop, semana de uma sala com mini calendário e
+lista de salas ao lado; no celular, linha do tempo do dia com faixa semanal e chips de sala; reservar e
+cancelar em modal (folha inferior no celular); intervalos e almoço aparecem livres.
 
 ## 9. Qualidade e segurança
 
