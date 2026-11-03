@@ -2,6 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { AdminNav } from "#/components/admin/admin-nav";
 import { SpacesManager } from "#/components/admin/spaces-manager";
 import { AppShell } from "#/components/app-shell";
+import { Notice, PageHeader } from "#/components/page";
 import { listAdminSpacesFn } from "#/server/admin";
 import { guardAdmin } from "./-admin-guard";
 
@@ -20,8 +21,7 @@ function SpacesPage() {
   const spaces = Route.useLoaderData();
   return (
     <AppShell>
-      <h1 className="mb-1 text-2xl font-semibold">Administração</h1>
-      <p className="mb-4 text-muted-foreground">Espaços reserváveis.</p>
+      <PageHeader title="Administração" description="Espaços reserváveis." />
       <AdminNav />
       <SpacesManager spaces={spaces} />
     </AppShell>
@@ -31,9 +31,9 @@ function SpacesPage() {
 function AdminError() {
   return (
     <AppShell>
-      <p role="alert" className="rounded-lg border bg-occ-conflict p-4">
+      <Notice tone="error" role="alert">
         Não foi possível carregar os espaços. Tente novamente em instantes.
-      </p>
+      </Notice>
     </AppShell>
   );
 }

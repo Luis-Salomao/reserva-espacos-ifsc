@@ -1,6 +1,7 @@
 import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { AppShell } from "#/components/app-shell";
 import { BatchList } from "#/components/import/batch-list";
+import { Notice, PageHeader } from "#/components/page";
 import { listImportBatchesFn } from "#/server/import-fns";
 
 export const Route = createFileRoute("/importar/lotes/")({
@@ -19,11 +20,10 @@ function BatchesPage() {
   const router = useRouter();
   return (
     <AppShell wide>
-      <h1 className="text-2xl font-semibold">Lotes de importação</h1>
-      <p className="mt-1 mb-4 text-muted-foreground">
-        Cada arquivo importado vira um lote por semestre. Abra um lote para ver o resultado de cada
-        aula.
-      </p>
+      <PageHeader
+        title="Lotes de importação"
+        description="Cada arquivo importado vira um lote por semestre. Abra um lote para ver o resultado de cada aula."
+      />
       <BatchList
         batches={batches}
         timeZone={session.timeZone}
@@ -36,9 +36,9 @@ function BatchesPage() {
 function BatchesError() {
   return (
     <AppShell wide>
-      <p role="alert" className="rounded-lg border bg-occ-conflict p-4">
+      <Notice tone="error" role="alert">
         Não foi possível carregar os lotes. Tente novamente em instantes.
-      </p>
+      </Notice>
     </AppShell>
   );
 }

@@ -51,21 +51,19 @@ describe("AppShell", () => {
     expect(screen.getByRole("main").textContent).toBe("conteúdo");
   });
 
-  test("navegação leva a início e à importação da grade", async () => {
+  test("navegação leva à agenda, importação e semestres", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     const nav = screen.getByRole("navigation", { name: "Principal" });
-    expect(screen.getByRole("link", { name: "Início" }).getAttribute("href")).toBe("/");
-    expect(screen.getByRole("link", { name: "Importar grade" }).getAttribute("href")).toBe(
-      "/importar",
-    );
+    expect(screen.getByRole("link", { name: "Agenda" }).getAttribute("href")).toBe("/");
+    expect(screen.getByRole("link", { name: "Importar" }).getAttribute("href")).toBe("/importar");
     expect(screen.getByRole("link", { name: "Semestres" }).getAttribute("href")).toBe("/semestres");
     expect(nav.querySelectorAll("a")).toHaveLength(3);
   });
 
-  test("visitante vê Entrar e não vê Importar grade nem Sair", async () => {
+  test("visitante vê Entrar e não vê Importar nem Sair", async () => {
     await renderShell("x");
     expect(screen.getByRole("link", { name: "Entrar" }).getAttribute("href")).toBe("/entrar");
-    expect(screen.queryByRole("link", { name: "Importar grade" })).toBeNull();
+    expect(screen.queryByRole("link", { name: "Importar" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Sair" })).toBeNull();
   });
 
@@ -79,23 +77,23 @@ describe("AppShell", () => {
     expect(screen.queryByRole("link", { name: "Entrar" })).toBeNull();
   });
 
-  test("docente não vê Importar grade", async () => {
+  test("docente não vê Importar", async () => {
     await renderShell("x", {
       user: { ...ana, roles: ["docente"] },
       publicRead: true,
       timeZone: "America/Sao_Paulo",
     });
-    expect(screen.queryByRole("link", { name: "Importar grade" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Início" })).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Importar" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Agenda" })).toBeDefined();
   });
 
-  test("admin vê Importar grade", async () => {
+  test("admin vê Importar", async () => {
     await renderShell("x", {
       user: { ...ana, roles: ["admin"] },
       publicRead: true,
       timeZone: "America/Sao_Paulo",
     });
-    expect(screen.getByRole("link", { name: "Importar grade" })).toBeDefined();
+    expect(screen.getByRole("link", { name: "Importar" })).toBeDefined();
   });
 
   test("só admin vê Administração", async () => {
@@ -170,5 +168,27 @@ describe("AppShell", () => {
     } finally {
       Storage.prototype.setItem = original;
     }
+  });
+});
+
+describe("AppShell, estilo agenda", () => {
+  test("marca com a unidade e link ativo com aria-current", async () => {
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    expect(screen.getByRole("banner").textContent).toContain("IFSC Garopaba");
+    expect(screen.getByRole("link", { name: "Agenda" }).getAttribute("aria-current")).toBe("page");
+    expect(screen.getByRole("link", { name: "Importar" }).getAttribute("aria-current")).toBeNull();
+  });
+
+  test("menu do celular abre com links e Sair, e fecha com Esc", async () => {
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    const trigger = screen.getByRole("button", { name: "Menu" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(trigger);
+    expect(trigger.getAttribute("aria-expanded")).toBe("true");
+    expect(document.getElementById(trigger.getAttribute("aria-controls") ?? "")).not.toBeNull();
+    expect(screen.getAllByRole("button", { name: "Sair" })).toHaveLength(2);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+    expect(screen.getAllByRole("button", { name: "Sair" })).toHaveLength(1);
   });
 });

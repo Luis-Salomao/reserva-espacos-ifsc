@@ -2,6 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { AppShell } from "#/components/app-shell";
 import { BatchDetail } from "#/components/import/batch-detail";
 import { loadImportRows } from "#/components/import/load-rows";
+import { Notice } from "#/components/page";
 
 export const Route = createFileRoute("/importar/lotes/$id")({
   loader: async ({ params }) => {
@@ -32,12 +33,12 @@ function BatchPage() {
 function BatchError() {
   return (
     <AppShell wide>
-      <p role="alert" className="rounded-lg border bg-occ-conflict p-4">
+      <Notice tone="error" role="alert">
         Lote não encontrado ou não foi possível carregá-lo.
-      </p>
+      </Notice>
       <Link
         to="/importar/lotes"
-        className="mt-3 inline-block text-sm font-medium text-accent-text underline"
+        className="mt-3 inline-block text-sm font-medium text-accent-text underline underline-offset-4"
       >
         Voltar à lista de lotes
       </Link>

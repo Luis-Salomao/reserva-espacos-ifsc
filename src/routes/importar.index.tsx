@@ -1,5 +1,5 @@
 import { createFileRoute, Link } from "@tanstack/react-router";
-import { type ReactNode, useState } from "react";
+import { useState } from "react";
 import { AppShell } from "#/components/app-shell";
 import { ImportFlow } from "#/components/import/import-flow";
 import { ImportSummary } from "#/components/import/import-summary";
@@ -9,6 +9,7 @@ import { SlotList } from "#/components/import/slot-list";
 import { TermsList } from "#/components/import/terms-list";
 import { WarningList } from "#/components/import/warning-list";
 import { WeeklyGrid } from "#/components/import/weekly-grid";
+import { Notice, PageHeader, PageSection } from "#/components/page";
 import { Label } from "#/components/ui/label";
 import type { PreviewImportResult } from "#/server/import-preview";
 import type { PreviewView } from "#/server/import-preview-view";
@@ -18,15 +19,6 @@ export const Route = createFileRoute("/importar/")({
 });
 
 const SEND_ERROR = "Não foi possível enviar o arquivo. Tente novamente em instantes.";
-
-function Section({ title, children }: { title: string; children: ReactNode }) {
-  return (
-    <section className="mt-8 grid gap-3">
-      <h2 className="text-xl font-semibold">{title}</h2>
-      {children}
-    </section>
-  );
-}
 
 function RoomGrid({ view }: { view: PreviewView }) {
   const [roomId, setRoomId] = useState(view.rooms[0]?.id ?? "");
@@ -62,35 +54,35 @@ function PreviewResult({ view }: { view: PreviewView }) {
   return (
     <>
       {view.partial && (
-        <p role="alert" className="mt-4 rounded-lg border bg-occ-conflict p-4">
+        <Notice tone="error" role="alert" className="mt-4">
           Prévia parcial: o arquivo tem mais cards do que o limite, e só os primeiros foram lidos.
-        </p>
+        </Notice>
       )}
-      <Section title="Resumo">
+      <PageSection title="Resumo">
         <ImportSummary view={view} />
-      </Section>
-      <Section title="Avisos">
+      </PageSection>
+      <PageSection title="Avisos">
         <WarningList warnings={view.warnings} />
-      </Section>
-      <Section title="Sobreposições internas">
+      </PageSection>
+      <PageSection title="Sobreposições internas">
         <OverlapList
           overlaps={view.overlaps}
           detail={view.overlapsDetail}
           truncated={view.overlapsTruncated}
         />
-      </Section>
-      <Section title="Grade por sala">
+      </PageSection>
+      <PageSection title="Grade por sala">
         <RoomGrid view={view} />
-      </Section>
-      <Section title="Aulas sem sala">
+      </PageSection>
+      <PageSection title="Aulas sem sala">
         <SlotList slots={view.withoutRoom} empty="Nenhuma aula sem sala." />
-      </Section>
-      <Section title="Aulas com várias salas">
+      </PageSection>
+      <PageSection title="Aulas com várias salas">
         <SlotList slots={view.multipleRooms} empty="Nenhuma aula com várias salas." />
-      </Section>
-      <Section title="Durações">
+      </PageSection>
+      <PageSection title="Durações">
         <TermsList terms={view.termsUsed} />
-      </Section>
+      </PageSection>
     </>
   );
 }
@@ -132,19 +124,26 @@ function ImportPage() {
 
   return (
     <AppShell wide>
-      <h1 className="text-2xl font-semibold">Importar grade</h1>
-      <p className="mt-1 mb-4 text-muted-foreground">
-        Envie o XML exportado do aSc Horários para ver uma prévia. Nada é salvo nesta etapa; o
-        arquivo não é guardado, só o resumo e o resultado de cada lote.{" "}
-        <Link to="/importar/lotes" className="font-medium text-accent-text underline">
-          Ver lotes anteriores
-        </Link>
-      </p>
+      <PageHeader
+        title="Importar grade"
+        description={
+          <>
+            Envie o XML exportado do aSc Horários para ver uma prévia. Nada é salvo nesta etapa; o
+            arquivo não é guardado, só o resumo e o resultado de cada lote.{" "}
+            <Link
+              to="/importar/lotes"
+              className="font-medium text-accent-text underline underline-offset-4"
+            >
+              Ver lotes anteriores
+            </Link>
+          </>
+        }
+      />
       <ImportUpload pending={pending} onSubmit={handleSubmit} />
       {error !== null && (
-        <p role="alert" className="mt-4 rounded-lg border bg-occ-conflict p-4">
+        <Notice tone="error" role="alert" className="mt-4">
           {error}
-        </p>
+        </Notice>
       )}
       {view !== null && <PreviewResult view={view} />}
       {view !== null && file !== null && !view.partial && (
