@@ -38,7 +38,50 @@ const HELD_PREFIX = "Nova versão não aplicável: ";
 
 const dateOf = (startsAt: string) => startsAt.slice(0, 10);
 const lessonDay = (title: string, date: string) => `${title}\u0000${date}`;
-const lessonWeekday = (title: string, weekday: number) => `${title}\u0000${weekday}`;
+
+type NotApplicableItem = ReturnType<typeof planImport>["notApplicable"][number];
+
+/**
+ * Alcance de um card não aplicável: mesmo título e dia da semana, horário de algum período do card
+ * (o bloco do semestre sobrepõe o XML, como na expansão) e data nas durações que o card cobre
+ * (máscara nula ou sem datas utilizáveis = o semestre inteiro).
+ */
+function itemScope(item: NotApplicableItem, semester: VersionPlanInput["semester"]) {
+  const slots = item.segments.map((segment) => {
+    const block = semester.blocks.find((candidate) => candidate.number === segment.period);
+    return { start: block?.start ?? segment.start, end: block?.end ?? segment.end };
+  });
+  if (slots.length === 0) slots.push({ start: item.start, end: item.end });
+  const ranges = dateRanges(item.termsMask, semester);
+  return {
+    item,
+    matches(o: VersionOccurrence): boolean {
+      return (
+        o.lessonKey === item.title &&
+        weekdayOf(o.date) === item.weekday &&
+        slots.some((slot) => o.startsAt.slice(11) < slot.end && slot.start < o.endsAt.slice(11)) &&
+        (ranges === null || ranges.some(([from, to]) => o.date >= from && o.date <= to))
+      );
+    },
+  };
+}
+
+/** Intervalos de datas das durações marcadas; `null` = sem recorte (todo o semestre). */
+function dateRanges(
+  mask: string | null,
+  semester: VersionPlanInput["semester"],
+): Array<[string, string]> | null {
+  if (mask === null) return null;
+  const wanted = [...mask].flatMap((bit, index) => (bit === "1" ? [index + 1] : []));
+  const ranges: Array<[string, string]> = [];
+  for (const position of wanted) {
+    const term = semester.terms.find((candidate) => candidate.position === position);
+    // Duração marcada sem datas configuradas: não há como recortar, vale o semestre inteiro.
+    if (term === undefined) return null;
+    ranges.push([term.start, term.end]);
+  }
+  return ranges.length === 0 ? null : ranges;
+}
 
 /** Linha informativa ou de mudança sobre uma ocupação vigente (sem lote). */
 function currentRow(
@@ -88,9 +131,10 @@ function groupBySpace<T extends { spaceId: string }>(items: readonly T[]): Map<s
  * ativa vira conflito; o que o próprio lote cancela nunca conflita.
  *
  * Aula vigente cujas ocorrências no arquivo novo NÃO SÃO APLICÁVEIS (várias salas, sala sem vínculo,
- * duração sem datas...) não some: as ocupações dela (mesmo título e dia da semana, sem ocorrência
- * aplicável na mesma data) ficam SEGURADAS (`alteracao_bloqueada`, `versao_nao_aplicavel`) e contam
- * como permanecendo. A exceção é `room_ignored`: a pessoa mandou ignorar a sala, então cancela, com
+ * duração sem datas...) não some: as ocupações dela (mesmo título, dia da semana e horário do período
+ * do card, nas durações que o card cobre, sem ocorrência aplicável no mesmo horário e data) ficam SEGURADAS (`alteracao_bloqueada`, `versao_nao_aplicavel`) e contam
+ * como permanecendo; `bloqueadas` conta cada ocupação segurada (uma por linha) mais os grupos bloqueados
+ * por conflito. A exceção é `room_ignored`: a pessoa mandou ignorar a sala, então cancela, com
  * esse motivo na linha.
  */
 export function planVersion(input: VersionPlanInput): VersionPlan {
@@ -142,22 +186,27 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
     byId.get(o.occupationId as string) as VersionOccupation;
 
   // Aulas vigentes cujo horário novo não é aplicável: seguradas (nada é cancelado nem inserido).
-  const nextDays = new Set(next.map((o) => lessonDay(o.lessonKey, o.date)));
-  const unusable = new Map<string, (typeof plan.notApplicable)[number]>();
-  const ignored = new Map<string, (typeof plan.notApplicable)[number]>();
-  for (const item of plan.notApplicable) {
-    if (item.reason === "duplicate_occurrence") continue; // a outra via do mesmo card vale
-    const target = item.reason === "room_ignored" ? ignored : unusable;
-    const key = lessonWeekday(item.title, item.weekday);
-    if (!target.has(key)) target.set(key, item);
+  // O card não aplicável e a cobertura são casados por (título, dia da semana, horário do período):
+  // o horário vem do período do card com o bloco do semestre por cima, como na expansão.
+  const nextSlots = new Map<string, Array<{ startsAt: string; endsAt: string }>>();
+  for (const o of next) {
+    const key = lessonDay(o.lessonKey, o.date);
+    const list = nextSlots.get(key);
+    if (list === undefined) nextSlots.set(key, [o]);
+    else list.push(o);
   }
-  const heldFor = (o: VersionOccurrence) =>
-    unusable.get(lessonWeekday(o.lessonKey, weekdayOf(o.date)));
+  const covered = (o: VersionOccurrence) =>
+    (nextSlots.get(lessonDay(o.lessonKey, o.date)) ?? []).some((n) => intervalsOverlap(n, o));
+  const scopes = (kind: "unusable" | "ignored") =>
+    plan.notApplicable
+      .filter((item) => item.reason !== "duplicate_occurrence") // a outra via do mesmo card vale
+      .filter((item) => (item.reason === "room_ignored") === (kind === "ignored"))
+      .map((item) => itemScope(item, input.semester));
+  const unusable = scopes("unusable");
+  const ignored = scopes("ignored");
+  const heldFor = (o: VersionOccurrence) => unusable.find((scope) => scope.matches(o));
   const heldOccurrences = current.filter(
-    (o) =>
-      o.status !== "cancelada" &&
-      !nextDays.has(lessonDay(o.lessonKey, o.date)) &&
-      heldFor(o) !== undefined,
+    (o) => o.status !== "cancelada" && !covered(o) && heldFor(o) !== undefined,
   );
   const heldSet = new Set(heldOccurrences);
 
@@ -247,7 +296,7 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
     rows.push(insertRow(o, "inclusao"));
   }
   for (const o of diff.removed) {
-    const why = ignored.get(lessonWeekday(o.lessonKey, weekdayOf(o.date)));
+    const why = ignored.find((scope) => scope.matches(o))?.item;
     rows.push(
       cancelRow(
         o,
@@ -256,10 +305,8 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
       ),
     );
   }
-  const heldDays = new Set<string>();
   for (const o of heldOccurrences) {
-    const why = heldFor(o) as NonNullable<ReturnType<typeof heldFor>>;
-    heldDays.add(lessonDay(o.lessonKey, o.date));
+    const why = (heldFor(o) as NonNullable<ReturnType<typeof heldFor>>).item;
     rows.push(
       currentRow(occupationOf(o), "h", "alteracao_bloqueada", "alteracao", {
         reasonCode: "versao_nao_aplicavel",
@@ -309,7 +356,7 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
       inclusoesEmConflito: rows.filter((row) => row.changeKind === "inclusao" && isConflict(row))
         .length,
       alteracoes: diff.changed.length - blockedGroups.size,
-      bloqueadas: blockedGroups.size + heldDays.size,
+      bloqueadas: blockedGroups.size + heldOccurrences.length,
       remocoes: count("remocao"),
       responsaveis: count("responsavel"),
       inalteradas: count("inalterada"),
