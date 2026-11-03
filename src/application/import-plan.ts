@@ -32,6 +32,10 @@ type NotApplicable = {
   weekday: number;
   start: string;
   end: string;
+  /** Duração(ões) do card no arquivo (`null` = todas); define as datas que o card cobre. */
+  termsMask: string | null;
+  /** Períodos do card (identidade do horário), com os horários do XML. */
+  segments: ReadonlyArray<{ period: number; start: string; end: string }>;
 };
 
 export type PlanInput = {
@@ -216,6 +220,8 @@ export function planImport(input: PlanInput): ImportPlan {
       weekday: slot.weekday,
       start: slot.start,
       end: slot.end,
+      termsMask: slot.termsMask,
+      segments: slot.segments,
     };
     const block = blockOf(slot, input);
     if (block !== null) {

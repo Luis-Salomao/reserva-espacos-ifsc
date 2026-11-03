@@ -107,9 +107,12 @@ function open(): AppDb {
   return db;
 }
 
-async function setup(wrap?: (repo: ImportRepository) => ImportRepository): Promise<Env> {
+async function setup(
+  wrap?: (repo: ImportRepository) => ImportRepository,
+  data: Omit<Semester, "id"> = semesterData,
+): Promise<Env> {
   const db = open();
-  const semester = await createSemesterRepository(db).create(semesterData);
+  const semester = await createSemesterRepository(db).create(data);
   const spaceRepo = createSpaceRepository(db);
   const spaces = {
     R1: (await spaceRepo.create({ name: "Lab 1", capacity: null })).id,
@@ -816,6 +819,91 @@ describe("nova versão: aula aplicada cuja nova ocorrência não é aplicável",
     expect(held.map((r) => r.weekday)).toEqual([2, 2, 2]);
     expect(rows.filter((r) => r.status === "cancelar").map((r) => r.weekday)).toEqual([0, 0, 0]);
     expect(rows.filter((r) => r.status === "pendente")).toHaveLength(3);
+  });
+});
+
+describe("nova versão: escopo da retenção por horário e duração", () => {
+  const pm = {
+    periodFrom: 7,
+    periodTo: 7,
+    segments: [{ period: 7, start: "14:00", end: "14:50" }],
+  };
+  const heldRows = (rows: ImportRow[]) => rows.filter((r) => r.status === "alteracao_bloqueada");
+  const multi: Partial<WeeklySlot> = { status: "multiple_rooms", classroomIds: ["R1", "R3"] };
+
+  test("P2: dois cards da mesma aula no mesmo dia; o da manhã vira várias salas e é segurado", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1"), at("L1", "R2", 14, pm)]));
+    const prepared = await prepareAll(
+      env,
+      version("h2", [at("L1", "R1", 8, multi), at("L1", "R2", 14, pm)]),
+    );
+    const rows = await rowsOf(env, prepared.batch.id);
+    const held = heldRows(rows);
+    expect(held).toHaveLength(3);
+    expect(held.every((r) => r.startTime === "08:00")).toBe(true);
+    expect(rows.some((r) => r.status === "cancelar")).toBe(false);
+    expect(rows.filter((r) => r.status === "inalterada")).toHaveLength(3);
+    expect(prepared.batch.summary.version?.remocoes).toBe(0);
+    expect(prepared.batch.summary.version?.bloqueadas).toBe(3);
+  });
+
+  test("P2b: duas aulas com o mesmo título; a que vira várias salas é segurada, a outra segue", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1"), at("L2", "R2", 14, pm)]));
+    const prepared = await prepareAll(
+      env,
+      version("h2", [at("L1", "R1", 8, multi), at("L2", "R2", 14, pm)]),
+    );
+    const rows = await rowsOf(env, prepared.batch.id);
+    const held = heldRows(rows);
+    expect(held).toHaveLength(3);
+    expect(held.every((r) => r.lessonId !== "" && r.startTime === "08:00")).toBe(true);
+    expect(rows.some((r) => r.status === "cancelar")).toBe(false);
+    expect(prepared.batch.summary.version?.bloqueadas).toBe(3);
+  });
+
+  test("P3: aula irmã removida do arquivo não é segurada por outro card não aplicável do mesmo título", async () => {
+    const env = await setup();
+    const l2 = lesson("L2", ["T2"]);
+    await publish(env, version("h1", [at("L1", "R1"), at("L2", "R2", 14, pm)], [lesson("L1"), l2]));
+    const prepared = await prepareAll(env, version("h2", [at("L1", "R9")], [lesson("L1")]));
+    const rows = await rowsOf(env, prepared.batch.id);
+    const held = heldRows(rows);
+    expect(held).toHaveLength(3);
+    expect(held.every((r) => r.startTime === "08:00")).toBe(true);
+    const cancels = rows.filter((r) => r.status === "cancelar");
+    expect(cancels).toHaveLength(3);
+    expect(cancels.every((r) => r.startTime === "14:00" && r.changeKind === "remocao")).toBe(true);
+    expect(cancels.every((r) => r.reasonCode === null)).toBe(true);
+    const summary = prepared.batch.summary.version;
+    expect(summary?.bloqueadas).toBe(3);
+    expect(summary?.remocoes).toBe(3);
+    expect(summary?.affectedUserIds).toContain("user-t2");
+  });
+
+  test("máscara de duração: o card só da duração 1 segura apenas as datas dessa duração", async () => {
+    const env = await setup(undefined, {
+      ...semesterData,
+      terms: [
+        { position: 1, start: "2026-08-03", end: "2026-08-09" },
+        { position: 2, start: "2026-08-10", end: "2026-08-23" },
+      ],
+    });
+    await publish(env, version("h1", [at("L1", "R1")]));
+    const prepared = await prepareAll(
+      env,
+      version("h2", [at("L1", "R1", 8, { ...multi, termsMask: "10" })]),
+    );
+    const rows = await rowsOf(env, prepared.batch.id);
+    expect(heldRows(rows).map((r) => r.date)).toEqual(["2026-08-03"]);
+    expect(
+      rows
+        .filter((r) => r.status === "cancelar")
+        .map((r) => r.date)
+        .sort(),
+    ).toEqual(["2026-08-10", "2026-08-17"]);
+    expect(prepared.batch.summary.version?.bloqueadas).toBe(1);
   });
 });
 
