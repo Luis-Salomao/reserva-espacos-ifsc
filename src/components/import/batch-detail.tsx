@@ -25,10 +25,15 @@ export function BatchDetail({
   return (
     <div className="grid gap-4">
       <div>
-        <Link to="/importar/lotes" className="text-sm font-medium text-accent-text underline">
+        <Link
+          to="/importar/lotes"
+          className="text-sm font-medium text-accent-text underline underline-offset-4"
+        >
           Voltar à lista de lotes
         </Link>
-        <h1 className="mt-2 text-2xl font-semibold">Lote do semestre {batch.semesterName}</h1>
+        <h1 className="mt-2 text-[22px] leading-tight font-bold tracking-[-0.02em]">
+          Lote do semestre {batch.semesterName}
+        </h1>
         <p className="text-muted-foreground">
           {BATCH_STATUS_LABELS[batch.status]} · criado em {formatInstant(batch.createdAt, timeZone)}
           {batch.appliedAt !== null && ` · aplicado em ${formatInstant(batch.appliedAt, timeZone)}`}{" "}
@@ -54,7 +59,7 @@ export function BatchDetail({
       )}
       <BatchCounts summary={batch.summary} />
       <section className="grid gap-3" aria-labelledby="resultado">
-        <h2 id="resultado" className="text-xl font-semibold">
+        <h2 id="resultado" className="text-lg font-semibold tracking-tight">
           Resultado por linha
         </h2>
         <BatchRows batchId={batch.id} load={load} view={view} />

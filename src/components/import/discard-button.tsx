@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { runAdminAction } from "#/components/admin/use-admin-action";
+import { Notice } from "#/components/page";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -69,9 +70,9 @@ export function DiscardBatchButton({ batch, onDiscarded }: Props) {
             </AlertDialogDescription>
           </AlertDialogHeader>
           {error !== null && (
-            <p role="alert" className="rounded-lg border bg-occ-conflict p-3 text-sm">
+            <Notice tone="error" role="alert">
               {error}
-            </p>
+            </Notice>
           )}
           <AlertDialogFooter>
             <AlertDialogCancel disabled={working}>Manter o lote</AlertDialogCancel>

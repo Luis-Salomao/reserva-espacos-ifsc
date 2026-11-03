@@ -2,6 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { BatchView } from "#/application/import-report";
 import { runAdminAction } from "#/components/admin/use-admin-action";
+import { Callout } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { pendingTotal } from "#/domain/import-batch";
 import type { ImportConflictKind } from "#/domain/import-conflicts";
@@ -53,13 +54,13 @@ export function ConflictNotice({
 
   if (kind === "stale") {
     return (
-      <div role="alert" className="grid gap-2 rounded-lg border bg-occ-conflict p-4">
+      <Callout tone="error" role="alert" className="grid gap-2">
         <p>{STALE_NOTICE}</p>
-      </div>
+      </Callout>
     );
   }
   return (
-    <div role="alert" className="grid gap-3 rounded-lg border bg-occ-conflict p-4">
+    <Callout tone="error" role="alert" className="grid gap-3">
       <p>{message}</p>
       {inProgress === undefined && <p className="text-sm">Procurando o lote em andamento…</p>}
       {inProgress === null && (
@@ -90,6 +91,6 @@ export function ConflictNotice({
           </div>
         </div>
       )}
-    </div>
+    </Callout>
   );
 }

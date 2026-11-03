@@ -1,3 +1,4 @@
+import { Card } from "#/components/page";
 import type { PreviewView } from "#/server/import-preview-view";
 
 /** Durações (termsdefs) usadas pelos horários, ainda sem datas de calendário. */
@@ -12,15 +13,14 @@ export function TermsList({ terms }: { terms: PreviewView["termsUsed"] }) {
       ) : (
         <ul className="grid gap-2">
           {terms.map((term) => (
-            <li
-              key={term.mask}
-              className="flex flex-wrap justify-between gap-x-4 rounded-lg border bg-surface px-3 py-2"
-            >
-              <span className="break-words font-medium">{term.label}</span>
-              <span className="text-sm text-muted-foreground">
-                máscara <code className="break-all">{term.mask === "" ? "—" : term.mask}</code> ·{" "}
-                {term.slots} {term.slots === 1 ? "horário" : "horários"}
-              </span>
+            <li key={term.mask}>
+              <Card compact className="flex flex-wrap justify-between gap-x-4 shadow-none">
+                <span className="break-words font-medium">{term.label}</span>
+                <span className="text-sm text-muted-foreground">
+                  máscara <code className="break-all">{term.mask === "" ? "—" : term.mask}</code> ·{" "}
+                  {term.slots} {term.slots === 1 ? "horário" : "horários"}
+                </span>
+              </Card>
             </li>
           ))}
         </ul>

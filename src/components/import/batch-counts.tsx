@@ -1,3 +1,4 @@
+import { Card } from "#/components/page";
 import type { ImportSummary } from "#/domain/import-batch";
 import { describeReason } from "#/domain/import-reasons";
 import { STATUS_LABELS, STATUS_ORDER, STATUS_TONE, VERSION_STATUS_ORDER } from "./flow-helpers";
@@ -13,10 +14,10 @@ export function BatchCounts({ summary }: { summary: ImportSummary }) {
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {[...STATUS_ORDER, ...(summary.version === undefined ? [] : VERSION_STATUS_ORDER)].map(
           (status) => (
-            <div key={status} className={`rounded-lg border px-3 py-2 ${STATUS_TONE[status]}`}>
+            <Card key={status} compact tone={STATUS_TONE[status]} className="shadow-none">
               <dt className="text-sm">{STATUS_LABELS[status]}</dt>
               <dd className="text-xl font-semibold">{summary.counts[status]}</dd>
-            </div>
+            </Card>
           ),
         )}
       </dl>
@@ -25,9 +26,11 @@ export function BatchCounts({ summary }: { summary: ImportSummary }) {
           <h3 className="text-sm font-medium">Não aplicáveis, por motivo</h3>
           <ul className="grid gap-1 text-sm">
             {reasons.map(([code, count]) => (
-              <li key={code} className="flex justify-between gap-4 rounded-md border px-3 py-1">
-                <span className="break-words">{describeReason(code, null).label}</span>
-                <span className="font-medium">{count}</span>
+              <li key={code}>
+                <Card compact className="flex justify-between gap-4 py-2 shadow-none">
+                  <span className="break-words">{describeReason(code, null).label}</span>
+                  <span className="font-medium">{count}</span>
+                </Card>
               </li>
             ))}
           </ul>

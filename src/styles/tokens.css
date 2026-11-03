@@ -15,6 +15,10 @@
   --occ-imported: #dde8f6;
   --occ-conflict: #fcd5d3;
   --focus: #c2410c;
+  --line-free: #2f8f50;
+  --line-booked: #c25a08;
+  --line-imported: #3f6fae;
+  --line-conflict: #c42b27;
 }
 
 :root[data-theme="dark"] {
@@ -33,6 +37,10 @@
   --occ-imported: #1d2f4a;
   --occ-conflict: #5c1d1f;
   --focus: #f38020;
+  --line-free: #4cc27a;
+  --line-booked: #f38020;
+  --line-imported: #6d98d6;
+  --line-conflict: #ef6a66;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -52,5 +60,9 @@
     --occ-imported: #1d2f4a;
     --occ-conflict: #5c1d1f;
     --focus: #f38020;
+    --line-free: #4cc27a;
+    --line-booked: #f38020;
+    --line-imported: #6d98d6;
+    --line-conflict: #ef6a66;
   }
 }

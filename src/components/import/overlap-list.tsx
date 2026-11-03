@@ -1,3 +1,4 @@
+import { Card } from "#/components/page";
 import type { PreviewView } from "#/server/import-preview-view";
 import { weekdayName } from "./weekdays";
 
@@ -39,15 +40,14 @@ export function OverlapList({ overlaps, detail, truncated = false }: Props) {
       {detail.length > 0 && (
         <ul className="grid gap-2">
           {detail.map((overlap) => (
-            <li
-              key={overlap.key}
-              className="break-words rounded-lg border bg-surface px-3 py-2 text-sm"
-            >
-              <span className="font-medium">
-                {KIND_LABEL[overlap.kind]} · sala {overlap.room} · {weekdayName(overlap.weekday)}
-              </span>
-              <br />
-              <Side side={overlap.a} /> e <Side side={overlap.b} />
+            <li key={overlap.key}>
+              <Card compact className="break-words text-sm shadow-none">
+                <span className="font-medium">
+                  {KIND_LABEL[overlap.kind]} · sala {overlap.room} · {weekdayName(overlap.weekday)}
+                </span>
+                <br />
+                <Side side={overlap.a} /> e <Side side={overlap.b} />
+              </Card>
             </li>
           ))}
         </ul>

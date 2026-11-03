@@ -7,6 +7,7 @@ import {
   runAdminAction,
   useFocusInvalidField,
 } from "#/components/admin/use-admin-action";
+import { Card, Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { DatePicker } from "#/components/ui/date-picker";
 import { Input } from "#/components/ui/input";
@@ -126,7 +127,7 @@ function XmlLoader({ onBlocks }: XmlLoaderProps) {
   }
 
   return (
-    <div className="grid gap-2 rounded-lg border bg-surface-2 p-3">
+    <Card compact className="grid gap-2 bg-surface-2 shadow-none">
       <Label htmlFor={`${uid}-xml`}>Usar blocos do XML (opcional)</Label>
       <Input
         id={`${uid}-xml`}
@@ -147,7 +148,7 @@ function XmlLoader({ onBlocks }: XmlLoaderProps) {
           {status.message}
         </p>
       )}
-    </div>
+    </Card>
   );
 }
 
@@ -221,14 +222,14 @@ export function SemesterForm({ semester, onSaved }: Props) {
   return (
     <form onSubmit={onSubmit} className="grid gap-5" noValidate>
       {general !== undefined && (
-        <p role="alert" className="rounded-lg border bg-occ-conflict p-3 text-sm">
+        <Notice tone="error" role="alert">
           {general}
-        </p>
+        </Notice>
       )}
       {saved && (
-        <p role="status" className="rounded-lg border bg-surface-2 p-3 text-sm">
+        <Notice tone="ok" role="status">
           Semestre salvo.
-        </p>
+        </Notice>
       )}
 
       <Field id={`${uid}-name`} label="Nome" error={fieldError(result, "name")}>
@@ -309,93 +310,95 @@ export function SemesterForm({ semester, onSaved }: Props) {
         )}
         <ul className="grid gap-3">
           {blocks.map((block, index) => (
-            <li key={block.key} className="grid gap-3 rounded-lg border bg-surface p-3">
-              <div className="flex items-center justify-between gap-2">
-                <p className="text-sm font-medium">Bloco {index + 1}</p>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="outline"
-                  aria-label={`Remover bloco ${index + 1}`}
-                  onClick={() => setBlocks(blocks.filter((other) => other.key !== block.key))}
-                >
-                  Remover
-                </Button>
-              </div>
-              <div className="grid grid-cols-2 gap-3">
+            <li key={block.key}>
+              <Card compact className="grid gap-3 shadow-none">
+                <div className="flex items-center justify-between gap-2">
+                  <p className="text-sm font-medium">Bloco {index + 1}</p>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    aria-label={`Remover bloco ${index + 1}`}
+                    onClick={() => setBlocks(blocks.filter((other) => other.key !== block.key))}
+                  >
+                    Remover
+                  </Button>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field
+                    id={`${uid}-block-${index}-number`}
+                    label="Número"
+                    error={fieldError(result, `block-${index}-number`)}
+                  >
+                    {(props) => (
+                      <Input
+                        {...props}
+                        inputMode="numeric"
+                        value={block.number}
+                        onChange={(event) => changeBlock(block.key, { number: event.target.value })}
+                      />
+                    )}
+                  </Field>
+                  <Field
+                    id={`${uid}-block-${index}-short`}
+                    label="Sigla"
+                    error={fieldError(result, `block-${index}-short`)}
+                  >
+                    {(props) => (
+                      <Input
+                        {...props}
+                        maxLength={MAX_BLOCK_SHORT}
+                        value={block.short}
+                        onChange={(event) => changeBlock(block.key, { short: event.target.value })}
+                      />
+                    )}
+                  </Field>
+                </div>
                 <Field
-                  id={`${uid}-block-${index}-number`}
-                  label="Número"
-                  error={fieldError(result, `block-${index}-number`)}
+                  id={`${uid}-block-${index}-name`}
+                  label="Nome"
+                  error={fieldError(result, `block-${index}-name`)}
                 >
                   {(props) => (
                     <Input
                       {...props}
-                      inputMode="numeric"
-                      value={block.number}
-                      onChange={(event) => changeBlock(block.key, { number: event.target.value })}
+                      maxLength={MAX_BLOCK_NAME}
+                      value={block.name}
+                      onChange={(event) => changeBlock(block.key, { name: event.target.value })}
                     />
                   )}
                 </Field>
-                <Field
-                  id={`${uid}-block-${index}-short`}
-                  label="Sigla"
-                  error={fieldError(result, `block-${index}-short`)}
-                >
-                  {(props) => (
-                    <Input
-                      {...props}
-                      maxLength={MAX_BLOCK_SHORT}
-                      value={block.short}
-                      onChange={(event) => changeBlock(block.key, { short: event.target.value })}
-                    />
-                  )}
-                </Field>
-              </div>
-              <Field
-                id={`${uid}-block-${index}-name`}
-                label="Nome"
-                error={fieldError(result, `block-${index}-name`)}
-              >
-                {(props) => (
-                  <Input
-                    {...props}
-                    maxLength={MAX_BLOCK_NAME}
-                    value={block.name}
-                    onChange={(event) => changeBlock(block.key, { name: event.target.value })}
-                  />
-                )}
-              </Field>
-              <div className="grid grid-cols-2 gap-3">
-                <Field
-                  id={`${uid}-block-${index}-start`}
-                  label="Início"
-                  error={fieldError(result, `block-${index}-start`)}
-                >
-                  {(props) => (
-                    <Input
-                      {...props}
-                      type="time"
-                      value={block.start}
-                      onChange={(event) => changeBlock(block.key, { start: event.target.value })}
-                    />
-                  )}
-                </Field>
-                <Field
-                  id={`${uid}-block-${index}-end`}
-                  label="Fim"
-                  error={fieldError(result, `block-${index}-end`)}
-                >
-                  {(props) => (
-                    <Input
-                      {...props}
-                      type="time"
-                      value={block.end}
-                      onChange={(event) => changeBlock(block.key, { end: event.target.value })}
-                    />
-                  )}
-                </Field>
-              </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <Field
+                    id={`${uid}-block-${index}-start`}
+                    label="Início"
+                    error={fieldError(result, `block-${index}-start`)}
+                  >
+                    {(props) => (
+                      <Input
+                        {...props}
+                        type="time"
+                        value={block.start}
+                        onChange={(event) => changeBlock(block.key, { start: event.target.value })}
+                      />
+                    )}
+                  </Field>
+                  <Field
+                    id={`${uid}-block-${index}-end`}
+                    label="Fim"
+                    error={fieldError(result, `block-${index}-end`)}
+                  >
+                    {(props) => (
+                      <Input
+                        {...props}
+                        type="time"
+                        value={block.end}
+                        onChange={(event) => changeBlock(block.key, { end: event.target.value })}
+                      />
+                    )}
+                  </Field>
+                </div>
+              </Card>
             </li>
           ))}
         </ul>

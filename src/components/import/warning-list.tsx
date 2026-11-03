@@ -1,3 +1,4 @@
+import { Card } from "#/components/page";
 import type { PreviewView } from "#/server/import-preview-view";
 
 const SOURCE_LABEL = { xml: "Arquivo", grade: "Grade" } as const;
@@ -11,20 +12,22 @@ export function WarningList({ warnings }: { warnings: PreviewView["warnings"] })
     <ul className="grid gap-2">
       {warnings.map((warning) => (
         <li key={`${warning.source}:${warning.section}:${warning.code}`}>
-          <details className="rounded-lg border bg-surface px-3 py-2">
-            <summary className="cursor-pointer break-words font-medium">
-              {warning.message}{" "}
-              <span className="whitespace-nowrap font-normal text-muted-foreground">
-                ({SOURCE_LABEL[warning.source]} · {warning.section}: {warning.count}{" "}
-                {warning.count === 1 ? "ocorrência" : "ocorrências"})
-              </span>
-            </summary>
-            {warning.examples.length > 0 && (
-              <p className="mt-2 break-words text-sm text-muted-foreground">
-                Exemplos: {warning.examples.join(", ")}
-              </p>
-            )}
-          </details>
+          <Card compact className="shadow-none">
+            <details>
+              <summary className="cursor-pointer break-words font-medium">
+                {warning.message}{" "}
+                <span className="whitespace-nowrap font-normal text-muted-foreground">
+                  ({SOURCE_LABEL[warning.source]} · {warning.section}: {warning.count}{" "}
+                  {warning.count === 1 ? "ocorrência" : "ocorrências"})
+                </span>
+              </summary>
+              {warning.examples.length > 0 && (
+                <p className="mt-2 break-words text-sm text-muted-foreground">
+                  Exemplos: {warning.examples.join(", ")}
+                </p>
+              )}
+            </details>
+          </Card>
         </li>
       ))}
     </ul>

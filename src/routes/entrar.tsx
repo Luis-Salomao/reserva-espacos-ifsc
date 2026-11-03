@@ -1,9 +1,9 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import { AppShell } from "#/components/app-shell";
+import { Field } from "#/components/ds";
 import { Card, Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
-import { Label } from "#/components/ui/label";
 import {
   LOGIN_ERROR_MESSAGES,
   type LoginErrorCode,
@@ -49,8 +49,7 @@ function LoginPage() {
         <Card className="p-5 sm:p-6">
           <form method="post" action="/api/entrar" className="grid gap-4">
             <input type="hidden" name="voltar" value={voltar ?? "/"} />
-            <div className="grid gap-2">
-              <Label htmlFor="login-email">E-mail</Label>
+            <Field id="login-email" label="E-mail">
               <Input
                 id="login-email"
                 name="email"
@@ -64,9 +63,8 @@ function LoginPage() {
                 aria-invalid={erro === undefined ? undefined : true}
                 aria-describedby={erro === undefined ? undefined : "login-error"}
               />
-            </div>
-            <div className="grid gap-2">
-              <Label htmlFor="login-password">Senha</Label>
+            </Field>
+            <Field id="login-password" label="Senha">
               <Input
                 id="login-password"
                 name="password"
@@ -77,7 +75,7 @@ function LoginPage() {
                 aria-invalid={erro === undefined ? undefined : true}
                 aria-describedby={erro === undefined ? undefined : "login-error"}
               />
-            </div>
+            </Field>
             <Button type="submit" className="w-full">
               Entrar
             </Button>

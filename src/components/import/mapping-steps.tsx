@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-mappings";
 import { runAdminAction } from "#/components/admin/use-admin-action";
+import { Card } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import {
   createImportSpaceFn,
@@ -20,7 +21,7 @@ import {
 } from "./flow-helpers";
 
 const SELECT_CLASS =
-  "h-9 w-full min-w-0 rounded-md border bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring outline-none";
+  "h-10 w-full min-w-0 rounded-lg border bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring outline-none";
 
 type Space = { id: string; name: string };
 type Account = { id: string; name: string; code: string | null };
@@ -123,39 +124,41 @@ export function RoomMappingStep({
           const id = `${uid}-${room.id}`;
           const origin = origins.get(room.id);
           return (
-            <li
-              key={room.id}
-              className="grid gap-2 rounded-lg border bg-surface p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] sm:items-center"
-            >
-              <label htmlFor={id} className="grid min-w-0 gap-0.5">
-                <span className="break-words font-medium">
-                  {room.short}
-                  {room.name && room.name !== room.short ? ` – ${room.name}` : ""}
-                </span>
-                <span className="text-sm text-muted-foreground">
-                  {room.slots.length} {room.slots.length === 1 ? "horário" : "horários"}
-                  {origin !== undefined && choices[room.id] !== "" && baseline[room.id] === ""
-                    ? " · sugestão, confirme salvando"
-                    : ""}
-                </span>
-              </label>
-              <select
-                id={id}
-                value={choices[room.id] ?? ""}
-                onChange={(event) => setChoices({ ...choices, [room.id]: event.target.value })}
-                className={SELECT_CLASS}
+            <li key={room.id}>
+              <Card
+                compact
+                className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] sm:items-center shadow-none"
               >
-                <option value="">Sem vínculo (aulas não aplicáveis)</option>
-                <option value={CREATE_VALUE}>Criar espaço com este nome</option>
-                <option value={IGNORE_VALUE}>Ignorar esta sala</option>
-                <optgroup label="Espaços existentes">
-                  {spaces.map((space) => (
-                    <option key={space.id} value={spaceValue(space.id)}>
-                      {space.name}
-                    </option>
-                  ))}
-                </optgroup>
-              </select>
+                <label htmlFor={id} className="grid min-w-0 gap-0.5">
+                  <span className="break-words font-medium">
+                    {room.short}
+                    {room.name && room.name !== room.short ? ` – ${room.name}` : ""}
+                  </span>
+                  <span className="text-sm text-muted-foreground">
+                    {room.slots.length} {room.slots.length === 1 ? "horário" : "horários"}
+                    {origin !== undefined && choices[room.id] !== "" && baseline[room.id] === ""
+                      ? " · sugestão, confirme salvando"
+                      : ""}
+                  </span>
+                </label>
+                <select
+                  id={id}
+                  value={choices[room.id] ?? ""}
+                  onChange={(event) => setChoices({ ...choices, [room.id]: event.target.value })}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">Sem vínculo (aulas não aplicáveis)</option>
+                  <option value={CREATE_VALUE}>Criar espaço com este nome</option>
+                  <option value={IGNORE_VALUE}>Ignorar esta sala</option>
+                  <optgroup label="Espaços existentes">
+                    {spaces.map((space) => (
+                      <option key={space.id} value={spaceValue(space.id)}>
+                        {space.name}
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </Card>
             </li>
           );
         })}
@@ -236,27 +239,29 @@ export function TeacherMappingStep({
         {teachers.map((teacher) => {
           const id = `${uid}-${teacher.id}`;
           return (
-            <li
-              key={teacher.id}
-              className="grid gap-2 rounded-lg border bg-surface p-3 sm:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] sm:items-center"
-            >
-              <label htmlFor={id} className="break-words font-medium">
-                {teacher.short}
-              </label>
-              <select
-                id={id}
-                value={choices[teacher.id] ?? ""}
-                onChange={(event) => setChoices({ ...choices, [teacher.id]: event.target.value })}
-                className={SELECT_CLASS}
+            <li key={teacher.id}>
+              <Card
+                compact
+                className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] sm:items-center shadow-none"
               >
-                <option value="">Sem vínculo (aula sem responsável)</option>
-                {accounts.map((account) => (
-                  <option key={account.id} value={userValue(account.id)}>
-                    {account.name}
-                    {account.code ? ` (${account.code})` : ""}
-                  </option>
-                ))}
-              </select>
+                <label htmlFor={id} className="break-words font-medium">
+                  {teacher.short}
+                </label>
+                <select
+                  id={id}
+                  value={choices[teacher.id] ?? ""}
+                  onChange={(event) => setChoices({ ...choices, [teacher.id]: event.target.value })}
+                  className={SELECT_CLASS}
+                >
+                  <option value="">Sem vínculo (aula sem responsável)</option>
+                  {accounts.map((account) => (
+                    <option key={account.id} value={userValue(account.id)}>
+                      {account.name}
+                      {account.code ? ` (${account.code})` : ""}
+                    </option>
+                  ))}
+                </select>
+              </Card>
             </li>
           );
         })}
