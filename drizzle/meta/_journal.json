@@ -50,6 +50,13 @@
       "when": 1793653796889,
       "tag": "0006_tired_gorilla_man",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "6",
+      "when": 1793741075497,
+      "tag": "0007_glossy_stepford_cuckoos",
+      "breakpoints": true
     }
   ]
 }
