@@ -24,6 +24,7 @@ const view = (over: Partial<BatchView>): BatchView => ({
   supersedesBatchId: null,
   supersedesAppliedAt: null,
   affectedNames: [],
+  outdated: false,
   ...over,
 });
 
@@ -62,6 +63,60 @@ describe("BatchList", () => {
       }),
     ]);
     expect(screen.getByText(/10 pendentes/)).toBeTruthy();
+  });
+
+  test("lote de nova versão mostra criadas, canceladas e responsáveis atualizados", async () => {
+    await renderList([
+      view({
+        supersedesBatchId: "b0",
+        summary: {
+          rows: 0,
+          notApplicable: {},
+          counts: {
+            ...EMPTY_COUNTS,
+            aplicada: 4,
+            cancelada_versao: 3,
+            responsavel_atualizado: 2,
+            alteracao_bloqueada: 1,
+          },
+          version: {
+            supersedesBatchId: "b0",
+            inclusoes: 0,
+            alteracoes: 0,
+            bloqueadas: 1,
+            remocoes: 0,
+            responsaveis: 2,
+            inalteradas: 0,
+            mantidasCanceladas: 0,
+            affectedUserIds: [],
+          },
+        },
+      }),
+    ]);
+    const text = document.body.textContent ?? "";
+    expect(text).toContain("4 aplicadas");
+    expect(text).toContain("3 canceladas");
+    expect(text).toContain("2 responsáveis atualizados");
+    expect(text).toContain("1 bloqueada");
+  });
+
+  test("primeira versão não mostra contagens de nova versão", async () => {
+    await renderList([view({})]);
+    expect(document.body.textContent).not.toContain("canceladas");
+  });
+
+  test("rascunho desatualizado mostra o aviso para enviar de novo", async () => {
+    await renderList([
+      view({ id: "b3", status: "rascunho", outdated: true }),
+      view({ id: "b2", status: "rascunho", outdated: false }),
+    ]);
+    expect(screen.getAllByText(/versão desatualizada — envie novamente/)).toHaveLength(1);
+  });
+
+  test("identifica o arquivo pelo prefixo do hash, nunca como Lote", async () => {
+    await renderList([view({})]);
+    expect(document.body.textContent).toContain("arquivo abcdef01");
+    expect(document.body.textContent).not.toMatch(/Lote abcdef01/);
   });
 
   test("Descartar aparece só em lotes que ainda não foram aplicados", async () => {

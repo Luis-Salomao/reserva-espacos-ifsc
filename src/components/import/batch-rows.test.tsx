@@ -17,6 +17,7 @@ const batch: RowsPage["batch"] = {
   supersedesBatchId: null,
   supersedesAppliedAt: null,
   affectedNames: [],
+  outdated: false,
   summary: {
     rows: 0,
     notApplicable: {},

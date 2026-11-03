@@ -31,7 +31,7 @@ export function VersionOverview({
                 }`}
               >
                 <span className="block text-sm">{card.label}</span>
-                <span className="block text-xl font-semibold">{card.count}</span>
+                <span className="block text-xl font-semibold">{card.display}</span>
                 {selected && <span className="block text-xs">Mostrando abaixo</span>}
               </button>
             </li>

@@ -51,10 +51,19 @@ export function BatchList({
                 </span>
               )}
               <span className="text-sm">
-                {counts.aplicada} aplicadas · {counts.nao_aplicavel} não aplicáveis ·{" "}
+                {counts.aplicada} aplicadas
+                {batch.summary.version !== undefined &&
+                  ` · ${counts.cancelada_versao} canceladas · ${counts.responsavel_atualizado} responsáveis atualizados · ${counts.alteracao_bloqueada} ${counts.alteracao_bloqueada === 1 ? "bloqueada" : "bloqueadas"}`}{" "}
+                · {counts.nao_aplicavel} não aplicáveis ·{" "}
                 {counts.conflito + counts.conflito_interno} conflitos · {counts.falha} falhas ·{" "}
                 {pendingTotal(counts)} pendentes
               </span>
+              {batch.outdated && (
+                <span role="note" className="text-sm font-medium">
+                  versão desatualizada — envie novamente o arquivo para preparar sobre a versão
+                  atual
+                </span>
+              )}
             </Link>
             <div className="mt-2">
               <DiscardBatchButton batch={batch} onDiscarded={onChanged} />

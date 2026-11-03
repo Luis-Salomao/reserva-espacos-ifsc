@@ -8,5 +8,3 @@ export const CANCEL_REASONS = {
   /** Cancelada à mão por uma pessoa. */
   usuario: "usuario",
 } as const;
-
-export type CancelReason = (typeof CANCEL_REASONS)[keyof typeof CANCEL_REASONS];

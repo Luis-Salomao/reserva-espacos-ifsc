@@ -265,6 +265,32 @@ describe("relatório por linha do lote", () => {
     expect(listed.find((item) => item.id === "b1")?.supersedesAppliedAt).toBeNull();
   });
 
+  test("rascunho preparado sobre uma versão que já não é a última aparece como desatualizado", async () => {
+    const draft = (id: string, hash: string, supersedes: string | null): ImportBatch => ({
+      id,
+      semesterId: env.semesterId,
+      fileHash: hash,
+      summary: { rows: 0, notApplicable: {}, counts },
+      planHash: null,
+      status: "rascunho",
+      createdBy: env.teacherId,
+      createdAt: "2026-11-03T10:00:00.000Z",
+      appliedAt: null,
+      supersedesBatchId: supersedes,
+    });
+    await env.imports.insertBatch(draft("d1", "1111000011112222", "b1"));
+    expect((await env.report.batches()).find((b) => b.id === "d1")?.outdated).toBe(false);
+    await env.imports.insertBatch({
+      ...draft("b3", "3333000011112222", "b1"),
+      status: "aplicado",
+      appliedAt: "2026-11-03T11:00:00.000Z",
+    });
+    const listed = await env.report.batches();
+    expect(listed.find((b) => b.id === "d1")?.outdated).toBe(true);
+    expect(listed.find((b) => b.id === "b3")?.outdated).toBe(false);
+    expect(listed.find((b) => b.id === "b1")?.outdated).toBe(false);
+  });
+
   test("por grupo: nenhuma aula+data é cortada entre páginas, mesmo passando de 200 linhas", async () => {
     // 120 grupos (aula + data) de 2 linhas cada = 240 linhas, mais um grupo de 3 linhas (turmas
     // divididas: 2 cancelar, 1 inserir) que atravessa a antiga fronteira de 200 linhas.

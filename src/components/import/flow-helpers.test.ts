@@ -172,6 +172,15 @@ describe("cartões da nova versão", () => {
     ]);
   });
 
+  test("Inclusões mostra quantas estão em conflito, só quando há", () => {
+    const inclusions = (v: Parameters<typeof versionCards>[0]) =>
+      versionCards(v).find((card) => card.view === "inclusao")?.display;
+    expect(inclusions(version)).toBe("2");
+    expect(inclusions({ ...version, inclusoesEmConflito: 0 })).toBe("2");
+    expect(inclusions({ ...version, inclusoesEmConflito: 1 })).toBe("2 (1 em conflito)");
+    expect(versionCards({ ...version, inclusoesEmConflito: 1 })[1]?.display).toBe("3");
+  });
+
   test("cada cartão aponta para o filtro do servidor", () => {
     expect(viewFilter("")).toEqual({});
     expect(viewFilter("remocao")).toEqual({ changeKind: "remocao" });

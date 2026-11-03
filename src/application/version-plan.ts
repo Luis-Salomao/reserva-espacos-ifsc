@@ -306,6 +306,8 @@ export function planVersion(input: VersionPlanInput): VersionPlan {
     version: {
       supersedesBatchId: input.supersedesBatchId,
       inclusoes: count("inclusao"),
+      inclusoesEmConflito: rows.filter((row) => row.changeKind === "inclusao" && isConflict(row))
+        .length,
       alteracoes: diff.changed.length - blockedGroups.size,
       bloqueadas: blockedGroups.size + heldDays.size,
       remocoes: count("remocao"),
