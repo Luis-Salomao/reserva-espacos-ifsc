@@ -19,7 +19,8 @@ type ApplyReason =
   | "ja_cancelada"
   | "cancelada_sem_correspondente"
   | "cancelada_alterada"
-  | "alteracao_bloqueada";
+  | "alteracao_bloqueada"
+  | "versao_nao_aplicavel";
 
 export type ReasonCode = NotApplicableReason | ApplyReason;
 
@@ -42,6 +43,7 @@ const LABELS: Record<ReasonCode, string> = {
   cancelada_sem_correspondente: "Cancelada e fora da nova versão",
   cancelada_alterada: "Cancelada antes; mudou na nova versão",
   alteracao_bloqueada: "Alteração bloqueada por conflito",
+  versao_nao_aplicavel: "Nova versão não aplicável",
 };
 
 /** Todos os códigos de motivo que o planejador e a aplicação podem gravar numa linha. */
