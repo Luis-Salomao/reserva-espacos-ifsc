@@ -813,6 +813,52 @@ describe("nova versão: aula aplicada cuja nova ocorrência não é aplicável",
   });
 });
 
+describe("nova versão: responsáveis afetados", () => {
+  const withT2 = (extra: WeeklySlot[]) =>
+    [
+      [at("L1", "R1"), ...extra],
+      [lesson("L1"), lesson("B1", ["T2"], "S2")],
+    ] as const;
+
+  test("inclusão pura avisa o responsável da aula que ganhou ocorrências", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    const [slots, lessons] = withT2([at("B1", "R2")]);
+    const prepared = await prepareAll(env, version("h2", [...slots], [...lessons]));
+    expect(prepared.batch.summary.version?.affectedUserIds).toEqual(["user-t2"]);
+  });
+
+  test("inclusão que vira conflito também avisa o responsável", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    for (const [index, date] of ["03", "10", "17"].entries()) {
+      await env.db.insert(schema.occupations).values({
+        ...manualBooking(env.spaces.R2, `2026-08-${date}T08:30`, `2026-08-${date}T09:00`),
+        id: `manual-${index}`,
+      });
+    }
+    const [slots, lessons] = withT2([at("B1", "R2")]);
+    const prepared = await prepareAll(env, version("h2", [...slots], [...lessons]));
+    const rows = await rowsOf(env, prepared.batch.id);
+    expect(rows.filter((r) => r.status === "conflito")).toHaveLength(3);
+    expect(prepared.batch.summary.version?.affectedUserIds).toEqual(["user-t2"]);
+  });
+
+  test("alteração bloqueada por conflito avisa o responsável da nova ocorrência", async () => {
+    const env = await setup();
+    await publish(env, version("h1", [at("L1", "R1")]));
+    for (const [index, date] of ["03", "10", "17"].entries()) {
+      await env.db.insert(schema.occupations).values({
+        ...manualBooking(env.spaces.R2, `2026-08-${date}T08:30`, `2026-08-${date}T09:00`),
+        id: `manual-${index}`,
+      });
+    }
+    const prepared = await prepareAll(env, version("h2", [at("L1", "R2")], [lesson("L1", ["T2"])]));
+    expect(prepared.batch.summary.version?.bloqueadas).toBe(3);
+    expect(prepared.batch.summary.version?.affectedUserIds).toEqual(["user-t2"]);
+  });
+});
+
 describe("nova versão: bloqueios em cascata", () => {
   test("P1: ocupação segurada por grupo bloqueado ocupa o lugar; outra aula não é movida para lá", async () => {
     const env = await setup();

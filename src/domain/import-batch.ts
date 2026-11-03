@@ -65,7 +65,11 @@ export type VersionSummary = {
   responsaveis: number;
   inalteradas: number;
   mantidasCanceladas: number;
-  /** Responsáveis de ocupações canceladas/alteradas, para comunicação futura (regra 4). */
+  /**
+   * Responsáveis a avisar (regra 4, comunicação futura): de ocupações canceladas, de trocas de
+   * responsável e de toda ocorrência nova do arquivo (inclusão, alteração), inclusive as que viraram
+   * conflito ou ficaram bloqueadas.
+   */
   affectedUserIds: string[];
 };
 
