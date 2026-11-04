@@ -168,7 +168,7 @@ function SpaceForm({ uid, space, onCancel, onSaved }: FormProps) {
               className="grid min-w-0 gap-2"
               aria-describedby={describedBy(item.kind)}
             >
-              <legend className="mb-2 text-sm font-medium">{item.label}</legend>
+              <legend className="mb-2 text-[13px] leading-none font-semibold">{item.label}</legend>
               <div className="flex flex-wrap gap-2">
                 {PRESENCE_CHOICES.map((choice, index) => (
                   <ChoiceCard
