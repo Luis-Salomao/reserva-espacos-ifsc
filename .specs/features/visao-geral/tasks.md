@@ -107,8 +107,8 @@ T5 → T6 → T7 → T8 → T9
 
 **Done when**:
 
-- [ ] Testes de ação: semana inválida é 400; visitante sem nomes; logado com nomes
-- [ ] Gate check passes: `bun test src/server`
+- [x] Testes de ação: semana inválida é 400; visitante sem nomes; logado com nomes
+- [x] Gate check passes: `bun test src/server`
 
 **Tests**: unit
 **Gate**: quick
