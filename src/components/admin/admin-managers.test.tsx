@@ -7,6 +7,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { useState } from "react";
 import type { Semester } from "#/domain/semester";
 import type { Space } from "#/domain/space";
 import type { User } from "#/domain/user";
@@ -81,6 +82,7 @@ mock.module("#/server/admin", () => ({
 const { AccountsManager } = await import("./accounts-manager");
 const { SpacesManager } = await import("./spaces-manager");
 const { SpaceCard } = await import("./space-card");
+const { SpaceFormDialog } = await import("./space-form-dialog");
 const { SemesterForm } = await import("#/components/semesters/semester-form");
 
 const me: User = {
@@ -430,6 +432,204 @@ describe("SpaceCard", () => {
     fireEvent.click(screen.getByRole("button", { name: "Excluir A-202" }));
     await screen.findByRole("alertdialog");
     expect(screen.queryByRole("alert") === null).toBe(true);
+  });
+});
+
+/** Abre o diálogo por um botão, como o gerenciador faz; fechar volta a `undefined`. */
+function SpaceDialogHarness({ space }: { space: Space | null }) {
+  const [open, setOpen] = useState<Space | null | undefined>(undefined);
+  const [saved, setSaved] = useState(0);
+  return (
+    <>
+      <button type="button" onClick={() => setOpen(space)}>
+        Abrir
+      </button>
+      <p>Salvos: {saved}</p>
+      <SpaceFormDialog
+        space={open}
+        onClose={() => setOpen(undefined)}
+        onSaved={() => {
+          setSaved((count) => count + 1);
+          setOpen(undefined);
+        }}
+      />
+    </>
+  );
+}
+
+describe("SpaceFormDialog", () => {
+  const a202: Space = {
+    id: "a202",
+    name: "A-202",
+    capacity: 40,
+    equipment: { items: { projetor: 1, computadores: 0 }, notes: "Lousa digital" },
+  };
+
+  async function open(space: Space | null) {
+    render(<SpaceDialogHarness space={space} />);
+    fireEvent.click(screen.getByRole("button", { name: "Abrir" }));
+    return screen.findByRole("dialog");
+  }
+
+  const checked = (dialog: HTMLElement, group: string) =>
+    within(within(dialog).getByRole("group", { name: group }))
+      .getAllByRole("radio")
+      .filter((radio) => (radio as HTMLInputElement).checked)
+      .map((radio) => radio.closest("label")?.textContent);
+
+  test("novo espaço abre vazio, com 'Não informado' e foco no nome", async () => {
+    const dialog = await open(null);
+    expect(within(dialog).getByRole("heading", { name: "Novo espaço" })).toBeTruthy();
+    const name = within(dialog).getByLabelText("Nome") as HTMLInputElement;
+    expect(name.value).toBe("");
+    expect((within(dialog).getByLabelText("Capacidade (opcional)") as HTMLInputElement).value).toBe(
+      "",
+    );
+    expect(checked(dialog, "Projetor")).toEqual(["Não informado"]);
+    expect(checked(dialog, "Aparelho de som")).toEqual(["Não informado"]);
+    expect(
+      (within(dialog).getByLabelText("Computadores (quantidade)") as HTMLInputElement).value,
+    ).toBe("");
+    expect(
+      (within(dialog).getByLabelText("Observações (opcional)") as HTMLTextAreaElement).value,
+    ).toBe("");
+    await waitFor(() => expect(document.activeElement === name).toBe(true));
+  });
+
+  test("editar abre preenchido com os dados gravados", async () => {
+    const dialog = await open(a202);
+    expect(within(dialog).getByRole("heading", { name: "Editar espaço" })).toBeTruthy();
+    expect((within(dialog).getByLabelText("Nome") as HTMLInputElement).value).toBe("A-202");
+    expect((within(dialog).getByLabelText("Capacidade (opcional)") as HTMLInputElement).value).toBe(
+      "40",
+    );
+    expect(checked(dialog, "Projetor")).toEqual(["Sim"]);
+    expect(checked(dialog, "Aparelho de som")).toEqual(["Não informado"]);
+    expect(
+      (within(dialog).getByLabelText("Computadores (quantidade)") as HTMLInputElement).value,
+    ).toBe("0");
+    expect(
+      (within(dialog).getByLabelText("Observações (opcional)") as HTMLTextAreaElement).value,
+    ).toBe("Lousa digital");
+  });
+
+  test("criar envia o formato do fio e fecha ao salvar", async () => {
+    createSpaceResponse = { ok: true, data: {} };
+    const dialog = await open(null);
+    fireEvent.change(within(dialog).getByLabelText("Nome"), { target: { value: "Lab" } });
+    fireEvent.change(within(dialog).getByLabelText("Capacidade (opcional)"), {
+      target: { value: "30" },
+    });
+    fireEvent.click(
+      within(within(dialog).getByRole("group", { name: "Aparelho de som" })).getByLabelText("Não"),
+    );
+    fireEvent.change(within(dialog).getByLabelText("Computadores (quantidade)"), {
+      target: { value: " 12 " },
+    });
+    fireEvent.change(within(dialog).getByLabelText("Observações (opcional)"), {
+      target: { value: "Lousa\nTV" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    await screen.findByText("Salvos: 1");
+    expect(spaceCalls).toEqual([
+      {
+        action: "create",
+        name: "Lab",
+        capacity: "30",
+        equipment: { projetor: null, computadores: " 12 ", som: 0 },
+        notes: "Lousa\nTV",
+      },
+    ]);
+    await waitFor(() => expect(screen.queryByRole("dialog") === null).toBe(true));
+  });
+
+  test("editar envia o id e mostra 'Salvando…' enquanto grava", async () => {
+    const release = holdSpaceResponses();
+    const dialog = await open(a202);
+    fireEvent.click(
+      within(within(dialog).getByRole("group", { name: "Projetor" })).getByLabelText("Não"),
+    );
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    const pending = await within(dialog).findByRole("button", { name: "Salvando…" });
+    expect((pending as HTMLButtonElement).disabled).toBe(true);
+    expect(spaceCalls).toEqual([
+      {
+        action: "update",
+        id: "a202",
+        name: "A-202",
+        capacity: "40",
+        equipment: { projetor: 0, computadores: "0", som: null },
+        notes: "Lousa digital",
+      },
+    ]);
+    release();
+    await screen.findByText("Salvos: 1");
+  });
+
+  test("erro de computadores fica no campo, com foco, e o diálogo mantém o que foi digitado", async () => {
+    createSpaceResponse = {
+      ok: false,
+      status: 400,
+      message: "A quantidade de computadores deve ser um número inteiro de 0 a 999.",
+      field: "computadores",
+    };
+    const dialog = await open(null);
+    fireEvent.change(within(dialog).getByLabelText("Nome"), { target: { value: "Lab" } });
+    const count = within(dialog).getByLabelText("Computadores (quantidade)") as HTMLInputElement;
+    fireEvent.change(count, { target: { value: "1000" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert.textContent).toMatch(/0 a 999/);
+    await waitFor(() => expect(document.activeElement === count).toBe(true));
+    expect(count.getAttribute("aria-invalid")).toBe("true");
+    expect(count.getAttribute("aria-describedby")?.split(" ")).toContain(alert.id);
+    expect(count.value).toBe("1000");
+    expect((within(dialog).getByLabelText("Nome") as HTMLInputElement).value).toBe("Lab");
+    expect(screen.getByText("Salvos: 0")).toBeTruthy();
+  });
+
+  test("erro de projetor leva o foco à primeira opção e liga a mensagem ao grupo", async () => {
+    updateSpaceResponse = {
+      ok: false,
+      status: 400,
+      message: "Escolha sim, não ou não informado.",
+      field: "projetor",
+    };
+    const dialog = await open(a202);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    const alert = await within(dialog).findByRole("alert");
+    const group = within(dialog).getByRole("group", { name: "Projetor" });
+    const first = within(group).getByLabelText("Sim");
+    await waitFor(() => expect(document.activeElement === first).toBe(true));
+    expect(group.getAttribute("aria-describedby")).toBe(alert.id);
+  });
+
+  test("erro sem campo aparece no topo do diálogo, que continua aberto", async () => {
+    createSpaceResponse = { ok: false, status: 403, message: "Sem permissão para esta ação." };
+    const dialog = await open(null);
+    fireEvent.change(within(dialog).getByLabelText("Nome"), { target: { value: "Lab" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    expect((await within(dialog).findByRole("alert")).textContent).toBe(
+      "Sem permissão para esta ação.",
+    );
+    expect(screen.getByRole("dialog")).toBeTruthy();
+  });
+
+  test("cancelar ou fechar descarta o que não foi salvo", async () => {
+    let dialog = await open(a202);
+    fireEvent.change(within(dialog).getByLabelText("Nome"), { target: { value: "Outro" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog") === null).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir" }));
+    dialog = await screen.findByRole("dialog");
+    expect((within(dialog).getByLabelText("Nome") as HTMLInputElement).value).toBe("A-202");
+    fireEvent.change(within(dialog).getByLabelText("Nome"), { target: { value: "Outro" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Fechar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog") === null).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Abrir" }));
+    dialog = await screen.findByRole("dialog");
+    expect((within(dialog).getByLabelText("Nome") as HTMLInputElement).value).toBe("A-202");
+    expect(spaceCalls).toEqual([]);
   });
 });
 
