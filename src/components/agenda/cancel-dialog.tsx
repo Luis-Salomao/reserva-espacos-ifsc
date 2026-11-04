@@ -1,6 +1,6 @@
 import { AlertCircle, Calendar, Clock, DoorClosed, Loader2 } from "lucide-react";
 import { useEffect, useState } from "react";
-import { type AdminResponse, runAdminAction } from "#/components/admin/use-admin-action";
+import { runAdminAction } from "#/components/admin/use-admin-action";
 import { ChoiceCard } from "#/components/ds";
 import { Notice } from "#/components/page";
 import {
@@ -11,6 +11,7 @@ import {
   AlertDialogTitle,
 } from "#/components/ui/alert-dialog";
 import { Button } from "#/components/ui/button";
+import type { AdminResponse } from "#/server/admin-actions";
 import { cancelOccupationFn, previewSeriesFn } from "#/server/booking-fns";
 
 export type CancelTarget = {

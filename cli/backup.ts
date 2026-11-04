@@ -65,8 +65,8 @@ export async function runBackup(argv: string[]): Promise<number> {
 
 /** Executa a operação de backup programaticamente */
 export function executeBackup(options: {
-  outPath?: string;
-  dbPath?: string;
+  outPath?: string | undefined;
+  dbPath?: string | undefined;
   overwrite?: boolean;
 }): number {
   const plan = planBackup({

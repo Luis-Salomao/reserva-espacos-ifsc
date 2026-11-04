@@ -74,7 +74,7 @@ export const Route = createFileRoute("/minhas-reservas")({
 
 export type MinhasReservasListProps = {
   items: MyBooking[];
-  newId?: string;
+  newId?: string | undefined;
   onSelectCancel?: (item: MyBooking) => void;
 };
 
