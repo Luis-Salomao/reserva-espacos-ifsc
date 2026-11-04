@@ -1,17 +1,9 @@
 import type { AgendaItem, WeekAgenda } from "#/application/bookings";
 import { cn } from "#/lib/utils";
-import {
-  FreeSlot,
-  gridHeight,
-  HourAxis,
-  HourLines,
-  makeScale,
-  NowLine,
-  OccupationCard,
-} from "./agenda-blocks";
-import { layoutEvents } from "./layout-helpers";
+import { gridHeight, HourAxis, makeScale } from "./agenda-blocks";
+import { DayColumn, type DraftProps } from "./day-column";
 
-export type WeekGridProps = {
+export type WeekGridProps = DraftProps & {
   weekAgenda: WeekAgenda;
   selectedDate: string;
   onSelectDate: (date: string) => void;
@@ -29,6 +21,9 @@ export function WeekGrid({
   onSelectDate,
   onSelectSlot,
   onOpenOccupation,
+  draft,
+  canDraft,
+  onDraftChange,
 }: WeekGridProps) {
   // Seg–sex por padrão; estende para sáb ou dom se houver ocupação.
   const days = weekAgenda.days;
@@ -86,39 +81,21 @@ export function WeekGrid({
         <HourAxis scale={scale} />
         <div className="grid min-w-0 auto-cols-fr grid-flow-col" style={{ height }}>
           {displayDays.map((day) => (
-            <div
+            <DayColumn
               key={day.date}
+              day={day}
+              scale={scale}
+              now={day.date === todayIso ? nowTime : null}
               className={cn(
-                "relative min-w-0 border-l border-border first:border-l-0",
+                "border-l border-border first:border-l-0",
                 day.date === todayIso && "bg-surface/60",
               )}
-            >
-              <HourLines scale={scale} />
-              {day.free.map((gap) => (
-                <FreeSlot
-                  key={`gap-${day.date}-${gap.start}-${gap.end}`}
-                  gap={gap}
-                  scale={scale}
-                  onSelect={() =>
-                    onSelectSlot({
-                      spaceId: weekAgenda.spaceId,
-                      date: day.date,
-                      start: gap.start,
-                      end: gap.end,
-                    })
-                  }
-                />
-              ))}
-              {layoutEvents(day.occupations).map((ev) => (
-                <OccupationCard
-                  key={ev.id}
-                  ev={ev}
-                  scale={scale}
-                  onOpen={onOpenOccupation && (() => onOpenOccupation(ev))}
-                />
-              ))}
-              {day.date === todayIso && <NowLine scale={scale} now={nowTime} />}
-            </div>
+              onSelectSlot={onSelectSlot}
+              onOpenOccupation={onOpenOccupation}
+              draft={draft}
+              canDraft={canDraft}
+              onDraftChange={onDraftChange}
+            />
           ))}
         </div>
       </div>

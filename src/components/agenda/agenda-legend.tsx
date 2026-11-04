@@ -32,7 +32,7 @@ export function AgendaLegend({ className }: { className?: string }) {
           className="h-3 w-4 rounded-[3px] border border-dashed border-line-free"
         />
         <span>Livre</span>
-        <span>· passe o mouse ou toque num horário vazio para reservar</span>
+        <span>· arraste num horário vazio para criar um rascunho, ou use o botão direito</span>
       </span>
     </section>
   );

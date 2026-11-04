@@ -1,5 +1,5 @@
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
 import { Button } from "#/components/ui/button";
 import { addDays } from "#/domain/calendar";
@@ -7,6 +7,7 @@ import type { Space } from "#/domain/space";
 import { cn } from "#/lib/utils";
 import { BOOKING_ROLES, type SessionInfo } from "#/server/session";
 import { AgendaLegend } from "./agenda-legend";
+import type { Draft } from "./draft-booking";
 import { GateDialog } from "./gate-dialog";
 import { MiniCalendar } from "./mini-calendar";
 import { PublicBanner } from "./public-banner";
@@ -52,6 +53,7 @@ export function AgendaView({
 }: AgendaViewProps) {
   const [mode, setMode] = useState<"week" | "day">("week");
   const [gateOpen, setGateOpen] = useState(false);
+  const [draft, setDraft] = useState<Draft | null>(null);
 
   const user = session ? session.user : (directUser ?? null);
   const publicRead = session ? session.publicRead : (directPublicRead ?? true);
@@ -72,6 +74,23 @@ export function AgendaView({
       free: [],
       blocks: [],
     };
+
+  // Agenda nova (outra semana, outra sala ou recarga após reservar): o rascunho perde o sentido.
+  useEffect(() => {
+    void weekAgenda;
+    setDraft(null);
+  }, [weekAgenda]);
+
+  useEffect(() => {
+    if (draft === null) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setDraft(null);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [draft]);
+
+  const draftProps = { draft, canDraft: canBook, onDraftChange: setDraft };
 
   function handleSlotClick(slot: SlotSelection) {
     if (isVisitor) {
@@ -227,6 +246,7 @@ export function AgendaView({
                 onSelectSlot={handleSlotClick}
                 onOpenOccupation={onOpenOccupation}
                 isVisitor={isVisitor}
+                {...draftProps}
               />
             ) : (
               <TimelineDay
@@ -234,6 +254,7 @@ export function AgendaView({
                 onSelectSlot={handleSlotClick}
                 onOpenOccupation={onOpenOccupation}
                 isVisitor={isVisitor}
+                {...draftProps}
               />
             )}
           </div>
@@ -244,6 +265,7 @@ export function AgendaView({
               onSelectSlot={handleSlotClick}
               onOpenOccupation={onOpenOccupation}
               isVisitor={isVisitor}
+              {...draftProps}
             />
           </div>
 
