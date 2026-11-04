@@ -214,8 +214,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: uma coluna por sala; link com `espaco` e `data`; rascunho aparece em uma coluna só
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: uma coluna por sala; link com `espaco` e `data`; rascunho aparece em uma coluna só
+- [x] Gate check passes: `bun test test/components`
+
+**Desvio**: a grade rola nas duas direções dentro de uma caixa com altura máxima, para o cabeçalho com os nomes (sticky no topo) e o eixo de horas (sticky à esquerda) ficarem fixos; `RoomDay` voltou a ser exportado de `bookings.ts` para os componentes.
 
 **Tests**: unit
 **Gate**: quick
