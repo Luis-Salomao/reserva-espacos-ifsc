@@ -6,6 +6,7 @@ import {
   cancelOccupationAction,
   createBookingAction,
   getDayAgenda,
+  getRoomsDay,
   getWeekAgenda,
   myBookingsAction,
   previewSeriesAction,
@@ -117,6 +118,68 @@ describe("agenda: leitura", () => {
     expect(
       (await getDayAgenda(deps, req(null), { spaceId: "nada", date: "2026-11-10" })).response,
     ).toMatchObject({ ok: false, status: 404 });
+  });
+});
+
+describe("todas as salas: leitura", () => {
+  test("visitante recebe um dia por sala, sem pessoas; logado vê o responsável", async () => {
+    const { db, s, deps, req } = await setup(true);
+    insertImported(db, {
+      id: "a",
+      spaceId: s.sala2.id,
+      date: "2026-11-10",
+      start: "08:00",
+      end: "09:00",
+      title: "MAT1",
+      responsibleUserId: s.docA.id,
+    });
+    const visitor = await getRoomsDay(deps, req(null), { date: "2026-11-10" });
+    if (!visitor.response.ok) throw new Error(visitor.response.message);
+    expect(visitor.response.data.date).toBe("2026-11-10");
+    expect(
+      visitor.response.data.rooms.map((room) => [
+        room.space.name,
+        room.occupations.map((item) => [item.title, item.person]),
+      ]),
+    ).toEqual([
+      ["ADM 2", []],
+      ["LAB 1", [["MAT1", null]]],
+    ]);
+    const json = JSON.stringify(visitor.response);
+    expect(json).not.toContain(s.docA.id);
+    expect(json).not.toContain("Pessoa");
+    expect(visitor.setCookie).toBeNull();
+
+    const logged = await getRoomsDay(deps, req("doca"), { date: "2026-11-10" });
+    if (!logged.response.ok) throw new Error(logged.response.message);
+    expect(logged.response.data.rooms[1]?.occupations[0]?.person).toEqual({
+      name: "Pessoa doca",
+      code: "DOCA",
+    });
+    expect(logged.setCookie).toContain("sid=doca");
+  });
+
+  test("PUBLIC_READ=false: visitante recebe 401", async () => {
+    const { deps, req } = await setup(false);
+    expect((await getRoomsDay(deps, req(null), { date: "2026-11-10" })).response).toMatchObject({
+      ok: false,
+      status: 401,
+    });
+  });
+
+  test("entradas inválidas viram 400; data inválida aponta o campo", async () => {
+    const { deps, req } = await setup();
+    for (const data of [null, "x", {}, { date: 20261110 }]) {
+      expect((await getRoomsDay(deps, req(null), data)).response).toMatchObject({
+        ok: false,
+        status: 400,
+      });
+    }
+    expect((await getRoomsDay(deps, req(null), { date: "31/12/2026" })).response).toMatchObject({
+      ok: false,
+      status: 400,
+      field: "date",
+    });
   });
 });
 
