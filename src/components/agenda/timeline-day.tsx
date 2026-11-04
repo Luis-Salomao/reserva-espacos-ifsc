@@ -3,25 +3,24 @@ import type { AgendaItem, DayAgenda } from "#/application/bookings";
 import { Button } from "#/components/ui/button";
 import { addDays } from "#/domain/calendar";
 import { cn } from "#/lib/utils";
-import {
-  FreeSlot,
-  gridHeight,
-  HourAxis,
-  HourLines,
-  makeScale,
-  NowLine,
-  OccupationCard,
-} from "./agenda-blocks";
-import { layoutEvents } from "./layout-helpers";
+import { HourAxis, makeScale } from "./agenda-blocks";
+import { DayColumn, type DraftProps } from "./day-column";
 
-export type TimelineDayProps = {
+export type TimelineDayProps = DraftProps & {
   dayAgenda: DayAgenda;
   onSelectSlot: (slot: { spaceId: string; date: string; start: string; end: string }) => void;
   onOpenOccupation?: ((occupation: AgendaItem) => void) | undefined;
   isVisitor: boolean;
 };
 
-export function TimelineDay({ dayAgenda, onSelectSlot, onOpenOccupation }: TimelineDayProps) {
+export function TimelineDay({
+  dayAgenda,
+  onSelectSlot,
+  onOpenOccupation,
+  draft,
+  canDraft,
+  onDraftChange,
+}: TimelineDayProps) {
   const scale = makeScale(dayAgenda.hours.opens, dayAgenda.hours.closes, 1.1);
   const isToday = dayAgenda.now.slice(0, 10) === dayAgenda.date;
 
@@ -29,33 +28,16 @@ export function TimelineDay({ dayAgenda, onSelectSlot, onOpenOccupation }: Timel
     <div className="w-full max-w-full overflow-x-hidden select-none" data-testid="timeline-day">
       <div className="grid grid-cols-[52px_1fr] overflow-hidden rounded-lg border border-border bg-background">
         <HourAxis scale={scale} />
-        <div className="relative min-w-0" style={{ height: gridHeight(scale) }}>
-          <HourLines scale={scale} />
-          {dayAgenda.free.map((gap) => (
-            <FreeSlot
-              key={`gap-${gap.start}-${gap.end}`}
-              gap={gap}
-              scale={scale}
-              onSelect={() =>
-                onSelectSlot({
-                  spaceId: dayAgenda.spaceId,
-                  date: dayAgenda.date,
-                  start: gap.start,
-                  end: gap.end,
-                })
-              }
-            />
-          ))}
-          {layoutEvents(dayAgenda.occupations).map((ev) => (
-            <OccupationCard
-              key={ev.id}
-              ev={ev}
-              scale={scale}
-              onOpen={onOpenOccupation && (() => onOpenOccupation(ev))}
-            />
-          ))}
-          {isToday && <NowLine scale={scale} now={dayAgenda.now.slice(11, 16)} />}
-        </div>
+        <DayColumn
+          day={dayAgenda}
+          scale={scale}
+          now={isToday ? dayAgenda.now.slice(11, 16) : null}
+          onSelectSlot={onSelectSlot}
+          onOpenOccupation={onOpenOccupation}
+          draft={draft}
+          canDraft={canDraft}
+          onDraftChange={onDraftChange}
+        />
       </div>
     </div>
   );

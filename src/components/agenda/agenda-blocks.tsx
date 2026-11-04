@@ -14,7 +14,11 @@ export function makeScale(opens: string, closes: string, pxPerMin: number): Scal
   return { opens: timeToMinutes(opens), closes: timeToMinutes(closes), pxPerMin };
 }
 
-const yOf = (scale: Scale, minutes: number) => GRID_PAD + (minutes - scale.opens) * scale.pxPerMin;
+export const yOf = (scale: Scale, minutes: number) =>
+  GRID_PAD + (minutes - scale.opens) * scale.pxPerMin;
+
+/** Inverso de `yOf`: minuto do dia na altura `y` (px a partir do topo da coluna). */
+export const minutesAt = (scale: Scale, y: number) => scale.opens + (y - GRID_PAD) / scale.pxPerMin;
 
 export const gridHeight = (scale: Scale) =>
   (scale.closes - scale.opens) * scale.pxPerMin + GRID_PAD * 2;
@@ -76,13 +80,15 @@ type FreeSlotProps = {
   gap: { start: string; end: string };
   scale: Scale;
   onSelect: () => void;
+  /** Quem desenha rascunhos com o mouse: o destaque fica só para o foco do teclado. */
+  quiet?: boolean | undefined;
 };
 
 /**
  * Intervalo livre. Fica invisível até o ponteiro passar ou o teclado focar, para a grade não
  * virar um mar de caixas; em telas de toque (sem hover) aparece só como texto discreto.
  */
-export function FreeSlot({ gap, scale, onSelect }: FreeSlotProps) {
+export function FreeSlot({ gap, scale, onSelect, quiet = false }: FreeSlotProps) {
   const top = yOf(scale, timeToMinutes(gap.start));
   const height = Math.max(
     16,
@@ -96,7 +102,8 @@ export function FreeSlot({ gap, scale, onSelect }: FreeSlotProps) {
       aria-label={`Livre, ${label}, ${gap.start}–${gap.end}. Reservar`}
       className={cn(
         "group absolute inset-x-1 my-px flex items-start gap-1 overflow-hidden rounded-md px-2 pt-1 text-left text-[11px] text-foreground transition-opacity",
-        "opacity-0 hover:opacity-100 focus-visible:opacity-100",
+        "opacity-0 focus-visible:opacity-100",
+        quiet ? "cursor-crosshair" : "hover:opacity-100",
         "bg-occ-free/45 ring-1 ring-line-free/30 ring-inset",
         "[@media(hover:none)]:bg-transparent [@media(hover:none)]:text-muted-foreground [@media(hover:none)]:opacity-100 [@media(hover:none)]:ring-0",
       )}
@@ -157,6 +164,7 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
   return (
     <button
       type="button"
+      data-occupation
       onClick={onOpen}
       title={[ev.title, `${ev.start}–${ev.end}`, ev.person?.name, tag].filter(Boolean).join(" · ")}
       className={cn(
