@@ -8,6 +8,8 @@ import {
   LogOut,
   type LucideIcon,
   Menu,
+  PanelLeftClose,
+  PanelLeftOpen,
   Settings,
   Users,
   X,
@@ -85,6 +87,23 @@ const NAV_LINK_ACTIVE = "bg-surface-2 text-foreground";
 export function AppShell({ children, wide = false }: Props) {
   const user = useSessionUser();
   const items = navItems(user);
+  const [collapsed, setCollapsed] = useState(false);
+  useEffect(() => {
+    try {
+      setCollapsed(localStorage.getItem("sidebar-collapsed") === "true");
+    } catch {
+      /* Preferencia apenas nesta visita. */
+    }
+  }, []);
+  function toggleSidebar() {
+    const next = !collapsed;
+    setCollapsed(next);
+    try {
+      localStorage.setItem("sidebar-collapsed", String(next));
+    } catch {
+      /* Preferencia apenas nesta visita. */
+    }
+  }
   if (user === null) {
     return (
       <div className="min-h-screen bg-background text-foreground">
@@ -121,8 +140,33 @@ export function AppShell({ children, wide = false }: Props) {
       >
         Pular para o conteúdo
       </a>
-      <header className="sticky top-0 z-30 flex h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:h-auto md:w-60 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:bg-surface md:px-3 md:py-3 md:backdrop-blur-none">
-        <Brand />
+      <header
+        className={cn(
+          "sticky top-0 z-30 flex h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:h-auto md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:bg-surface md:px-3 md:py-3 md:backdrop-blur-none",
+          collapsed ? "md:w-16 md:px-2" : "md:w-60",
+        )}
+      >
+        <div className="flex min-w-0 items-center gap-1">
+          <div className={cn("min-w-0 flex-1", collapsed && "md:hidden")}>
+            <Brand />
+          </div>
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon"
+            className="hidden shrink-0 md:inline-flex"
+            aria-label={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+            aria-expanded={!collapsed}
+            onClick={toggleSidebar}
+            title={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
+          >
+            {collapsed ? (
+              <PanelLeftOpen aria-hidden="true" />
+            ) : (
+              <PanelLeftClose aria-hidden="true" />
+            )}
+          </Button>
+        </div>
         <nav aria-label="Principal" className="mt-5 hidden flex-col gap-0.5 md:flex">
           {items.map((item) => {
             const Icon = NAV_ICONS[item.to];
@@ -131,11 +175,18 @@ export function AppShell({ children, wide = false }: Props) {
                 key={item.to}
                 to={item.to}
                 activeOptions={{ exact: item.exact === true }}
-                className={NAV_LINK}
-                activeProps={{ className: cn(NAV_LINK, NAV_LINK_ACTIVE) }}
+                title={item.label}
+                className={cn(NAV_LINK, collapsed && "md:justify-center md:px-0")}
+                activeProps={{
+                  className: cn(
+                    NAV_LINK,
+                    NAV_LINK_ACTIVE,
+                    collapsed && "md:justify-center md:px-0",
+                  ),
+                }}
               >
                 <Icon className="size-4 shrink-0" aria-hidden="true" />
-                {item.label}
+                <span className={cn(collapsed && "md:sr-only")}>{item.label}</span>
               </Link>
             );
           })}
@@ -143,7 +194,7 @@ export function AppShell({ children, wide = false }: Props) {
         <div className="flex-1" />
         <div className="flex items-center gap-1 md:border-t md:pt-3">
           {user !== null ? (
-            <AccountMenu user={user} />
+            <AccountMenu user={user} collapsed={collapsed} />
           ) : (
             <>
               <Button asChild size="sm" className="hidden flex-1 md:inline-flex">
@@ -159,7 +210,7 @@ export function AppShell({ children, wide = false }: Props) {
           {user !== null && <MobileMenu items={items} user={user} />}
         </div>
       </header>
-      <div className="md:pl-60">
+      <div className={collapsed ? "md:pl-16" : "md:pl-60"}>
         <main
           id="conteudo"
           tabIndex={-1}
@@ -260,7 +311,13 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
 }
 
 /** Preferências e saída reunidas no avatar, com foco e teclado geridos pelo Popover. */
-function AccountMenu({ user }: { user: NonNullable<SessionInfo["user"]> }) {
+function AccountMenu({
+  user,
+  collapsed,
+}: {
+  user: NonNullable<SessionInfo["user"]>;
+  collapsed: boolean;
+}) {
   return (
     <Popover>
       <PopoverTrigger asChild>
@@ -270,14 +327,19 @@ function AccountMenu({ user }: { user: NonNullable<SessionInfo["user"]> }) {
           className="flex min-h-11 min-w-11 items-center justify-center gap-2.5 rounded-full p-1.5 transition-colors hover:bg-surface-2 md:w-full md:justify-start md:rounded-lg"
         >
           <Avatar name={user.name} className="size-9 text-xs" />
-          <span className="hidden min-w-0 flex-1 text-left leading-tight md:block">
+          <span
+            className={cn(
+              "hidden min-w-0 flex-1 text-left leading-tight",
+              !collapsed && "md:block",
+            )}
+          >
             <span className="block truncate text-[13px] font-medium">{user.name}</span>
             <small className="block truncate text-[11px] text-muted-foreground">
               {user.roles.map((role) => ROLE_LABELS[role] ?? role).join(" · ")}
             </small>
           </span>
           <ChevronsUpDown
-            className="hidden size-3.5 text-muted-foreground md:block"
+            className={cn("hidden size-3.5 text-muted-foreground", !collapsed && "md:block")}
             aria-hidden="true"
           />
         </button>
