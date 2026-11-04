@@ -72,7 +72,7 @@ export function RoomSelector({
   return (
     <fieldset
       aria-label="Salas disponíveis"
-      className="-mx-4 flex gap-2 border-0 m-0 overflow-x-auto px-4 py-1 pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
+      className="-mx-4 flex min-w-0 gap-2 border-0 m-0 overflow-x-auto px-4 py-1 pb-2 [scrollbar-width:none] [-ms-overflow-style:none] [&::-webkit-scrollbar]:hidden"
     >
       {spaces.map((space) => {
         const isSelected = space.id === selectedSpaceId;
