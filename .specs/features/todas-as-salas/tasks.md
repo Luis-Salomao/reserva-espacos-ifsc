@@ -192,8 +192,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: cada controle chama `onChange` com o filtro certo; erro de janela; contador de filtros ativos
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: cada controle chama `onChange` com o filtro certo; erro de janela; contador de filtros ativos
+- [x] Gate check passes: `bun test test/components`
+
+**Desvio**: no celular, a janela (Início e Fim) fica fora do botão "Filtros" para a pergunta "o que está livre das 14 às 16?" caber em poucas interações; o contador do botão conta blocos, capacidade, busca e "Só livres". Sem filtro ativo o botão mostra só "Filtros". O componente recebe `compact` de quem decide a largura (T10).
 
 **Tests**: unit
 **Gate**: quick
