@@ -100,8 +100,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Teste: fantasma com senha "correta" recebe a mesma falha de credencial inválida
-- [ ] Gate check passes: `bun test src/application`
+- [x] Teste: fantasma com senha "correta" recebe a mesma falha de credencial inválida
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick

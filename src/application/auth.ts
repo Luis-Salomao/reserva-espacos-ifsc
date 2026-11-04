@@ -100,7 +100,8 @@ export function createAuthService(deps: AuthDeps) {
         password,
         record?.passwordHash ?? (await getDummyHash()),
       );
-      if (!record?.active || !passwordOk) {
+      // Conta fantasma não tem dono confirmado: responde como senha errada, com o mesmo custo.
+      if (!record?.active || record.placeholder || !passwordOk) {
         await attempts.record({
           email: normalized,
           attemptedAt: now.toISOString(),
