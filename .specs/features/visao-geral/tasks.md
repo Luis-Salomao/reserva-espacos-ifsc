@@ -155,8 +155,10 @@ T13 → T14 → T15
 
 **Done when**:
 
-- [ ] Testes: sem abrir "Filtros" só a busca aparece (e a janela em "Livres"); abrir mostra bloco, capacidade e "Só livres"; contagem "Filtros · 2" com dois filtros escondidos ativos; visão geral sem janela nem "Só livres"; cada controle ainda chama `onChange` com o filtro certo
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: sem abrir "Filtros" só a busca aparece (e a janela em "Livres"); abrir mostra bloco, capacidade e "Só livres"; contagem "Filtros · 2" com dois filtros escondidos ativos; visão geral sem janela nem "Só livres"; cada controle ainda chama `onChange` com o filtro certo
+- [x] Gate check passes: `bun test test/components`
+
+**Desvio**: a prop `compact` de `RoomsFilters` virou `view`, porque o botão "Filtros" vale em qualquer largura; o rótulo passou de "Filtros (n)" para "Filtros · n" e conta só os filtros escondidos (a busca visível não conta; "Só livres" não conta na visão geral). Os testes de `RoomsFilters` e o teste "filtros mudam a URL e o resultado" de `RoomsView` passaram a abrir "Filtros" antes de usar bloco, capacidade, "Só livres" e a janela de "Colunas".
 
 **Tests**: unit
 **Gate**: quick
