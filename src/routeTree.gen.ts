@@ -20,6 +20,7 @@ import { Route as ApiEntrarRouteImport } from './routes/api/entrar'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as ApiImportPrepareRouteImport } from './routes/api/import-prepare'
 import { Route as ApiImportPreviewRouteImport } from './routes/api/import-preview'
+import { Route as ApiImportResponsiblesRouteImport } from './routes/api/import-responsibles'
 import { Route as ApiSairRouteImport } from './routes/api/sair'
 import { Route as ImportarIndexRouteImport } from './routes/importar.index'
 import { Route as SemestresIndexRouteImport } from './routes/semestres.index'
@@ -82,6 +83,11 @@ const ApiImportPreviewRoute = ApiImportPreviewRouteImport.update({
   path: '/api/import-preview',
   getParentRoute: () => rootRouteImport,
 } as any)
+const ApiImportResponsiblesRoute = ApiImportResponsiblesRouteImport.update({
+  id: '/api/import-responsibles',
+  path: '/api/import-responsibles',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ApiSairRoute = ApiSairRouteImport.update({
   id: '/api/sair',
   path: '/api/sair',
@@ -124,6 +130,7 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/api/import-prepare': typeof ApiImportPrepareRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
+  '/api/import-responsibles': typeof ApiImportResponsiblesRoute
   '/api/sair': typeof ApiSairRoute
   '/semestres/$id': typeof SemestresIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -142,6 +149,7 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/api/import-prepare': typeof ApiImportPrepareRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
+  '/api/import-responsibles': typeof ApiImportResponsiblesRoute
   '/api/sair': typeof ApiSairRoute
   '/semestres/$id': typeof SemestresIdRoute
   '/admin': typeof AdminIndexRoute
@@ -162,6 +170,7 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/api/import-prepare': typeof ApiImportPrepareRoute
   '/api/import-preview': typeof ApiImportPreviewRoute
+  '/api/import-responsibles': typeof ApiImportResponsiblesRoute
   '/api/sair': typeof ApiSairRoute
   '/semestres/$id': typeof SemestresIdRoute
   '/admin/': typeof AdminIndexRoute
@@ -183,6 +192,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/import-prepare'
     | '/api/import-preview'
+    | '/api/import-responsibles'
     | '/api/sair'
     | '/semestres/$id'
     | '/admin/'
@@ -201,6 +211,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/import-prepare'
     | '/api/import-preview'
+    | '/api/import-responsibles'
     | '/api/sair'
     | '/semestres/$id'
     | '/admin'
@@ -220,6 +231,7 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/api/import-prepare'
     | '/api/import-preview'
+    | '/api/import-responsibles'
     | '/api/sair'
     | '/semestres/$id'
     | '/admin/'
@@ -240,6 +252,7 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   ApiImportPrepareRoute: typeof ApiImportPrepareRoute
   ApiImportPreviewRoute: typeof ApiImportPreviewRoute
+  ApiImportResponsiblesRoute: typeof ApiImportResponsiblesRoute
   ApiSairRoute: typeof ApiSairRoute
   SemestresIdRoute: typeof SemestresIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
@@ -325,6 +338,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ApiImportPreviewRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/api/import-responsibles': {
+      id: '/api/import-responsibles'
+      path: '/api/import-responsibles'
+      fullPath: '/api/import-responsibles'
+      preLoaderRoute: typeof ApiImportResponsiblesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/api/sair': {
       id: '/api/sair'
       path: '/api/sair'
@@ -397,6 +417,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   ApiImportPrepareRoute: ApiImportPrepareRoute,
   ApiImportPreviewRoute: ApiImportPreviewRoute,
+  ApiImportResponsiblesRoute: ApiImportResponsiblesRoute,
   ApiSairRoute: ApiSairRoute,
   SemestresIdRoute: SemestresIdRoute,
   AdminIndexRoute: AdminIndexRoute,

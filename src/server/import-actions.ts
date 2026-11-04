@@ -164,6 +164,30 @@ export function prepareImport(
   });
 }
 
+/**
+ * Reaplica os vínculos de docentes atuais à versão aplicada do semestre. O XML (bytes) precisa
+ * ser o mesmo dessa versão: é dele que sai o docente de cada aula.
+ */
+export function refreshResponsibles(
+  deps: ImportDeps,
+  request: RequestLike,
+  semesterId: string,
+  bytes: Uint8Array,
+) {
+  return asImporter(deps, request, async () => {
+    if (semesterId === "" || bytes.byteLength === 0) return reject(400, BAD_REQUEST);
+    const parsed = previewAscXml(bytes);
+    if (!parsed.ok) return reject(400, parsed.error.message);
+    return fromResult(
+      await deps.imports.refreshResponsibles({
+        semesterId,
+        fileHash: await hashImportFile(bytes),
+        preview: parsed.preview,
+      }),
+    );
+  });
+}
+
 export function applyImportBatch(deps: ImportDeps, request: RequestLike, data: unknown) {
   return asImporter<StepOutput>(deps, request, async () => {
     const body = record(data);

@@ -281,11 +281,12 @@ T14 → T15 → T16
 **Depends on**: T10
 **Reuses**: leitura de XML do fluxo de importação
 **Requirement**: DOC-08, DOC-09
+**Desvio**: o XML vai numa rota de API (`/api/import-responsibles`, em `src/server/import-prepare.ts`), como o preparo, e não numa server fn; o corpo é limitado a 10 MB e o papel é checado antes da leitura. O botão fica em `batch-detail.tsx`, o componente da página do lote.
 
 **Done when**:
 
-- [ ] Teste de ação: 403 para docente; caminho feliz
-- [ ] Gate check passes: `bun test src/server src/routes`
+- [x] Teste de ação: 403 para docente; caminho feliz
+- [x] Gate check passes: `bun test src/server src/routes`
 
 **Tests**: unit
 **Gate**: quick
