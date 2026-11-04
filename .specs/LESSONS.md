@@ -68,6 +68,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: spec.md:31 janela padrão; src/domain/room-filter.test.ts:200 (specs)
 - last seen: 2026-11-04T17:24:57Z
 
+### L-010 - Ao testar um loader, substitua a busca de dados e afirme o argumento que ela recebe; o valor derivado no retorno não prova o que foi pedido ao servidor
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `routes` · harmful: 0
+- features: todas-as-salas
+- evidence: V1 V1b src/routes/salas.tsx:121 (routes)
+- last seen: 2026-11-04T17:43:22Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
