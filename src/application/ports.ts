@@ -226,6 +226,18 @@ export interface ImportRepository {
     to: string,
   ): Promise<VersionOccupation[]>;
   /**
+   * Define o responsável (`lessonId → userId | null`) das ocupações importadas ATIVAS dos lotes
+   * `aplicado` do semestre com início em `[from, to)`; aulas fora do mapa ficam como estão. Grava
+   * em blocos atômicos de 50 aulas e só toca o que muda (repetir não grava nada). Devolve quantas
+   * ocupações mudaram de responsável.
+   */
+  setResponsibles(
+    semesterId: string,
+    from: string,
+    to: string,
+    responsibles: ReadonlyMap<string, string | null>,
+  ): Promise<number>;
+  /**
    * Aplica as linhas de um bloco numa unidade atômica: insere cada ocupação só se não houver
    * ocupação ativa sobreposta no espaço e registra, na mesma unidade, `aplicada` ou `conflito`.
    */

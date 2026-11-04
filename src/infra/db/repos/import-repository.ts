@@ -36,6 +36,8 @@ const RESPONSIBLE_PREFIX = "r:";
 const CANCEL_REASON = CANCEL_REASONS.novaVersao;
 const ALREADY_CANCELLED = "ja_cancelada";
 const DRAFT: ImportBatchStatus[] = ["preparando", "rascunho"];
+/** Aulas por bloco atômico de `setResponsibles` (uma instrução por aula). */
+const LESSONS_PER_CHUNK = 50;
 
 function rowInsert(x: AppDb, row: ImportRow) {
   return x
@@ -445,6 +447,53 @@ export function createImportRepository(db: AppDb): ImportRepository {
             lt(occupations.startsAt, to),
           ),
         );
+    },
+    async setResponsibles(semesterId, from, to, responsibles) {
+      const inVersion = and(
+        eq(occupations.source, "import"),
+        eq(occupations.status, "ativa"),
+        gte(occupations.startsAt, from),
+        lt(occupations.startsAt, to),
+        sql`${occupations.batchId} IN (SELECT b.id FROM import_batches b
+          WHERE b.semester_id = ${semesterId} AND b.status = 'aplicado')`,
+      );
+      // Uma leitura conta o que vai mudar: contar no UPDATE estouraria o limite de parâmetros do D1.
+      const current = await db
+        .select({
+          lessonId: occupations.lessonId,
+          responsibleUserId: occupations.responsibleUserId,
+        })
+        .from(occupations)
+        .where(inVersion);
+      let changed = 0;
+      const stale = new Set<string>();
+      for (const row of current) {
+        if (row.lessonId === null || !responsibles.has(row.lessonId)) continue;
+        if ((responsibles.get(row.lessonId) ?? null) === row.responsibleUserId) continue;
+        changed++;
+        stale.add(row.lessonId);
+      }
+      const lessons = [...stale];
+      for (let index = 0; index < lessons.length; index += LESSONS_PER_CHUNK) {
+        const group = lessons.slice(index, index + LESSONS_PER_CHUNK);
+        await runAtomically(db, (x) => {
+          const statements: Statement[] = group.map((lessonId) => {
+            const userId = responsibles.get(lessonId) ?? null;
+            return x
+              .update(occupations)
+              .set({ responsibleUserId: userId })
+              .where(
+                and(
+                  inVersion,
+                  eq(occupations.lessonId, lessonId),
+                  sql`${occupations.responsibleUserId} IS NOT ${userId}`,
+                ),
+              );
+          });
+          return statements as [Statement, ...Statement[]];
+        });
+      }
+      return changed;
     },
     async markFailed(batchId, rowKeys, code, detail) {
       if (rowKeys.length === 0) return;
