@@ -204,9 +204,9 @@ describe("docentes", () => {
 
   test("sugere pela sigla da conta ativa; conta inativa não é sugerida", async () => {
     const result = await env.service.suggestTeachers([
-      { id: "T1", short: "mar" },
-      { id: "T2", short: "JOA" },
-      { id: "T3", short: "ZZZ" },
+      { id: "T1", short: "mar", name: "" },
+      { id: "T2", short: "JOA", name: "" },
+      { id: "T3", short: "ZZZ", name: "" },
     ]);
     expect(result[0]).toMatchObject({
       saved: null,
@@ -223,9 +223,9 @@ describe("docentes", () => {
     ]);
     expect(saved.ok).toBe(true);
     const result = await env.service.suggestTeachers([
-      { id: "T1", short: "MAR" },
-      { id: "T2", short: "SEM" },
-      { id: "T9", short: "MAR" },
+      { id: "T1", short: "MAR", name: "" },
+      { id: "T2", short: "SEM", name: "" },
+      { id: "T9", short: "MAR", name: "" },
     ]);
     expect(result[0]).toMatchObject({ saved: { userId: env.maria.id }, suggestion: null });
     expect(result[1]).toMatchObject({ saved: { userId: null }, suggestion: null });
@@ -244,7 +244,7 @@ describe("docentes", () => {
       [{ sourceTeacherId: "B", sourceShort: "XYZ", userId: other }],
       "t",
     );
-    const result = await env.service.suggestTeachers([{ id: "NOVO", short: "XYZ" }]);
+    const result = await env.service.suggestTeachers([{ id: "NOVO", short: "XYZ", name: "" }]);
     expect(result[0]?.suggestion).toBeNull();
   });
 

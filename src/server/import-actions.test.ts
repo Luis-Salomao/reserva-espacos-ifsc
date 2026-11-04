@@ -295,6 +295,54 @@ describe("ações de importação: fluxo", () => {
     expect(a.response.ok || a.response.status === 409).toBe(true);
   });
 
+  test("docentes: nome vai para a sugestão e criar fantasma é aceito", async () => {
+    const t = ctx.req("hor");
+    const suggestions = await suggestMappings(ctx.deps, t, {
+      classrooms: [],
+      teachers: [{ id: "P9", short: "ZQ", name: "Zeca Quintal" }],
+    });
+    expect(suggestions.response.ok && suggestions.response.data.teachers[0]).toMatchObject({
+      name: "Zeca Quintal",
+      defaultAction: "fantasma",
+    });
+    const saved = await saveTeacherMappings(ctx.deps, t, {
+      items: [
+        {
+          sourceTeacherId: "P9",
+          sourceShort: "ZQ",
+          userId: null,
+          createPlaceholder: { name: "Zeca Quintal" },
+        },
+      ],
+    });
+    expect(saved.response).toEqual({ ok: true, data: null });
+    const again = await suggestMappings(ctx.deps, t, {
+      classrooms: [],
+      teachers: [{ id: "P9", short: "ZQ", name: "Zeca Quintal" }],
+    });
+    expect(again.response.ok && again.response.data.teachers[0]?.defaultAction).toBe("salvo");
+  });
+
+  test("docentes: criar fantasma ou nome com formato inválido é 400", async () => {
+    const t = ctx.req("adm");
+    const base = { sourceTeacherId: "P1", sourceShort: "ZQ", userId: null };
+    for (const createPlaceholder of ["Zeca", null, [], { name: 3 }, {}]) {
+      const result = await saveTeacherMappings(ctx.deps, t, {
+        items: [{ ...base, createPlaceholder }],
+      });
+      expect(result.response).toMatchObject({ ok: false, status: 400 });
+    }
+    const badName = await suggestMappings(ctx.deps, t, {
+      classrooms: [],
+      teachers: [{ id: "P1", short: "ZQ", name: 3 }],
+    });
+    expect(badName.response).toMatchObject({ ok: false, status: 400 });
+    const both = await saveTeacherMappings(ctx.deps, t, {
+      items: [{ ...base, userId: ctx.accounts.get("hor")?.id, createPlaceholder: { name: "Z" } }],
+    });
+    expect(both.response).toMatchObject({ ok: false, status: 400, field: "userId" });
+  });
+
   test("falha de validação do serviço volta como 400 com o campo", async () => {
     const result = await saveRoomMappings(ctx.deps, ctx.req("adm"), {
       items: [{ sourceRoomId: "R1", sourceShort: "S1", spaceId: "nao-existe", ignored: false }],

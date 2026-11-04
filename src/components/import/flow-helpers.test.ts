@@ -106,8 +106,10 @@ describe("escolhas de docente", () => {
   const teacher = (over: Partial<TeacherSuggestion>): TeacherSuggestion => ({
     sourceId: "P1",
     short: "FT",
+    name: "Docente Um",
     saved: null,
     suggestion: null,
+    defaultAction: "fantasma",
     ...over,
   });
   test("salvo, sugerido ou sem vínculo", () => {

@@ -40,8 +40,11 @@ export type RoomSuggestion = {
 export type TeacherSuggestion = {
   sourceId: string;
   short: string;
+  name: string;
   saved: { userId: string | null } | null;
   suggestion: { userId: string; origin: "sigla" | "codigo" } | null;
+  /** Escolha que o passo de docentes traz marcada: o vínculo salvo, a sugestão ou criar fantasma. */
+  defaultAction: "salvo" | "sugestao" | "fantasma";
 };
 
 function same(a: string, b: string): boolean {
@@ -115,14 +118,21 @@ export function createMappingsService(deps: {
     },
 
     async suggestTeachers(
-      list: ReadonlyArray<{ id: string; short: string }>,
+      list: ReadonlyArray<{ id: string; short: string; name: string }>,
     ): Promise<TeacherSuggestion[]> {
       const [saved, accounts] = await Promise.all([teachers.list(), users.list()]);
       const active = accounts.filter((user) => user.active && user.code !== null);
-      return list.map((teacher) => {
-        const base = { sourceId: teacher.id, short: teacher.short };
+      return list.map((teacher): TeacherSuggestion => {
+        const base = { sourceId: teacher.id, short: teacher.short, name: teacher.name };
         const own = saved.find((mapping) => mapping.sourceTeacherId === teacher.id);
-        if (own !== undefined) return { ...base, saved: { userId: own.userId }, suggestion: null };
+        if (own !== undefined) {
+          return {
+            ...base,
+            saved: { userId: own.userId },
+            suggestion: null,
+            defaultAction: "salvo",
+          };
+        }
         const byShort = new Set(
           saved
             .filter(
@@ -132,13 +142,22 @@ export function createMappingsService(deps: {
         );
         const [onlyUser] = byShort;
         if (byShort.size === 1 && onlyUser !== undefined) {
-          return { ...base, saved: null, suggestion: { userId: onlyUser, origin: "sigla" } };
+          return {
+            ...base,
+            saved: null,
+            suggestion: { userId: onlyUser, origin: "sigla" },
+            defaultAction: "sugestao",
+          };
         }
         const account = active.find((user) => same(user.code ?? "", teacher.short));
+        if (account === undefined) {
+          return { ...base, saved: null, suggestion: null, defaultAction: "fantasma" };
+        }
         return {
           ...base,
           saved: null,
-          suggestion: account === undefined ? null : { userId: account.id, origin: "codigo" },
+          suggestion: { userId: account.id, origin: "codigo" },
+          defaultAction: "sugestao",
         };
       });
     },
