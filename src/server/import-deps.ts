@@ -12,7 +12,7 @@ import { createSessionRepository } from "#/infra/db/repos/session-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 import { createUserRepository } from "#/infra/db/repos/user-repository";
 import { getEnv } from "#/infra/env";
-import { systemClock } from "#/infra/runtime";
+import { cryptoRandom, systemClock } from "#/infra/runtime";
 import { getDb, getRuntimeEnv } from "#db-client";
 import { getAuth } from "./auth-context.ts";
 import type { ImportFlowDeps } from "./import-flow.ts";
@@ -29,13 +29,14 @@ export function getImportFlowDeps(): ImportFlowDeps {
   const semesters = createSemesterRepository(db);
   const maps = createMappingRepositories(db);
   const imports = createImportRepository(db);
+  const hasher = createConfiguredHasher(env);
   return {
     auth: getAuth(),
     cookieSecure: env.COOKIE_SECURE,
     users: createUsersService({
       users,
       sessions: createSessionRepository(db),
-      hasher: createConfiguredHasher(env),
+      hasher,
     }),
     spaces: createSpacesService({ spaces }),
     semesters: createSemestersService({ semesters }),
@@ -52,6 +53,8 @@ export function getImportFlowDeps(): ImportFlowDeps {
       spaces,
       users,
       clock: systemClock,
+      hasher,
+      random: cryptoRandom,
     }),
     report: createImportReportService({ imports, spaces, users, semesters }),
   };

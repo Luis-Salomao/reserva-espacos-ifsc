@@ -9,8 +9,14 @@ import { createMappingRepositories } from "#/infra/db/repos/mapping-repositories
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 import { createUserRepository } from "#/infra/db/repos/user-repository";
 import * as schema from "#/infra/db/schema";
+import { cryptoRandom } from "#/infra/runtime";
 
 const clock = { now: () => new Date("2026-08-01T12:00:00Z") };
+const hasher = {
+  hash: async (password: string) => `hash:${password}`,
+  verify: async () => false,
+  needsRehash: () => false,
+};
 
 function open(): AppDb {
   const sqlite = new Database(":memory:");
@@ -57,6 +63,8 @@ async function setup(): Promise<Env> {
     spaces,
     users,
     clock,
+    hasher,
+    random: cryptoRandom,
   });
   return { service, maps, lab, sala, maria, inactive: { ...inactive, active: false } };
 }
@@ -293,6 +301,8 @@ describe("saveTeachers: consultas ao validar as contas", () => {
       spaces: createSpaceRepository(db),
       users: spied,
       clock,
+      hasher,
+      random: cryptoRandom,
     });
     const result = await service.saveTeachers(
       ["A", "B", "C", "D"].map((id) => ({

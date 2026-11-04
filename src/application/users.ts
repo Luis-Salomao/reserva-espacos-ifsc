@@ -1,10 +1,16 @@
 import { MAX_PASSWORD_LENGTH, validatePassword } from "#/application/auth";
 import type { PasswordHasher, SessionRepository, UserRepository } from "#/application/ports";
 import { fail, ok, parseText, type Result } from "#/application/validation";
-import { isRole, isValidEmail, normalizeEmail, type Role, type User } from "#/domain/user";
+import {
+  isRole,
+  isValidCode,
+  isValidEmail,
+  normalizeEmail,
+  type Role,
+  type User,
+} from "#/domain/user";
 
-const MAX_NAME_LENGTH = 120;
-const CODE_PATTERN = /^[A-Za-z0-9._-]{1,16}$/;
+export const MAX_NAME_LENGTH = 120;
 
 export type UsersDeps = {
   users: UserRepository;
@@ -31,7 +37,7 @@ function parseEmail(raw: string): Result<string> {
 function parseCode(raw: string): Result<string | null> {
   const code = raw.trim();
   if (code === "") return ok(null);
-  return CODE_PATTERN.test(code)
+  return isValidCode(code)
     ? ok(code)
     : fail(
         "validation",

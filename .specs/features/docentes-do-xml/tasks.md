@@ -182,8 +182,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: criação, colisão de e-mail, código ocupado vira `null`, reaproveita fantasma, `userId` + `createPlaceholder` juntos é erro
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: criação, colisão de e-mail, código ocupado vira `null`, reaproveita fantasma, `userId` + `createPlaceholder` juntos é erro
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick
