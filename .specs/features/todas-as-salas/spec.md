@@ -132,7 +132,7 @@ A agenda mostra uma sala por vez. Para achar uma sala livre, quem reserva precis
 | -------------- | ----- | ----- | ------ |
 | SALAS-01 | P1: Colunas por sala (AC 1, 2) | - | In Progress |
 | SALAS-02 | P1: Colunas por sala (AC 3) | - | Pending |
-| SALAS-03 | P1: Colunas por sala (AC 4, 5, 6) | - | Pending |
+| SALAS-03 | P1: Colunas por sala (AC 4, 5, 6) | - | In Progress |
 | SALAS-04 | P1: Filtros (AC 1, 6) | - | Pending |
 | SALAS-05 | P1: Filtros (AC 2, 3) | - | Pending |
 | SALAS-06 | P1: Filtros (AC 4) | - | Pending |

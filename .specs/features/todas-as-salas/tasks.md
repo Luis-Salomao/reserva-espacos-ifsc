@@ -86,8 +86,8 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: sala sem ocupação vem com o dia todo livre; visitante sem pessoas; data inválida falha; ordem natural de nomes
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: sala sem ocupação vem com o dia todo livre; visitante sem pessoas; data inválida falha; ordem natural de nomes
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick
