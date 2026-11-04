@@ -305,8 +305,10 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes: grupos na ordem; busca com "X de N espaços"; "Limpar busca"; vazio com "Cadastrar espaço"; "Espaço salvo." e "Espaço excluído."; erro de carga chama recarregar; teste antigo de capacidade continua passando com a abertura do diálogo
-- [ ] Gate check passes: `bun test src/components/admin`
+- [x] Testes: grupos na ordem; busca com "X de N espaços"; "Limpar busca"; vazio com "Cadastrar espaço"; "Espaço salvo." e "Espaço excluído."; erro de carga chama recarregar; teste antigo de capacidade continua passando com a abertura do diálogo
+- [x] Gate check passes: `bun test src/components/admin` (38 testes)
+
+**Desvio**: o teste antigo "erro de capacidade é anunciado, ligado ao campo e recebe o foco" passou a clicar em "Novo espaço" antes de procurar o campo, porque o formulário saiu da página e foi para o diálogo (as asserções não mudaram). Os títulos de bloco são `h2` e os de andar `h3`, abaixo do `h1` da página.
 
 **Tests**: unit
 **Gate**: quick
