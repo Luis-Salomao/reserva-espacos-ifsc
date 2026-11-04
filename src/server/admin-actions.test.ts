@@ -171,13 +171,15 @@ describe("controle de acesso no servidor", () => {
 
   for (const [name, call] of calls) {
     test(`${name}: sem sessão responde 401`, async () => {
-      expect(await call(ctx, null)).toMatchObject({ ok: false, status: 401 });
-      expect(await call(ctx, "token-que-nao-existe")).toMatchObject({ ok: false, status: 401 });
+      const unauthenticated = { ok: false, status: 401, message: "É preciso entrar." };
+      expect(await call(ctx, null)).toEqual(unauthenticated);
+      expect(await call(ctx, "token-que-nao-existe")).toEqual(unauthenticated);
     });
 
     test(`${name}: horários e docente recebem 403 e nada é alterado`, async () => {
-      expect(await call(ctx, ctx.horarios.token)).toMatchObject({ ok: false, status: 403 });
-      expect(await call(ctx, ctx.docente.token)).toMatchObject({ ok: false, status: 403 });
+      const forbidden = { ok: false, status: 403, message: "Sem permissão para esta ação." };
+      expect(await call(ctx, ctx.horarios.token)).toEqual(forbidden);
+      expect(await call(ctx, ctx.docente.token)).toEqual(forbidden);
       expect((await ctx.deps.users.list()).length).toBe(3);
       expect((await ctx.deps.spaces.list()).length).toBe(0);
       expect((await ctx.deps.users.list()).find((u) => u.id === ctx.docente.id)?.active).toBe(true);
