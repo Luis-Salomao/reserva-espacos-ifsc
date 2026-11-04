@@ -5,7 +5,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { RoomsOverview } from "#/components/rooms/rooms-overview";
 import { RESERVA_TONE, SUBJECT_PALETTE, subjectTone } from "#/domain/overview";
@@ -88,6 +88,14 @@ const stripesOf = (cell: HTMLElement) =>
 
 const toneOf = (subject: string) => SUBJECT_PALETTE[subjectTone(subject)];
 
+/** Por faixa: esmaecida (atributo e opacidade reduzida) ou em cor cheia. */
+const dimmedOf = (cell: HTMLElement) =>
+  Array.from(cell.querySelectorAll<HTMLElement>("[data-stripe]")).map((stripe) => {
+    const dimmed = stripe.hasAttribute("data-dimmed");
+    expect(stripe.className.split(" ").includes("opacity-20")).toBe(dimmed);
+    return dimmed;
+  });
+
 describe("RoomsOverview", () => {
   test("3 salas × 5 dias × 2 blocos geram 30 quadradinhos", async () => {
     await renderOverview();
@@ -135,6 +143,49 @@ describe("RoomsOverview", () => {
     const cell = cellAt("a202", TUE, "M12");
     expect(cell.tagName).toBe("A");
     expect(cell.getAttribute("href")).toBe(`/?espaco=a202&data=${TUE}`);
+  });
+
+  test("a legenda lista as matérias da semana em ordem alfabética e 'Reserva'", async () => {
+    await renderOverview();
+    const legend = screen.getByRole("group", { name: "Legenda" });
+    expect(
+      within(legend)
+        .getAllByRole("button")
+        .map((button) => button.textContent),
+    ).toEqual(["Cálculo I", "Física", "Oficina", "Química", "Reserva"]);
+  });
+
+  test("clicar numa matéria a destaca e esmaece os quadradinhos das outras", async () => {
+    await renderOverview();
+    const legend = screen.getByRole("group", { name: "Legenda" });
+    const calculo = within(legend).getByRole("button", { name: "Cálculo I" });
+    expect(calculo.getAttribute("aria-pressed")).toBe("false");
+    fireEvent.click(calculo);
+    expect(calculo.getAttribute("aria-pressed")).toBe("true");
+    expect(dimmedOf(cellAt("a202", MON, "M12"))).toEqual([false]);
+    expect(dimmedOf(cellAt("a202", WED, "M12"))).toEqual([false, true]);
+    expect(dimmedOf(cellAt("a202", TUE, "M12"))).toEqual([true]);
+    expect(dimmedOf(cellAt("a202", THU, "M34"))).toEqual([true]);
+  });
+
+  test("clicar de novo na matéria destacada remove o destaque", async () => {
+    await renderOverview();
+    const legend = screen.getByRole("group", { name: "Legenda" });
+    fireEvent.click(within(legend).getByRole("button", { name: "Física" }));
+    expect(dimmedOf(cellAt("a202", MON, "M12"))).toEqual([true]);
+    const fisica = within(legend).getByRole("button", { name: "Física" });
+    fireEvent.click(fisica);
+    expect(fisica.getAttribute("aria-pressed")).toBe("false");
+    expect(dimmedOf(cellAt("a202", MON, "M12"))).toEqual([false]);
+    expect(dimmedOf(cellAt("a202", TUE, "M12"))).toEqual([false]);
+  });
+
+  test("'Reserva' na legenda destaca só as reservas avulsas", async () => {
+    await renderOverview();
+    const legend = screen.getByRole("group", { name: "Legenda" });
+    fireEvent.click(within(legend).getByRole("button", { name: "Reserva" }));
+    expect(dimmedOf(cellAt("a202", THU, "M34"))).toEqual([false]);
+    expect(dimmedOf(cellAt("a202", MON, "M12"))).toEqual([true]);
   });
 
   test("ocupação fora de todos os blocos aparece no aviso da linha da sala", async () => {
