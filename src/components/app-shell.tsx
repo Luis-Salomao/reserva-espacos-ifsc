@@ -2,11 +2,13 @@ import { Link, useRouteContext } from "@tanstack/react-router";
 import {
   CalendarDays,
   CalendarRange,
+  ChevronsUpDown,
   FileUp,
   ListChecks,
   LogOut,
   type LucideIcon,
   Menu,
+  Settings,
   Users,
   X,
 } from "lucide-react";
@@ -14,6 +16,7 @@ import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import { Avatar } from "#/components/avatar";
 import { ThemeToggle } from "#/components/theme-toggle";
 import { Button } from "#/components/ui/button";
+import { Popover, PopoverContent, PopoverTrigger } from "#/components/ui/popover";
 import { cn } from "#/lib/utils";
 import { ADMIN_ROLES, IMPORT_ROLES, SEMESTER_ROLES, type SessionInfo } from "#/server/session";
 
@@ -82,6 +85,34 @@ const NAV_LINK_ACTIVE = "bg-surface-2 text-foreground";
 export function AppShell({ children, wide = false }: Props) {
   const user = useSessionUser();
   const items = navItems(user);
+  if (user === null) {
+    return (
+      <div className="min-h-screen bg-background text-foreground">
+        <a href="#conteudo" className="sr-only focus:not-sr-only">
+          Pular para o conteúdo
+        </a>
+        <header className="flex h-14 items-center justify-between gap-3 border-b px-4 sm:px-6">
+          <Brand />
+          <div className="flex items-center gap-2">
+            <ThemeToggle />
+            <Button asChild size="sm">
+              <Link to="/entrar">Entrar</Link>
+            </Button>
+          </div>
+        </header>
+        <main
+          id="conteudo"
+          tabIndex={-1}
+          className={cn(
+            "mx-auto w-full px-4 py-6 outline-none sm:px-6",
+            wide ? "max-w-[1440px]" : "max-w-3xl",
+          )}
+        >
+          {children}
+        </main>
+      </div>
+    );
+  }
   return (
     <div className="min-h-screen bg-background text-foreground">
       <a
@@ -112,32 +143,17 @@ export function AppShell({ children, wide = false }: Props) {
         <div className="flex-1" />
         <div className="flex items-center gap-1 md:border-t md:pt-3">
           {user !== null ? (
-            <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
-              <Avatar name={user.name} />
-              <span className="min-w-0 leading-tight">
-                <span className="block truncate text-[13px] font-medium">{user.name}</span>
-                <small className="block truncate text-[11px] text-muted-foreground">
-                  {user.roles.map((role) => ROLE_LABELS[role] ?? role).join(" · ")}
-                </small>
-              </span>
-            </div>
+            <AccountMenu user={user} />
           ) : (
-            <Button asChild size="sm" className="hidden flex-1 md:inline-flex">
-              <Link to="/entrar">Entrar</Link>
-            </Button>
-          )}
-          {user === null && (
-            <Button asChild size="sm" className="md:hidden">
-              <Link to="/entrar">Entrar</Link>
-            </Button>
-          )}
-          <ThemeToggle />
-          {user !== null && (
-            <form method="post" action="/api/sair" className="hidden md:block">
-              <Button type="submit" variant="ghost" size="icon" aria-label="Sair" title="Sair">
-                <LogOut aria-hidden="true" />
+            <>
+              <Button asChild size="sm" className="hidden flex-1 md:inline-flex">
+                <Link to="/entrar">Entrar</Link>
               </Button>
-            </form>
+              <Button asChild size="sm" className="md:hidden">
+                <Link to="/entrar">Entrar</Link>
+              </Button>
+              <ThemeToggle />
+            </>
           )}
           {/* Visitante só teria "Agenda" (a marca já leva a ela): sem menu, sobra espaço ao nome. */}
           {user !== null && <MobileMenu items={items} user={user} />}
@@ -237,15 +253,61 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
               </Link>
             );
           })}
-          {user !== null && (
-            <form method="post" action="/api/sair" className="mt-1 border-t pt-1">
-              <button type="submit" className={itemClass}>
-                Sair
-              </button>
-            </form>
-          )}
         </div>
       )}
     </div>
+  );
+}
+
+/** Preferências e saída reunidas no avatar, com foco e teclado geridos pelo Popover. */
+function AccountMenu({ user }: { user: NonNullable<SessionInfo["user"]> }) {
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          aria-label={`Configurações de ${user.name}`}
+          className="flex min-h-11 min-w-11 items-center justify-center gap-2.5 rounded-full p-1.5 transition-colors hover:bg-surface-2 md:w-full md:justify-start md:rounded-lg"
+        >
+          <Avatar name={user.name} className="size-9 text-xs" />
+          <span className="hidden min-w-0 flex-1 text-left leading-tight md:block">
+            <span className="block truncate text-[13px] font-medium">{user.name}</span>
+            <small className="block truncate text-[11px] text-muted-foreground">
+              {user.roles.map((role) => ROLE_LABELS[role] ?? role).join(" · ")}
+            </small>
+          </span>
+          <ChevronsUpDown
+            className="hidden size-3.5 text-muted-foreground md:block"
+            aria-hidden="true"
+          />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="start"
+        side="top"
+        sideOffset={10}
+        className="w-64 p-2"
+        aria-label="Configurações da conta"
+      >
+        <div className="border-b px-2 py-3">
+          <p className="truncate text-sm font-semibold">{user.name}</p>
+          <p className="truncate text-xs text-muted-foreground">{user.email}</p>
+        </div>
+        <div className="flex items-center gap-2 px-2 pt-3 pb-1 text-xs font-medium text-muted-foreground">
+          <Settings className="size-3.5" aria-hidden="true" />
+          Configurações
+        </div>
+        <div className="flex items-center justify-between px-2 py-1">
+          <span className="text-sm">Aparência</span>
+          <ThemeToggle />
+        </div>
+        <form method="post" action="/api/sair" className="mt-1 border-t pt-1">
+          <Button type="submit" variant="ghost" className="w-full justify-start">
+            <LogOut aria-hidden="true" />
+            Sair
+          </Button>
+        </form>
+      </PopoverContent>
+    </Popover>
   );
 }
