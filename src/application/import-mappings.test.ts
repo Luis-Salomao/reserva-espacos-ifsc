@@ -45,6 +45,58 @@ const ghost = (
   createPlaceholder: { name },
 });
 
+describe("suggestTeachers: escolha padrão do passo de docentes", () => {
+  let env: ReturnType<typeof setup>;
+  beforeEach(() => {
+    env = setup();
+  });
+
+  test("sem vínculo salvo e sem sugestão: criar conta fantasma, com o nome do XML", async () => {
+    const [item] = await env.service.suggestTeachers([
+      { id: "P1", short: "ZQ", name: "Zeca Quintal" },
+    ]);
+    expect(item).toEqual({
+      sourceId: "P1",
+      short: "ZQ",
+      name: "Zeca Quintal",
+      saved: null,
+      suggestion: null,
+      defaultAction: "fantasma",
+    });
+  });
+
+  test("com sugestão por código ou por sigla: a sugestão", async () => {
+    const real = await env.account("real@x.org", "REA");
+    await env.service.saveTeachers([
+      { sourceTeacherId: "OLD", sourceShort: "LU", userId: real.id },
+    ]);
+    const result = await env.service.suggestTeachers([
+      { id: "P1", short: "rea", name: "Conta Real" },
+      { id: "P2", short: "LU", name: "Lua" },
+    ]);
+    expect(result.map((item) => [item.suggestion?.origin, item.defaultAction])).toEqual([
+      ["codigo", "sugestao"],
+      ["sigla", "sugestao"],
+    ]);
+  });
+
+  test("com vínculo salvo (a uma conta ou sem responsável): o salvo", async () => {
+    const real = await env.account("real@x.org", "REA");
+    await env.service.saveTeachers([
+      { sourceTeacherId: "P1", sourceShort: "XX", userId: real.id },
+      { sourceTeacherId: "P2", sourceShort: "YY", userId: null },
+    ]);
+    const result = await env.service.suggestTeachers([
+      { id: "P1", short: "XX", name: "A" },
+      { id: "P2", short: "YY", name: "B" },
+    ]);
+    expect(result.map((item) => [item.saved, item.defaultAction])).toEqual([
+      [{ userId: real.id }, "salvo"],
+      [{ userId: null }, "salvo"],
+    ]);
+  });
+});
+
 describe("saveTeachers com contas fantasmas", () => {
   let env: ReturnType<typeof setup>;
   beforeEach(() => {

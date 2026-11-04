@@ -202,9 +202,9 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: sem vínculo e sem sugestão → `fantasma`; com sugestão → `sugestao`; salvo → `salvo`
-- [ ] Teste de ação: entrada inválida recusada
-- [ ] Gate check passes: `bun test src/application src/server`
+- [x] Testes: sem vínculo e sem sugestão → `fantasma`; com sugestão → `sugestao`; salvo → `salvo`
+- [x] Teste de ação: entrada inválida recusada
+- [x] Gate check passes: `bun test src/application src/server`
 
 **Tests**: unit
 **Gate**: quick
