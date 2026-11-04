@@ -45,10 +45,10 @@ export function SpaceCard({ space, onEdit, onDeleted }: Props) {
 
   const notes = space.equipment?.notes ?? null;
   return (
-    <li>
+    <li className="min-w-0">
       <Card className="flex h-full flex-col gap-3">
         <div className="min-w-0">
-          <p className="break-words font-medium">{space.name}</p>
+          <p className="font-medium wrap-anywhere">{space.name}</p>
           <p className="text-sm text-muted-foreground">
             {space.capacity === null ? "Capacidade não informada" : `${space.capacity} lugares`}
           </p>
@@ -68,7 +68,7 @@ export function SpaceCard({ space, onEdit, onDeleted }: Props) {
           })}
         </ul>
         {notes !== null && (
-          <p className="text-sm break-words whitespace-pre-line">
+          <p className="text-sm whitespace-pre-line wrap-anywhere">
             <span className="font-semibold">Observações: </span>
             {notes}
           </p>
@@ -91,7 +91,7 @@ export function SpaceCard({ space, onEdit, onDeleted }: Props) {
             </AlertDialogTrigger>
             <AlertDialogContent>
               <AlertDialogHeader>
-                <AlertDialogTitle className="break-words">Excluir {space.name}?</AlertDialogTitle>
+                <AlertDialogTitle className="wrap-anywhere">Excluir {space.name}?</AlertDialogTitle>
                 <AlertDialogDescription>
                   O espaço e os equipamentos cadastrados nele serão apagados. Espaços com reservas,
                   aulas ou vínculo com o XML não podem ser excluídos.
