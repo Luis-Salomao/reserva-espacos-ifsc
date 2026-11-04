@@ -57,7 +57,7 @@ A tela `/admin/espacos` é um formulário de criação seguido de uma lista plan
 
 **Acceptance Criteria**:
 
-1. WHEN o admin abre `/admin/espacos` THEN o sistema SHALL agrupar os espaços por bloco ("Bloco A", "Bloco B", … e "Outros espaços" por último) e, dentro do bloco, por andar ("Andar 1", "Andar 2", … e "Sem andar identificado" por último), com nomes em ordem natural (`A-202` antes de `A-1000`).
+1. WHEN o admin abre `/admin/espacos` THEN o sistema SHALL agrupar os espaços por bloco ("Bloco A", "Bloco B", … e "Outros espaços" por último) e, dentro do bloco, por andar ("Andar 1", "Andar 2", … e "Sem andar identificado" por último), com nomes em ordem natural dentro do mesmo andar (`A-201 Lab 2` antes de `A-201 Lab 10`; `Sala 2` antes de `Sala 10` em "Sem andar identificado").
 2. THE sistema SHALL mostrar em cada espaço a capacidade como "N lugares" ou "Capacidade não informada".
 3. THE sistema SHALL mostrar em cada espaço um rótulo por equipamento do catálogo, com texto distinto para cada estado: "Projetor" / "Sem projetor" / "Projetor não informado"; "N computadores" (ou "1 computador") / "Sem computadores" / "Computadores não informados"; "Aparelho de som" / "Sem aparelho de som" / "Aparelho de som não informado".
 4. WHEN o espaço tem observações THEN o sistema SHALL mostrá-las no cartão do espaço.
