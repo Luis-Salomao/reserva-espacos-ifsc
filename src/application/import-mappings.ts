@@ -1,16 +1,29 @@
+import { toBase64Url } from "#/application/auth";
 import type {
   Clock,
+  NewPlaceholder,
+  PasswordHasher,
+  RandomSource,
   RoomMappingRepository,
   SpaceRepository,
   TeacherMappingRepository,
   UserRepository,
 } from "#/application/ports";
+import { MAX_NAME_LENGTH } from "#/application/users";
 import { fail, ok, parseText, type Result } from "#/application/validation";
+import { guessEmail } from "#/domain/guess-email";
 import type { RoomMapping, TeacherMapping } from "#/domain/import-batch";
+import { isValidCode, type User } from "#/domain/user";
 
 const MAX_ITEMS = 500;
 const MAX_SOURCE_ID = 100;
 const MAX_SOURCE_SHORT = 100;
+const NAMELESS_TEACHER = "Docente sem nome";
+
+/** Vínculo a salvar; `createPlaceholder` pede uma conta fantasma (exclusivo com `userId`). */
+export type TeacherMappingInput = TeacherMapping & {
+  createPlaceholder?: { name: string } | undefined;
+};
 
 export type RoomTargetView = { spaceId: string | null; ignored: boolean };
 
@@ -45,8 +58,10 @@ export function createMappingsService(deps: {
   spaces: SpaceRepository;
   users: UserRepository;
   clock: Clock;
+  hasher: PasswordHasher;
+  random: RandomSource;
 }) {
-  const { rooms, teachers, spaces, users, clock } = deps;
+  const { rooms, teachers, spaces, users, clock, hasher, random } = deps;
 
   /** Destino único entre os vínculos salvos com a mesma sigla (ambíguo = nenhum). */
   function targetByShort(saved: readonly RoomMapping[], short: string): RoomTargetView | null {
@@ -162,16 +177,42 @@ export function createMappingsService(deps: {
       return ok(null);
     },
 
-    async saveTeachers(items: readonly TeacherMapping[]): Promise<Result<null>> {
+    /**
+     * Salva os vínculos de docentes. Item com `createPlaceholder` vira conta fantasma (nome do XML,
+     * e-mail presumido, sigla como código se livre, papel `docente`), gravada junto dos vínculos;
+     * uma fantasma já vinculada a esse docente, ou com a mesma sigla, é reaproveitada.
+     */
+    async saveTeachers(items: readonly TeacherMappingInput[]): Promise<Result<null>> {
       if (items.length > MAX_ITEMS) {
         return fail("validation", `Envie no máximo ${MAX_ITEMS} vínculos por vez.`);
       }
+      const wantsPlaceholder = items.some((item) => item.createPlaceholder !== undefined);
       // Uma só consulta (como em saveRooms) em vez de uma por item.
-      const activeIds = new Set(
-        items.some((item) => item.userId !== null)
-          ? (await users.list()).filter((user) => user.active).map((user) => user.id)
-          : [],
+      const [accounts, saved] = await Promise.all([
+        wantsPlaceholder || items.some((item) => item.userId !== null)
+          ? users.list()
+          : Promise.resolve([] as User[]),
+        wantsPlaceholder ? teachers.list() : Promise.resolve([] as TeacherMapping[]),
+      ]);
+      const activeIds = new Set(accounts.filter((user) => user.active).map((user) => user.id));
+      const ghosts = accounts.filter((user) => user.active && user.placeholder);
+      const takenEmails = new Set(accounts.map((user) => user.email));
+      const takenCodes = new Set(
+        accounts.flatMap((user) => (user.code === null ? [] : [user.code])),
       );
+      const claimed = new Set<string>();
+      const created: NewPlaceholder[] = [];
+      let passwordHash: string | null = null;
+
+      const reusableGhost = (sourceTeacherId: string, short: string): User | undefined => {
+        const linked = saved.find((mapping) => mapping.sourceTeacherId === sourceTeacherId);
+        const free = ghosts.filter((ghost) => !claimed.has(ghost.id));
+        return (
+          free.find((ghost) => ghost.id === linked?.userId) ??
+          free.find((ghost) => ghost.code === short)
+        );
+      };
+
       const clean: TeacherMapping[] = [];
       for (const item of items) {
         const id = parseText(
@@ -188,12 +229,48 @@ export function createMappingsService(deps: {
           "sourceShort",
         );
         if (!short.ok) return short;
+        if (item.createPlaceholder !== undefined) {
+          if (item.userId !== null) {
+            return fail(
+              "validation",
+              "Escolha uma conta ou criar conta fantasma, não os dois.",
+              "userId",
+            );
+          }
+          const name = parseText(
+            item.createPlaceholder.name.trim() || NAMELESS_TEACHER,
+            MAX_NAME_LENGTH,
+            "O nome do docente",
+            "createPlaceholder",
+          );
+          if (!name.ok) return name;
+          const reused = reusableGhost(id.value, short.value);
+          let userId: string;
+          if (reused !== undefined) {
+            userId = reused.id;
+          } else {
+            // Um hash só por envio: a senha é descartada e um scrypt por conta custaria caro demais.
+            passwordHash ??= await hasher.hash(toBase64Url(random.bytes(32)));
+            const email = guessEmail(item.createPlaceholder.name, id.value, takenEmails);
+            const code =
+              isValidCode(short.value) && !takenCodes.has(short.value) ? short.value : null;
+            userId = crypto.randomUUID();
+            takenEmails.add(email);
+            if (code !== null) takenCodes.add(code);
+            created.push({ id: userId, email, name: name.value, code, passwordHash });
+          }
+          claimed.add(userId);
+          clean.push({ sourceTeacherId: id.value, sourceShort: short.value, userId });
+          continue;
+        }
         if (item.userId !== null && !activeIds.has(item.userId)) {
           return fail("validation", "A conta escolhida não existe ou está inativa.", "userId");
         }
         clean.push({ sourceTeacherId: id.value, sourceShort: short.value, userId: item.userId });
       }
-      await teachers.saveMany(clean, clock.now().toISOString());
+      const at = clock.now().toISOString();
+      if (created.length === 0) await teachers.saveMany(clean, at);
+      else await teachers.saveWithPlaceholders(created, clean, at);
       return ok(null);
     },
   };

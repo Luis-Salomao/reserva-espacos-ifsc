@@ -37,6 +37,13 @@ export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
 }
 
+const CODE_PATTERN = /^[A-Za-z0-9._-]{1,16}$/;
+
+/** Sigla de conta: de 1 a 16 letras, números, ponto, hífen ou sublinhado. */
+export function isValidCode(code: string): boolean {
+  return CODE_PATTERN.test(code);
+}
+
 const EMAIL_PATTERN = /^[^\s@,'"`$\\]+@[^\s@,'"`$\\]+\.[^\s@,'"`$\\]+$/;
 
 export function isValidEmail(email: string): boolean {

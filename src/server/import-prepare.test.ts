@@ -13,7 +13,7 @@ import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 import { createUserRepository } from "#/infra/db/repos/user-repository";
 import * as schema from "#/infra/db/schema";
-import { systemClock } from "#/infra/runtime";
+import { cryptoRandom, systemClock } from "#/infra/runtime";
 import type { ImportDeps } from "./import-actions.ts";
 import { applyImportBatch } from "./import-actions.ts";
 import { handlePrepareRequest } from "./import-prepare.ts";
@@ -63,6 +63,12 @@ async function setup() {
       spaces: createSpaceRepository(db),
       users,
       clock: systemClock,
+      hasher: {
+        hash: async (p: string) => `hash:${p}`,
+        verify: async () => false,
+        needsRehash: () => false,
+      },
+      random: cryptoRandom,
     }),
     cookieSecure: "auto",
   };
