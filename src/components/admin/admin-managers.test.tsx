@@ -6,7 +6,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { Semester } from "#/domain/semester";
 import type { User } from "#/domain/user";
 import type { AdminResponse } from "#/server/admin-actions";
@@ -18,6 +18,9 @@ let resetResponse: AdminResponse<null> = { ok: true, data: null };
 const calls: string[] = [];
 let semesterResponse: AdminResponse<unknown> = { ok: true, data: {} };
 const semesterCalls: Array<Record<string, unknown>> = [];
+let activateResponse: AdminResponse<User> = { ok: true, data: {} as User };
+let mergeResponse: AdminResponse<null> = { ok: true, data: null };
+const ghostCalls: Array<Record<string, unknown>> = [];
 
 mock.module("#/server/admin", () => ({
   createAccountFn: async (_: Call) => createResponse,
@@ -29,6 +32,14 @@ mock.module("#/server/admin", () => ({
   resetAccountPasswordFn: async (arg: Call) => {
     calls.push(`reset:${String(arg.data.id)}`);
     return resetResponse;
+  },
+  activatePlaceholderAccountFn: async (arg: Call) => {
+    ghostCalls.push({ action: "activate", ...arg.data });
+    return activateResponse;
+  },
+  mergePlaceholderAccountFn: async (arg: Call) => {
+    ghostCalls.push({ action: "merge", ...arg.data });
+    return mergeResponse;
   },
   createSpaceFn: async () => ({
     ok: false,
@@ -70,9 +81,19 @@ const other: User = {
   placeholder: false,
 };
 
-async function renderManager() {
+const ghost: User = {
+  id: "g1",
+  email: "zeca.quintal@ifsc.edu.br",
+  name: "Zeca Quintal",
+  code: "ZQ",
+  roles: ["docente"],
+  active: true,
+  placeholder: true,
+};
+
+async function renderManager(users: User[] = [me, other]) {
   const root = createRootRoute({
-    component: () => <AccountsManager users={[me, other]} currentUserId="me" />,
+    component: () => <AccountsManager users={users} currentUserId="me" />,
   });
   const login = createRoute({ getParentRoute: () => root, path: "/entrar", component: () => null });
   const router = createRouter({
@@ -89,6 +110,9 @@ beforeEach(() => {
   createResponse = { ok: true, data: other };
   activeResponse = { ok: true, data: other };
   resetResponse = { ok: true, data: null };
+  activateResponse = { ok: true, data: { ...ghost, placeholder: false } };
+  mergeResponse = { ok: true, data: null };
+  ghostCalls.length = 0;
 });
 
 describe("erros de campo acessíveis", () => {
@@ -160,6 +184,100 @@ describe("ações sobre a própria conta", () => {
     fireEvent.submit(field.closest("form") as HTMLFormElement);
     await waitFor(() => expect(calls).toEqual(["reset:outro"]));
     expect(router.state.location.pathname).toBe("/");
+  });
+});
+
+describe("contas fantasmas", () => {
+  const otherGhost: User = { ...ghost, id: "g2", email: "lua.sol@ifsc.edu.br", name: "Lua Sol" };
+  const inactive: User = { ...other, id: "off", email: "off@ifsc.edu.br", active: false };
+
+  test("só a fantasma tem o selo 'Não ativada' e os botões Ativar e Fundir", async () => {
+    await renderManager([me, other, ghost]);
+    expect(screen.getAllByText("Não ativada")).toHaveLength(1);
+    const card = screen.getByText("Zeca Quintal").closest("li") as HTMLElement;
+    expect(within(card).getByText("Não ativada")).toBeTruthy();
+    expect(screen.getAllByRole("button", { name: "Ativar" })).toHaveLength(1);
+    expect(screen.getAllByRole("button", { name: "Fundir" })).toHaveLength(1);
+  });
+
+  test("filtro 'Só não ativadas' mostra só as fantasmas", async () => {
+    await renderManager([me, other, ghost]);
+    expect(screen.getByRole("heading", { name: "Contas (3)" })).toBeTruthy();
+    fireEvent.click(screen.getByLabelText("Só não ativadas"));
+    expect(screen.getByRole("heading", { name: "Contas (1)" })).toBeTruthy();
+    expect(screen.queryByText("Outro Docente")).toBeNull();
+    expect(screen.getByText("Zeca Quintal")).toBeTruthy();
+  });
+
+  test("Ativar envia e-mail e senha da fantasma (o e-mail presumido vem preenchido)", async () => {
+    await renderManager([me, other, ghost]);
+    fireEvent.click(screen.getByRole("button", { name: "Ativar" }));
+    const email = (await screen.findByLabelText("E-mail da pessoa")) as HTMLInputElement;
+    expect(email.value).toBe("zeca.quintal@ifsc.edu.br");
+    fireEvent.change(email, { target: { value: "zeca@ifsc.edu.br" } });
+    const password = screen.getAllByLabelText(/Senha inicial/)[1] as HTMLInputElement;
+    fireEvent.change(password, { target: { value: "senha-falsa-nova-9" } }); // betterleaks:allow
+    fireEvent.submit(email.closest("form") as HTMLFormElement);
+    await waitFor(() =>
+      expect(ghostCalls).toEqual([
+        {
+          action: "activate",
+          id: "g1",
+          email: "zeca@ifsc.edu.br",
+          password: "senha-falsa-nova-9", // betterleaks:allow
+        },
+      ]),
+    );
+    await waitFor(() => expect(screen.queryByLabelText("E-mail da pessoa")).toBeNull());
+  });
+
+  test("Ativar com e-mail em uso mostra o erro no campo", async () => {
+    activateResponse = {
+      ok: false,
+      status: 409,
+      message: "Este e-mail já está em uso.",
+      field: "email",
+    };
+    await renderManager([me, other, ghost]);
+    fireEvent.click(screen.getByRole("button", { name: "Ativar" }));
+    const email = (await screen.findByLabelText("E-mail da pessoa")) as HTMLInputElement;
+    fireEvent.submit(email.closest("form") as HTMLFormElement);
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toBe("Este e-mail já está em uso.");
+    expect(email.getAttribute("aria-describedby")).toBe(alert.id);
+  });
+
+  test("Fundir oferece só contas ativadas e ativas e envia a escolhida", async () => {
+    await renderManager([me, other, ghost, otherGhost, inactive]);
+    fireEvent.click(screen.getAllByRole("button", { name: "Fundir" })[0] as HTMLElement);
+    const select = (await screen.findByLabelText("Conta que recebe as aulas")) as HTMLElement;
+    const options = within(select)
+      .getAllByRole("option")
+      .map((option) => option.textContent);
+    expect(options).toEqual([
+      "Escolha uma conta",
+      "Eu Admin (eu@ifsc.edu.br)",
+      "Outro Docente (outro@ifsc.edu.br)",
+    ]);
+    fireEvent.change(select, { target: { value: "outro" } });
+    fireEvent.submit(select.closest("form") as HTMLFormElement);
+    await waitFor(() =>
+      expect(ghostCalls).toEqual([{ action: "merge", id: "g1", targetId: "outro" }]),
+    );
+  });
+
+  test("Fundir recusado mostra o motivo", async () => {
+    mergeResponse = {
+      ok: false,
+      status: 409,
+      message: "As contas mudaram enquanto a fusão rodava. Recarregue e tente de novo.",
+    };
+    await renderManager([me, other, ghost]);
+    fireEvent.click(screen.getByRole("button", { name: "Fundir" }));
+    const select = (await screen.findByLabelText("Conta que recebe as aulas")) as HTMLElement;
+    fireEvent.change(select, { target: { value: "outro" } });
+    fireEvent.submit(select.closest("form") as HTMLFormElement);
+    expect((await screen.findByRole("alert")).textContent).toMatch(/As contas mudaram/);
   });
 });
 
