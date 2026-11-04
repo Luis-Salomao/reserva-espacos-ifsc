@@ -3,6 +3,7 @@ import { createBookingsService } from "#/application/bookings";
 import { createOccupationRepository } from "#/infra/db/repos/occupation-repository";
 import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
+import { createUserRepository } from "#/infra/db/repos/user-repository";
 import { insertBatch, insertImported, openDb, seed } from "../../../../test/booking-env";
 
 const pad = (value: number) => String(value).padStart(2, "0");
@@ -25,6 +26,7 @@ describe("desempenho da agenda", () => {
       },
       spaces: createSpaceRepository(db),
       semesters: createSemesterRepository(db),
+      users: createUserRepository(db),
       clock: { now: () => new Date("2026-11-03T12:00:00Z") },
       timeZone: "America/Sao_Paulo",
       hours: { opens: "06:00", closes: "23:00" },

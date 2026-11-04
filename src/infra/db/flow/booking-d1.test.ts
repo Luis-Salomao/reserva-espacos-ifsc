@@ -68,6 +68,7 @@ describe("reservas no D1 local", () => {
           occupations: createOccupationRepository(db),
           spaces: createSpaceRepository(db),
           semesters: createSemesterRepository(db),
+          users,
           clock: { now: () => new Date("2026-11-03T12:00:00Z") },
           timeZone: "America/Sao_Paulo",
           hours: { opens: "06:00", closes: "23:00" },

@@ -5,6 +5,7 @@ import type {
   OccupationWithSpace,
   SemesterRepository,
   SpaceRepository,
+  UserRepository,
 } from "#/application/ports";
 import { type Failure, fail, ok, parseText, type Result } from "#/application/validation";
 import {
@@ -34,7 +35,13 @@ const ALREADY_CANCELLED = "Esta ocupação já foi cancelada.";
 const SERIES_CHANGED = "A série mudou desde a confirmação. Revise as datas e confirme de novo.";
 const RACE_LOST = "O horário foi ocupado por outra reserva. Atualize a agenda e escolha outro.";
 
-/** Item da agenda: sem nomes nem ids de pessoas; `mine`/`canCancel` valem para quem consulta. */
+/** Pessoa ligada à ocupação: responsável (importada) ou quem reservou (avulsa). */
+export type AgendaPerson = { name: string; code: string | null };
+
+/**
+ * Item da agenda, sem ids de pessoas. `person` só vem para quem está logado (visitante recebe
+ * `null`); `mine`/`canCancel` valem para quem consulta.
+ */
 export type AgendaItem = {
   id: string;
   /** "YYYY-MM-DD". */
@@ -47,6 +54,7 @@ export type AgendaItem = {
   status: "ativa";
   canCancel: boolean;
   mine: boolean;
+  person: AgendaPerson | null;
 };
 
 type AgendaBlock = { label: string; short: string; start: string; end: string };
@@ -97,6 +105,7 @@ export type BookingsDeps = {
   occupations: OccupationRepository;
   spaces: SpaceRepository;
   semesters: SemesterRepository;
+  users: Pick<UserRepository, "list">;
   clock: Clock;
   /** TIMEZONE: define "hoje" e "agora" em hora de parede. */
   timeZone: string;
@@ -131,7 +140,21 @@ function isMine(user: User | null, item: OccupationRecord): boolean {
   return user !== null && (item.createdBy === user.id || item.responsibleUserId === user.id);
 }
 
-function toItem(item: OccupationRecord, viewer: User | null, nowLocal: string): AgendaItem {
+type People = ReadonlyMap<string, AgendaPerson>;
+
+const NO_PEOPLE: People = new Map();
+
+function personOf(item: OccupationRecord, people: People): AgendaPerson | null {
+  const id = item.source === "manual" ? item.createdBy : item.responsibleUserId;
+  return id === null ? null : (people.get(id) ?? null);
+}
+
+function toItem(
+  item: OccupationRecord,
+  viewer: User | null,
+  nowLocal: string,
+  people: People,
+): AgendaItem {
   return {
     id: item.id,
     date: item.startsAt.slice(0, 10),
@@ -142,6 +165,7 @@ function toItem(item: OccupationRecord, viewer: User | null, nowLocal: string): 
     status: "ativa",
     canCancel: viewer !== null && item.endsAt > nowLocal && ownsOccupation(viewer, item),
     mine: isMine(viewer, item),
+    person: viewer === null ? null : personOf(item, people),
   };
 }
 
@@ -177,9 +201,16 @@ function buildDay(
 }
 
 export function createBookingsService(deps: BookingsDeps) {
-  const { occupations, spaces, semesters, clock, timeZone, hours } = deps;
+  const { occupations, spaces, semesters, users, clock, timeZone, hours } = deps;
 
   const nowLocal = () => localNow(clock.now(), timeZone);
+
+  /** Nomes só para quem está logado; o visitante nem dispara a consulta. */
+  async function peopleFor(viewer: User | null): Promise<People> {
+    if (viewer === null) return NO_PEOPLE;
+    const all = await users.list();
+    return new Map(all.map((user) => [user.id, { name: user.name, code: user.code }]));
+  }
 
   async function spaceName(spaceId: string): Promise<string | null> {
     const found = (await spaces.list()).find((space) => space.id === spaceId);
@@ -210,15 +241,16 @@ export function createBookingsService(deps: BookingsDeps) {
         return fail("not_found", "Espaço não encontrado.");
       }
       const now = nowLocal();
-      const [found, all] = await Promise.all([
+      const [found, all, people] = await Promise.all([
         occupations.listActiveInRange(
           input.spaceId,
           `${input.date}T00:00`,
           `${addDays(input.date, 1)}T00:00`,
         ),
         semesters.list(),
+        peopleFor(viewer),
       ]);
-      const items = found.map((item) => toItem(item, viewer, now));
+      const items = found.map((item) => toItem(item, viewer, now, people));
       return ok(buildDay(input.spaceId, input.date, now, hours, items, all));
     },
 
@@ -237,17 +269,18 @@ export function createBookingsService(deps: BookingsDeps) {
         return fail("not_found", "Espaço não encontrado.");
       }
       const now = nowLocal();
-      const [found, all] = await Promise.all([
+      const [found, all, people] = await Promise.all([
         occupations.listActiveInRange(
           input.spaceId,
           `${input.weekStart}T00:00`,
           `${addDays(input.weekStart, 7)}T00:00`,
         ),
         semesters.list(),
+        peopleFor(viewer),
       ]);
       const byDate = new Map<string, AgendaItem[]>();
       for (const item of found) {
-        const view = toItem(item, viewer, now);
+        const view = toItem(item, viewer, now, people);
         const list = byDate.get(view.date);
         if (list) list.push(view);
         else byDate.set(view.date, [view]);
@@ -382,14 +415,12 @@ export function createBookingsService(deps: BookingsDeps) {
       }
       const now = nowLocal();
       const fromLocal = input.from === undefined ? now : `${input.from}T00:00`;
-      const rows: OccupationWithSpace[] = await occupations.listMine(
-        user.id,
-        fromLocal,
-        limit + 1,
-        offset,
-      );
+      const [rows, people]: [OccupationWithSpace[], People] = await Promise.all([
+        occupations.listMine(user.id, fromLocal, limit + 1, offset),
+        peopleFor(user),
+      ]);
       const items = rows.slice(0, limit).map((row) => ({
-        ...toItem(row, user, now),
+        ...toItem(row, user, now, people),
         spaceId: row.spaceId,
         spaceName: row.spaceName,
       }));

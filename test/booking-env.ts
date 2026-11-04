@@ -38,6 +38,7 @@ export function makeService(db: AppDb, now: Date = NOW) {
     occupations: createOccupationRepository(db),
     spaces: createSpaceRepository(db),
     semesters: createSemesterRepository(db),
+    users: createUserRepository(db),
     clock: { now: () => now },
     timeZone: "America/Sao_Paulo",
     hours: { opens: "06:00", closes: "23:00" },

@@ -2,6 +2,7 @@ import { createBookingsService } from "#/application/bookings";
 import { createOccupationRepository } from "#/infra/db/repos/occupation-repository";
 import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
+import { createUserRepository } from "#/infra/db/repos/user-repository";
 import { getEnv } from "#/infra/env";
 import { systemClock } from "#/infra/runtime";
 import { getDb, getRuntimeEnv } from "#db-client";
@@ -20,6 +21,7 @@ export function getBookingDeps(): BookingDeps {
       occupations: createOccupationRepository(db),
       spaces: createSpaceRepository(db),
       semesters: createSemesterRepository(db),
+      users: createUserRepository(db),
       clock: systemClock,
       timeZone: env.TIMEZONE,
       hours: { opens: env.AGENDA_OPENS_AT, closes: env.AGENDA_CLOSES_AT },
