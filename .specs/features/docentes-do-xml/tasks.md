@@ -141,8 +141,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: acentos, nome de uma palavra, nome vazio (`docente.ID@`), colisão `2` e `3`, resultado sempre válido
-- [ ] Gate check passes: `bun test src/domain`
+- [x] Testes: acentos, nome de uma palavra, nome vazio (`docente.ID@`), colisão `2` e `3`, resultado sempre válido
+- [x] Gate check passes: `bun test src/domain`
 
 **Tests**: unit
 **Gate**: quick
