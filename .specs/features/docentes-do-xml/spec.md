@@ -135,7 +135,7 @@ Das 2945 ocupações importadas, só 80 têm responsável, porque só 2 dos 45 d
 | DOC-05 | P1: Avatar (AC 1, 2, 4) | - | Pending |
 | DOC-06 | P1: Avatar (AC 3) | - | Pending |
 | DOC-07 | P1: Avatar (AC 5) | - | Pending |
-| DOC-08 | P1: Atualizar responsáveis (AC 1, 2, 3, 6) | - | Pending |
+| DOC-08 | P1: Atualizar responsáveis (AC 1, 2, 3, 6) | 3 | In Progress |
 | DOC-09 | P1: Atualizar responsáveis (AC 4, 5) | - | Pending |
 | DOC-10 | P2: Ativar ou fundir (AC 1, 2, 3, 6) | 1 | In Progress |
 | DOC-11 | P2: Ativar ou fundir (AC 4, 5) | - | Pending |

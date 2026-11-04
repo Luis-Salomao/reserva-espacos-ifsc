@@ -243,8 +243,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: avulsa e cancelada intocadas; fora do semestre intocada; repetir não muda nada
-- [ ] Gate check passes: `bun test`
+- [x] Testes: avulsa e cancelada intocadas; fora do semestre intocada; repetir não muda nada
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full
