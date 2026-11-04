@@ -1,10 +1,17 @@
 import { beforeEach, describe, expect, test } from "bun:test";
-import type { SpaceRepository } from "#/application/ports";
+import type { SpaceRepository, SpaceWrite } from "#/application/ports";
 import { createSpacesService } from "#/application/spaces";
 import type { Space } from "#/domain/space";
 
+function toSpace(id: string, { equipment, ...rest }: SpaceWrite): Space {
+  return equipment === undefined
+    ? { id, ...rest }
+    : { id, ...rest, equipment: { items: equipment.items ?? {}, notes: equipment.notes ?? null } };
+}
+
 function setup() {
   const rows = new Map<string, Space>();
+  const writes: SpaceWrite[] = [];
   let counter = 0;
   let failNext = false;
   let removeOutcome: Awaited<ReturnType<SpaceRepository["remove"]>> = "removed";
@@ -22,7 +29,8 @@ function setup() {
         throw new Error("falha simulada");
       }
       counter += 1;
-      const space = { id: `s${counter}`, ...input };
+      writes.push(input);
+      const space = toSpace(`s${counter}`, input);
       rows.set(space.id, space);
       return space;
     },
@@ -33,7 +41,8 @@ function setup() {
       }
       const found = rows.get(id);
       if (!found) return null;
-      const next = { id, ...input };
+      writes.push(input);
+      const next = toSpace(id, input);
       rows.set(id, next);
       return next;
     },
@@ -41,6 +50,7 @@ function setup() {
   return {
     service: createSpacesService({ spaces }),
     rows,
+    writes,
     removed,
     failNext: () => {
       failNext = true;
@@ -380,6 +390,25 @@ describe("equipamentos e observações", () => {
         equipment: { items: { computadores: 3 }, notes: null },
       },
     });
+  });
+
+  test("editar só com observações ou só com equipamentos repassa só o que veio", async () => {
+    const created = await ctx.service.create({ name: "Lab", capacity: null });
+    if (!created.ok) throw new Error("setup");
+    await ctx.service.update(created.value.id, {
+      name: "Lab",
+      capacity: null,
+      equipment: { notes: " TV " },
+    });
+    await ctx.service.update(created.value.id, {
+      name: "Lab",
+      capacity: null,
+      equipment: { items: { som: 0 } },
+    });
+    expect(ctx.writes.slice(1)).toEqual([
+      { name: "Lab", capacity: null, equipment: { notes: "TV" } },
+      { name: "Lab", capacity: null, equipment: { items: { som: 0 } } },
+    ]);
   });
 
   test("editar com equipamento inválido não grava", async () => {

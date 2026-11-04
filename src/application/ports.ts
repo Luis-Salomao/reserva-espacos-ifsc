@@ -15,8 +15,14 @@ import type { Semester } from "#/domain/semester";
 import type { Space } from "#/domain/space";
 import type { Role, User } from "#/domain/user";
 
+/**
+ * Equipamentos e observações a gravar, independentes: na edição, sem `items` os equipamentos
+ * gravados ficam como estão e sem `notes` as observações também; na criação, ausente = não informado.
+ */
+export type EquipmentWrite = { items?: SpaceEquipment["items"]; notes?: string | null };
+
 /** Dados gravados de um espaço. Sem `equipment`, equipamentos e observações ficam como estão. */
-export type SpaceWrite = { name: string; capacity: number | null; equipment?: SpaceEquipment };
+export type SpaceWrite = { name: string; capacity: number | null; equipment?: EquipmentWrite };
 
 export interface SpaceRepository {
   /** Só `id`, `name` e `capacity`, por nome. */
@@ -26,8 +32,9 @@ export interface SpaceRepository {
   /** Com `equipment`, grava espaço, observações e equipamentos numa unidade atômica. */
   create(input: SpaceWrite): Promise<Space>;
   /**
-   * Atualiza nome e capacidade; com `equipment`, substitui observações e o conjunto inteiro de
-   * equipamentos na mesma unidade atômica. `null` se o espaço não existe.
+   * Atualiza nome e capacidade; com `equipment.notes`, substitui as observações e, com
+   * `equipment.items`, o conjunto inteiro de equipamentos, na mesma unidade atômica. `null` se o
+   * espaço não existe.
    */
   update(id: string, input: SpaceWrite): Promise<Space | null>;
   /**

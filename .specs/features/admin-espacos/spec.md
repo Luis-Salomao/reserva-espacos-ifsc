@@ -38,7 +38,7 @@ A tela `/admin/espacos` é um formulário de criação seguido de uma lista plan
 | Busca | Mesma busca do seletor de sala da agenda (`matchesRoomSearch`): nome, bloco e andar, sem acento nem caixa, com tolerância a pequenos erros | Comportamento igual nas duas telas | n |
 | Ação destrutiva | "Excluir espaço" com confirmação, só para espaço sem ocupações (ativas ou canceladas), sem vínculo com sala do XML e sem linhas de importação | O pedido cita ações destrutivas com confirmação; apagar espaço em uso quebraria reservas e importações | n |
 | Edição concorrente | Última gravação vence; a troca de equipamentos é atômica | Um único admin edita na prática; trava otimista não foi pedida | n |
-| Edição sem equipamentos no pedido | Mantém os equipamentos gravados | Chamadas antigas (nome e capacidade) continuam valendo | n |
+| Edição sem equipamentos ou sem observações no pedido | `equipment` e `notes` são campos independentes: o ausente mantém o valor gravado, o presente o substitui | Chamadas antigas (nome e capacidade) continuam valendo; decisão do orquestrador na validação de 2026-11-04 | y |
 | Quem edita | Só o papel `admin` (padrão de `admin-actions.ts`); `horarios` não edita espaços | É a regra atual da tela | y |
 | Funcionamento do equipamento | O cadastro registra "tem / não tem / não informado", nunca "funciona" | RF-09 | y |
 | Responsável pela atualização dos equipamentos | Fica em aberto; o cadastro só registra o que o admin informar. [PENDENTE: quem mantém os equipamentos atualizados e com que frequência; RF-09 pede responsabilidade definida antes de mostrar o dado na escolha de sala] | Sem fonte; não bloqueia o cadastro, bloqueia só a exibição na agenda | n |
@@ -109,7 +109,7 @@ A tela `/admin/espacos` é um formulário de criação seguido de uma lista plan
 7. IF as observações tiverem caracteres de controle além de quebra de linha e tabulação THEN o sistema SHALL recusar com "As observações contêm caracteres inválidos." no campo `notes`, sem gravar.
 8. IF o pedido trouxer um tipo de equipamento fora do catálogo THEN o sistema SHALL recusar com "Tipo de equipamento desconhecido.", sem gravar.
 9. WHEN o admin salva um espaço com equipamentos THEN o sistema SHALL gravar nome, capacidade, observações e o conjunto inteiro de equipamentos numa única unidade atômica (batch no D1, transação no bun:sqlite), substituindo o conjunto anterior.
-10. IF uma edição não traz equipamentos nem observações THEN o sistema SHALL manter os equipamentos e as observações gravados.
+10. WHEN uma edição chega THEN o sistema SHALL tratar equipamentos (`equipment`) e observações (`notes`) como campos independentes: o campo ausente do pedido mantém o valor gravado e o campo presente o substitui. Sem equipamentos nem observações, mantém os dois; só com observações, mantém os equipamentos; só com equipamentos, mantém as observações. (O diálogo sempre envia os dois.)
 
 **Independent Test**: Editar A-202 com projetor "Sim", 0 computadores, som "Não informado" e observação "Lousa digital"; recarregar e ver "Projetor", "Sem computadores", "Aparelho de som não informado" e "Lousa digital".
 
