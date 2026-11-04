@@ -65,8 +65,10 @@ T5 → T6 → T7 → T8 → T9
 
 **Done when**:
 
-- [ ] Testes: mesma matéria, mesmo índice; título sem " — " usa o título inteiro; toda cor da paleta e a de reserva com contraste ≥ 3:1 contra `#ffffff` (claro) e `#0e0e11` (escuro); ocupação que cruza dois blocos aparece nos dois; parcial marcada; duas ocupações no mesmo bloco; ocupação antes do primeiro bloco pinta os blocos que cruza; ocupação entre blocos vai para `outside`; `weekOf` de uma quarta devolve segunda a sexta
-- [ ] Gate check passes: `bun test src/domain`
+- [x] Testes: mesma matéria, mesmo índice; título sem " — " usa o título inteiro; toda cor da paleta e a de reserva com contraste ≥ 3:1 contra `#ffffff` (claro) e `#0e0e11` (escuro); ocupação que cruza dois blocos aparece nos dois; parcial marcada; duas ocupações no mesmo bloco; ocupação antes do primeiro bloco pinta os blocos que cruza; ocupação entre blocos vai para `outside`; `weekOf` de uma quarta devolve segunda a sexta
+- [x] Gate check passes: `bun test src/domain`
+
+**Desvio**: `cellsFor` devolve `{ cells, outside }` (o design listava `Cell[]` na interface e `outside` só nos riscos). `Cell` é genérico no item e no bloco, para o domínio não depender de `AgendaItem`.
 
 **Tests**: unit
 **Gate**: quick
