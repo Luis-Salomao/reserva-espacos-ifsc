@@ -5,6 +5,7 @@ import {
   createRoute,
   createRouter,
   RouterProvider,
+  useLoaderData,
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { useState } from "react";
@@ -327,8 +328,20 @@ describe("SpacesManager", () => {
     { id: "a110", name: "A-110", capacity: null },
   ];
 
+  /** O loader da rota de teste lê `served` e conta as cargas, como a rota real recarrega a lista. */
+  let served: Space[] = [];
+  let loads = 0;
+
   async function renderSpaces(list: Space[]) {
-    const root = createRootRoute({ component: () => <SpacesManager spaces={list} /> });
+    served = list;
+    loads = 0;
+    const root = createRootRoute({
+      loader: () => {
+        loads += 1;
+        return served;
+      },
+      component: () => <SpacesManager spaces={useLoaderData({ strict: false }) as Space[]} />,
+    });
     const router = createRouter({
       routeTree: root,
       history: createMemoryHistory({ initialEntries: ["/"] }),
@@ -387,22 +400,30 @@ describe("SpacesManager", () => {
     expect(within(dialog).getByRole("heading", { name: "Novo espaço" })).toBeTruthy();
   });
 
-  test("Editar abre o diálogo com o espaço; salvar fecha e anuncia 'Espaço salvo.'", async () => {
+  test("Editar abre o diálogo com o espaço; salvar fecha, recarrega a lista e anuncia 'Espaço salvo.'", async () => {
     await renderSpaces(spaces);
+    expect(loads).toBe(1);
     fireEvent.click(screen.getByRole("button", { name: "Editar A-202" }));
     const dialog = await screen.findByRole("dialog");
     expect((within(dialog).getByLabelText("Nome") as HTMLInputElement).value).toBe("A-202");
+    served = spaces.map((space) => (space.id === "a202" ? { ...space, name: "A-203" } : space));
     fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
     await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Espaço salvo."));
+    expect(loads).toBe(2);
+    expect(names()).toEqual(["A-105", "A-110", "A-203", "B-101", "Auditório"]);
     expect(screen.queryByRole("dialog") === null).toBe(true);
     expect(spaceCalls).toMatchObject([{ action: "update", id: "a202" }]);
   });
 
-  test("excluir anuncia 'Espaço excluído.'", async () => {
+  test("excluir recarrega a lista e anuncia 'Espaço excluído.'", async () => {
     await renderSpaces(spaces);
     fireEvent.click(screen.getByRole("button", { name: "Excluir B-101" }));
+    served = spaces.filter((space) => space.id !== "b101");
     fireEvent.click(await screen.findByRole("button", { name: "Excluir espaço" }));
     await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Espaço excluído."));
+    expect(loads).toBe(2);
+    expect(names()).toEqual(["A-105", "A-110", "A-202", "Auditório"]);
+    expect(screen.getByText("4 de 4 espaços")).toBeTruthy();
     expect(spaceCalls).toEqual([{ action: "delete", id: "b101" }]);
   });
 
@@ -683,6 +704,16 @@ describe("SpaceFormDialog", () => {
     expect(count.value).toBe("1000");
     expect((within(dialog).getByLabelText("Nome") as HTMLInputElement).value).toBe("Lab");
     expect(screen.getByText("Salvos: 0")).toBeTruthy();
+
+    const save = within(dialog).getByRole("button", { name: "Salvar" }) as HTMLButtonElement;
+    expect(save.disabled).toBe(false);
+    createSpaceResponse = { ok: true, data: {} };
+    fireEvent.change(count, { target: { value: "10" } });
+    fireEvent.click(save);
+    await screen.findByText("Salvos: 1");
+    expect(
+      spaceCalls.map((call) => (call.equipment as Record<string, unknown>).computadores),
+    ).toEqual(["1000", "10"]);
   });
 
   test("erro de projetor leva o foco à primeira opção e liga a mensagem ao grupo", async () => {
