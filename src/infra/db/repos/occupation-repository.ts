@@ -71,6 +71,20 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
         .orderBy(asc(occupations.startsAt), asc(occupations.id));
     },
 
+    async listActiveInRangeAll(from, to) {
+      return db
+        .select(columns)
+        .from(occupations)
+        .where(
+          and(
+            eq(occupations.status, "ativa"),
+            lt(occupations.startsAt, to),
+            gt(occupations.endsAt, from),
+          ),
+        )
+        .orderBy(asc(occupations.spaceId), asc(occupations.startsAt), asc(occupations.id));
+    },
+
     async findById(id) {
       const [row] = await db.select(columns).from(occupations).where(eq(occupations.id, id));
       return row ?? null;

@@ -130,7 +130,7 @@ A agenda mostra uma sala por vez. Para achar uma sala livre, quem reserva precis
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| SALAS-01 | P1: Colunas por sala (AC 1, 2) | - | Pending |
+| SALAS-01 | P1: Colunas por sala (AC 1, 2) | - | In Progress |
 | SALAS-02 | P1: Colunas por sala (AC 3) | - | Pending |
 | SALAS-03 | P1: Colunas por sala (AC 4, 5, 6) | - | Pending |
 | SALAS-04 | P1: Filtros (AC 1, 6) | - | Pending |

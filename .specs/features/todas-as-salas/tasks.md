@@ -66,8 +66,8 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Teste: traz várias salas, exclui canceladas e fora do intervalo, ordem `(spaceId, startsAt)`
-- [ ] Gate check passes: `bun test`
+- [x] Teste: traz várias salas, exclui canceladas e fora do intervalo, ordem `(spaceId, startsAt)`
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full

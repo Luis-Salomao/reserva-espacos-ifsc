@@ -130,6 +130,54 @@ describe("occupation repository", () => {
     expect(found.map((item) => item.id)).toEqual(["a"]);
   });
 
+  test("listActiveInRangeAll traz ativas de todas as salas que cruzam a janela, por sala e início", async () => {
+    const { db, s, repo } = await setup();
+    const none = null;
+    const at = (id: string, over: Partial<Parameters<typeof insertImported>[1]> = {}) =>
+      insertImported(db, {
+        id,
+        spaceId: s.sala1.id,
+        date: "2026-11-10",
+        start: "08:00",
+        end: "09:00",
+        title: id,
+        responsibleUserId: none,
+        ...over,
+      });
+    at("s1-tarde", { start: "14:00", end: "15:00" });
+    at("s1-manha");
+    at("s2-manha", { spaceId: s.sala2.id, start: "07:00", end: "08:00" });
+    at("s2-tarde", { spaceId: s.sala2.id, start: "15:00", end: "16:00" });
+    at("s2-cancelada", { spaceId: s.sala2.id, start: "10:00", end: "11:00", status: "cancelada" });
+    at("s2-dia-seguinte", { spaceId: s.sala2.id, date: "2026-11-11" });
+    at("s1-dia-anterior", { date: "2026-11-09", start: "22:00", end: "23:00" });
+    const found = await repo.listActiveInRangeAll("2026-11-10T00:00", "2026-11-11T00:00");
+    const bySpace = (spaceId: string) =>
+      found.filter((item) => item.spaceId === spaceId).map((item) => item.id);
+    expect(bySpace(s.sala1.id)).toEqual(["s1-manha", "s1-tarde"]);
+    expect(bySpace(s.sala2.id)).toEqual(["s2-manha", "s2-tarde"]);
+    expect(found).toHaveLength(4);
+    const [first = "", second = ""] = [s.sala1.id, s.sala2.id].sort();
+    expect(found.map((item) => item.spaceId)).toEqual([first, first, second, second]);
+  });
+
+  test("listActiveInRangeAll inclui ocupação que começa antes e termina dentro da janela", async () => {
+    const { db, s, repo } = await setup();
+    insertImported(db, {
+      id: "longa",
+      spaceId: s.sala2.id,
+      date: "2026-11-10",
+      start: "06:00",
+      end: "12:00",
+      title: "Longa",
+      responsibleUserId: null,
+    });
+    const found = await repo.listActiveInRangeAll("2026-11-10T10:00", "2026-11-10T11:00");
+    expect(found.map((item) => [item.id, item.startsAt, item.endsAt])).toEqual([
+      ["longa", "2026-11-10T06:00", "2026-11-10T12:00"],
+    ]);
+  });
+
   test("cancelOne muda o estado com motivo e não repete", async () => {
     const { s, repo } = await setup();
     const input = manual(s);
