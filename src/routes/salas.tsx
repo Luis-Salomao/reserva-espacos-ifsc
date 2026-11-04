@@ -1,12 +1,10 @@
-import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import type { RoomsDay, RoomsWeek } from "#/application/bookings";
-import { AppShell } from "#/components/app-shell";
-import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
+import type { SalasSearch } from "#/components/rooms/rooms-view";
 import { localNow } from "#/domain/availability";
 import { weekOf } from "#/domain/overview";
 import { isValidDate, isValidTime } from "#/domain/semester";
-import { getRoomsDayFn, getRoomsWeekFn } from "#/server/booking-fns";
-import { ADMIN_ROLES, BOOKING_ROLES, canViewHome, type SessionInfo } from "#/server/session";
+import { ADMIN_ROLES, BOOKING_ROLES, type SessionInfo } from "#/server/session";
 
 const LOAD_ERROR = "Não foi possível carregar as salas";
 const MAX_QUERY = 60;
@@ -126,48 +124,10 @@ export async function loadSalas(
   };
 }
 
+/** As salas são visualizações de `/`: mesmos parâmetros, "Colunas" quando não há visão. */
 export const Route = createFileRoute("/salas")({
   validateSearch: validateSalasSearch,
-  // Com PUBLIC_READ=false a tela exige login, como a agenda.
-  beforeLoad: ({ context, location }) => {
-    const { user, publicRead } = context.session;
-    if (!canViewHome(publicRead, user)) {
-      throw redirect({
-        to: "/entrar",
-        search: { voltar: `${location.pathname}${location.searchStr ?? ""}` },
-      });
-    }
+  beforeLoad: ({ search }) => {
+    throw redirect({ to: "/", search: { ...search, visao: search.visao ?? "colunas" } });
   },
-  // Só o dia (ou a semana, na visão geral) vai ao servidor; filtros e janela são aplicados no cliente.
-  loaderDeps: ({ search: { data, visao } }) => ({ data, geral: visao === "geral" }),
-  loader: ({ deps, context }) =>
-    loadSalas(deps.data, context.session, (date) => getRoomsDayFn({ data: { date } }), new Date(), {
-      geral: deps.geral,
-      fetchWeek: (weekStart) => getRoomsWeekFn({ data: { weekStart } }),
-    }),
-  component: SalasPage,
 });
-
-function SalasPage() {
-  const data = Route.useLoaderData();
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const router = useRouter();
-  return (
-    <AppShell wide>
-      <RoomsView
-        roomsDay={data.roomsDay}
-        roomsWeek={data.roomsWeek}
-        error={data.error}
-        selectedDate={data.selectedDate}
-        search={search}
-        canBook={data.canBook}
-        isVisitor={data.isVisitor}
-        isAdmin={data.isAdmin}
-        timeZone={data.session.timeZone}
-        onSearchChange={(update, replace) => void navigate({ search: update, replace })}
-        onRetry={() => void router.invalidate()}
-      />
-    </AppShell>
-  );
-}
