@@ -68,6 +68,8 @@ function setup(hasherOverride?: PasswordHasher) {
     findByCode: async () => null,
     update: async () => null,
     setActive: async () => true,
+    activatePlaceholder: async () => false,
+    mergeInto: async () => false,
   };
   const sessionMap = new Map<string, Session>();
   const sessions: SessionRepository = {
@@ -310,6 +312,8 @@ describe("login: entradas, expurgo e hash fictício", () => {
         findByCode: async () => null,
         update: async () => null,
         setActive: async () => true,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
       },
       sessions: {
         create: async () => {},

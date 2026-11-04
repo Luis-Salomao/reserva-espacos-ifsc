@@ -16,6 +16,7 @@ function setup() {
   let counter = 0;
   const strip = ({ passwordHash: _hash, ...user }: UserRecord): User => user;
   const revoked: string[] = [];
+  const merged: Array<[string, string]> = [];
   let failNextCreate = false;
   let failNextUpdate = false;
   const isActiveAdmin = (r: UserRecord) => r.active && r.roles.includes("admin");
@@ -80,6 +81,26 @@ function setup() {
       const found = records.get(id);
       if (found) found.passwordHash = passwordHash;
     },
+    activatePlaceholder: async (id, email, passwordHash) => {
+      const found = records.get(id);
+      if (!found?.placeholder) return false;
+      const normalized = normalizeEmail(email);
+      if ([...records.values()].some((r) => r.id !== id && r.email === normalized)) {
+        throw new Error("UNIQUE constraint failed: users.email");
+      }
+      Object.assign(found, { email: normalized, passwordHash, placeholder: false });
+      return true;
+    },
+    mergeInto: async (fromId, toId) => {
+      const from = records.get(fromId);
+      const to = records.get(toId);
+      if (!from?.placeholder || !to || to.placeholder || !to.active || fromId === toId) {
+        return false;
+      }
+      records.delete(fromId);
+      merged.push([fromId, toId]);
+      return true;
+    },
   };
   const sessions: SessionRepository = {
     create: async () => {},
@@ -107,6 +128,7 @@ function setup() {
     service,
     records,
     revoked,
+    merged,
     valid,
     failNextCreate: () => {
       failNextCreate = true;
@@ -230,6 +252,8 @@ describe("corrida na criação", () => {
         },
         update: async () => null,
         setActive: async () => true,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
         updatePasswordHash: async () => {},
       },
       sessions: {
@@ -273,6 +297,8 @@ describe("corrida na criação", () => {
         },
         update: async () => null,
         setActive: async () => true,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
         updatePasswordHash: async () => {},
       },
       sessions: {
@@ -419,6 +445,8 @@ describe("editar conta", () => {
         }),
         update: async () => null,
         setActive: async () => false,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
         updatePasswordHash: async () => {},
       },
       sessions: {
@@ -466,6 +494,8 @@ describe("editar conta", () => {
         },
         update: async () => null,
         setActive: async () => false,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
         updatePasswordHash: async () => {},
       },
       sessions: {

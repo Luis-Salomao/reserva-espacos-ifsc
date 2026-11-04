@@ -345,8 +345,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: fusão move responsável e `created_by` e vínculos e apaga a fantasma; ativação remove a marca
-- [ ] Gate check passes: `bun test`
+- [x] Testes: fusão move responsável e `created_by` e vínculos e apaga a fantasma; ativação remove a marca
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full

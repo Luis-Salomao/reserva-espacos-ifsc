@@ -58,6 +58,17 @@ export interface UserRepository {
    * administrador ativo (checagem atômica na própria instrução).
    */
   setActive(id: string, active: boolean): Promise<boolean>;
+  /**
+   * Ativa uma conta fantasma: grava e-mail e hash e tira a marca. `false` se a conta não existe
+   * ou não é fantasma. E-mail em uso estoura a restrição única (confira antes).
+   */
+  activatePlaceholder(id: string, email: string, passwordHash: string): Promise<boolean>;
+  /**
+   * Funde a fantasma `fromId` na conta `toId` numa unidade atômica: ocupações (responsável e quem
+   * criou) e vínculos do XML passam para `toId`, as sessões da fantasma caem e ela é apagada. Só
+   * age se `fromId` é fantasma e `toId` é conta ativa não fantasma; `false` se nada foi feito.
+   */
+  mergeInto(fromId: string, toId: string): Promise<boolean>;
 }
 
 /** Sessão persistida. Só o SHA-256 do token existe no banco. Datas em ISO 8601 UTC. */
