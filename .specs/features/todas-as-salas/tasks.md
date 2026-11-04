@@ -236,8 +236,8 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: só livres; "Reservar" chama com sala e janela; vazio mostra "Limpar filtros"
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: só livres; "Reservar" chama com sala e janela; vazio mostra "Limpar filtros"
+- [x] Gate check passes: `bun test test/components`
 
 **Tests**: unit
 **Gate**: quick

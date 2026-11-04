@@ -141,7 +141,7 @@ A agenda mostra uma sala por vez. Para achar uma sala livre, quem reserva precis
 | SALAS-09 | P1: Livres (AC 1, 2, 3, 4) | - | In Progress |
 | SALAS-10 | P1: Livres (AC 5) | - | Pending |
 | SALAS-11 | P2: Reservar (AC 1, 2, 6) | - | In Progress |
-| SALAS-12 | P2: Reservar (AC 3, 4, 5) | - | Pending |
+| SALAS-12 | P2: Reservar (AC 3, 4, 5) | - | In Progress |
 
 **Coverage:** 12 total, 0 mapped to tasks, 12 unmapped ⚠️
 
