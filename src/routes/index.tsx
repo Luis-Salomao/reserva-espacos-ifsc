@@ -1,7 +1,8 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
 import type { WeekAgenda } from "#/application/bookings";
 import { AgendaView, type SlotSelection } from "#/components/agenda/agenda-view";
+import { BookingSheet, type BookingSlotInit } from "#/components/agenda/booking-sheet";
 import { GateDialog } from "#/components/agenda/gate-dialog";
 import { AppShell } from "#/components/app-shell";
 import { Notice, PageHeader } from "#/components/page";
@@ -143,9 +144,12 @@ function HomePage() {
   const data = Route.useLoaderData();
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const router = useRouter();
   const [gateOpen, setGateOpen] = useState(false);
+  const [bookingOpen, setBookingOpen] = useState(false);
+  const [selectedSlot, setSelectedSlot] = useState<BookingSlotInit | null>(null);
 
-  const { spaces, selectedDate, selectedSpaceId, weekAgenda, isVisitor, session } = data;
+  const { spaces, selectedDate, selectedSpaceId, weekAgenda, isVisitor, session, timeZone } = data;
 
   // Sincroniza a URL com a data e espaço canônicos caso tenham sido omitidos na navegação inicial
   useEffect(() => {
@@ -195,16 +199,31 @@ function HomePage() {
     });
   };
 
-  const handleSelectSlot = (_slot: SlotSelection) => {
+  const handleSelectSlot = (slot: SlotSelection) => {
     if (isVisitor) {
       setGateOpen(true);
       return;
     }
-    // Conexão com o modal de reserva (BookingSheet da Tarefa 4)
+    setSelectedSlot(slot);
+    setBookingOpen(true);
   };
 
   const firstSpace = spaces[0];
   const activeSpaceId = selectedSpaceId || (firstSpace?.id ?? "");
+
+  const handleNewBooking = () => {
+    if (isVisitor) {
+      setGateOpen(true);
+      return;
+    }
+    setSelectedSlot({
+      spaceId: activeSpaceId,
+      date: selectedDate,
+      start: "08:00",
+      end: "09:50",
+    });
+    setBookingOpen(true);
+  };
 
   return (
     <AppShell wide>
@@ -225,6 +244,7 @@ function HomePage() {
               onSelectSpace={handleSelectSpace}
               onSelectDate={handleSelectDate}
               onSelectSlot={handleSelectSlot}
+              onNewBooking={handleNewBooking}
             />
           ) : (
             <Notice role="alert" tone="error" className="m-4 p-6">
@@ -232,6 +252,20 @@ function HomePage() {
             </Notice>
           )}
           <GateDialog open={gateOpen} onOpenChange={setGateOpen} />
+          <BookingSheet
+            open={bookingOpen}
+            onOpenChange={setBookingOpen}
+            spaces={spaces}
+            initialSlot={selectedSlot}
+            timeZone={timeZone}
+            onSuccess={async () => {
+              try {
+                await router.invalidate();
+              } catch {
+                // Roteador não instanciado em teste
+              }
+            }}
+          />
         </>
       )}
     </AppShell>
