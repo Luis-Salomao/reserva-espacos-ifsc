@@ -131,7 +131,7 @@ Das 2945 ocupações importadas, só 80 têm responsável, porque só 2 dos 45 d
 | DOC-01 | P1: Fantasmas (AC 1) | 1 | Done |
 | DOC-02 | P1: Fantasmas (AC 2) | - | Pending |
 | DOC-03 | P1: Fantasmas (AC 3, 4) | 1-2 | In Progress |
-| DOC-04 | P1: Fantasmas (AC 5, 6) | - | Pending |
+| DOC-04 | P1: Fantasmas (AC 5, 6) | 2 | In Progress |
 | DOC-05 | P1: Avatar (AC 1, 2, 4) | - | Pending |
 | DOC-06 | P1: Avatar (AC 3) | - | Pending |
 | DOC-07 | P1: Avatar (AC 5) | - | Pending |

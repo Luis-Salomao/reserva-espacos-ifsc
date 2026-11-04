@@ -161,9 +161,9 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Teste: contas e vínculos gravados juntos
-- [ ] Teste: e-mail duplicado no meio do lote não deixa nenhuma conta nem vínculo
-- [ ] Gate check passes: `bun test`
+- [x] Teste: contas e vínculos gravados juntos
+- [x] Teste: e-mail duplicado no meio do lote não deixa nenhuma conta nem vínculo
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full

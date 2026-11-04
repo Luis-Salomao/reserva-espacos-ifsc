@@ -115,9 +115,27 @@ export interface RoomMappingRepository {
   saveMany(items: readonly RoomMapping[], updatedAt: string): Promise<void>;
 }
 
+/** Conta fantasma de um docente do XML: papel `docente`, hash de uma senha que ninguém conhece. */
+export type NewPlaceholder = {
+  id: string;
+  email: string;
+  name: string;
+  code: string | null;
+  passwordHash: string;
+};
+
 export interface TeacherMappingRepository {
   list(): Promise<TeacherMapping[]>;
   saveMany(items: readonly TeacherMapping[], updatedAt: string): Promise<void>;
+  /**
+   * Cria as contas fantasmas e grava (insere ou atualiza) os vínculos numa única unidade atômica:
+   * se qualquer conta ou vínculo falha, nada do envio fica gravado.
+   */
+  saveWithPlaceholders(
+    placeholders: readonly NewPlaceholder[],
+    mappings: readonly TeacherMapping[],
+    at: string,
+  ): Promise<void>;
 }
 
 /** Filtro das linhas do lote; `search` casa com título, sala e detalhe do motivo. */
