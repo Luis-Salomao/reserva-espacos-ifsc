@@ -106,7 +106,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 
 **Acceptance Criteria**:
 
-1. THE sistema SHALL mostrar sempre visíveis apenas a navegação de data e a busca de sala.
+1. THE sistema SHALL mostrar sempre visíveis apenas a navegação de data, a busca de sala e, na visão "Livres", a janela de horário (é a pergunta dessa visão).
 2. WHEN o usuário abre "Filtros" THEN o sistema SHALL mostrar bloco, capacidade mínima e "Só livres".
 3. WHILE houver filtro ativo escondido the sistema SHALL mostrar a contagem no botão ("Filtros · 2").
 4. WHEN a visão "Colunas" ou "Livres" abre THEN o sistema SHALL seguir a mesma regra de filtros recolhidos.
@@ -143,17 +143,17 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| GERAL-01 | P1: Grade (AC 1, 3, 6) | - | Pending |
-| GERAL-02 | P1: Grade (AC 2, 4) | - | Pending |
-| GERAL-03 | P1: Grade (AC 5, 7) | - | Pending |
-| GERAL-04 | P1: Cor (AC 1, 2, 5) | - | Pending |
-| GERAL-05 | P1: Cor (AC 3, 4) | - | Pending |
-| GERAL-06 | P1: Detalhe (AC 1, 4, 5) | - | Pending |
-| GERAL-07 | P1: Detalhe (AC 2, 3) | - | Pending |
-| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | - | Pending |
-| GERAL-09 | P2: Celular (AC 1–3) | - | Pending |
+| GERAL-01 | P1: Grade (AC 1, 3, 6) | T1, T2, T6, T9 | Pending |
+| GERAL-02 | P1: Grade (AC 2, 4) | T1, T6 | Pending |
+| GERAL-03 | P1: Grade (AC 5, 7) | T2, T3, T4, T9 | Pending |
+| GERAL-04 | P1: Cor (AC 1, 2, 5) | T1, T6 | Pending |
+| GERAL-05 | P1: Cor (AC 3, 4) | T7 | Pending |
+| GERAL-06 | P1: Detalhe (AC 1, 4, 5) | T6, T8 | Pending |
+| GERAL-07 | P1: Detalhe (AC 2, 3) | T2, T8 | Pending |
+| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | Pending |
+| GERAL-09 | P2: Celular (AC 1–3) | T9 | Pending |
 
-**Coverage:** 9 total, 0 mapped to tasks, 9 unmapped ⚠️
+**Coverage:** 9 total, 9 mapped to tasks, 0 unmapped
 
 ---
 
