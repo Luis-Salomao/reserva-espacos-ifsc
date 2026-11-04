@@ -1,6 +1,8 @@
 import { useState } from "react";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
+import { weekdayOf } from "#/domain/calendar";
 import { cellsFor } from "#/domain/overview";
+import { cn } from "#/lib/utils";
 import { dayLabel, type LegendEntry, legendEntryOf, OverviewCell } from "./overview-cell";
 import { OverviewLegend } from "./overview-legend";
 
@@ -9,7 +11,13 @@ type Props = {
   /** Salas que passaram nos filtros, na ordem recebida. */
   rooms: RoomsWeek["rooms"];
   isVisitor: boolean;
+  /** Celular: um dia por vez, com abas de segunda a sexta. */
+  compact: boolean;
+  /** Dia escolhido: a aba aberta no celular. */
+  selectedDate: string;
 };
+
+const TAB_DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex"];
 
 const RESERVA = legendEntryOf({ source: "manual", title: "" });
 
@@ -35,10 +43,12 @@ function legendOf(rooms: Props["rooms"]): LegendEntry[] {
 }
 
 /** Salas × (segunda a sexta × blocos do semestre), um quadradinho por bloco, com a legenda. */
-export function RoomsOverview({ week, rooms, isVisitor }: Props) {
+export function RoomsOverview({ week, rooms, isVisitor, compact, selectedDate }: Props) {
   const [highlight, setHighlight] = useState<string | null>(null);
+  const [tab, setTab] = useState(() => Math.min(weekdayOf(selectedDate), week.days.length - 1));
+  const shownDays = compact ? week.days.slice(tab, tab + 1) : week.days;
   const rows = rooms.map((room) => {
-    const days = week.days.map((day) =>
+    const days = shownDays.map((day) =>
       cellsFor(
         room.occupations.filter((item) => item.date === day.date),
         day.blocks,
@@ -47,28 +57,69 @@ export function RoomsOverview({ week, rooms, isVisitor }: Props) {
     return { room, days, outside: days.flatMap((day) => day.outside) };
   });
   return (
-    <div className="grid gap-3">
-      <OverviewLegend
-        entries={legendOf(rooms)}
-        active={highlight}
-        onToggle={(key) => setHighlight((current) => (current === key ? null : key))}
-      />
+    <div className="grid gap-3 xl:grid-cols-[max-content_minmax(12rem,1fr)] xl:items-start">
+      {/* `absolute` na tela larga: a legenda rola dentro da altura da grade, sem esticar a página. */}
+      <div className="xl:relative xl:order-last xl:self-stretch">
+        <OverviewLegend
+          entries={legendOf(rooms)}
+          active={highlight}
+          onToggle={(key) => setHighlight((current) => (current === key ? null : key))}
+          className="max-h-24 overflow-y-auto xl:absolute xl:inset-0 xl:max-h-none"
+        />
+      </div>
+      {compact && (
+        <div
+          role="tablist"
+          aria-label="Dia da semana"
+          className="flex rounded-md border bg-surface p-0.5"
+        >
+          {week.days.map((day, index) => (
+            <button
+              key={day.date}
+              type="button"
+              role="tab"
+              aria-selected={index === tab}
+              onClick={() => setTab(index)}
+              className={cn(
+                "h-8 flex-1 rounded-[5px] text-[12px] font-medium text-muted-foreground",
+                index === tab && "bg-background text-foreground shadow-xs",
+              )}
+            >
+              {`${TAB_DAYS[index] ?? ""} ${day.date.slice(8, 10)}`}
+            </button>
+          ))}
+        </div>
+      )}
       <div data-testid="rooms-overview" className="w-full max-w-full overflow-x-auto">
         <div
           className="grid w-max min-w-full items-center"
           style={{
-            gridTemplateColumns: `minmax(5rem, 9rem) repeat(${week.days.length}, max-content)`,
+            gridTemplateColumns: `${compact ? "5rem" : "minmax(5rem, 9rem)"} repeat(${shownDays.length}, max-content)`,
           }}
         >
           <div />
-          {week.days.map((day) => (
-            <div
-              key={day.date}
-              className="border-l border-border px-1.5 pb-1 text-[12px] font-medium text-muted-foreground first-letter:uppercase"
-            >
-              {dayLabel(day.date)}
-            </div>
-          ))}
+          {shownDays.map((day) =>
+            compact ? (
+              <div key={day.date} className="flex gap-0.5 border-l border-border px-1 pb-1">
+                {day.blocks.map((block) => (
+                  <span
+                    key={`${block.short}-${block.start}`}
+                    title={block.label}
+                    className="w-8 shrink-0 truncate text-center text-[10px] text-muted-foreground"
+                  >
+                    {block.short}
+                  </span>
+                ))}
+              </div>
+            ) : (
+              <div
+                key={day.date}
+                className="border-l border-border px-1.5 pb-1 text-[12px] font-medium text-muted-foreground first-letter:uppercase"
+              >
+                {dayLabel(day.date)}
+              </div>
+            ),
+          )}
           {rows.map(({ room, days, outside }) => (
             <div key={room.space.id} className="contents">
               <div className="flex min-w-0 items-center gap-1 pr-2">
@@ -88,10 +139,13 @@ export function RoomsOverview({ week, rooms, isVisitor }: Props) {
                   />
                 )}
               </div>
-              {week.days.map((day, index) => (
+              {shownDays.map((day, index) => (
                 <div
                   key={day.date}
-                  className="flex gap-[3px] border-l border-border px-1.5 py-[3px]"
+                  className={cn(
+                    "flex border-l border-border py-[3px]",
+                    compact ? "gap-0.5 px-1" : "gap-[3px] px-1.5",
+                  )}
                 >
                   {days[index]?.cells.map((cell) => (
                     <OverviewCell
@@ -101,6 +155,7 @@ export function RoomsOverview({ week, rooms, isVisitor }: Props) {
                       date={day.date}
                       highlight={highlight}
                       isVisitor={isVisitor}
+                      compact={compact}
                     />
                   ))}
                 </div>

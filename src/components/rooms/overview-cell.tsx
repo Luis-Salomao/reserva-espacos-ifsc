@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { type CSSProperties, useId, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
@@ -15,7 +15,7 @@ import { cn } from "#/lib/utils";
 
 type Block = RoomsWeek["days"][number]["blocks"][number];
 
-export type OverviewCellData = Cell<AgendaItem, Block>;
+type OverviewCellData = Cell<AgendaItem, Block>;
 
 const WEEKDAYS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "domingo"];
 
@@ -53,12 +53,16 @@ type Props = {
   highlight: string | null;
   /** Visitante nunca vê pessoas no cartão. */
   isVisitor: boolean;
+  /** Celular: quadradinho de 32 px, e o toque abre o cartão em vez de navegar. */
+  compact: boolean;
 };
 
-const SQUARE = "relative size-4 shrink-0 rounded-[3px]";
+const SQUARE = "relative shrink-0 rounded-[3px]";
 const CARD_GAP = 8;
 /** Abaixo disso o cartão abre embaixo do quadradinho, para não sair da tela. */
 const CARD_ROOM = 160;
+/** Metade da largura do cartão (`w-64`) mais a margem até a borda da tela. */
+const CARD_HALF = 136;
 
 /** Turma do título importado (`MATÉRIA — TURMA`); `null` sem separador. */
 function classOf(title: string): string | null {
@@ -79,12 +83,13 @@ type CardProps = {
 /** Detalhes das ocupações do bloco; pessoa (avatar e nome) só para quem está logado. */
 function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProps) {
   const below = anchor.top < CARD_ROOM;
+  const center = anchor.left + anchor.width / 2;
   return createPortal(
     <div
       id={id}
       role="tooltip"
       style={{
-        left: anchor.left + anchor.width / 2,
+        left: Math.min(Math.max(center, CARD_HALF), window.innerWidth - CARD_HALF),
         top: below ? anchor.bottom + CARD_GAP : anchor.top - CARD_GAP,
       }}
       className={cn(
@@ -132,38 +137,42 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProp
  * ocupação e canto recortado quando alguma não cobre o bloco inteiro. Mouse ou foco num ocupado
  * aumenta o quadradinho e abre o cartão de detalhes.
  */
-export function OverviewCell({ cell, room, date, highlight, isVisitor }: Props) {
+export function OverviewCell({ cell, room, date, highlight, isVisitor, compact }: Props) {
   const cardId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const size = compact ? "size-8" : "size-4";
   const where = { "data-room": room.id, "data-date": date, "data-block": cell.block.short };
   if (cell.items.length === 0) {
-    return <span {...where} data-cell="livre" className={`${SQUARE} block border border-border`} />;
+    return (
+      <span
+        {...where}
+        data-cell="livre"
+        className={cn(SQUARE, size, "block border border-border")}
+      />
+    );
   }
   const show = (event: { currentTarget: Element }) =>
     setAnchor(event.currentTarget.getBoundingClientRect());
   const hide = () => setAnchor(null);
   const partial = cell.items.some((entry) => entry.partial);
   const titles = cell.items.map((entry) => entry.item.title).join(" e ");
-  return (
-    <Link
-      to="/"
-      search={{ espaco: room.id, data: date }}
-      {...where}
-      data-cell="ocupado"
-      data-partial={partial ? "" : undefined}
-      aria-label={`${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}: ${titles}`}
-      aria-describedby={anchor === null ? undefined : cardId}
-      onMouseEnter={show}
-      onMouseLeave={hide}
-      onFocus={show}
-      onBlur={hide}
-      onKeyDown={(event) => event.key === "Escape" && hide()}
-      className={cn(
-        SQUARE,
-        "flex overflow-hidden outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
-        anchor !== null && "z-10 scale-160 motion-reduce:scale-100",
-      )}
-    >
+  const common = {
+    ...where,
+    "data-cell": "ocupado",
+    "data-partial": partial ? "" : undefined,
+    "aria-label": `${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}: ${titles}`,
+    "aria-describedby": anchor === null ? undefined : cardId,
+    onBlur: hide,
+    onKeyDown: (event: KeyboardEvent) => event.key === "Escape" && hide(),
+    className: cn(
+      SQUARE,
+      size,
+      "flex overflow-hidden outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
+      anchor !== null && "z-10 scale-160 motion-reduce:scale-100",
+    ),
+  };
+  const content = (
+    <>
       {cell.items.map(({ item }) => {
         const entry = legendEntryOf(item);
         const dimmed = highlight !== null && entry.key !== highlight;
@@ -196,6 +205,29 @@ export function OverviewCell({ cell, room, date, highlight, isVisitor }: Props) 
           isVisitor={isVisitor}
         />
       )}
+    </>
+  );
+  if (compact) {
+    return (
+      <button
+        type="button"
+        {...common}
+        onClick={(event) => (anchor === null ? show(event) : hide())}
+      >
+        {content}
+      </button>
+    );
+  }
+  return (
+    <Link
+      to="/"
+      search={{ espaco: room.id, data: date }}
+      {...common}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+    >
+      {content}
     </Link>
   );
 }

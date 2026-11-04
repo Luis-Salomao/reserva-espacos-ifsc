@@ -157,6 +157,7 @@ function SalasPage() {
     <AppShell wide>
       <RoomsView
         roomsDay={data.roomsDay}
+        roomsWeek={data.roomsWeek}
         error={data.error}
         selectedDate={data.selectedDate}
         search={search}

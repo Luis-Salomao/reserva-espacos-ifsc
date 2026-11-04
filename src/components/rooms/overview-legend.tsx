@@ -6,12 +6,16 @@ type Props = {
   /** Chave da matéria destacada; `null` sem destaque. */
   active: string | null;
   onToggle: (key: string) => void;
+  className?: string;
 };
 
 /** Matérias da semana com a sua cor; clicar destaca, clicar de novo remove o destaque. */
-export function OverviewLegend({ entries, active, onToggle }: Props) {
+export function OverviewLegend({ entries, active, onToggle, className }: Props) {
   return (
-    <fieldset aria-label="Legenda" className="flex flex-wrap gap-1.5">
+    <fieldset
+      aria-label="Legenda"
+      className={cn("flex flex-wrap content-start gap-1.5", className)}
+    >
       {entries.map((entry) => (
         <button
           key={entry.key}

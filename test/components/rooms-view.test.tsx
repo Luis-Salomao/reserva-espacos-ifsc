@@ -8,7 +8,7 @@ import {
   useSearch,
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { AgendaItem, BookingView, RoomDay, RoomsDay } from "#/application/bookings";
+import type { AgendaItem, BookingView, RoomDay, RoomsDay, RoomsWeek } from "#/application/bookings";
 import type { BookingSheetProps } from "#/components/agenda/booking-sheet";
 import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
 import { validateSalasSearch } from "#/routes/salas";
@@ -64,6 +64,28 @@ const DAY: RoomsDay = {
   ],
 };
 
+const WEEK_DAYS = ["2030-11-11", DATE, "2030-11-13", "2030-11-14", "2030-11-15"];
+const BLOCKS = [
+  { label: "Manhã 12", short: "M12", start: "08:00", end: "09:50" },
+  { label: "Manhã 34", short: "M34", start: "10:10", end: "12:00" },
+];
+
+const WEEK: RoomsWeek = {
+  weekStart: "2030-11-11",
+  now: NOW,
+  days: WEEK_DAYS.map((date) => ({ date, blocks: BLOCKS })),
+  rooms: [
+    {
+      space: { id: "a202", name: "A-202", capacity: 40 },
+      occupations: [{ ...lesson, start: "08:00", end: "09:50", title: "Cálculo I — 1A" }],
+    },
+    { space: { id: "b104", name: "B-104", capacity: 25 }, occupations: [] },
+    { space: { id: "lab", name: "LAB 1", capacity: null }, occupations: [] },
+  ],
+};
+
+const cellsOn = (date: string) => document.querySelectorAll(`[data-cell][data-date='${date}']`);
+
 function setCompact(compact: boolean) {
   window.matchMedia = (query: string) =>
     ({
@@ -80,6 +102,7 @@ function setCompact(compact: boolean) {
 
 type Options = {
   roomsDay?: RoomsDay | null;
+  roomsWeek?: RoomsWeek | null;
   error?: string | null;
   canBook?: boolean;
   isVisitor?: boolean;
@@ -102,6 +125,7 @@ async function setup(options: Options = {}) {
       return (
         <RoomsView
           roomsDay={options.roomsDay === undefined ? DAY : options.roomsDay}
+          roomsWeek={options.roomsWeek === undefined ? WEEK : options.roomsWeek}
           error={options.error ?? null}
           selectedDate={DATE}
           search={search}
@@ -331,6 +355,101 @@ describe("RoomsView", () => {
     expect(screen.getByRole("link", { name: "Cadastrar espaços" }).getAttribute("href")).toBe(
       "/admin/espacos",
     );
+  });
+
+  test("escolher 'Visão geral' muda a URL", async () => {
+    const { router } = await setup();
+    fireEvent.click(screen.getByRole("button", { name: "Visão geral" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ visao: "geral" }));
+    expect(screen.getByRole("button", { name: "Visão geral" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+  });
+
+  test("na visão geral, a grade mostra a semana com o título e o contador", async () => {
+    await setup({ url: "/?visao=geral" });
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "Semana de 11 a 15 de novembro",
+    );
+    expect(document.querySelectorAll("[data-cell]").length).toBe(3 * 5 * 2);
+    expect(screen.getByText("3 de 3 salas")).toBeDefined();
+  });
+
+  test("na visão geral, as setas trocam a semana (±7 dias) na URL", async () => {
+    const { router } = await setup({ url: "/?visao=geral" });
+    fireEvent.click(screen.getByRole("button", { name: "Próxima semana" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ data: "2030-11-19" }));
+    fireEvent.click(screen.getByRole("button", { name: "Semana anterior" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ data: "2030-11-05" }));
+    expect(router.state.location.search).toMatchObject({ visao: "geral" });
+  });
+
+  test("semana sem blocos avisa e oferece o atalho para 'Colunas'", async () => {
+    const { router } = await setup({
+      url: "/?visao=geral",
+      roomsWeek: { ...WEEK, days: WEEK_DAYS.map((date) => ({ date, blocks: [] })) },
+    });
+    expect(screen.getByText("Esta semana não tem blocos de horário")).toBeDefined();
+    expect(document.querySelectorAll("[data-cell]").length).toBe(0);
+    fireEvent.click(screen.getByRole("button", { name: "Ver em Colunas" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ visao: "colunas" }));
+  });
+
+  test("na visão geral, filtros sem sala avisam e 'Limpar filtros' tira os filtros", async () => {
+    const { router } = await setup({ url: "/?visao=geral&q=xyz" });
+    expect(screen.getByText("Nenhuma sala com esses filtros")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ visao: "geral" }));
+    expect(document.querySelectorAll("[data-cell]").length).toBe(30);
+  });
+
+  test("na visão geral, falha ao carregar a semana mostra o aviso e 'Tentar de novo'", async () => {
+    await setup({
+      url: "/?visao=geral",
+      roomsWeek: null,
+      error: "Não foi possível carregar as salas",
+    });
+    expect(screen.getByRole("alert").textContent).toContain("Não foi possível carregar as salas");
+    expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeDefined();
+  });
+
+  test("no celular, a visão geral mostra abas de segunda a sexta e um dia por vez", async () => {
+    setCompact(true);
+    await setup({ url: "/?visao=geral" });
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs.map((tab) => tab.textContent)).toEqual([
+      "Seg 11",
+      "Ter 12",
+      "Qua 13",
+      "Qui 14",
+      "Sex 15",
+    ]);
+    expect(screen.getByRole("tab", { name: "Ter 12" }).getAttribute("aria-selected")).toBe("true");
+    expect(cellsOn(DATE).length).toBe(6);
+    expect(cellsOn("2030-11-13").length).toBe(0);
+    fireEvent.click(screen.getByRole("tab", { name: "Qua 13" }));
+    expect(cellsOn("2030-11-13").length).toBe(6);
+    expect(cellsOn(DATE).length).toBe(0);
+  });
+
+  test("no celular, tocar num quadradinho ocupado abre o cartão em vez de navegar", async () => {
+    setCompact(true);
+    const { router } = await setup({ url: "/?visao=geral" });
+    const cell = document.querySelector(
+      `[data-cell='ocupado'][data-room='a202'][data-date='${DATE}']`,
+    ) as HTMLElement;
+    expect(cell.hasAttribute("href")).toBe(false);
+    fireEvent.click(cell);
+    expect(within(screen.getByRole("tooltip")).getByText("Cálculo I")).toBeDefined();
+    expect(router.state.location.pathname).toBe("/");
+    expect(router.state.location.search).toEqual({ visao: "geral" });
+  });
+
+  test("no celular, os quadradinhos têm pelo menos 32 px", async () => {
+    setCompact(true);
+    await setup({ url: "/?visao=geral" });
+    for (const cell of Array.from(cellsOn(DATE)))
+      expect((cell as HTMLElement).className.split(" ")).toContain("size-8");
   });
 
   test("sem salas cadastradas, quem não é admin não recebe o atalho", async () => {
