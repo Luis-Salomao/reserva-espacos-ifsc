@@ -365,8 +365,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: e-mail em uso, alvo fantasma, alvo inativo, não admin (403), caminhos felizes
-- [ ] Gate check passes: `bun test src/application src/server`
+- [x] Testes: e-mail em uso, alvo fantasma, alvo inativo, não admin (403), caminhos felizes
+- [x] Gate check passes: `bun test src/application src/server`
 
 **Tests**: unit
 **Gate**: quick
