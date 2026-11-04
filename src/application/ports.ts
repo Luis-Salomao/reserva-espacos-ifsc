@@ -30,6 +30,11 @@ export interface SpaceRepository {
    * equipamentos na mesma unidade atômica. `null` se o espaço não existe.
    */
   update(id: string, input: SpaceWrite): Promise<Space | null>;
+  /**
+   * Apaga o espaço e seus equipamentos numa unidade atômica, só se nenhuma ocupação (ativa ou
+   * cancelada), vínculo de sala do XML ou linha de importação o cita (condição na própria instrução).
+   */
+  remove(id: string): Promise<"removed" | "in_use" | "not_found">;
 }
 
 export interface PasswordHasher {

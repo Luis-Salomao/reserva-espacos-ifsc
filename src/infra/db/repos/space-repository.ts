@@ -1,10 +1,10 @@
-import { eq } from "drizzle-orm";
+import { and, eq, notExists } from "drizzle-orm";
 import type { SpaceRepository } from "#/application/ports";
 import { isEquipmentKind, type SpaceEquipment } from "#/domain/equipment";
 import type { Space } from "#/domain/space";
 import { runAtomically, type Statement } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
-import { spaceEquipment, spaces } from "#/infra/db/schema";
+import { importRows, occupations, roomMappings, spaceEquipment, spaces } from "#/infra/db/schema";
 
 // Uma linha por INSERT: o D1 limita a 100 parâmetros por instrução.
 function equipmentInserts(db: AppDb, spaceId: string, equipment: SpaceEquipment): Statement[] {
@@ -91,6 +91,32 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
         ...equipmentInserts(x, id, equipment),
       ]);
       return { id, name: input.name, capacity: input.capacity, equipment };
+    },
+    async remove(id) {
+      const exists = async () =>
+        (await db.select({ id: spaces.id }).from(spaces).where(eq(spaces.id, id))).length > 0;
+      if (!(await exists())) return "not_found";
+      await runAtomically(db, (x) => {
+        const unused = and(
+          notExists(
+            x.select({ id: occupations.id }).from(occupations).where(eq(occupations.spaceId, id)),
+          ),
+          notExists(
+            x
+              .select({ id: roomMappings.sourceRoomId })
+              .from(roomMappings)
+              .where(eq(roomMappings.spaceId, id)),
+          ),
+          notExists(
+            x.select({ id: importRows.rowKey }).from(importRows).where(eq(importRows.spaceId, id)),
+          ),
+        );
+        return [
+          x.delete(spaceEquipment).where(and(eq(spaceEquipment.spaceId, id), unused)),
+          x.delete(spaces).where(and(eq(spaces.id, id), unused)),
+        ];
+      });
+      return (await exists()) ? "in_use" : "removed";
     },
   };
 }
