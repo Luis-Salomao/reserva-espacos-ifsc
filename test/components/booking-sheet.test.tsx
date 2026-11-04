@@ -7,7 +7,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { BookingView } from "#/application/bookings";
+import type { AgendaItem, BookingView, RoomDay, RoomsDay } from "#/application/bookings";
 import {
   BookingSheet,
   type BookingSheetProps,
@@ -19,6 +19,88 @@ const MOCK_SPACES: Space[] = [
   { id: "space-adm", name: "ADM 2", capacity: 30 },
   { id: "space-lab", name: "LAB 1", capacity: 20 },
 ];
+
+const DAY_DATE = "2030-11-20";
+const NEXT_DATE = "2030-11-21";
+const ROOM_SPACES: Space[] = [
+  ...MOCK_SPACES,
+  { id: "space-aud", name: "Auditório", capacity: 120 },
+];
+
+function occupation(id: string, date: string, start: string, end: string, title: string) {
+  return {
+    id,
+    date,
+    start,
+    end,
+    title,
+    source: "import",
+    status: "ativa",
+    canCancel: false,
+    mine: false,
+    person: { name: "Ana Souza", code: "ASOUZA", placeholder: false },
+  } satisfies AgendaItem;
+}
+
+/** Trechos livres do expediente (06:00–23:00) fora das ocupações, em ordem. */
+function roomDay(space: Space, date: string, occupations: AgendaItem[]): RoomDay {
+  const free: Array<{ start: string; end: string }> = [];
+  let cursor = "06:00";
+  for (const item of occupations) {
+    if (item.start > cursor) free.push({ start: cursor, end: item.start });
+    cursor = item.end;
+  }
+  if (cursor < "23:00") free.push({ start: cursor, end: "23:00" });
+  return {
+    spaceId: space.id,
+    date,
+    now: "2030-11-01T08:00",
+    hours: { opens: "06:00", closes: "23:00" },
+    occupations,
+    free,
+    blocks: [],
+    space: { id: space.id, name: space.name, capacity: space.capacity },
+  };
+}
+
+const [ADM, LAB, AUD] = ROOM_SPACES as [Space, Space, Space];
+
+/** ADM 2 ocupada de manhã, Auditório à tarde, LAB 1 livre; no dia seguinte, LAB 1 ocupada de manhã. */
+function dayOf(date: string): RoomsDay {
+  const rooms =
+    date === DAY_DATE
+      ? [
+          roomDay(ADM, date, [occupation("o1", date, "08:00", "09:50", "Física III")]),
+          roomDay(LAB, date, []),
+          roomDay(AUD, date, [occupation("o2", date, "13:30", "15:20", "Colação")]),
+        ]
+      : [
+          roomDay(ADM, date, []),
+          roomDay(LAB, date, [occupation("o3", date, "07:30", "10:00", "Química")]),
+          roomDay(AUD, date, []),
+        ];
+  return { date, now: "2030-11-01T08:00", rooms };
+}
+
+function availabilityMock() {
+  return mock(async (input: { data: { date: string } }) => ({
+    ok: true as const,
+    data: dayOf(input.data.date),
+  }));
+}
+
+const roomSelect = () => screen.getByLabelText("Sala") as HTMLSelectElement;
+
+/** Rótulos das opções de cada grupo, na ordem da tela. */
+function groupsOf(select: HTMLSelectElement) {
+  return Array.from(select.querySelectorAll("optgroup")).map((group) => ({
+    label: group.label,
+    options: Array.from(group.querySelectorAll("option")).map((option) => ({
+      text: option.textContent,
+      disabled: option.disabled,
+    })),
+  }));
+}
 
 async function renderBookingSheet(props: Partial<BookingSheetProps> = {}) {
   const onOpenChange = props.onOpenChange ?? mock(() => {});
@@ -32,6 +114,7 @@ async function renderBookingSheet(props: Partial<BookingSheetProps> = {}) {
         timeZone={props.timeZone ?? "America/Sao_Paulo"}
         onSuccess={props.onSuccess}
         createFn={props.createFn}
+        availability={props.availability}
       />
     ),
   });
@@ -374,5 +457,148 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
     expect(TIMETABLE_SHORTCUTS).toHaveLength(7);
     const keys = TIMETABLE_SHORTCUTS.map((s) => s.key);
     expect(keys).toEqual(["M12", "M34", "T12", "T34", "N12", "N34", "N123"]);
+  });
+});
+
+describe("BookingSheet — sala por disponibilidade (GERAL-12)", () => {
+  test("com disponibilidade, livres antes das ocupadas e a ocupada desabilitada com o motivo", async () => {
+    const availability = availabilityMock();
+    await renderBookingSheet({
+      spaces: ROOM_SPACES,
+      initialSlot: { spaceId: "space-lab", date: DAY_DATE, start: "08:00", end: "09:50" },
+      availability,
+    });
+
+    await waitFor(() => expect(groupsOf(roomSelect())).toHaveLength(2));
+    expect(availability.mock.calls[0]?.[0]).toEqual({ data: { date: DAY_DATE } });
+    expect(groupsOf(roomSelect())).toEqual([
+      {
+        label: "Livres",
+        options: [
+          { text: "LAB 1", disabled: false },
+          { text: "Auditório", disabled: false },
+        ],
+      },
+      {
+        label: "Ocupadas",
+        options: [{ text: "ADM 2 — Física III, 08:00–09:50", disabled: true }],
+      },
+    ]);
+    expect(roomSelect().value).toBe("space-lab");
+  });
+
+  test("trocar o horário reordena sem buscar de novo; trocar a data busca o novo dia", async () => {
+    const availability = availabilityMock();
+    await renderBookingSheet({
+      spaces: ROOM_SPACES,
+      initialSlot: { spaceId: "space-lab", date: DAY_DATE, start: "08:00", end: "09:50" },
+      availability,
+    });
+    await waitFor(() => expect(groupsOf(roomSelect())).toHaveLength(2));
+
+    fireEvent.click(screen.getByRole("button", { name: /Tarde .*13:30/i }));
+    expect(groupsOf(roomSelect())).toEqual([
+      {
+        label: "Livres",
+        options: [
+          { text: "ADM 2", disabled: false },
+          { text: "LAB 1", disabled: false },
+        ],
+      },
+      {
+        label: "Ocupadas",
+        options: [{ text: "Auditório — Colação, 13:30–15:20", disabled: true }],
+      },
+    ]);
+    expect(availability).toHaveBeenCalledTimes(1);
+
+    fireEvent.click(screen.getByRole("button", { name: /Manh. .*08:00/i }));
+    fireEvent.change(screen.getByLabelText(/Data/i), { target: { value: NEXT_DATE } });
+    await waitFor(() =>
+      expect(groupsOf(roomSelect())[1]?.options).toEqual([
+        { text: "LAB 1 — Química, 07:30–10:00", disabled: true },
+      ]),
+    );
+    expect(availability.mock.calls.at(-1)?.[0]).toEqual({ data: { date: NEXT_DATE } });
+    expect(groupsOf(roomSelect())[0]?.options.map((option) => option.text)).toEqual([
+      "ADM 2",
+      "Auditório",
+    ]);
+  });
+
+  test("o motivo não leva nome nem código de pessoa", async () => {
+    await renderBookingSheet({
+      spaces: ROOM_SPACES,
+      initialSlot: { spaceId: "space-lab", date: DAY_DATE, start: "08:00", end: "09:50" },
+      availability: availabilityMock(),
+    });
+    await waitFor(() => expect(groupsOf(roomSelect())).toHaveLength(2));
+    const text = roomSelect().textContent ?? "";
+    expect(text).not.toContain("Ana");
+    expect(text).not.toContain("ASOUZA");
+  });
+
+  test("sem fonte, a lista é a simples de hoje, sem grupos e sem opção desabilitada", async () => {
+    await renderBookingSheet({
+      spaces: ROOM_SPACES,
+      initialSlot: { spaceId: "space-lab", date: DAY_DATE, start: "08:00", end: "09:50" },
+    });
+    const select = roomSelect();
+    expect(select.querySelector("optgroup") === null).toBe(true);
+    expect(
+      Array.from(select.options).map((option) => [option.textContent, option.disabled]),
+    ).toEqual([
+      ["ADM 2", false],
+      ["LAB 1", false],
+      ["Auditório", false],
+    ]);
+  });
+
+  const failures: Array<[string, NonNullable<BookingSheetProps["availability"]>]> = [
+    ["resposta de erro", async () => ({ ok: false, status: 403, message: "Falhou" })],
+    [
+      "exceção",
+      async () => {
+        throw new Error("rede");
+      },
+    ],
+  ];
+  for (const [kind, failure] of failures) {
+    test(`falha da fonte (${kind}) mantém a lista simples`, async () => {
+      const availability = mock(failure);
+      await renderBookingSheet({
+        spaces: ROOM_SPACES,
+        initialSlot: { spaceId: "space-lab", date: DAY_DATE, start: "08:00", end: "09:50" },
+        availability,
+      });
+      await waitFor(() => expect(availability).toHaveBeenCalledTimes(1));
+      await new Promise((resolve) => setTimeout(resolve, 0));
+      const select = roomSelect();
+      expect(select.querySelector("optgroup") === null).toBe(true);
+      expect(Array.from(select.options).map((option) => option.disabled)).toEqual([
+        false,
+        false,
+        false,
+      ]);
+      expect(screen.queryByRole("alert") === null).toBe(true);
+    });
+  }
+
+  test("não envia a reserva quando a sala escolhida ficou ocupada no novo horário", async () => {
+    const createFn = mock(async () => ({ ok: true as const, data: {} as BookingView }));
+    await renderBookingSheet({
+      spaces: ROOM_SPACES,
+      initialSlot: { spaceId: "space-adm", date: DAY_DATE, start: "13:30", end: "15:20" },
+      availability: availabilityMock(),
+      createFn,
+    });
+    await waitFor(() => expect(groupsOf(roomSelect())).toHaveLength(2));
+
+    fireEvent.click(screen.getByRole("button", { name: /Manh. .*08:00/i }));
+    fireEvent.change(screen.getByLabelText(/Finalidade/i), { target: { value: "Reunião" } });
+    fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
+
+    expect(screen.getAllByText("Essa sala está ocupada nesse horário.").length).toBeGreaterThan(0);
+    expect(createFn).not.toHaveBeenCalled();
   });
 });

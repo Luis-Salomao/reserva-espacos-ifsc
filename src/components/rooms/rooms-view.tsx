@@ -23,6 +23,7 @@ import {
   windowIssue,
 } from "#/domain/room-filter";
 import { cn } from "#/lib/utils";
+import { getRoomsDayFn } from "#/server/booking-fns";
 import { type RoomDraft, RoomsColumns } from "./rooms-columns";
 import { RoomsFilters } from "./rooms-filters";
 import { RoomsFreeList } from "./rooms-free-list";
@@ -63,6 +64,8 @@ type Props = {
   onSearchChange: (update: (prev: SalasSearch) => SalasSearch, replace: boolean) => void;
   onRetry: () => void;
   createFn?: BookingSheetProps["createFn"] | undefined;
+  /** Disponibilidade do dia usada na escolha de sala da reserva; padrão `getRoomsDayFn`. */
+  dayFn?: BookingSheetProps["availability"];
 };
 
 const COMPACT_QUERY = "(max-width: 767px)";
@@ -149,6 +152,7 @@ export function RoomsView({
   onSearchChange,
   onRetry,
   createFn,
+  dayFn,
 }: Props) {
   const compact = useCompact();
   const view: SalasView = search.visao ?? (compact ? "livres" : "colunas");
@@ -356,6 +360,7 @@ export function RoomsView({
         timeZone={timeZone}
         onSuccess={() => setDraft(null)}
         {...(createFn !== undefined ? { createFn } : {})}
+        availability={dayFn ?? getRoomsDayFn}
       />
       <GateDialog open={gateOpen} onOpenChange={setGateOpen} />
     </div>

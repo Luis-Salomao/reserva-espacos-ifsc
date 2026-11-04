@@ -313,8 +313,10 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes: com disponibilidade, livres antes das ocupadas e ocupada desabilitada com o motivo; trocar o horário reordena; sem fonte, lista igual à atual; falha da fonte mantém a lista simples
-- [ ] Gate check passes: `bun run check`
+- [x] Testes: com disponibilidade, livres antes das ocupadas e ocupada desabilitada com o motivo; trocar o horário reordena; sem fonte, lista igual à atual; falha da fonte mantém a lista simples
+- [x] Gate check passes: `bun run check`
+
+**Desvio**: a prop da `BookingSheet` chama-se `availability` e não tem padrão: sem ela (agenda), nada muda. O padrão `getRoomsDayFn` fica na prop `dayFn` de `RoomsView`, no mesmo molde de `createFn`, e os testes injetam uma fonte falsa. A busca espera o formulário receber a data do slot, para não pedir o dia de hoje antes. Se a sala escolhida fica ocupada depois de trocar o horário, ela continua selecionada e o envio é barrado com "Essa sala está ocupada nesse horário." (sem trocar de sala sozinho). Sala ausente nos dados do dia ou janela inválida voltam à lista simples. O texto do motivo virou `busyReasonText` em `domain/room-filter`, usado também por `RoomsFreeList`. "Agora" vem do relógio local no fuso da tela, como a validação da reserva.
 
 **Tests**: unit
 **Gate**: build

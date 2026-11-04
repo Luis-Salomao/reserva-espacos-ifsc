@@ -109,7 +109,13 @@ type Options = {
   isAdmin?: boolean;
   url?: string;
   createFn?: BookingSheetProps["createFn"];
+  dayFn?: BookingSheetProps["availability"];
 };
+
+const sameDay: NonNullable<BookingSheetProps["availability"]> = async () => ({
+  ok: true,
+  data: DAY,
+});
 
 async function setup(options: Options = {}) {
   const loads = { count: 0 };
@@ -138,6 +144,7 @@ async function setup(options: Options = {}) {
           }
           onRetry={onRetry}
           createFn={options.createFn}
+          dayFn={options.dayFn ?? sameDay}
         />
       );
     },
@@ -306,6 +313,38 @@ describe("RoomsView", () => {
       end: "16:00",
     });
     await waitFor(() => expect(loads.count).toBeGreaterThan(before));
+  });
+
+  test("a reserva busca o dia escolhido e lista livres antes das ocupadas, com o motivo", async () => {
+    const dayFn = mock(async (input: { data: { date: string } }) => ({
+      ok: true as const,
+      data: { ...DAY, date: input.data.date },
+    }));
+    await setup({ url: "/?visao=livres&ini=14:00&fim=16:00", dayFn });
+    fireEvent.click(screen.getByRole("button", { name: "Reservar LAB 1, 14:00–16:00" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
+    const select = within(dialog).getByLabelText("Sala") as HTMLSelectElement;
+    await waitFor(() => expect(select.querySelectorAll("optgroup")).toHaveLength(2));
+    expect(dayFn.mock.calls[0]?.[0]).toEqual({ data: { date: DATE } });
+    expect(
+      Array.from(select.querySelectorAll("optgroup")).map((group) => [
+        group.label,
+        Array.from(group.querySelectorAll("option")).map((option) => [
+          option.textContent,
+          option.disabled,
+        ]),
+      ]),
+    ).toEqual([
+      [
+        "Livres",
+        [
+          ["B-104", false],
+          ["LAB 1", false],
+        ],
+      ],
+      ["Ocupadas", [["A-202 — Cálculo I, 14:00–15:00", true]]],
+    ]);
+    expect(select.value).toBe("lab");
   });
 
   test("visitante não desenha rascunho, não vê 'Reservar' e o horário livre pede login", async () => {

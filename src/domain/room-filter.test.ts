@@ -4,6 +4,7 @@ import {
   availabilityIn,
   blockOf,
   blocksOf,
+  busyReasonText,
   defaultWindow,
   filterRooms,
   isFreeIn,
@@ -272,5 +273,15 @@ describe("availabilityIn", () => {
     const result = availabilityIn(late, { start: "21:30", end: "22:30" }, BEFORE);
     expect(result.free).toEqual([]);
     expect(result.busy[0]?.reasons).toEqual([{ kind: "closed" }]);
+  });
+});
+
+describe("busyReasonText", () => {
+  test("ocupação vira título e horário; passado e fora do expediente têm frase própria", () => {
+    expect(
+      busyReasonText({ kind: "occupation", title: "Cálculo I", start: "14:00", end: "15:40" }),
+    ).toBe("Cálculo I, 14:00–15:40");
+    expect(busyReasonText({ kind: "past" })).toBe("Horário já passou");
+    expect(busyReasonText({ kind: "closed" })).toBe("Fora do horário de funcionamento");
   });
 });
