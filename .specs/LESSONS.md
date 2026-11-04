@@ -86,6 +86,36 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md M11 test/components/agenda-person.test.tsx:101 (components) (components)
 - last seen: 2026-11-04T18:17:21Z
 
+### L-013 - Afirme o resultado logo depois da interação testada; uma ação extra antes da asserção pode refazer o estado e esconder a falha
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: visao-geral
+- evidence: validation.md M20 test/components/rooms-overview.test.tsx:341 (components)
+- last seen: 2026-11-04T21:41:58Z
+
+### L-014 - Quando a spec define a ordem entre seções da tela, afirme a posição delas no DOM, não só o conteúdo de cada uma
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: visao-geral
+- evidence: validation.md M30 test/components/rooms-overview.test.tsx:352 (components)
+- last seen: 2026-11-04T21:41:58Z
+
+### L-015 - Atalho de teclado oferecido pela tela precisa de AC na spec e de um teste que pressione a tecla e afirme o efeito
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: visao-geral
+- evidence: validation.md M21 M22 src/components/rooms/rooms-overview.tsx:96 (components)
+- last seen: 2026-11-04T21:41:59Z
+
+### L-016 - Regras de horário passado devem dizer o que acontece com o trecho em andamento, não só com o já terminado
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
+- features: visao-geral
+- evidence: validation.md M27 GERAL-13 AC6 src/components/rooms/overview-selection.tsx:78 (specs)
+- last seen: 2026-11-04T21:41:59Z
+
+### L-017 - Quando uma tarefa muda um comportamento já especificado, reescreva o AC antigo na spec na mesma tarefa
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
+- features: visao-geral
+- evidence: spec.md:146 GERAL-10 AC1 AC3 x GERAL-13 AC2 (specs) (+1 more)
+- last seen: 2026-11-04T21:41:59Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
