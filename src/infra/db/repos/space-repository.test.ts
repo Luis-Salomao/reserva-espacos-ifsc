@@ -128,6 +128,44 @@ describe("SpaceRepository com equipamentos", () => {
     expect(await countEquipment()).toBe(0);
   });
 
+  describe("falha numa instrução posterior desfaz a gravação inteira", () => {
+    // `equipped` grava projetor e depois computadores; o gatilho só aborta a segunda linha.
+    const failOnComputers = () =>
+      db.$client.run(
+        `CREATE TRIGGER falha_computadores BEFORE INSERT ON space_equipment
+         WHEN NEW.kind = 'computadores' BEGIN SELECT RAISE(ABORT, 'falha forçada'); END`,
+      );
+
+    test("ao criar, nem o espaço nem o primeiro equipamento ficam gravados", async () => {
+      failOnComputers();
+      await expect(
+        repo.create({ name: "Lab 1", capacity: 30, equipment: equipped }),
+      ).rejects.toThrow();
+      expect(await repo.listWithEquipment()).toEqual([]);
+      expect(await countEquipment()).toBe(0);
+    });
+
+    test("ao editar, nome, capacidade, observações e equipamentos anteriores ficam como estavam", async () => {
+      const lab = await repo.create({
+        name: "Lab 1",
+        capacity: 30,
+        equipment: { items: { som: 1 }, notes: "Antes" },
+      });
+      failOnComputers();
+      await expect(
+        repo.update(lab.id, { name: "Lab Um", capacity: 25, equipment: equipped }),
+      ).rejects.toThrow();
+      expect(await repo.listWithEquipment()).toEqual([
+        {
+          id: lab.id,
+          name: "Lab 1",
+          capacity: 30,
+          equipment: { items: { som: 1 }, notes: "Antes" },
+        },
+      ]);
+    });
+  });
+
   test("editar espaço inexistente com equipamentos devolve null e não grava nada", async () => {
     expect(await repo.update("nao-existe", { name: "X", capacity: 1, equipment: equipped })).toBe(
       null,
