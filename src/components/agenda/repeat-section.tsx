@@ -194,7 +194,7 @@ export function RepeatSection({ id, date, value, onChange, error }: RepeatSectio
                         aria-pressed={pressed}
                         onClick={() => toggleDay(index)}
                         className={cn(
-                          "size-9 cursor-pointer rounded-full border border-border bg-surface text-xs font-semibold transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          "size-8 cursor-pointer rounded-full border border-border bg-surface text-xs font-semibold transition-colors hover:border-primary focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
                           pressed && "border-primary bg-primary text-primary-foreground",
                         )}
                       >
