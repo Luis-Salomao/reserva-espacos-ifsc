@@ -268,8 +268,10 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes: clique em livre futuro chama a reserva com `{ spaceId, date, start, end }` do bloco; visitante abre o convite; bloco passado não chama nada; ocupado não abre reserva
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: clique em livre futuro chama a reserva com `{ spaceId, date, start, end }` do bloco; visitante abre o convite; bloco passado não chama nada; ocupado não abre reserva
+- [x] Gate check passes: `bun test test/components`
+
+**Desvio**: o quadradinho livre só vira botão ("Reservar SALA, dia, bloco horário") para quem pode reservar ou para o visitante; quem está logado sem permissão de reservar vê o quadradinho sem ação. Num bloco em andamento (começou e não terminou), a reserva abre com o horário do bloco e, ao enviar, a validação da reserva responde "Não é possível reservar no passado" até o início ser ajustado.
 
 **Tests**: unit
 **Gate**: quick

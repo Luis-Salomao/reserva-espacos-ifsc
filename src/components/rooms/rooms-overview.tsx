@@ -15,6 +15,9 @@ type Props = {
   compact: boolean;
   /** Dia escolhido: a aba aberta no celular. */
   selectedDate: string;
+  /** Pode reservar ou é visitante (que recebe o convite para entrar): livre clicável. */
+  canReserve: boolean;
+  onBook: (slot: { spaceId: string; date: string; start: string; end: string }) => void;
 };
 
 const TAB_DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex"];
@@ -43,7 +46,15 @@ function legendOf(rooms: Props["rooms"]): LegendEntry[] {
 }
 
 /** Salas × (segunda a sexta × blocos do semestre), um quadradinho por bloco, com a legenda. */
-export function RoomsOverview({ week, rooms, isVisitor, compact, selectedDate }: Props) {
+export function RoomsOverview({
+  week,
+  rooms,
+  isVisitor,
+  compact,
+  selectedDate,
+  canReserve,
+  onBook,
+}: Props) {
   const [highlight, setHighlight] = useState<string | null>(null);
   const [tab, setTab] = useState(() => Math.min(weekdayOf(selectedDate), week.days.length - 1));
   const shownDays = compact ? week.days.slice(tab, tab + 1) : week.days;
@@ -156,6 +167,17 @@ export function RoomsOverview({ week, rooms, isVisitor, compact, selectedDate }:
                       highlight={highlight}
                       isVisitor={isVisitor}
                       compact={compact}
+                      onBook={
+                        canReserve && `${day.date}T${cell.block.end}` > week.now
+                          ? () =>
+                              onBook({
+                                spaceId: room.space.id,
+                                date: day.date,
+                                start: cell.block.start,
+                                end: cell.block.end,
+                              })
+                          : null
+                      }
                     />
                   ))}
                 </div>

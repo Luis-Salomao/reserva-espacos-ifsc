@@ -452,6 +452,52 @@ describe("RoomsView", () => {
       expect((cell as HTMLElement).className.split(" ")).toContain("size-8");
   });
 
+  test("na visão geral, o quadradinho livre abre a reserva do bloco; a sala é editável e confirmar recarrega a semana", async () => {
+    const createFn = mock(async (input: { data: Record<string, string> }) => ({
+      ok: true as const,
+      data: {
+        id: "nova",
+        spaceId: input.data.spaceId ?? "",
+        date: input.data.date ?? "",
+        start: input.data.start ?? "",
+        end: input.data.end ?? "",
+        title: input.data.purpose ?? "",
+      } satisfies BookingView,
+    }));
+    const { loads } = await setup({ url: "/?visao=geral", createFn });
+    const before = loads.count;
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reservar B-104, terça 12/11, Manhã 34 10:10–12:00" }),
+    );
+    const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
+    const sala = within(dialog).getByLabelText("Sala") as HTMLSelectElement;
+    expect(sala.value).toBe("b104");
+    expect((within(dialog).getByLabelText("Data") as HTMLInputElement).value).toBe(DATE);
+    expect((within(dialog).getByLabelText("Início") as HTMLInputElement).value).toBe("10:10");
+    expect((within(dialog).getByLabelText("Fim") as HTMLInputElement).value).toBe("12:00");
+    expect(sala.disabled).toBe(false);
+    fireEvent.change(sala, { target: { value: "lab" } });
+    fireEvent.change(within(dialog).getByLabelText(/Finalidade/), { target: { value: "Reunião" } });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Reservar" }));
+    await screen.findByTestId("booking-success-view");
+    expect(createFn.mock.calls[0]?.[0].data).toMatchObject({
+      spaceId: "lab",
+      date: DATE,
+      start: "10:10",
+      end: "12:00",
+    });
+    await waitFor(() => expect(loads.count).toBeGreaterThan(before));
+  });
+
+  test("na visão geral, o visitante que clica num quadradinho livre recebe o convite para entrar", async () => {
+    await setup({ url: "/?visao=geral", canBook: false, isVisitor: true });
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reservar B-104, terça 12/11, Manhã 34 10:10–12:00" }),
+    );
+    expect(await screen.findByText("Entre para reservar")).toBeDefined();
+    expect(screen.queryByRole("dialog", { name: "Nova reserva" }) === null).toBe(true);
+  });
+
   test("sem salas cadastradas, quem não é admin não recebe o atalho", async () => {
     await setup({ roomsDay: { date: DATE, now: NOW, rooms: [] } });
     expect(screen.getByText("Nenhuma sala cadastrada")).toBeDefined();
