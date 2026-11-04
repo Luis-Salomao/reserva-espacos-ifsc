@@ -7,6 +7,7 @@ import {
   createBookingAction,
   getDayAgenda,
   getRoomsDay,
+  getRoomsWeek,
   getWeekAgenda,
   myBookingsAction,
   previewSeriesAction,
@@ -181,6 +182,78 @@ describe("todas as salas: leitura", () => {
       status: 400,
       field: "date",
     });
+  });
+});
+
+describe("semana de todas as salas: leitura", () => {
+  test("visitante recebe a semana por sala, sem pessoas; logado vê o responsável", async () => {
+    const { db, s, deps, req } = await setup(true);
+    insertImported(db, {
+      id: "a",
+      spaceId: s.sala2.id,
+      date: "2026-11-12",
+      start: "18:50",
+      end: "19:35",
+      title: "MAT1",
+      responsibleUserId: s.docA.id,
+    });
+    const visitor = await getRoomsWeek(deps, req(null), { weekStart: "2026-11-09" });
+    if (!visitor.response.ok) throw new Error(visitor.response.message);
+    expect(visitor.response.data.weekStart).toBe("2026-11-09");
+    expect(visitor.response.data.days.map((day) => day.date)).toEqual([
+      "2026-11-09",
+      "2026-11-10",
+      "2026-11-11",
+      "2026-11-12",
+      "2026-11-13",
+    ]);
+    expect(
+      visitor.response.data.rooms.map((room) => [
+        room.space.name,
+        room.occupations.map((item) => [item.title, item.date, item.person]),
+      ]),
+    ).toEqual([
+      ["ADM 2", []],
+      ["LAB 1", [["MAT1", "2026-11-12", null]]],
+    ]);
+    const json = JSON.stringify(visitor.response);
+    expect(json).not.toContain(s.docA.id);
+    expect(json).not.toContain("Pessoa");
+    expect(json).not.toContain("DOCA");
+    expect(visitor.setCookie).toBeNull();
+
+    const logged = await getRoomsWeek(deps, req("doca"), { weekStart: "2026-11-09" });
+    if (!logged.response.ok) throw new Error(logged.response.message);
+    expect(logged.response.data.rooms[1]?.occupations[0]?.person).toEqual({
+      name: "Pessoa doca",
+      code: "DOCA",
+      placeholder: false,
+    });
+    expect(logged.setCookie).toContain("sid=doca");
+  });
+
+  test("PUBLIC_READ=false: visitante recebe 401", async () => {
+    const { deps, req } = await setup(false);
+    expect(
+      (await getRoomsWeek(deps, req(null), { weekStart: "2026-11-09" })).response,
+    ).toMatchObject({ ok: false, status: 401 });
+  });
+
+  test("semana inválida vira 400; data que não é segunda aponta o campo", async () => {
+    const { deps, req } = await setup();
+    for (const data of [null, "x", {}, { weekStart: 20261109 }, { date: "2026-11-09" }]) {
+      expect((await getRoomsWeek(deps, req(null), data)).response).toMatchObject({
+        ok: false,
+        status: 400,
+      });
+    }
+    for (const weekStart of ["2026-11-10", "09/11/2026"]) {
+      expect((await getRoomsWeek(deps, req(null), { weekStart })).response).toMatchObject({
+        ok: false,
+        status: 400,
+        field: "weekStart",
+      });
+    }
   });
 });
 

@@ -25,6 +25,8 @@ import type { User } from "#/domain/user";
 const BOOKING_ROLES = ["admin", "horarios", "docente"] as const;
 
 const MAX_PURPOSE = 120;
+/** Dias da visão geral: segunda a sexta. */
+const WORKDAYS = 5;
 const DEFAULT_PAGE = 50;
 const MAX_PAGE = 100;
 const SERIES_ON_MANUAL = "Reservas avulsas não têm série; cancele apenas esta data.";
@@ -85,6 +87,17 @@ export type WeekAgenda = {
 export type RoomDay = DayAgenda & { space: { id: string; name: string; capacity: number | null } };
 
 export type RoomsDay = { date: string; now: string; rooms: RoomDay[] };
+
+/** Segunda a sexta de todas as salas: blocos de cada dia e as ocupações da semana de cada sala. */
+export type RoomsWeek = {
+  weekStart: string;
+  now: string;
+  days: Array<{ date: string; blocks: AgendaBlock[] }>;
+  rooms: Array<{
+    space: { id: string; name: string; capacity: number | null };
+    occupations: AgendaItem[];
+  }>;
+};
 
 export type BookingView = {
   id: string;
@@ -339,6 +352,49 @@ export function createBookingsService(deps: BookingsDeps) {
           space: { id: space.id, name: space.name, capacity: space.capacity },
         }));
       return ok({ date: input.date, now, rooms });
+    },
+
+    /**
+     * Segunda a sexta de todas as salas a partir de `weekStart` (obrigatoriamente uma
+     * segunda-feira), com uma única consulta de ocupações. Cada dia traz os blocos só do semestre
+     * que o cobre; fora de semestre, nenhum.
+     */
+    async roomsWeek(viewer: User | null, input: { weekStart: string }): Promise<Result<RoomsWeek>> {
+      if (!isValidDate(input.weekStart)) {
+        return fail("validation", "Informe uma data válida.", "weekStart");
+      }
+      if (weekdayOf(input.weekStart) !== 0) {
+        return fail("validation", "A semana deve começar numa segunda-feira.", "weekStart");
+      }
+      const now = nowLocal();
+      const [list, found, all, people] = await Promise.all([
+        spaces.list(),
+        occupations.listActiveInRangeAll(
+          `${input.weekStart}T00:00`,
+          `${addDays(input.weekStart, WORKDAYS)}T00:00`,
+        ),
+        semesters.list(),
+        peopleFor(viewer),
+      ]);
+      const days = Array.from({ length: WORKDAYS }, (_, offset) => {
+        const date = addDays(input.weekStart, offset);
+        const covering = all.filter((semester) => semester.start <= date && date <= semester.end);
+        return { date, blocks: blocksFor(date, covering) };
+      });
+      const bySpace = new Map<string, AgendaItem[]>();
+      for (const item of found) {
+        const view = toItem(item, viewer, now, people);
+        const items = bySpace.get(item.spaceId);
+        if (items) items.push(view);
+        else bySpace.set(item.spaceId, [view]);
+      }
+      const rooms = [...list]
+        .sort((a, b) => byNaturalName.compare(a.name, b.name))
+        .map((space) => ({
+          space: { id: space.id, name: space.name, capacity: space.capacity },
+          occupations: bySpace.get(space.id) ?? [],
+        }));
+      return ok({ weekStart: input.weekStart, now, days, rooms });
     },
 
     /**

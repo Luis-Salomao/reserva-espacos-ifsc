@@ -2,13 +2,14 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { AlertCircle, Calendar, Check, Clock, DoorClosed, X } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { type FormEvent, useEffect, useId, useState } from "react";
-import type { BookingView } from "#/application/bookings";
+import type { BookingView, RoomDay, RoomsDay } from "#/application/bookings";
 import { runAdminAction } from "#/components/admin/use-admin-action";
 import { Field } from "#/components/ds";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { DEFAULT_HOURS, localNow, validateBookingWhen } from "#/domain/availability";
+import { availabilityIn, busyReasonText } from "#/domain/room-filter";
 import type { Space } from "#/domain/space";
 import { cn } from "#/lib/utils";
 import type { AdminResponse } from "#/server/admin-actions";
@@ -37,7 +38,44 @@ export type BookingSheetProps = {
       purpose: string;
     };
   }) => Promise<AdminResponse<BookingView>>;
+  /** Disponibilidade do dia de todas as salas; sem ela, ou se falhar, a lista de salas é simples. */
+  availability?:
+    | ((input: { data: { date: string } }) => Promise<AdminResponse<RoomsDay>>)
+    | undefined;
 };
+
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+const BUSY_ROOM = "Essa sala está ocupada nesse horário.";
+
+type RoomChoices = {
+  free: Space[];
+  busy: Array<{ space: Space; label: string }>;
+};
+
+/** Salas do formulário em livres e ocupadas na janela; `null` sem dados completos do dia. */
+function roomChoices(
+  spaces: readonly Space[],
+  day: RoomsDay | null,
+  when: { date: string; start: string; end: string },
+  now: string,
+): RoomChoices | null {
+  if (day === null || day.date !== when.date || when.end <= when.start) return null;
+  const byId = new Map(day.rooms.map((room) => [room.space.id, room]));
+  const rooms: Array<Omit<RoomDay, "space"> & { space: Space }> = [];
+  for (const space of spaces) {
+    const room = byId.get(space.id);
+    if (room === undefined) return null;
+    rooms.push({ ...room, space });
+  }
+  const { free, busy } = availabilityIn(rooms, when, now);
+  return {
+    free: free.map((room) => room.space),
+    busy: busy.map(({ room, reasons }) => ({
+      space: room.space,
+      label: `${room.space.name} — ${reasons.map(busyReasonText).join("; ")}`,
+    })),
+  };
+}
 
 export type TimetableShortcut = {
   key: string;
@@ -96,6 +134,7 @@ export function BookingSheet({
   timeZone = "America/Sao_Paulo",
   onSuccess,
   createFn,
+  availability,
 }: BookingSheetProps) {
   const uid = useId();
   const router = useRouter();
@@ -112,6 +151,9 @@ export function BookingSheet({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [submittedBooking, setSubmittedBooking] = useState<BookingView | null>(null);
+  // A busca do dia espera o formulário receber a data do slot, para não pedir o dia errado.
+  const [synced, setSynced] = useState(false);
+  const [day, setDay] = useState<RoomsDay | null>(null);
 
   // Sincroniza formulário na abertura ou mudança do slot inicial
   useEffect(() => {
@@ -126,8 +168,21 @@ export function BookingSheet({
       setFieldErrors({});
       setSubmittedBooking(null);
     }
+    setSynced(open);
   }, [open, initialSlot, spaces, timeZone]);
 
+  useEffect(() => {
+    if (!synced || availability === undefined || !ISO_DATE.test(date)) return;
+    let current = true;
+    void runAdminAction(() => availability({ data: { date } })).then((response) => {
+      if (current) setDay(response.ok ? response.data : null);
+    });
+    return () => {
+      current = false;
+    };
+  }, [synced, availability, date]);
+
+  const choices = roomChoices(spaces, day, { date, start, end }, localNow(new Date(), timeZone));
   const activeSpace = spaces.find((s) => s.id === spaceId) ?? spaces[0];
 
   function validateClient(): boolean {
@@ -137,6 +192,9 @@ export function BookingSheet({
     const timeIssue = validateBookingWhen({ date, start, end }, DEFAULT_HOURS, nowLocal);
     if (timeIssue !== null) {
       errors[timeIssue.field] = timeIssue.message;
+    }
+    if (choices?.busy.some((item) => item.space.id === spaceId)) {
+      errors.spaceId = BUSY_ROOM;
     }
 
     const trimmedPurpose = purpose.trim();
@@ -296,15 +354,40 @@ export function BookingSheet({
                   value={spaceId}
                   onChange={(e) => {
                     setSpaceId(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, spaceId: undefined }));
                     setErrorMessage(null);
                   }}
+                  aria-invalid={Boolean(fieldErrors.spaceId)}
                   className="h-10 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring dark:bg-input/30"
                 >
-                  {spaces.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name}
-                    </option>
-                  ))}
+                  {choices === null ? (
+                    spaces.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name}
+                      </option>
+                    ))
+                  ) : (
+                    <>
+                      {choices.free.length > 0 && (
+                        <optgroup label="Livres">
+                          {choices.free.map((s) => (
+                            <option key={s.id} value={s.id}>
+                              {s.name}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                      {choices.busy.length > 0 && (
+                        <optgroup label="Ocupadas">
+                          {choices.busy.map(({ space, label }) => (
+                            <option key={space.id} value={space.id} disabled>
+                              {label}
+                            </option>
+                          ))}
+                        </optgroup>
+                      )}
+                    </>
+                  )}
                 </select>
               </Field>
 

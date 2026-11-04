@@ -1,8 +1,7 @@
-import { describe, expect, spyOn, test } from "bun:test";
-import type { RoomsDay } from "#/application/bookings";
+import { describe, expect, test } from "bun:test";
+import type { RoomsDay, RoomsWeek } from "#/application/bookings";
 import type { User } from "#/domain/user";
 import { loadSalas, Route, validateSalasSearch } from "#/routes/salas";
-import * as bookingFns from "#/server/booking-fns";
 import type { SessionInfo } from "#/server/session";
 
 const DOCENTE: User = {
@@ -50,6 +49,10 @@ describe("validateSalasSearch", () => {
       livres: true,
     });
     expect(validateSalasSearch({ visao: "livres" })).toEqual({ visao: "livres" });
+    expect(validateSalasSearch({ visao: "geral", data: "2026-11-10" })).toEqual({
+      visao: "geral",
+      data: "2026-11-10",
+    });
     expect(validateSalasSearch({})).toEqual({});
   });
 
@@ -155,90 +158,145 @@ describe("loadSalas", () => {
   });
 });
 
-describe("Route.loaderDeps", () => {
-  test("só a data dispara nova carga: janela, filtros e visão mudam sem ir ao servidor", () => {
-    type DepsArgs = Parameters<NonNullable<typeof Route.options.loaderDeps>>[0];
-    const deps = (search: Record<string, unknown>) =>
-      Route.options.loaderDeps?.({ search } as unknown as DepsArgs);
-    const base = { data: "2026-11-10" };
-    const changed = {
-      ...base,
-      visao: "livres",
-      ini: "14:00",
-      fim: "16:00",
-      bloco: ["A"],
-      cap: 30,
-      q: "lab",
-      livres: true,
+describe("loadSalas na visão geral", () => {
+  const week = (weekStart: string): RoomsWeek => ({
+    weekStart,
+    now: "2026-11-03T09:00",
+    days: [],
+    rooms: [],
+  });
+
+  function recorder() {
+    const days: string[] = [];
+    const weeks: string[] = [];
+    return {
+      days,
+      weeks,
+      fetchDay: async (date: string) => {
+        days.push(date);
+        return { ok: true as const, data: day(date) };
+      },
+      fetchWeek: async (weekStart: string) => {
+        weeks.push(weekStart);
+        return { ok: true as const, data: week(weekStart) };
+      },
     };
-    expect(deps(changed)).toEqual({ data: "2026-11-10" });
-    expect(deps(changed)).toEqual(deps(base));
-    expect(deps({ data: "2026-11-11" })).not.toEqual(deps(base));
-  });
-});
+  }
 
-describe("Route.loader", () => {
-  test("carrega o dia que vem das deps, não o de hoje", async () => {
-    const loader = Route.options.loader as unknown as (
-      args: unknown,
-    ) => ReturnType<typeof loadSalas>;
-    const data = await loader({
-      deps: { data: "2030-01-15" },
-      context: { session: session(DOCENTE) },
+  test("pede a semana da data da URL (a segunda-feira) numa única chamada, sem pedir o dia", async () => {
+    const r = recorder();
+    const data = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: r.fetchWeek,
     });
-    expect(data.selectedDate).toBe("2030-01-15");
+    expect(r.weeks).toEqual(["2026-11-09"]);
+    expect(r.days).toEqual([]);
+    expect(data.selectedDate).toBe("2026-11-12");
+    expect(data.roomsWeek).toEqual(week("2026-11-09"));
+    expect(data.roomsDay).toBeNull();
+    expect(data.error).toBeNull();
   });
 
-  test("pede ao servidor o dia da URL ou, sem data, o de hoje", async () => {
-    const loader = Route.options.loader as unknown as (
-      args: unknown,
-    ) => ReturnType<typeof loadSalas>;
-    const calls: unknown[] = [];
-    const spy = spyOn(bookingFns, "getRoomsDayFn").mockImplementation((async (args: {
-      data: { date: string };
-    }) => {
-      calls.push(args);
-      return { ok: true, data: day(args.data.date) };
-    }) as unknown as typeof bookingFns.getRoomsDayFn);
-    try {
-      const withDate = await loader({
-        deps: { data: "2030-01-15" },
-        context: { session: session(DOCENTE) },
-      });
-      const today = await loader({ deps: {}, context: { session: session(DOCENTE) } });
-      expect(calls[0]).toEqual({ data: { date: "2030-01-15" } });
-      expect(calls[1]).toEqual({ data: { date: today.selectedDate } });
-      expect(today.selectedDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(withDate.error).toBeNull();
-      expect(today.error).toBeNull();
-    } finally {
-      spy.mockRestore();
-    }
+  test("sem data, pede a semana de hoje no fuso configurado; domingo volta à segunda anterior", async () => {
+    const r = recorder();
+    const today = await loadSalas(undefined, session(DOCENTE), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: r.fetchWeek,
+    });
+    expect(today.selectedDate).toBe("2026-11-03");
+    await loadSalas("2026-11-08", session(null), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: r.fetchWeek,
+    });
+    await loadSalas("2026-11-09", session(null), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: r.fetchWeek,
+    });
+    expect(r.weeks).toEqual(["2026-11-02", "2026-11-02", "2026-11-09"]);
+    expect(r.days).toEqual([]);
+  });
+
+  test("fora da visão geral pede só o dia", async () => {
+    const r = recorder();
+    const data = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+      geral: false,
+      fetchWeek: r.fetchWeek,
+    });
+    expect(r.days).toEqual(["2026-11-12"]);
+    expect(r.weeks).toEqual([]);
+    expect(data.roomsDay).toEqual(day("2026-11-12"));
+    expect(data.roomsWeek).toBeNull();
+  });
+
+  test("falha do servidor na semana vira mensagem, sem dados", async () => {
+    const r = recorder();
+    const failed = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: async () => ({ ok: false, message: "Erro interno." }),
+    });
+    expect(failed.roomsWeek).toBeNull();
+    expect(failed.error).toBe("Não foi possível carregar as salas");
+    const thrown = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: async () => {
+        throw new Error("rede");
+      },
+    });
+    expect(thrown.roomsWeek).toBeNull();
+    expect(thrown.error).toBe("Não foi possível carregar as salas");
   });
 });
 
-describe("Route.beforeLoad", () => {
+describe("Route.beforeLoad (redirecionamento)", () => {
   type GuardArgs = Parameters<NonNullable<typeof Route.options.beforeLoad>>[0];
-  const beforeLoad = (context: { session: SessionInfo }) =>
-    Route.options.beforeLoad?.({
-      context,
-      location: { pathname: "/salas", searchStr: "?data=2026-11-10" },
-    } as unknown as GuardArgs);
-
-  test("PUBLIC_READ=false: visitante é mandado ao login com retorno", () => {
+  /** Destino do redirecionamento de `/salas` com a URL dada (já validada pela rota). */
+  function target(raw: Record<string, unknown>, user: User | null = DOCENTE, publicRead = true) {
     let thrown: unknown;
     try {
-      beforeLoad({ session: session(null, false) });
+      Route.options.beforeLoad?.({
+        search: validateSalasSearch(raw),
+        context: { session: session(user, publicRead) },
+        location: { pathname: "/salas", searchStr: "" },
+      } as unknown as GuardArgs);
     } catch (error) {
       thrown = error;
     }
-    expect(thrown).toMatchObject({
-      options: { to: "/entrar", search: { voltar: "/salas?data=2026-11-10" } },
+    return (thrown as { options?: { to?: string; search?: unknown } } | undefined)?.options;
+  }
+
+  test("/salas?data=D vai para / com data=D e visao=colunas", () => {
+    expect(target({ data: "2026-11-10" })).toMatchObject({
+      to: "/",
+      search: { data: "2026-11-10", visao: "colunas" },
     });
+    expect(target({})?.search).toEqual({ visao: "colunas" });
   });
 
-  test("PUBLIC_READ=true ou logado: entra", () => {
-    expect(() => beforeLoad({ session: session(null, true) })).not.toThrow();
-    expect(() => beforeLoad({ session: session(DOCENTE, false) })).not.toThrow();
+  test("a visão que já está na URL é mantida", () => {
+    for (const visao of ["colunas", "livres", "geral"]) {
+      expect(target({ data: "2026-11-10", visao })?.search).toEqual({ data: "2026-11-10", visao });
+    }
+  });
+
+  test("filtros e janela são mantidos", () => {
+    const filters = {
+      bloco: ["A", "Outros"],
+      andar: [2],
+      cap: 30,
+      q: "lab",
+      ini: "14:00",
+      fim: "16:00",
+      livres: true,
+    };
+    const options = target({ data: "2026-11-10", visao: "livres", ...filters });
+    expect(options?.to).toBe("/");
+    expect(options?.search).toEqual({ data: "2026-11-10", visao: "livres", ...filters });
+  });
+
+  test("visitante também é redirecionado; o login fica a cargo de /", () => {
+    expect(target({ data: "2026-11-10" }, null, false)).toMatchObject({
+      to: "/",
+      search: { data: "2026-11-10", visao: "colunas" },
+    });
   });
 });

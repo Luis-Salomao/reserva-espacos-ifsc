@@ -856,6 +856,161 @@ describe("roomsDay", () => {
   });
 });
 
+describe("roomsWeek", () => {
+  /** Segunda-feira da semana usada nos testes. */
+  const MONDAY = "2026-11-09";
+
+  async function withRooms() {
+    const ctx = await setup();
+    const { spaces } = bookingDeps(ctx.db);
+    const a1000 = await spaces.create({ name: "A-1000", capacity: null });
+    const a202 = await spaces.create({ name: "A-202", capacity: 40 });
+    return { ...ctx, a1000, a202 };
+  }
+
+  test("segunda a sexta de todas as salas, em ordem natural de nome, com nome e capacidade", async () => {
+    const { s, svc } = await withRooms();
+    const result = await svc.roomsWeek(s.docA, { weekStart: MONDAY });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.value.weekStart).toBe(MONDAY);
+    expect(result.value.now).toBe("2026-11-03T09:00");
+    expect(result.value.days.map((day) => day.date)).toEqual([
+      "2026-11-09",
+      "2026-11-10",
+      "2026-11-11",
+      "2026-11-12",
+      "2026-11-13",
+    ]);
+    expect(result.value.rooms.map((room) => room.space)).toEqual([
+      { id: expect.any(String), name: "A-202", capacity: 40 },
+      { id: expect.any(String), name: "A-1000", capacity: null },
+      { id: s.sala1.id, name: "ADM 2", capacity: 30 },
+      { id: s.sala2.id, name: "LAB 1", capacity: 20 },
+    ]);
+  });
+
+  test("cada sala recebe as próprias ocupações da semana; sábado e domingo ficam de fora", async () => {
+    const { db, s, svc, a202 } = await withRooms();
+    const occupy = (id: string, spaceId: string, date: string, start: string, end: string) =>
+      insertImported(db, { id, spaceId, date, start, end, title: id, responsibleUserId: null });
+    occupy("dom-antes", a202.id, "2026-11-08", "08:00", "09:00");
+    occupy("seg", a202.id, "2026-11-09", "07:30", "08:20");
+    occupy("sex", a202.id, "2026-11-13", "19:35", "20:20");
+    occupy("qua-adm", s.sala1.id, "2026-11-11", "18:50", "19:35");
+    occupy("sab", a202.id, "2026-11-14", "08:00", "09:00");
+    occupy("dom-depois", s.sala1.id, "2026-11-15", "08:00", "09:00");
+    const result = await svc.roomsWeek(s.docA, { weekStart: MONDAY });
+    if (!result.ok) throw new Error(result.message);
+    const room = (name: string) => result.value.rooms.find((item) => item.space.name === name);
+    expect(room("A-202")?.occupations.map((item) => [item.title, item.date, item.start])).toEqual([
+      ["seg", "2026-11-09", "07:30"],
+      ["sex", "2026-11-13", "19:35"],
+    ]);
+    expect(room("ADM 2")?.occupations.map((item) => [item.title, item.date])).toEqual([
+      ["qua-adm", "2026-11-11"],
+    ]);
+    expect(room("LAB 1")?.occupations).toEqual([]);
+  });
+
+  test("cada dia traz os blocos só do semestre que o cobre; dia fora de semestre vem sem blocos", async () => {
+    const { db, s, svc } = await setup();
+    await bookingDeps(db).semesters.create({
+      name: "2027/1",
+      start: "2027-02-03",
+      end: "2027-07-09",
+      terms: [],
+      blocks: [{ number: 1, name: "Manhã 1", short: "M1", start: "07:30", end: "08:20" }],
+    });
+    const result = await svc.roomsWeek(s.docA, { weekStart: "2027-02-01" });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.value.days.map((day) => [day.date, day.blocks.map((b) => b.short)])).toEqual([
+      ["2027-02-01", []],
+      ["2027-02-02", []],
+      ["2027-02-03", ["M1"]],
+      ["2027-02-04", ["M1"]],
+      ["2027-02-05", ["M1"]],
+    ]);
+    const inside = await svc.roomsWeek(s.docA, { weekStart: MONDAY });
+    if (!inside.ok) throw new Error(inside.message);
+    expect(inside.value.days[0]?.blocks).toEqual([
+      { label: "Noite 1", short: "N1", start: "18:50", end: "19:35" },
+      { label: "Noite 2", short: "N2", start: "19:35", end: "20:20" },
+    ]);
+  });
+
+  test("logado vê o responsável; visitante nunca recebe nomes nem ids de pessoas", async () => {
+    const { db, s, svc, a202 } = await withRooms();
+    insertImported(db, {
+      id: "a",
+      spaceId: a202.id,
+      date: "2026-11-11",
+      start: "08:00",
+      end: "09:00",
+      title: "MAT1",
+      responsibleUserId: s.docA.id,
+    });
+    await svc.createBooking(s.docB, book(s, { purpose: "Minha" }));
+    const logged = await svc.roomsWeek(s.horarios, { weekStart: MONDAY });
+    if (!logged.ok) throw new Error(logged.message);
+    expect(
+      logged.value.rooms.flatMap((room) => room.occupations.map((item) => item.person)),
+    ).toEqual([
+      { name: "Pessoa doca", code: "DOCA", placeholder: false },
+      { name: "Pessoa docb", code: "DOCB", placeholder: false },
+    ]);
+
+    const visitor = await svc.roomsWeek(null, { weekStart: MONDAY });
+    if (!visitor.ok) throw new Error(visitor.message);
+    expect(
+      visitor.value.rooms.flatMap((room) => room.occupations.map((item) => item.person)),
+    ).toEqual([null, null]);
+    const json = JSON.stringify(visitor);
+    for (const needle of [s.docA.id, s.docB.id, "Pessoa", "DOCA", "DOCB", "doca@"]) {
+      expect(json).not.toContain(needle);
+    }
+  });
+
+  test("busca as ocupações da semana inteira numa única consulta, de segunda a sábado 00:00", async () => {
+    const { db, s } = await withRooms();
+    const deps = bookingDeps(db);
+    const repo = deps.occupations;
+    const all: Array<[string, string]> = [];
+    let one = 0;
+    const svc = createBookingsService({
+      ...deps,
+      occupations: {
+        ...repo,
+        listActiveInRangeAll: (from, to) => {
+          all.push([from, to]);
+          return repo.listActiveInRangeAll(from, to);
+        },
+        listActiveInRange: (spaceId, from, to) => {
+          one++;
+          return repo.listActiveInRange(spaceId, from, to);
+        },
+      },
+    });
+    const result = await svc.roomsWeek(s.docA, { weekStart: MONDAY });
+    expect(result.ok && result.value.rooms).toHaveLength(4);
+    expect(all).toEqual([["2026-11-09T00:00", "2026-11-14T00:00"]]);
+    expect(one).toBe(0);
+  });
+
+  test("semana que não começa numa segunda ou data inválida falha com o campo", async () => {
+    const { s, svc } = await setup();
+    expect(await svc.roomsWeek(s.docA, { weekStart: "2026-11-10" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "weekStart",
+    });
+    expect(await svc.roomsWeek(null, { weekStart: "2026-02-30" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "weekStart",
+    });
+  });
+});
+
 describe("myBookings", () => {
   test("próximas do usuário (criador ou responsável), com espaço, paginadas", async () => {
     const { db, s, svc } = await setup();
