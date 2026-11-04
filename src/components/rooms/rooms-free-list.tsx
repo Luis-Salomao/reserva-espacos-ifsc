@@ -2,7 +2,7 @@ import { DoorOpen, Plus } from "lucide-react";
 import type { RoomDay } from "#/application/bookings";
 import { Button } from "#/components/ui/button";
 import type { TimeRange } from "#/domain/availability";
-import { availabilityIn, type BusyReason, blockOf } from "#/domain/room-filter";
+import { availabilityIn, blockOf, busyReasonText } from "#/domain/room-filter";
 
 type Slot = { spaceId: string; date: string; start: string; end: string };
 
@@ -19,12 +19,6 @@ type Props = {
 function capacityLabel(capacity: number | null): string {
   if (capacity === null) return "Capacidade não cadastrada";
   return capacity === 1 ? "1 lugar" : `${capacity} lugares`;
-}
-
-function reasonLabel(reason: BusyReason): string {
-  if (reason.kind === "past") return "Horário já passou";
-  if (reason.kind === "closed") return "Fora do horário de funcionamento";
-  return `${reason.title}, ${reason.start}–${reason.end}`;
 }
 
 function RoomHeader({ room }: { room: RoomDay }) {
@@ -105,8 +99,11 @@ export function RoomsFreeList({ rooms, window, now, canBook, onBook, onClearFilt
                 <div className="grid min-w-0 flex-1 gap-0.5">
                   <RoomHeader room={room} />
                   {reasons.map((reason) => (
-                    <p key={reasonLabel(reason)} className="truncate text-[13px] text-foreground">
-                      {reasonLabel(reason)}
+                    <p
+                      key={busyReasonText(reason)}
+                      className="truncate text-[13px] text-foreground"
+                    >
+                      {busyReasonText(reason)}
                     </p>
                   ))}
                 </div>

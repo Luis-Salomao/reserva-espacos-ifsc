@@ -95,6 +95,13 @@ export function availabilityIn<R extends Occupied>(
   return { free, busy };
 }
 
+/** Texto do motivo na tela ("Cálculo I, 14:00–15:40", "Horário já passou"...). */
+export function busyReasonText(reason: BusyReason): string {
+  if (reason.kind === "past") return "Horário já passou";
+  if (reason.kind === "closed") return "Fora do horário de funcionamento";
+  return `${reason.title}, ${reason.start}–${reason.end}`;
+}
+
 /** Mensagem da tela para janela com fim antes do início (ou igual); `null` se a janela vale. */
 export function windowIssue(window: TimeRange): string | null {
   return window.end <= window.start ? WINDOW_ISSUE : null;
