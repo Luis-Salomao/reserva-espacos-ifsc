@@ -19,6 +19,7 @@ import {
   discardImportBatch,
   type ImportDeps,
   prepareImport,
+  refreshResponsibles,
   saveRoomMappings,
   saveTeacherMappings,
   suggestMappings,
@@ -120,6 +121,7 @@ describe("ações de importação: controle de acesso", () => {
     ["saveTeacherMappings", (c, t) => saveTeacherMappings(c.deps, c.req(t), { items: [] })],
     ["prepareImport", (c, t) => prepareImport(c.deps, c.req(t), c.semester.id, XML)],
     ["applyImportBatch", (c, t) => applyImportBatch(c.deps, c.req(t), { batchId: "x" })],
+    ["refreshResponsibles", (c, t) => refreshResponsibles(c.deps, c.req(t), c.semester.id, XML)],
   ];
 
   for (const [name, call] of calls) {
@@ -348,5 +350,52 @@ describe("ações de importação: fluxo", () => {
       items: [{ sourceRoomId: "R1", sourceShort: "S1", spaceId: "nao-existe", ignored: false }],
     });
     expect(result.response).toMatchObject({ ok: false, status: 400, field: "spaceId" });
+  });
+
+  test("atualizar responsáveis: vínculo novo chega às aulas aplicadas; repetir não muda nada", async () => {
+    await saveRoomMappings(ctx.deps, ctx.req("adm"), {
+      items: [{ sourceRoomId: "R1", sourceShort: "101", spaceId: ctx.space.id, ignored: false }],
+    });
+    const prepared = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
+    if (!prepared.response.ok) throw new Error("prepare");
+    await applyImportBatch(ctx.deps, ctx.req("hor"), { batchId: prepared.response.data.batch.id });
+    await saveTeacherMappings(ctx.deps, ctx.req("adm"), {
+      items: [{ sourceTeacherId: "P1", sourceShort: "FT", userId: ctx.accounts.get("hor")?.id }],
+    });
+
+    const first = await refreshResponsibles(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
+    expect(first.response.ok).toBe(true);
+    if (!first.response.ok) return;
+    expect(first.response.data.changed).toBeGreaterThan(0);
+    expect(first.response.data.withoutResponsible).toBe(0);
+
+    const second = await refreshResponsibles(ctx.deps, ctx.req("adm"), ctx.semester.id, XML);
+    expect(second.response).toEqual({ ok: true, data: { changed: 0, withoutResponsible: 0 } });
+  });
+
+  test("atualizar responsáveis: outro arquivo é recusado; corpo inválido é 400", async () => {
+    const t = ctx.req("adm");
+    await saveRoomMappings(ctx.deps, t, {
+      items: [{ sourceRoomId: "R1", sourceShort: "101", spaceId: ctx.space.id, ignored: false }],
+    });
+    const prepared = await prepareImport(ctx.deps, t, ctx.semester.id, XML);
+    if (!prepared.response.ok) throw new Error("prepare");
+    await applyImportBatch(ctx.deps, t, { batchId: prepared.response.data.batch.id });
+
+    const other = new Uint8Array([...XML, ...new TextEncoder().encode("\n<!-- v2 -->")]);
+    const refused = await refreshResponsibles(ctx.deps, t, ctx.semester.id, other);
+    expect(refused.response).toMatchObject({
+      ok: false,
+      status: 400,
+      message: "Envie o mesmo arquivo da versão aplicada.",
+    });
+    for (const [semesterId, bytes] of [
+      ["", XML],
+      [ctx.semester.id, new Uint8Array()],
+      [ctx.semester.id, new TextEncoder().encode("não é xml")],
+    ] as const) {
+      const result = await refreshResponsibles(ctx.deps, t, semesterId, bytes);
+      expect(result.response).toMatchObject({ ok: false, status: 400 });
+    }
   });
 });
