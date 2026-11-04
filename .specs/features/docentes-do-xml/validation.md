@@ -211,3 +211,9 @@ Nota de método: a primeira execução de M5 e M10 rodou antes de a edição che
 **What works**: privacidade do DTO, login recusado para fantasma com a mesma falha e custo, e-mail presumido, gravação atômica de fantasmas e vínculos, reimportação sem duplicar, "Atualizar responsáveis" (hash, filtros, idempotência, 403), ativar e fundir (regras e resultado), migração aditiva.
 
 **Next steps**: executar Fix 1 e Fix 2 e chamar o Verifier de novo.
+
+## Correção após a verificação (orquestrador, sem nova rodada independente)
+
+- DOC-11 (M14): `user-repository.test.ts` ganhou "falha na última instrução desfaz responsáveis, vínculos e sessões já movidos"; um trigger `BEFORE DELETE ON users` aborta a fusão e o estado fica igual ao anterior. M14 reaplicado: 1 fail.
+- DOC-06 (M11): `Avatar` passou a ter `data-slot="avatar"`; os dois testes de visitante afirmam que não há nenhum avatar no cartão e o de fantasma afirma que há. As asserções comparam com `null` em booleano para a falha não despejar o DOM inteiro. M11 reaplicado: 2 fail.
+- `.specs/lessons.json` excluído do biome, como no ramo `feat/todas-as-salas`, para as lições entrarem no Git.

@@ -84,7 +84,7 @@ async function setup() {
       .orderBy(asc(schema.teacherMappings.sourceTeacherId)),
     sessions: (await db.select().from(schema.sessions)).map((s) => s.userId),
   });
-  return { db, repo: createUserRepository(db), snapshot };
+  return { db, sqlite, repo: createUserRepository(db), snapshot };
 }
 
 describe("mergeInto", () => {
@@ -125,6 +125,16 @@ describe("mergeInto", () => {
       expect(await env.repo.mergeInto(from ?? "", to ?? "")).toBe(false);
       expect(await env.snapshot()).toEqual(before);
     }
+  });
+
+  test("falha na última instrução desfaz responsáveis, vínculos e sessões já movidos", async () => {
+    const before = await env.snapshot();
+    env.sqlite.run(`CREATE TRIGGER falha_ao_apagar BEFORE DELETE ON users
+      BEGIN SELECT RAISE(ABORT, 'falha simulada'); END`);
+
+    await expect(env.repo.mergeInto("fantasma", "real")).rejects.toThrow("falha simulada");
+
+    expect(await env.snapshot()).toEqual(before);
   });
 });
 
