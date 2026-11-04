@@ -335,8 +335,10 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes: sem `visao` vale "Sala"; cada visualização manda o argumento certo à sua server fn (afirmar o argumento, lição L-010); trocar "Colunas"↔"Livres" não muda as deps; filtros inválidos descartados
-- [ ] Gate check passes: `bun test test/routes src/routes`
+- [x] Testes: sem `visao` vale "Sala"; cada visualização manda o argumento certo à sua server fn (afirmar o argumento, lição L-010); trocar "Colunas"↔"Livres" não muda as deps; filtros inválidos descartados
+- [x] Gate check passes: `bun test test/routes src/routes`
+
+**Desvio**: o loader devolve `fonte` junto dos dados (`sala` com os dados da agenda; `dia`/`semana` com os de `loadSalas`), e a página escolhe a tela por ela, para tela e dados nunca divergirem. Em "Colunas", "Livres" e "Visão geral" só vai uma chamada ao servidor (sem `listSpaces`). Já nesta tarefa `/` desenha a `RoomsView` nessas visualizações, com os botões de visão que ela já tinha; o seletor com "Sala" entra na T14. `validateAgendaSearch` reaproveita `validateSalasSearch` e aceita `visao=sala`.
 
 **Tests**: unit
 **Gate**: quick
