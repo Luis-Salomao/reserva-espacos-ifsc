@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/todas-as-salas/design.md`
-**Status**: Draft
+**Status**: Done
 
 ---
 
@@ -66,8 +66,8 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Teste: traz várias salas, exclui canceladas e fora do intervalo, ordem `(spaceId, startsAt)`
-- [ ] Gate check passes: `bun test`
+- [x] Teste: traz várias salas, exclui canceladas e fora do intervalo, ordem `(spaceId, startsAt)`
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full
@@ -86,8 +86,8 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: sala sem ocupação vem com o dia todo livre; visitante sem pessoas; data inválida falha; ordem natural de nomes
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: sala sem ocupação vem com o dia todo livre; visitante sem pessoas; data inválida falha; ordem natural de nomes
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick
@@ -106,8 +106,8 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Teste de ação: entrada inválida e caminho feliz
-- [ ] Gate check passes: `bun test src/server`
+- [x] Teste de ação: entrada inválida e caminho feliz
+- [x] Gate check passes: `bun test src/server`
 
 **Tests**: unit
 **Gate**: quick
@@ -126,8 +126,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes 1:1 com os ACs de filtro: blocos múltiplos e "Outros", capacidade com `hiddenNoCapacity`, busca sem acento, só livres, trecho passado conta como ocupado, janela padrão arredondada
-- [ ] Gate check passes: `bun test src/domain`
+- [x] Testes 1:1 com os ACs de filtro: blocos múltiplos e "Outros", capacidade com `hiddenNoCapacity`, busca sem acento, só livres, trecho passado conta como ocupado, janela padrão arredondada
+- [x] Gate check passes: `bun test src/domain`
+
+**Desvio**: `defaultWindow(now)` não recebe `date`: a janela é a mesma hora do dia em qualquer data escolhida, então o parâmetro ficaria sem uso. A janela começa no meio horário seguinte a agora (09:00 → 09:30, porque reservar exige início depois de agora) e não passa de 23:59. Entraram também `blocksOf` (chips da tela, com "Outros" por último), `windowIssue` (mensagem "O fim precisa ser depois do início") e `OTHER_BLOCK`. Blocos sem nenhuma sala são ignorados dentro de `filterRooms` (a rota só valida o formato). `isFreeIn` usa `DayAgenda.free`, então janela fora do expediente não é livre. `hiddenNoCapacity` conta só as salas sem capacidade que passariam nos outros filtros.
 
 **Tests**: unit
 **Gate**: quick
@@ -146,8 +148,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: data inválida vira hoje; capacidade fora de 1–999 ignorada; bloco inexistente ignorado
-- [ ] Gate check passes: `bun test test/routes`
+- [x] Testes: data inválida vira hoje; capacidade fora de 1–999 ignorada; bloco inexistente ignorado
+- [x] Gate check passes: `bun test test/routes`
+
+**Desvio**: a carga do dia ficou em `loadSalas(data, session, fetchDay)`, exportada da rota, para testar "data inválida vira hoje" e a falha do servidor sem subir o servidor. A rota valida só o formato do bloco (letra ou "Outros"); o bloco sem nenhuma sala é ignorado por `filterRooms` (T4).
 
 **Tests**: unit
 **Gate**: quick
@@ -166,8 +170,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Teste: item aparece para docente; link aparece para visitante
-- [ ] Gate check passes: `bun test src/components test/components`
+- [x] Teste: item aparece para docente; link aparece para visitante
+- [x] Gate check passes: `bun test src/components test/components`
+
+**Desvio**: o link "Todas as salas" é um `Link` do roteador; o teste antigo de 360 px que montava `AgendaView` sem roteador passou a usar `renderAgenda` (mesmas asserções). A opção "Ver todas as salas" dentro do seletor de sala fica para quando `room-selector.tsx` for commitado.
 
 **Tests**: unit
 **Gate**: quick
@@ -186,8 +192,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: cada controle chama `onChange` com o filtro certo; erro de janela; contador de filtros ativos
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: cada controle chama `onChange` com o filtro certo; erro de janela; contador de filtros ativos
+- [x] Gate check passes: `bun test test/components`
+
+**Desvio**: no celular, a janela (Início e Fim) fica fora do botão "Filtros" para a pergunta "o que está livre das 14 às 16?" caber em poucas interações; o contador do botão conta blocos, capacidade, busca e "Só livres". Sem filtro ativo o botão mostra só "Filtros". O componente recebe `compact` de quem decide a largura (T10).
 
 **Tests**: unit
 **Gate**: quick
@@ -206,8 +214,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: uma coluna por sala; link com `espaco` e `data`; rascunho aparece em uma coluna só
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: uma coluna por sala; link com `espaco` e `data`; rascunho aparece em uma coluna só
+- [x] Gate check passes: `bun test test/components`
+
+**Desvio**: a grade rola nas duas direções dentro de uma caixa com altura máxima, para o cabeçalho com os nomes (sticky no topo) e o eixo de horas (sticky à esquerda) ficarem fixos; `RoomDay` voltou a ser exportado de `bookings.ts` para os componentes.
 
 **Tests**: unit
 **Gate**: quick
@@ -226,8 +236,8 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: só livres; "Reservar" chama com sala e janela; vazio mostra "Limpar filtros"
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: só livres; "Reservar" chama com sala e janela; vazio mostra "Limpar filtros"
+- [x] Gate check passes: `bun test test/components`
 
 **Tests**: unit
 **Gate**: quick
@@ -246,12 +256,14 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: filtros mudam a URL; clicar no rascunho abre a reserva com sala, data e horário; visitante sem rascunho; erro com "Tentar de novo"
-- [ ] Verificação manual em 360 px e 1280 px (playwright)
-- [ ] Gate check passes: `bun run check`
+- [x] Testes: filtros mudam a URL; clicar no rascunho abre a reserva com sala, data e horário; visitante sem rascunho; erro com "Tentar de novo"
+- [x] Verificação manual em 360 px e 1280 px (playwright)
+- [x] Gate check passes: `bun run check`
 
 **Tests**: unit
 **Gate**: build
+
+**Desvio**: o tipo `SalasSearch` mora em `rooms-view.tsx` e a rota o importa (componente importando tipo da rota criaria ciclo no depcruise). A largura vem de `matchMedia("(max-width: 767px)")` via `useSyncExternalStore` (no servidor vale a tela larga). Filtros e visão trocam a URL com `replace`; trocar o dia entra no histórico. A janela só vai para a URL quando o usuário a muda; sem `ini`/`fim` vale `defaultWindow(now)`. O título da página é o dia escolhido (o nome "Todas as salas" fica no link da agenda). Clicar numa ocupação nas colunas não abre detalhes (fora da spec).
 
 **Commit**: `feat(agenda): tela de todas as salas`
 

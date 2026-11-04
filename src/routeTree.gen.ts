@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as MinhasReservasRouteImport } from './routes/minhas-reservas'
+import { Route as SalasRouteImport } from './routes/salas'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminContasRouteImport } from './routes/admin.contas'
 import { Route as AdminEspacosRouteImport } from './routes/admin.espacos'
@@ -45,6 +46,11 @@ const ImportarRoute = ImportarRouteImport.update({
 const MinhasReservasRoute = MinhasReservasRouteImport.update({
   id: '/minhas-reservas',
   path: '/minhas-reservas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SalasRoute = SalasRouteImport.update({
+  id: '/salas',
+  path: '/salas',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AdminIndexRoute = AdminIndexRouteImport.update({
@@ -118,6 +124,7 @@ export interface FileRoutesByFullPath {
   '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRouteWithChildren
   '/minhas-reservas': typeof MinhasReservasRoute
+  '/salas': typeof SalasRoute
   '/admin/contas': typeof AdminContasRoute
   '/admin/espacos': typeof AdminEspacosRoute
   '/api/entrar': typeof ApiEntrarRoute
@@ -136,6 +143,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/minhas-reservas': typeof MinhasReservasRoute
+  '/salas': typeof SalasRoute
   '/admin/contas': typeof AdminContasRoute
   '/admin/espacos': typeof AdminEspacosRoute
   '/api/entrar': typeof ApiEntrarRoute
@@ -156,6 +164,7 @@ export interface FileRoutesById {
   '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRouteWithChildren
   '/minhas-reservas': typeof MinhasReservasRoute
+  '/salas': typeof SalasRoute
   '/admin/contas': typeof AdminContasRoute
   '/admin/espacos': typeof AdminEspacosRoute
   '/api/entrar': typeof ApiEntrarRoute
@@ -177,6 +186,7 @@ export interface FileRouteTypes {
     | '/entrar'
     | '/importar'
     | '/minhas-reservas'
+    | '/salas'
     | '/admin/contas'
     | '/admin/espacos'
     | '/api/entrar'
@@ -195,6 +205,7 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/minhas-reservas'
+    | '/salas'
     | '/admin/contas'
     | '/admin/espacos'
     | '/api/entrar'
@@ -214,6 +225,7 @@ export interface FileRouteTypes {
     | '/entrar'
     | '/importar'
     | '/minhas-reservas'
+    | '/salas'
     | '/admin/contas'
     | '/admin/espacos'
     | '/api/entrar'
@@ -234,6 +246,7 @@ export interface RootRouteChildren {
   EntrarRoute: typeof EntrarRoute
   ImportarRoute: typeof ImportarRouteWithChildren
   MinhasReservasRoute: typeof MinhasReservasRoute
+  SalasRoute: typeof SalasRoute
   AdminContasRoute: typeof AdminContasRoute
   AdminEspacosRoute: typeof AdminEspacosRoute
   ApiEntrarRoute: typeof ApiEntrarRoute
@@ -274,6 +287,13 @@ declare module '@tanstack/react-router' {
       path: '/minhas-reservas'
       fullPath: '/minhas-reservas'
       preLoaderRoute: typeof MinhasReservasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/salas': {
+      id: '/salas'
+      path: '/salas'
+      fullPath: '/salas'
+      preLoaderRoute: typeof SalasRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/admin/': {
@@ -391,6 +411,7 @@ const rootRouteChildren: RootRouteChildren = {
   EntrarRoute: EntrarRoute,
   ImportarRoute: ImportarRouteWithChildren,
   MinhasReservasRoute: MinhasReservasRoute,
+  SalasRoute: SalasRoute,
   AdminContasRoute: AdminContasRoute,
   AdminEspacosRoute: AdminEspacosRoute,
   ApiEntrarRoute: ApiEntrarRoute,

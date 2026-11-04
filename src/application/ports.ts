@@ -287,6 +287,8 @@ type NewManualOccupation = {
 export interface OccupationRepository {
   /** Ocupações ativas do espaço que tocam `[from, to)`, por início. */
   listActiveInRange(spaceId: string, from: string, to: string): Promise<OccupationRecord[]>;
+  /** Ocupações ativas de todos os espaços que tocam `[from, to)`, por espaço, início e id. */
+  listActiveInRangeAll(from: string, to: string): Promise<OccupationRecord[]>;
   findById(id: string): Promise<OccupationRecord | null>;
   /**
    * Insere a reserva avulsa só se nenhuma ocupação ativa do espaço se sobrepõe, numa única

@@ -6,7 +6,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
 import { AgendaView, type AgendaViewProps } from "#/components/agenda/agenda-view";
 import type { Space } from "#/domain/space";
@@ -332,20 +332,18 @@ describe("AgendaView — Suíte 2: Linha do Tempo Diária Mobile (RNF-01, 360 px
 
   test("em 360 px renderiza timeline de um único dia sem grade semanal de colunas", async () => {
     const week = createMockWeekAgenda();
-    const { container } = render(
-      <AgendaView
-        spaces={MOCK_SPACES}
-        selectedSpaceId="space-adm"
-        selectedDate={MOCK_DATE_TUESDAY}
-        weekAgenda={week}
-        session={createMockSession()}
-        onSelectDate={() => {}}
-        onSelectSpace={() => {}}
-      />,
-    );
+    await renderAgenda({
+      spaces: MOCK_SPACES,
+      selectedSpaceId: "space-adm",
+      selectedDate: MOCK_DATE_TUESDAY,
+      weekAgenda: week,
+      session: createMockSession(),
+      onSelectDate: () => {},
+      onSelectSpace: () => {},
+    });
 
     expect(screen.getAllByText("Cálculo I").length).toBeGreaterThan(0);
-    const aside = container.querySelector("aside.side");
+    const aside = document.querySelector("aside.side");
     expect(aside).toBeTruthy();
     expect(aside?.className).toContain("hidden");
   });
@@ -617,6 +615,23 @@ describe("AgendaView — Suíte 5: Intervalos Livres Clicáveis", () => {
 });
 
 describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", () => {
+  test("visitante e logado veem 'Todas as salas', que leva ao mesmo dia", async () => {
+    for (const session of [createAnonymousSession(true), createMockSession()]) {
+      await renderAgenda({
+        spaces: MOCK_SPACES,
+        selectedSpaceId: "space-adm",
+        selectedDate: MOCK_DATE_TUESDAY,
+        weekAgenda: createMockWeekAgenda(),
+        session,
+        onSelectDate: () => {},
+        onSelectSpace: () => {},
+      });
+      const link = screen.getByRole("link", { name: "Todas as salas" });
+      expect(link.getAttribute("href")).toBe(`/salas?data=${MOCK_DATE_TUESDAY}`);
+      cleanup();
+    }
+  });
+
   test("visitante não autenticado vê banner informativo com botão de entrar", async () => {
     const week = createMockWeekAgenda();
     await renderAgenda({

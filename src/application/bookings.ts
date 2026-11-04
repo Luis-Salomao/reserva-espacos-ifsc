@@ -78,6 +78,11 @@ export type WeekAgenda = {
   days: DayAgenda[];
 };
 
+/** Agenda de um dia de uma sala, com o nome e a capacidade (`null` = não cadastrada). */
+export type RoomDay = DayAgenda & { space: { id: string; name: string; capacity: number | null } };
+
+export type RoomsDay = { date: string; now: string; rooms: RoomDay[] };
+
 export type BookingView = {
   id: string;
   spaceId: string;
@@ -180,6 +185,9 @@ function blocksFor(date: string, semesters: readonly Semester[]): AgendaBlock[] 
     end: block.end,
   }));
 }
+
+/** Ordem natural de nomes: "A-202" antes de "A-1000". */
+const byNaturalName = new Intl.Collator("pt-BR", { numeric: true, sensitivity: "base" });
 
 function buildDay(
   spaceId: string,
@@ -291,6 +299,38 @@ export function createBookingsService(deps: BookingsDeps) {
         days.push(buildDay(input.spaceId, date, now, hours, byDate.get(date) ?? [], all));
       }
       return ok({ spaceId: input.spaceId, weekStart: input.weekStart, now, days });
+    },
+
+    /**
+     * Um dia de todas as salas, em ordem natural de nome, com uma única consulta de ocupações.
+     * Fora de qualquer semestre o dia vem sem grade de blocos.
+     */
+    async roomsDay(viewer: User | null, input: { date: string }): Promise<Result<RoomsDay>> {
+      if (!isValidDate(input.date)) return fail("validation", "Informe uma data válida.", "date");
+      const now = nowLocal();
+      const [list, found, all, people] = await Promise.all([
+        spaces.list(),
+        occupations.listActiveInRangeAll(`${input.date}T00:00`, `${addDays(input.date, 1)}T00:00`),
+        semesters.list(),
+        peopleFor(viewer),
+      ]);
+      const covering = all.filter(
+        (semester) => semester.start <= input.date && input.date <= semester.end,
+      );
+      const bySpace = new Map<string, AgendaItem[]>();
+      for (const item of found) {
+        const view = toItem(item, viewer, now, people);
+        const items = bySpace.get(item.spaceId);
+        if (items) items.push(view);
+        else bySpace.set(item.spaceId, [view]);
+      }
+      const rooms = [...list]
+        .sort((a, b) => byNaturalName.compare(a.name, b.name))
+        .map((space) => ({
+          ...buildDay(space.id, input.date, now, hours, bySpace.get(space.id) ?? [], covering),
+          space: { id: space.id, name: space.name, capacity: space.capacity },
+        }));
+      return ok({ date: input.date, now, rooms });
     },
 
     /**
