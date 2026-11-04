@@ -73,8 +73,10 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes: os 9 textos de rótulo (3 estados × 3 tipos), "1 computador", `known` falso só para não informado, `isEquipmentKind`
-- [ ] Gate check passes: `bun test src/domain`
+- [x] Testes: os 9 textos de rótulo (3 estados × 3 tipos), "1 computador", `known` falso só para não informado, `isEquipmentKind`
+- [x] Gate check passes: `bun test src/domain` (128 testes)
+
+**Desvio**: `EQUIPMENT` traz também o rótulo do campo (`label`), para o formulário montar os campos a partir do catálogo.
 
 **Tests**: unit
 **Gate**: quick
@@ -93,8 +95,8 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes: blocos em ordem com "Outros espaços" no fim; andares em ordem com "Sem andar identificado" no fim; `A-202` antes de `A-1000`; nome sem código
-- [ ] Gate check passes: `bun test src/domain`
+- [x] Testes: blocos em ordem com "Outros espaços" no fim; andares em ordem com "Sem andar identificado" no fim; `A-202` antes de `A-1000`; nome sem código
+- [x] Gate check passes: `bun test src/domain` (140 testes)
 
 **Tests**: unit
 **Gate**: quick
