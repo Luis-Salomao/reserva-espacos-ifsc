@@ -143,10 +143,10 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| GERAL-01 | P1: Grade (AC 1, 3, 6) | T1, T2, T6, T9 | Pending |
-| GERAL-02 | P1: Grade (AC 2, 4) | T1, T6 | Pending |
+| GERAL-01 | P1: Grade (AC 1, 3, 6) | T1, T2, T6, T9 | In Progress (T1) |
+| GERAL-02 | P1: Grade (AC 2, 4) | T1, T6 | In Progress (T1) |
 | GERAL-03 | P1: Grade (AC 5, 7) | T2, T3, T4, T9 | Pending |
-| GERAL-04 | P1: Cor (AC 1, 2, 5) | T1, T6 | Pending |
+| GERAL-04 | P1: Cor (AC 1, 2, 5) | T1, T6 | In Progress (T1) |
 | GERAL-05 | P1: Cor (AC 3, 4) | T7 | Pending |
 | GERAL-06 | P1: Detalhe (AC 1, 4, 5) | T6, T8 | Pending |
 | GERAL-07 | P1: Detalhe (AC 2, 3) | T2, T8 | Pending |
