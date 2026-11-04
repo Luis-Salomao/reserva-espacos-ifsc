@@ -41,8 +41,32 @@ Seen once or not yet corroborated. Tracked, not trusted.
 ### L-005 - AC de layout responsivo deve dizer como será verificado, porque o happy-dom não mede rolagem
 - signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
 - features: todas-as-salas
-- evidence: spec.md Colunas AC4 (specs)
-- last seen: 2026-11-04T17:07:02Z
+- evidence: spec.md Colunas AC4 (specs) (+1 more)
+- last seen: 2026-11-04T17:24:57Z
+
+### L-006 - Teste que o loader da rota repassa as deps à busca de dados, não só o retorno de loaderDeps
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `routes` · harmful: 0
+- features: todas-as-salas
+- evidence: N1 src/routes/salas.tsx:121 (routes)
+- last seen: 2026-11-04T17:24:56Z
+
+### L-007 - Quando a spec define o que um contador conta em cada visão, afirme o contador em cada visão
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: todas-as-salas
+- evidence: N5 src/components/rooms/rooms-view.tsx:146 (components)
+- last seen: 2026-11-04T17:24:56Z
+
+### L-008 - Elemento sticky numa grade rolável só fica fixo se a grade tiver a largura do conteúdo; confira no navegador rolando até o fim, porque a classe sticky não prova o efeito
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: todas-as-salas
+- evidence: SALAS-03 Colunas AC4 src/components/rooms/rooms-columns.tsx:47 (components)
+- last seen: 2026-11-04T17:24:57Z
+
+### L-009 - Regras de horário na spec devem dizer o que acontece perto da meia-noite
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
+- features: todas-as-salas
+- evidence: spec.md:31 janela padrão; src/domain/room-filter.test.ts:200 (specs)
+- last seen: 2026-11-04T17:24:57Z
 
 ## Quarantined (failed when applied - ignore)
 

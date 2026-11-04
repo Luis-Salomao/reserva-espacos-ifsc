@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 6,
+  "next_id": 10,
   "lessons": [
     {
       "id": "L-001",
@@ -90,10 +90,83 @@
       "recurrence": 1,
       "harmful": 0,
       "evidence": [
-        "spec.md Colunas AC4 (specs)"
+        "spec.md Colunas AC4 (specs)",
+        "spec.md Colunas AC4 (rodada 2) (specs)"
       ],
       "created": "2026-11-04T17:07:02Z",
-      "last_seen": "2026-11-04T17:07:02Z"
+      "last_seen": "2026-11-04T17:24:57Z"
+    },
+    {
+      "id": "L-006",
+      "key": "surviving_mutant::teste que o loader da rota repassa as deps a busca de dados nao so o retorno de loaderdeps",
+      "text": "Teste que o loader da rota repassa as deps à busca de dados, não só o retorno de loaderDeps",
+      "signal": "surviving_mutant",
+      "scope": "routes",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "N1 src/routes/salas.tsx:121 (routes)"
+      ],
+      "created": "2026-11-04T17:24:56Z",
+      "last_seen": "2026-11-04T17:24:56Z"
+    },
+    {
+      "id": "L-007",
+      "key": "surviving_mutant::quando a spec define o que um contador conta em cada visao afirme o contador em cada visao",
+      "text": "Quando a spec define o que um contador conta em cada visão, afirme o contador em cada visão",
+      "signal": "surviving_mutant",
+      "scope": "components",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "N5 src/components/rooms/rooms-view.tsx:146 (components)"
+      ],
+      "created": "2026-11-04T17:24:56Z",
+      "last_seen": "2026-11-04T17:24:56Z"
+    },
+    {
+      "id": "L-008",
+      "key": "ac_gap::elemento sticky numa grade rolavel so fica fixo se a grade tiver a largura do conteudo confira no navegador rolando ate o fim porque a classe sticky nao prova o efeito",
+      "text": "Elemento sticky numa grade rolável só fica fixo se a grade tiver a largura do conteúdo; confira no navegador rolando até o fim, porque a classe sticky não prova o efeito",
+      "signal": "ac_gap",
+      "scope": "components",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "SALAS-03 Colunas AC4 src/components/rooms/rooms-columns.tsx:47 (components)"
+      ],
+      "created": "2026-11-04T17:24:57Z",
+      "last_seen": "2026-11-04T17:24:57Z"
+    },
+    {
+      "id": "L-009",
+      "key": "spec_precision_gap::regras de horario na spec devem dizer o que acontece perto da meia noite",
+      "text": "Regras de horário na spec devem dizer o que acontece perto da meia-noite",
+      "signal": "spec_precision_gap",
+      "scope": "specs",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "spec.md:31 janela padrão; src/domain/room-filter.test.ts:200 (specs)"
+      ],
+      "created": "2026-11-04T17:24:57Z",
+      "last_seen": "2026-11-04T17:24:57Z"
     }
   ]
 }
