@@ -440,6 +440,18 @@ T13 → T14 → T15 → T16 → T17
 
 ---
 
+## Correções da validação (rodada 1)
+
+Lacunas de `validation.md` (commit `52a864e`); nenhum código de produção mudou.
+
+- **Testes** (`test/components/rooms-overview.test.tsx`): arrasto entre dias afirmado logo após o arrasto, sem clique depois (L-013), e arrasto direto para outro dia sem trecho (M20); ordem livres → "Ocupadas" → ocupadas no painel por `compareDocumentPosition` (L-014, M30); Escape fecha o painel e volta a legenda (M21) e fecha o cartão do quadradinho focado (M22), com ausência afirmada no elemento (L-012); trecho em andamento com relógio entre o início e o fim do bloco: todas ocupadas com "Horário já passou", sem "Esse horário já terminou" nem "Reservar" (M27). Cada mutante foi aplicado à parte, derrubou só os testes novos e foi desfeito.
+- **Spec**: GERAL-01 AC1 com `/?visao=geral`; GERAL-06 AC6 (Escape fecha o cartão); GERAL-08 AC2 diz que "Só livres" não se aplica à visão geral (oculto e ignorado); GERAL-10 AC1–AC3 reescritos para o painel (clique seleciona o bloco com a sala da linha sugerida; a reserva, com a sala editável, sai do painel); GERAL-13 AC6 (terminado: só "Esse horário já terminou"), AC8 (em andamento) e AC9 (Escape fecha o painel).
+- **Design**: GERAL-10 descreve o fluxo pelo painel; observação de que `/salas?espaco=…` perde `espaco` no redirecionamento (`/salas` nunca usou o parâmetro; código mantido).
+
+**Commits**: `test(salas): arrasto entre dias, ordem do painel, Escape e trecho em andamento na visão geral`; `docs(specs): visão geral alinhada à seleção por painel`
+
+---
+
 ## Phase Execution Map
 
 ```

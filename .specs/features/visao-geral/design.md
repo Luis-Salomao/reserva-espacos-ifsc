@@ -127,11 +127,12 @@ graph TD
 - **Rota**: `/` passa a aceitar `visao` (`sala` padrão, `colunas`, `livres`, `geral`) e os filtros de salas. `loaderDeps` = `{ data, espaco, fonte }`, onde `fonte` é `sala`, `dia` ou `semana`: trocar "Colunas"↔"Livres" não recarrega. O loader chama `getWeekAgendaFn` (sala), `getRoomsDayFn` (dia) ou `getRoomsWeekFn` (semana), reaproveitando `loadSalas`.
 - **Tela**: `ViewSwitcher` em `src/components/view-switcher.tsx`, usado nos cabeçalhos de `AgendaView` e `RoomsView`; a página escolhe qual das duas renderizar. Nome de sala e quadradinho ocupado navegam para `visao=sala` com `espaco` e `data`.
 - **`/salas`**: `beforeLoad` com `redirect` para `/`, mantendo os parâmetros e `visao=colunas` quando ausente.
+  - Observação: "mantendo os parâmetros" vale para os que `/salas` aceitava. `validateSalasSearch` não conhece `espaco`, então `/salas?espaco=…` chega a `/` sem ele; `/salas` nunca usou esse parâmetro e o código fica assim.
 - **Menu**: sai "Salas" do `app-shell`; sai o link "Todas as salas" da agenda; "Ver todas as salas" do seletor de sala navega para `visao=colunas`.
 
 ### Reservar pelo quadradinho (GERAL-10)
 
-- `OverviewCell` livre e de bloco não terminado chama `onBook({ spaceId, date, start, end })` com o horário do bloco; `RoomsView.book` já decide entre `BookingSheet` (pode reservar) e `GateDialog` (visitante). Após reservar, `router.invalidate` recarrega a semana.
+- Desde a T17, `OverviewCell` livre só seleciona o bloco (`onSelect`) e o painel `OverviewSelection` chama `onBook({ spaceId, date, start, end })` com o trecho; `RoomsView.book` decide entre `BookingSheet` (pode reservar) e `GateDialog` (visitante). Após reservar, `router.invalidate` recarrega a semana.
 
 ---
 

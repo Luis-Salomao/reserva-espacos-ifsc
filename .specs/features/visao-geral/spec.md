@@ -35,7 +35,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | Animação | Ao passar o mouse ou focar, o quadradinho cresce (scale 1.6, 120 ms) e abre um cartão com detalhes; sem animação com `prefers-reduced-motion` | Pedido do usuário, com respeito à acessibilidade | n |
 | Celular | Abaixo de 768 px mostra um dia por vez (salas × blocos), com troca de dia por abas | Semana inteira não cabe em 360 px | n |
 | Fora de semestre | Sem blocos: mostra "Esta semana não tem blocos de horário" e sugere a visão "Colunas" | Sem blocos não há grade | n |
-| Reservar pelo quadradinho | Quadradinho livre abre a reserva com sala, dia e horário do bloco; a sala continua editável | Pedido do usuário em 2026-11-04 | y |
+| Reservar pelo quadradinho | Quadradinho livre seleciona o bloco e abre o painel com a sala da linha sugerida; "Reservar" no painel abre a reserva com sala, dia e horário; a sala continua editável | Pedido do usuário em 2026-11-04; o painel veio com GERAL-13 | y |
 | Página única | Agenda e salas viram uma página (`/`) com as visualizações "Sala", "Colunas", "Livres" e "Visão geral"; `/salas` redireciona | Pedido do usuário: "não faz sentido serem lugares diferentes" | y |
 | Visualização padrão | "Sala" (a agenda de uma sala), em qualquer largura | Escolha do usuário | y |
 | Livres primeiro | Na visão "Livres" e na escolha de sala da reserva, livres primeiro e depois as ocupadas com o motivo (o que ocupa e o horário) | Pedido do usuário | y |
@@ -54,7 +54,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 
 **Acceptance Criteria**:
 
-1. WHEN o usuário abre `/salas?visao=geral&data=AAAA-MM-DD` THEN o sistema SHALL mostrar uma linha por sala e, para cada dia de segunda a sexta daquela semana, uma coluna por bloco do semestre.
+1. WHEN o usuário abre `/?visao=geral&data=AAAA-MM-DD` THEN o sistema SHALL mostrar uma linha por sala e, para cada dia de segunda a sexta daquela semana, uma coluna por bloco do semestre.
 2. WHEN um bloco tem ocupação THEN o sistema SHALL pintar o quadradinho com a cor da matéria da ocupação.
 3. WHEN um bloco está livre THEN o sistema SHALL mostrar o quadradinho vazio, só com contorno.
 4. IF mais de uma ocupação cruza o mesmo bloco THEN o sistema SHALL dividir o quadradinho em faixas, uma por ocupação.
@@ -97,6 +97,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 3. WHILE o usuário for visitante the sistema SHALL NOT mostrar nome, iniciais nem avatar no cartão.
 4. WHERE o sistema operacional pede movimento reduzido the sistema SHALL abrir o cartão sem animação de escala.
 5. WHEN o usuário clica num quadradinho ocupado THEN o sistema SHALL abrir a visualização "Sala" daquela sala no dia do quadradinho, na mesma página.
+6. WHEN o cartão de detalhe está aberto e o usuário aperta Escape no quadradinho THEN o sistema SHALL fechar o cartão.
 
 **Independent Test**: Passar o mouse numa aula, ver o quadradinho crescer e o cartão com os dados; navegar com Tab e ver o mesmo cartão.
 
@@ -111,7 +112,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 **Acceptance Criteria**:
 
 1. THE sistema SHALL mostrar sempre visíveis apenas a navegação de data, a busca de sala e, na visão "Livres", a janela de horário (é a pergunta dessa visão).
-2. WHEN o usuário abre "Filtros" THEN o sistema SHALL mostrar bloco, capacidade mínima e "Só livres".
+2. WHEN o usuário abre "Filtros" THEN o sistema SHALL mostrar bloco, capacidade mínima e "Só livres"; na "Visão geral", "Só livres" não se aplica (a grade já mostra livres e ocupados): fica oculto e, se vier na URL, é ignorado.
 3. WHILE houver filtro ativo escondido the sistema SHALL mostrar a contagem no botão ("Filtros · 2").
 4. WHEN a visão "Colunas" ou "Livres" abre THEN o sistema SHALL seguir a mesma regra de filtros recolhidos.
 
@@ -137,19 +138,19 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 
 ### P1: Reservar pelo quadradinho
 
-**User Story**: Como docente, quero clicar num quadradinho livre e já reservar aquele bloco, escolhendo a sala na reserva.
+**User Story**: Como docente, quero clicar num quadradinho livre e reservar aquele bloco a partir dali, escolhendo a sala na reserva.
 
 **Why P1**: Pedido do usuário; a grade mostra os buracos, então reservar dali é o passo natural.
 
 **Acceptance Criteria**:
 
-1. WHEN quem pode reservar clica (ou toca, no celular) num quadradinho livre de um bloco que ainda não terminou THEN o sistema SHALL abrir a reserva com a sala, o dia e o horário do bloco preenchidos.
-2. THE sistema SHALL deixar a sala editável na reserva aberta pelo quadradinho.
-3. IF o visitante clica num quadradinho livre THEN o sistema SHALL mostrar o convite para entrar, sem abrir a reserva.
+1. WHEN quem pode reservar clica (ou toca, no celular) num quadradinho livre de um bloco que ainda não terminou THEN o sistema SHALL selecionar aquele bloco e abrir o painel de seleção (GERAL-13) com a sala da linha sugerida primeiro; a reserva SHALL sair do botão "Reservar" do painel, com a sala, o dia e o horário do trecho preenchidos.
+2. THE sistema SHALL deixar a sala editável no formulário da reserva aberta pelo painel.
+3. IF o visitante clica num quadradinho livre THEN o sistema SHALL selecionar o bloco e abrir o painel como no AC1; ao escolher "Reservar" no painel, SHALL mostrar o convite para entrar, sem abrir a reserva.
 4. IF o bloco do quadradinho livre já terminou THEN o sistema SHALL NOT abrir a reserva.
 5. WHEN a reserva é confirmada THEN o sistema SHALL recarregar a semana e pintar o bloco reservado.
 
-**Independent Test**: Logado como docente, clicar num quadradinho livre de amanhã, ver a reserva com sala, dia e horário do bloco, trocar a sala e confirmar.
+**Independent Test**: Logado como docente, clicar num quadradinho livre de amanhã, ver o painel com a sala da linha sugerida, escolher "Reservar", ver a reserva com sala, dia e horário do bloco, trocar a sala e confirmar.
 
 ---
 
@@ -203,8 +204,10 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 3. WHEN um trecho é selecionado THEN o sistema SHALL abrir um painel com o dia e o horário, as salas livres primeiro e depois as ocupadas com o motivo (mesma regra da visão "Livres").
 4. THE sistema SHALL permitir no painel filtrar por bloco e por andar e ajustar início e fim.
 5. WHEN o usuário escolhe uma sala livre no painel THEN o sistema SHALL abrir a reserva com sala, dia e horário do trecho; visitante vê o convite para entrar.
-6. IF o trecho já terminou THEN o sistema SHALL NOT oferecer reserva no painel.
+6. IF o trecho já terminou (o fim já passou) THEN o sistema SHALL mostrar no painel só "Esse horário já terminou", sem listas de salas nem reserva.
 7. WHILE a largura for menor que 768 px the sistema SHALL selecionar por toque um bloco por vez e permitir ajustar início e fim no painel.
+8. IF o trecho já começou mas ainda não terminou THEN o sistema SHALL listar no painel todas as salas como ocupadas, cada uma com o motivo "Horário já passou" (e as ocupações que cruzam o trecho), e SHALL NOT oferecer reserva.
+9. WHEN o painel de seleção está aberto e o usuário aperta Escape THEN o sistema SHALL fechar o painel, tirar o destaque dos quadradinhos e voltar a mostrar a legenda.
 
 **Independent Test**: Na visão geral, arrastar a tarde de quarta, ver 1 sala livre no topo do painel, filtrar por bloco e andar, escolher a livre e ver a reserva preenchida.
 
@@ -243,14 +246,14 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | GERAL-03 | P1: Grade (AC 5, 7) | T2, T3, T4, T9 | Verified |
 | GERAL-04 | P1: Cor (AC 1, 2, 5) | T1, T6 | Verified |
 | GERAL-05 | P1: Cor (AC 3, 4) | T7 | Verified |
-| GERAL-06 | P1: Detalhe (AC 1, 4, 5) | T6, T8 | Verified |
+| GERAL-06 | P1: Detalhe (AC 1, 4, 5, 6) | T6, T8, T17 | Done |
 | GERAL-07 | P1: Detalhe (AC 2, 3) | T2, T8 | Verified |
-| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | Needs Fix |
+| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | Done |
 | GERAL-09 | P2: Celular (AC 1–3) | T9 | Verified |
-| GERAL-10 | P1: Reservar pelo quadradinho (AC 1–5) | T10 | Needs Fix |
+| GERAL-10 | P1: Reservar pelo quadradinho (AC 1–5) | T10, T17 | Done |
 | GERAL-11 | P1: Página única (AC 1–6) | T13, T14, T15 | Verified |
 | GERAL-12 | P1: Livres primeiro (AC 1–5) | T11, T12 | Verified |
-| GERAL-13 | P1: Selecionar horário (AC 1–7) | T17 | Needs Fix |
+| GERAL-13 | P1: Selecionar horário (AC 1–9) | T17 | Done |
 | GERAL-14 | P2: Filtro por andar (AC 1–3) | T16, T17 (painel) | Verified |
 
 **Coverage:** 14 total, 14 mapped to tasks, 0 unmapped
