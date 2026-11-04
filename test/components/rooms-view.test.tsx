@@ -1,0 +1,333 @@
+import { beforeEach, describe, expect, mock, test } from "bun:test";
+import {
+  createMemoryHistory,
+  createRootRoute,
+  createRouter,
+  RouterProvider,
+  useNavigate,
+  useSearch,
+} from "@tanstack/react-router";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type { AgendaItem, BookingView, RoomDay, RoomsDay } from "#/application/bookings";
+import type { BookingSheetProps } from "#/components/agenda/booking-sheet";
+import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
+import { validateSalasSearch } from "#/routes/salas";
+
+const DATE = "2030-11-12";
+const NOW = "2030-11-11T09:00";
+
+function room(
+  id: string,
+  name: string,
+  capacity: number | null,
+  occupations: AgendaItem[] = [],
+): RoomDay {
+  const free =
+    occupations.length === 0
+      ? [{ start: "06:00", end: "23:00" }]
+      : [
+          { start: "06:00", end: "14:00" },
+          { start: "15:00", end: "23:00" },
+        ];
+  return {
+    spaceId: id,
+    date: DATE,
+    now: NOW,
+    hours: { opens: "06:00", closes: "23:00" },
+    occupations,
+    free,
+    blocks: [],
+    space: { id, name, capacity },
+  };
+}
+
+const lesson: AgendaItem = {
+  id: "o1",
+  date: DATE,
+  start: "14:00",
+  end: "15:00",
+  title: "Cálculo I",
+  source: "import",
+  status: "ativa",
+  canCancel: false,
+  mine: false,
+  person: null,
+};
+
+const DAY: RoomsDay = {
+  date: DATE,
+  now: NOW,
+  rooms: [
+    room("a202", "A-202", 40, [lesson]),
+    room("b104", "B-104", 25),
+    room("lab", "LAB 1", null),
+  ],
+};
+
+function setCompact(compact: boolean) {
+  window.matchMedia = (query: string) =>
+    ({
+      matches: compact && query.includes("max-width"),
+      media: query,
+      onchange: null,
+      addListener: () => {},
+      removeListener: () => {},
+      addEventListener: () => {},
+      removeEventListener: () => {},
+      dispatchEvent: () => true,
+    }) as unknown as MediaQueryList;
+}
+
+type Options = {
+  roomsDay?: RoomsDay | null;
+  error?: string | null;
+  canBook?: boolean;
+  isVisitor?: boolean;
+  isAdmin?: boolean;
+  url?: string;
+  createFn?: BookingSheetProps["createFn"];
+};
+
+async function setup(options: Options = {}) {
+  const loads = { count: 0 };
+  const onRetry = mock();
+  const root = createRootRoute({
+    validateSearch: validateSalasSearch,
+    loader: () => {
+      loads.count++;
+    },
+    component: function Page() {
+      const search = useSearch({ strict: false }) as SalasSearch;
+      const navigate = useNavigate();
+      return (
+        <RoomsView
+          roomsDay={options.roomsDay === undefined ? DAY : options.roomsDay}
+          error={options.error ?? null}
+          selectedDate={DATE}
+          search={search}
+          canBook={options.canBook ?? true}
+          isVisitor={options.isVisitor ?? false}
+          isAdmin={options.isAdmin ?? false}
+          timeZone="America/Sao_Paulo"
+          onSearchChange={(update, replace) =>
+            void navigate({ to: ".", search: update as never, replace })
+          }
+          onRetry={onRetry}
+          createFn={options.createFn}
+        />
+      );
+    },
+  });
+  const router = createRouter({
+    routeTree: root,
+    history: createMemoryHistory({ initialEntries: [options.url ?? "/"] }),
+  });
+  await router.load();
+  render(<RouterProvider router={router} />);
+  await screen.findByTestId("rooms-view");
+  return { router, loads, onRetry };
+}
+
+const columnOf = (id: string) =>
+  document.querySelector(`[data-room-column='${id}'] .relative.min-w-0`) as HTMLElement | null;
+
+/** Altura na coluna (0,9 px/min, folga de 10 px, abre às 06:00). */
+const yAt = (time: string) => {
+  const [h = 0, m = 0] = time.split(":").map(Number);
+  return 10 + (h * 60 + m - 360) * 0.9;
+};
+
+function drag(column: HTMLElement, from: string, to: string) {
+  const at = (time: string) => ({
+    clientY: yAt(time),
+    pointerId: 1,
+    pointerType: "mouse",
+    button: 0,
+  });
+  fireEvent.pointerDown(column, at(from));
+  fireEvent.pointerMove(column, at(to));
+  fireEvent.pointerUp(column, at(to));
+}
+
+const freeNames = () =>
+  screen.queryAllByRole("listitem").map((item) => within(item).getByRole("heading").textContent);
+
+beforeEach(() => setCompact(false));
+
+describe("RoomsView", () => {
+  test("no computador abre em 'Colunas' com uma coluna por sala", async () => {
+    await setup();
+    expect(screen.getByRole("button", { name: "Colunas" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(columnOf("a202")).not.toBeNull();
+    expect(columnOf("lab")).not.toBeNull();
+    expect(screen.getByText("3 de 3 salas")).toBeDefined();
+  });
+
+  test("filtros mudam a URL e o resultado", async () => {
+    const { router } = await setup();
+    fireEvent.click(screen.getByRole("button", { name: "Bloco B" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ bloco: ["B"] }));
+    expect(screen.getByText("1 de 3 salas")).toBeDefined();
+    expect(columnOf("a202")).toBeNull();
+    expect(columnOf("b104")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("switch", { name: "Só livres" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ bloco: ["B"], livres: true }),
+    );
+    fireEvent.change(screen.getByLabelText("Início"), { target: { value: "14:00" } });
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ ini: "14:00", fim: "10:30" }),
+    );
+  });
+
+  test("trocar de visão vai para a URL", async () => {
+    const { router } = await setup();
+    fireEvent.click(screen.getByRole("button", { name: "Livres" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ visao: "livres" }));
+    expect(screen.getAllByRole("listitem").length).toBeGreaterThan(0);
+  });
+
+  test("trocar o dia vai para a URL", async () => {
+    const { router } = await setup();
+    fireEvent.click(screen.getByRole("button", { name: "Próximo dia" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ data: "2030-11-13" }));
+  });
+
+  test("no celular, sem visão na URL, abre em 'Livres' com os filtros no botão", async () => {
+    setCompact(true);
+    await setup({ url: "/?ini=14:00&fim=16:00" });
+    expect(screen.getByRole("button", { name: "Livres" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(freeNames()).toEqual(["B-104", "LAB 1"]);
+    expect(screen.getByRole("button", { name: "Filtros" })).toBeDefined();
+    expect(columnOf("a202")).toBeNull();
+  });
+
+  test("no celular, a visão da URL prevalece", async () => {
+    setCompact(true);
+    await setup({ url: "/?visao=colunas" });
+    expect(columnOf("a202")).not.toBeNull();
+  });
+
+  test("clicar no rascunho abre 'Nova reserva' com sala, data e horário", async () => {
+    await setup();
+    drag(columnOf("b104") as HTMLElement, "14:00", "15:30");
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    fireEvent.click(screen.getByRole("button", { name: /^Rascunho/ }));
+    const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
+    expect((within(dialog).getByLabelText("Sala") as HTMLSelectElement).value).toBe("b104");
+    expect((within(dialog).getByLabelText("Data") as HTMLInputElement).value).toBe(DATE);
+    expect((within(dialog).getByLabelText("Início") as HTMLInputElement).value).toBe("14:00");
+    expect((within(dialog).getByLabelText("Fim") as HTMLInputElement).value).toBe("15:30");
+  });
+
+  test("Esc descarta o rascunho", async () => {
+    await setup();
+    drag(columnOf("b104") as HTMLElement, "14:00", "15:30");
+    expect(screen.queryAllByRole("button", { name: /^Rascunho/ })).toHaveLength(1);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryAllByRole("button", { name: /^Rascunho/ })).toHaveLength(0);
+  });
+
+  test("'Reservar' na lista abre a reserva com a janela; ao reservar, os dados são recarregados", async () => {
+    const createFn = mock(async (input: { data: Record<string, string> }) => ({
+      ok: true as const,
+      data: {
+        id: "nova",
+        spaceId: input.data.spaceId ?? "",
+        date: input.data.date ?? "",
+        start: input.data.start ?? "",
+        end: input.data.end ?? "",
+        title: input.data.purpose ?? "",
+      } satisfies BookingView,
+    }));
+    const { loads } = await setup({ url: "/?visao=livres&ini=14:00&fim=16:00", createFn });
+    const before = loads.count;
+    fireEvent.click(screen.getByRole("button", { name: "Reservar LAB 1, 14:00–16:00" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
+    expect((within(dialog).getByLabelText("Sala") as HTMLSelectElement).value).toBe("lab");
+    expect((within(dialog).getByLabelText("Início") as HTMLInputElement).value).toBe("14:00");
+    expect((within(dialog).getByLabelText("Fim") as HTMLInputElement).value).toBe("16:00");
+    fireEvent.change(within(dialog).getByLabelText(/Finalidade/), {
+      target: { value: "Reunião" },
+    });
+    fireEvent.click(within(dialog).getByRole("button", { name: "Reservar" }));
+    await screen.findByTestId("booking-success-view");
+    expect(createFn).toHaveBeenCalledTimes(1);
+    expect(createFn.mock.calls[0]?.[0].data).toMatchObject({
+      spaceId: "lab",
+      date: DATE,
+      start: "14:00",
+      end: "16:00",
+    });
+    await waitFor(() => expect(loads.count).toBeGreaterThan(before));
+  });
+
+  test("visitante não desenha rascunho, não vê 'Reservar' e o horário livre pede login", async () => {
+    await setup({ canBook: false, isVisitor: true });
+    const column = columnOf("b104") as HTMLElement;
+    drag(column, "14:00", "15:30");
+    expect(screen.queryAllByRole("button", { name: /^Rascunho/ })).toHaveLength(0);
+    fireEvent.click(within(column).getByRole("button", { name: /^Livre/ }));
+    expect(await screen.findByText("Entre para reservar")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Agora não" }));
+    await waitFor(() => expect(screen.queryByText("Entre para reservar")).toBeNull());
+
+    fireEvent.click(screen.getByRole("button", { name: "Livres" }));
+    await waitFor(() => expect(screen.getAllByRole("listitem").length).toBeGreaterThan(0));
+    expect(screen.queryByRole("button", { name: /^Reservar/ })).toBeNull();
+  });
+
+  test("janela com fim antes do início avisa e mantém a lista anterior", async () => {
+    const { router } = await setup({ url: "/?visao=livres&ini=14:00&fim=16:00" });
+    expect(freeNames()).toEqual(["B-104", "LAB 1"]);
+    fireEvent.change(screen.getByLabelText("Fim"), { target: { value: "13:00" } });
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ fim: "13:00" }));
+    expect(screen.getByRole("alert").textContent).toBe("O fim precisa ser depois do início");
+    expect(freeNames()).toEqual(["B-104", "LAB 1"]);
+  });
+
+  test("sem sala nos filtros, avisa e 'Limpar filtros' tira os filtros da URL", async () => {
+    const { router } = await setup({ url: "/?q=xyz&cap=10" });
+    expect(screen.getByText("Nenhuma sala com esses filtros")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+    expect(columnOf("a202")).not.toBeNull();
+  });
+
+  test("capacidade mínima avisa quantas salas sem capacidade ficaram de fora", async () => {
+    await setup({ url: "/?cap=30" });
+    expect(screen.getByText("1 de 3 salas")).toBeDefined();
+    expect(screen.getByText("1 sala sem capacidade cadastrada ficou de fora")).toBeDefined();
+  });
+
+  test("falha do servidor mantém a URL e oferece 'Tentar de novo'", async () => {
+    const { onRetry, router } = await setup({
+      roomsDay: null,
+      error: "Não foi possível carregar as salas",
+      url: "/?bloco=A",
+    });
+    expect(screen.getByRole("alert").textContent).toContain("Não foi possível carregar as salas");
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(onRetry).toHaveBeenCalledTimes(1);
+    expect(router.state.location.search).toEqual({ bloco: ["A"] });
+  });
+
+  test("sem salas cadastradas, avisa; admin recebe o atalho para cadastrar", async () => {
+    await setup({ roomsDay: { date: DATE, now: NOW, rooms: [] }, isAdmin: true });
+    expect(screen.getByText("Nenhuma sala cadastrada")).toBeDefined();
+    expect(screen.getByRole("link", { name: "Cadastrar espaços" }).getAttribute("href")).toBe(
+      "/admin/espacos",
+    );
+  });
+
+  test("sem salas cadastradas, quem não é admin não recebe o atalho", async () => {
+    await setup({ roomsDay: { date: DATE, now: NOW, rooms: [] } });
+    expect(screen.getByText("Nenhuma sala cadastrada")).toBeDefined();
+    expect(screen.queryByRole("link", { name: "Cadastrar espaços" })).toBeNull();
+  });
+});

@@ -1,24 +1,11 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import type { RoomsDay } from "#/application/bookings";
 import { AppShell } from "#/components/app-shell";
-import { PageHeader } from "#/components/page";
+import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
 import { localNow } from "#/domain/availability";
 import { isValidDate, isValidTime } from "#/domain/semester";
 import { getRoomsDayFn } from "#/server/booking-fns";
 import { ADMIN_ROLES, BOOKING_ROLES, canViewHome, type SessionInfo } from "#/server/session";
-
-export type SalasView = "colunas" | "livres";
-
-export type SalasSearch = {
-  data?: string;
-  visao?: SalasView;
-  bloco?: string[];
-  cap?: number;
-  q?: string;
-  ini?: string;
-  fim?: string;
-  livres?: true;
-};
 
 const LOAD_ERROR = "Não foi possível carregar as salas";
 const MAX_QUERY = 60;
@@ -136,9 +123,24 @@ export const Route = createFileRoute("/salas")({
 });
 
 function SalasPage() {
+  const data = Route.useLoaderData();
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const router = useRouter();
   return (
     <AppShell wide>
-      <PageHeader title="Todas as salas" />
+      <RoomsView
+        roomsDay={data.roomsDay}
+        error={data.error}
+        selectedDate={data.selectedDate}
+        search={search}
+        canBook={data.canBook}
+        isVisitor={data.isVisitor}
+        isAdmin={data.isAdmin}
+        timeZone={data.session.timeZone}
+        onSearchChange={(update, replace) => void navigate({ search: update, replace })}
+        onRetry={() => void router.invalidate()}
+      />
     </AppShell>
   );
 }

@@ -9,7 +9,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/todas-as-salas/design.md`
-**Status**: Draft
+**Status**: Done
 
 ---
 
@@ -256,12 +256,14 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: filtros mudam a URL; clicar no rascunho abre a reserva com sala, data e horário; visitante sem rascunho; erro com "Tentar de novo"
-- [ ] Verificação manual em 360 px e 1280 px (playwright)
-- [ ] Gate check passes: `bun run check`
+- [x] Testes: filtros mudam a URL; clicar no rascunho abre a reserva com sala, data e horário; visitante sem rascunho; erro com "Tentar de novo"
+- [x] Verificação manual em 360 px e 1280 px (playwright)
+- [x] Gate check passes: `bun run check`
 
 **Tests**: unit
 **Gate**: build
+
+**Desvio**: o tipo `SalasSearch` mora em `rooms-view.tsx` e a rota o importa (componente importando tipo da rota criaria ciclo no depcruise). A largura vem de `matchMedia("(max-width: 767px)")` via `useSyncExternalStore` (no servidor vale a tela larga). Filtros e visão trocam a URL com `replace`; trocar o dia entra no histórico. A janela só vai para a URL quando o usuário a muda; sem `ini`/`fim` vale `defaultWindow(now)`. O título da página é o dia escolhido (o nome "Todas as salas" fica no link da agenda). Clicar numa ocupação nas colunas não abre detalhes (fora da spec).
 
 **Commit**: `feat(agenda): tela de todas as salas`
 
