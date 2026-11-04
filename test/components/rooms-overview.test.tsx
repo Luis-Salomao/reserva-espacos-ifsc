@@ -73,7 +73,13 @@ const WEEK: RoomsWeek = {
 async function renderOverview(options: { isVisitor?: boolean } = {}) {
   const root = createRootRoute({
     component: () => (
-      <RoomsOverview week={WEEK} rooms={WEEK.rooms} isVisitor={options.isVisitor ?? false} />
+      <RoomsOverview
+        week={WEEK}
+        rooms={WEEK.rooms}
+        isVisitor={options.isVisitor ?? false}
+        compact={false}
+        selectedDate={MON}
+      />
     ),
   });
   const router = createRouter({

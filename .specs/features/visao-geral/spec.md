@@ -238,15 +238,15 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| GERAL-01 | P1: Grade (AC 1, 3, 6) | T1, T2, T6, T9 | In Progress (T1, T2, T6) |
+| GERAL-01 | P1: Grade (AC 1, 3, 6) | T1, T2, T6, T9 | Done |
 | GERAL-02 | P1: Grade (AC 2, 4) | T1, T6 | Done |
-| GERAL-03 | P1: Grade (AC 5, 7) | T2, T3, T4, T9 | In Progress (T2, T3, T4) |
+| GERAL-03 | P1: Grade (AC 5, 7) | T2, T3, T4, T9 | Done |
 | GERAL-04 | P1: Cor (AC 1, 2, 5) | T1, T6 | Done |
 | GERAL-05 | P1: Cor (AC 3, 4) | T7 | Done |
 | GERAL-06 | P1: Detalhe (AC 1, 4, 5) | T6, T8 | Done |
 | GERAL-07 | P1: Detalhe (AC 2, 3) | T2, T8 | Done |
-| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | In Progress (T5) |
-| GERAL-09 | P2: Celular (AC 1–3) | T9 | Pending |
+| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | Done |
+| GERAL-09 | P2: Celular (AC 1–3) | T9 | Done |
 | GERAL-10 | P1: Reservar pelo quadradinho (AC 1–5) | T10 | Pending |
 | GERAL-11 | P1: Página única (AC 1–6) | T13, T14, T15 | Pending |
 | GERAL-12 | P1: Livres primeiro (AC 1–5) | T11, T12 | Pending |

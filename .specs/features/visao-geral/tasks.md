@@ -243,9 +243,13 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes: escolher "Visão geral" muda a URL; setas trocam a semana (±7 dias); semana sem blocos mostra o aviso e o atalho; celular mostra abas e um dia por vez; toque abre o cartão em vez de navegar
-- [ ] Verificação manual (playwright) em 1280 × 800 sem rolagem vertical com 21 salas e em 360 px
-- [ ] Gate check passes: `bun run check`
+- [x] Testes: escolher "Visão geral" muda a URL; setas trocam a semana (±7 dias); semana sem blocos mostra o aviso e o atalho; celular mostra abas e um dia por vez; toque abre o cartão em vez de navegar
+- [x] Verificação manual (playwright) em 1280 × 800 sem rolagem vertical com 21 salas e em 360 px
+- [x] Gate check passes: `bun run check`
+
+**Desvio**: com as cerca de 90 matérias do banco real, a legenda em cima da grade empurrava a página para 1121 px de altura. Na tela larga (`xl`) ela fica à direita da grade, com a altura da grade e rolagem própria; abaixo disso fica em cima, com altura máxima e rolagem. No celular, o cartão é aberto e fechado pelo próprio quadradinho (botão), não por um `Popover`; a coluna de nomes tem 5rem com nome truncado, para os 7 blocos do dia caberem em 360 px. O atalho da semana sem blocos é o botão "Ver em Colunas"; as setas se chamam "Semana anterior" e "Próxima semana"; o título é "Semana de 2 a 6 de novembro". Na visão geral, o filtro aplica bloco, capacidade e busca.
+
+**Verificação manual** (2026-11-04, cópia local do banco com 21 salas e o semestre 2026.2, visitante): em 1280 × 800, `scrollHeight` 800 (sem rolagem vertical), 21 salas × 35 quadradinhos, cartão abre ao passar o mouse sem dados de pessoa e a legenda esmaece as outras matérias; em 360 × 740, abas "Seg 02" a "Sex 06" com a de hoje aberta, quadradinhos de 32 px, a grade do dia cabe sem rolagem horizontal, e tocar num ocupado abre o cartão sem mudar a URL.
 
 **Tests**: unit
 **Gate**: build
