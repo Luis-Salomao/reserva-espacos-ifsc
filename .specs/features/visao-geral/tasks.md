@@ -177,8 +177,10 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes: 3 salas × 5 dias × 2 blocos geram 30 quadradinhos; ocupado tem a cor da matéria e vazio não; duas ocupações viram duas faixas; avulsa usa a cor de reserva; clique leva a `/` com `espaco` e `data`
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: 3 salas × 5 dias × 2 blocos geram 30 quadradinhos; ocupado tem a cor da matéria e vazio não; duas ocupações viram duas faixas; avulsa usa a cor de reserva; clique leva a `/` com `espaco` e `data`
+- [x] Gate check passes: `bun test test/components`
+
+**Desvio**: o aviso de ocupações fora dos blocos é um ponto com rótulo acessível e `title` listando título, dia e horário de cada uma, não um cartão. A `RoomsOverview` só entra na tela na T9.
 
 **Tests**: unit
 **Gate**: quick
