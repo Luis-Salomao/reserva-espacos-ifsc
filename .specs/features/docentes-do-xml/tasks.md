@@ -325,8 +325,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: avatar com pessoa; nenhum avatar com `person: null`; cartão baixo com rótulo acessível; selo em fantasma
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: avatar com pessoa; nenhum avatar com `person: null`; cartão baixo com rótulo acessível; selo em fantasma
+- [x] Gate check passes: `bun test test/components`
 
 **Tests**: unit
 **Gate**: quick

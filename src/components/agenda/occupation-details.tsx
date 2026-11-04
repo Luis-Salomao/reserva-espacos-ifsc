@@ -95,6 +95,11 @@ export function OccupationDetails({
                         <span className="ml-1.5 text-muted-foreground">{item.person.code}</span>
                       )}
                     </p>
+                    {item.person.placeholder && (
+                      <span className="mt-1 inline-flex rounded bg-surface-2 px-1.5 py-0.5 text-[10.5px] font-medium text-muted-foreground">
+                        Conta não ativada
+                      </span>
+                    )}
                   </div>
                 </div>
               )}
