@@ -86,6 +86,16 @@ describe("equipamentos no D1 local", () => {
           },
           { id: lab.id, name: "Lab 1", capacity: 20, equipment },
         ]);
+
+        await d1
+          .prepare(
+            "INSERT INTO occupations (id, space_id, starts_at, ends_at, source, title, status, created_at) VALUES ('o1', 'antigo', '2026-11-10T10:00', '2026-11-10T11:00', 'manual', 'Aula', 'cancelada', 't')",
+          )
+          .run();
+        expect(await repo.remove("antigo")).toBe("in_use");
+        expect(await repo.remove(lab.id)).toBe("removed");
+        expect(await repo.remove(lab.id)).toBe("not_found");
+        expect((await repo.listWithEquipment()).map((space) => space.id)).toEqual(["antigo"]);
       } finally {
         await proxy.dispose();
         await new Promise((resolve) => nativeSetTimeout(resolve, 50));

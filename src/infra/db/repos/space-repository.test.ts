@@ -136,6 +136,83 @@ describe("SpaceRepository com equipamentos", () => {
   });
 });
 
+describe("SpaceRepository.remove", () => {
+  let sqlite: Database;
+  let repo: SpaceRepository;
+  let spaceId: string;
+
+  beforeEach(async () => {
+    sqlite = new Database(":memory:");
+    sqlite.run("PRAGMA foreign_keys = ON");
+    const db = drizzle(sqlite, { schema });
+    migrate(db, { migrationsFolder: "drizzle" });
+    repo = createSpaceRepository(db);
+    spaceId = (
+      await repo.create({
+        name: "Lab 1",
+        capacity: null,
+        equipment: { items: { projetor: 1 }, notes: "x" },
+      })
+    ).id;
+  });
+
+  const spacesLeft = () => sqlite.query("SELECT COUNT(*) AS total FROM spaces").get();
+  const equipmentLeft = () => sqlite.query("SELECT COUNT(*) AS total FROM space_equipment").get();
+
+  test("espaço sem uso é apagado com os equipamentos", async () => {
+    expect(await repo.remove(spaceId)).toBe("removed");
+    expect(spacesLeft()).toEqual({ total: 0 });
+    expect(equipmentLeft()).toEqual({ total: 0 });
+  });
+
+  test.each(["ativa", "cancelada"])("ocupação %s impede a exclusão", async (status) => {
+    sqlite.run(
+      `INSERT INTO occupations (id, space_id, starts_at, ends_at, source, title, status, created_at)
+       VALUES ('o1', '${spaceId}', '2026-11-10T10:00', '2026-11-10T11:00', 'manual', 'Aula', '${status}', 't')`,
+    );
+    expect(await repo.remove(spaceId)).toBe("in_use");
+    expect(spacesLeft()).toEqual({ total: 1 });
+    expect(equipmentLeft()).toEqual({ total: 1 });
+  });
+
+  test("vínculo com sala do XML impede a exclusão", async () => {
+    sqlite.run(
+      `INSERT INTO room_mappings (source_room_id, source_short, space_id, updated_at)
+       VALUES ('r1', 'LAB1', '${spaceId}', 't')`,
+    );
+    expect(await repo.remove(spaceId)).toBe("in_use");
+    expect(spacesLeft()).toEqual({ total: 1 });
+    expect(equipmentLeft()).toEqual({ total: 1 });
+  });
+
+  test("linha de importação que cita o espaço impede a exclusão", async () => {
+    sqlite.run(
+      `INSERT INTO users (id, email, name, roles, password_hash, active, created_at, updated_at)
+       VALUES ('u1', 'a@x.br', 'A', 'admin', 'h', 1, 't', 't')`,
+    );
+    sqlite.run(
+      `INSERT INTO semesters (id, name, starts_on, ends_on, created_at, updated_at)
+       VALUES ('sem', '2026/2', '2026-08-03', '2026-12-18', 't', 't')`,
+    );
+    sqlite.run(
+      `INSERT INTO import_batches (id, semester_id, file_hash, summary_json, status, created_by, created_at)
+       VALUES ('b1', 'sem', 'h', '{}', 'rascunho', 'u1', 't')`,
+    );
+    sqlite.run(
+      `INSERT INTO import_rows (batch_id, row_key, lesson_id, space_id, start_time, end_time, title, status)
+       VALUES ('b1', 'k1', 'L1', '${spaceId}', '10:00', '11:00', 'Aula', 'pendente')`,
+    );
+    expect(await repo.remove(spaceId)).toBe("in_use");
+    expect(spacesLeft()).toEqual({ total: 1 });
+    expect(equipmentLeft()).toEqual({ total: 1 });
+  });
+
+  test("espaço inexistente devolve not_found", async () => {
+    expect(await repo.remove("nao-existe")).toBe("not_found");
+    expect(spacesLeft()).toEqual({ total: 1 });
+  });
+});
+
 describe("migração dos equipamentos", () => {
   type Journal = { entries: { idx: number; tag: string }[] };
 

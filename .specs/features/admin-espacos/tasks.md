@@ -160,8 +160,10 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes: sem uso apaga espaço e equipamentos; com ocupação (ativa ou cancelada), vínculo de sala ou linha de importação devolve `in_use` e não apaga nada; inexistente `not_found`
-- [ ] Gate check passes: `bun test`
+- [x] Testes: sem uso apaga espaço e equipamentos; com ocupação (ativa ou cancelada), vínculo de sala ou linha de importação devolve `in_use` e não apaga nada; inexistente `not_found`
+- [x] Gate check passes: `bun test` (1297 testes); teste D1 rodado à mão com `remove` (`in_use`, `removed`, `not_found`)
+
+**Desvio**: os repositórios falsos de `src/application/spaces.test.ts` ganharam `remove` para compilar com a porta.
 
 **Tests**: integration
 **Gate**: full

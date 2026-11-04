@@ -10,6 +10,7 @@ function setup() {
   const spaces: SpaceRepository = {
     list: async () => [...rows.values()],
     listWithEquipment: async () => [...rows.values()],
+    remove: async () => "removed",
     create: async (input) => {
       if (failNext) {
         failNext = false;
@@ -137,6 +138,7 @@ describe("criar espaço", () => {
         },
         update: async () => null,
         listWithEquipment: async () => [],
+        remove: async () => "removed",
       },
     });
     expect(await racing.create({ name: "sala", capacity: null })).toMatchObject({
@@ -217,6 +219,7 @@ describe("editar espaço", () => {
           throw new Error("UNIQUE");
         },
         listWithEquipment: async () => [],
+        remove: async () => "removed",
       },
     });
     expect(await racing.update("s9", { name: "Sala", capacity: null })).toMatchObject({
