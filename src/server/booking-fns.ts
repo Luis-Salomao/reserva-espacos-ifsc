@@ -3,11 +3,13 @@ import { getRequest } from "@tanstack/react-start/server";
 import {
   cancelOccupationAction,
   createBookingAction,
+  createRecurringAction,
   getDayAgenda,
   getRoomsDay,
   getRoomsWeek,
   getWeekAgenda,
   myBookingsAction,
+  previewRecurringAction,
   previewSeriesAction,
 } from "./booking-actions.ts";
 import { getBookingDeps } from "./booking-deps.ts";
@@ -34,6 +36,18 @@ export const createBookingFn = createServerFn({ method: "POST" })
   .validator(passthrough)
   .handler(async ({ data }) =>
     finish(await createBookingAction(getBookingDeps(), getRequest(), data)),
+  );
+
+export const previewRecurringFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await previewRecurringAction(getBookingDeps(), getRequest(), data)),
+  );
+
+export const createRecurringFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await createRecurringAction(getBookingDeps(), getRequest(), data)),
   );
 
 export const cancelOccupationFn = createServerFn({ method: "POST" })

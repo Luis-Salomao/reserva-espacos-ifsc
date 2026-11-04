@@ -3,10 +3,18 @@ import type {
   BookingView,
   DayAgenda,
   MyBooking,
+  RecurringOutcome,
+  RecurringPreview,
   RoomsDay,
   RoomsWeek,
   WeekAgenda,
 } from "#/application/bookings";
+import {
+  MAX_OCCURRENCES,
+  type Recurrence,
+  type RecurrenceEnd,
+  type RecurrenceFreq,
+} from "#/domain/recurrence";
 import type { User } from "#/domain/user";
 import {
   type AdminOutcome,
@@ -18,6 +26,7 @@ import {
   record,
   reject,
   text,
+  textList,
 } from "./admin-actions.ts";
 import { type AuthPort, resolveSession } from "./auth-handlers.ts";
 import { boundedInt } from "./input.ts";
@@ -127,6 +136,74 @@ export function createBookingAction(deps: BookingDeps, request: RequestLike, dat
     if (response.ok || result.ok || result.conflict === undefined) return response;
     const { title, date: day, start: from, end: to } = result.conflict;
     return { ...response, conflict: { title, date: day, start: from, end: to } };
+  });
+}
+
+const FREQS: readonly RecurrenceFreq[] = ["workdays", "weekly", "monthly-day", "monthly-weekday"];
+/** Teto só de formato; os limites de verdade ficam na regra do domínio (mensagem no campo). */
+const MAX_RULE_INT = 1000;
+
+function ruleEnd(value: unknown): RecurrenceEnd | null {
+  const end = record(value);
+  if (end?.kind === "until" && typeof end.date === "string") {
+    return { kind: "until", date: end.date };
+  }
+  const count = end && boundedInt(end.count, 0, MAX_RULE_INT);
+  return end?.kind === "count" && typeof count === "number" ? { kind: "count", count } : null;
+}
+
+/** Regra de repetição do corpo; `null` se o formato não confere. */
+function recurrenceFrom(value: unknown): Recurrence | null {
+  const body = record(value);
+  if (body === null) return null;
+  const freq = FREQS.find((item) => item === body.freq);
+  const interval = body.interval === undefined ? 1 : boundedInt(body.interval, 0, MAX_RULE_INT);
+  const raw: unknown[] = Array.isArray(body.weekdays) ? body.weekdays : [];
+  const weekdays = raw.filter(
+    (day): day is number => typeof boundedInt(day, 0, MAX_RULE_INT) === "number",
+  );
+  const end = ruleEnd(body.end);
+  const badDays =
+    body.weekdays !== undefined &&
+    (!Array.isArray(body.weekdays) || weekdays.length !== raw.length);
+  if (freq === undefined || typeof interval !== "number" || badDays || end === null) return null;
+  return { freq, interval, weekdays, end };
+}
+
+/** Campos da série; `null` se algum falta ou tem formato errado. */
+function recurringFrom(data: unknown) {
+  const body = record(data);
+  if (body === null) return null;
+  const spaceId = text(body, "spaceId");
+  const date = text(body, "date");
+  const start = text(body, "start");
+  const end = text(body, "end");
+  const purpose = text(body, "purpose");
+  const rule = recurrenceFrom(body.rule);
+  if (spaceId == null || date == null || start == null || end == null || purpose == null) {
+    return null;
+  }
+  return rule === null ? null : { body, input: { spaceId, date, start, end, purpose, rule } };
+}
+
+/** Prévia da série (`{ spaceId, date, start, end, purpose, rule }`): `docente`, `horarios` ou `admin`. */
+export function previewRecurringAction(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asRoles<RecurringPreview>(BOOKING_ROLES, deps, request, async (user) => {
+    const parsed = recurringFrom(data);
+    if (parsed === null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.bookings.previewRecurring(user, parsed.input));
+  });
+}
+
+/** Confirma a série com as datas livres vistas na prévia (`confirmed`). */
+export function createRecurringAction(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asRoles<RecurringOutcome>(BOOKING_ROLES, deps, request, async (user) => {
+    const parsed = recurringFrom(data);
+    const confirmed = parsed && textList(parsed.body, "confirmed");
+    if (parsed === null || confirmed == null || confirmed.length > MAX_OCCURRENCES) {
+      return reject(400, BAD_REQUEST);
+    }
+    return fromResult(await deps.bookings.createRecurring(user, { ...parsed.input, confirmed }));
   });
 }
 

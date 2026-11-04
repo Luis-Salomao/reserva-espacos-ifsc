@@ -32,6 +32,7 @@ describe("esquema da importação", () => {
     expect(names(schema.importBatches)).toEqual(["true:import_batches_hash_semester_unique"]);
     expect(names(schema.occupations)).toEqual([
       "false:occupations_space_starts_idx",
+      "false:occupations_series_idx",
       "false:occupations_created_by_idx",
       "false:occupations_responsible_idx",
       "false:occupations_space_ends_idx",

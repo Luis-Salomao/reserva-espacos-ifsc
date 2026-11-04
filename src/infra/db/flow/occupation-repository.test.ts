@@ -299,6 +299,7 @@ describe("occupation repository", () => {
         cancel_reason: null,
         cancelled_at: null,
         created_by: s.docA.id,
+        series_id: null,
       },
     ]);
   });

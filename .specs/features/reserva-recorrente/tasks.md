@@ -18,7 +18,7 @@ Modo rápido: quatro tarefas, um commit cada. Sem design.md (o desenho cabe nas 
 - **Tests**: repositório (todas ou nenhuma, falha forçada na última instrução), serviço (parcial, nenhuma livre, prévia mudou, permissão, privacidade, validação por data), ações (401/403/400)
 - **Gate**: `bun test src/application/bookings.test.ts src/server/booking-actions.test.ts src/infra/db/flow`
 - **Done when**: testes passam; depcruise sem violação.
-- **Status**: [ ]
+- **Status**: [x]
 
 ## T3: "Repetir" no formulário
 

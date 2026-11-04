@@ -308,6 +308,8 @@ export type OccupationRecord = {
   createdBy: string | null;
   title: string;
   status: "ativa" | "cancelada";
+  /** Série de reservas avulsas recorrentes; `null` fora de série. */
+  seriesId: string | null;
 };
 
 export type OccupationWithSpace = OccupationRecord & { spaceName: string };
@@ -325,6 +327,16 @@ type NewManualOccupation = {
   createdAt: string;
 };
 
+/** Datas de uma série recorrente: mesma sala, título e autor; cada data com seu id e horários. */
+type NewSeries = {
+  seriesId: string;
+  spaceId: string;
+  title: string;
+  createdBy: string;
+  createdAt: string;
+  slots: ReadonlyArray<{ id: string; startsAt: string; endsAt: string }>;
+};
+
 export interface OccupationRepository {
   /** Ocupações ativas do espaço que tocam `[from, to)`, por início. */
   listActiveInRange(spaceId: string, from: string, to: string): Promise<OccupationRecord[]>;
@@ -339,6 +351,11 @@ export interface OccupationRepository {
   insertManualIfFree(
     input: NewManualOccupation,
   ): Promise<{ inserted: true } | { inserted: false; blocking: BlockingOccupation | null }>;
+  /**
+   * Insere todas as datas da série numa unidade atômica, cada uma só se nenhuma ocupação ativa do
+   * espaço se sobrepõe; se alguma não entra, nenhuma fica gravada. `true` = todas gravadas.
+   */
+  insertSeriesIfFree(input: NewSeries): Promise<boolean>;
   /** Cancela uma ocupação ativa; `false` se já não estava ativa. */
   cancelOne(id: string, reason: string, at: string): Promise<boolean>;
   /**
