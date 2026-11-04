@@ -204,8 +204,8 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes: removido → `ok(null)`; `in_use` → `conflict` com a mensagem da spec; `not_found` → `not_found` "Espaço não encontrado."
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: removido → `ok(null)`; `in_use` → `conflict` com a mensagem da spec; `not_found` → `not_found` "Espaço não encontrado."
+- [x] Gate check passes: `bun test src/application` (187 testes)
 
 **Tests**: unit
 **Gate**: quick

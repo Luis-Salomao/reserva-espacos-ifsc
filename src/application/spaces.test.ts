@@ -7,10 +7,15 @@ function setup() {
   const rows = new Map<string, Space>();
   let counter = 0;
   let failNext = false;
+  let removeOutcome: Awaited<ReturnType<SpaceRepository["remove"]>> = "removed";
+  const removed: string[] = [];
   const spaces: SpaceRepository = {
     list: async () => [...rows.values()],
     listWithEquipment: async () => [...rows.values()],
-    remove: async () => "removed",
+    remove: async (id) => {
+      removed.push(id);
+      return removeOutcome;
+    },
     create: async (input) => {
       if (failNext) {
         failNext = false;
@@ -36,8 +41,12 @@ function setup() {
   return {
     service: createSpacesService({ spaces }),
     rows,
+    removed,
     failNext: () => {
       failNext = true;
+    },
+    removeReturns: (outcome: typeof removeOutcome) => {
+      removeOutcome = outcome;
     },
   };
 }
@@ -396,6 +405,34 @@ describe("equipamentos e observações", () => {
         equipment: { items: { projetor: 1 }, notes: "Lousa" },
       },
     ]);
+  });
+});
+
+describe("excluir espaço", () => {
+  test("espaço sem uso é removido", async () => {
+    const ctx = setup();
+    expect(await ctx.service.remove("s1")).toEqual({ ok: true, value: null });
+    expect(ctx.removed).toEqual(["s1"]);
+  });
+
+  test("espaço em uso é conflito com a mensagem da spec", async () => {
+    const ctx = setup();
+    ctx.removeReturns("in_use");
+    expect(await ctx.service.remove("s1")).toMatchObject({
+      ok: false,
+      kind: "conflict",
+      message: "Este espaço tem reservas, aulas ou vínculo com o XML e não pode ser excluído.",
+    });
+  });
+
+  test("espaço inexistente", async () => {
+    const ctx = setup();
+    ctx.removeReturns("not_found");
+    expect(await ctx.service.remove("x")).toMatchObject({
+      ok: false,
+      kind: "not_found",
+      message: "Espaço não encontrado.",
+    });
   });
 });
 
