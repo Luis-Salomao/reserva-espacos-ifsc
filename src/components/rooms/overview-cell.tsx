@@ -9,6 +9,7 @@ import {
   subjectOf,
   subjectTone,
 } from "#/domain/overview";
+import { cn } from "#/lib/utils";
 
 type Block = RoomsWeek["days"][number]["blocks"][number];
 
@@ -21,15 +22,24 @@ export function dayLabel(date: string): string {
   return `${WEEKDAYS[weekdayOf(date)] ?? ""} ${date.slice(8, 10)}/${date.slice(5, 7)}`;
 }
 
+type Tone = { light: string; dark: string };
+
+/** Item da legenda: a chave separa "Reserva" de uma matéria com o mesmo nome. */
+export type LegendEntry = { key: string; label: string; tone: Tone };
+
 /** Reserva avulsa tem a cor neutra; aula importada, a cor da matéria. */
-function toneOf(item: Pick<AgendaItem, "source" | "title">) {
-  return item.source === "manual"
-    ? RESERVA_TONE
-    : (SUBJECT_PALETTE[subjectTone(subjectOf(item.title))] ?? RESERVA_TONE);
+export function legendEntryOf(item: Pick<AgendaItem, "source" | "title">): LegendEntry {
+  if (item.source === "manual") return { key: "reserva", label: "Reserva", tone: RESERVA_TONE };
+  const subject = subjectOf(item.title);
+  return {
+    key: `materia:${subject}`,
+    label: subject,
+    tone: SUBJECT_PALETTE[subjectTone(subject)] ?? RESERVA_TONE,
+  };
 }
 
 /** Cores claro/escuro em variáveis CSS, lidas por `bg-[var(--tone-light)]`/`dark:bg-[var(--tone-dark)]`. */
-function toneStyle(tone: { light: string; dark: string }): CSSProperties {
+export function toneStyle(tone: Tone): CSSProperties {
   return { "--tone-light": tone.light, "--tone-dark": tone.dark } as CSSProperties;
 }
 
@@ -37,6 +47,8 @@ type Props = {
   cell: OverviewCellData;
   room: { id: string; name: string };
   date: string;
+  /** Chave da matéria destacada na legenda; as faixas de outras matérias ficam esmaecidas. */
+  highlight: string | null;
 };
 
 const SQUARE = "relative size-4 shrink-0 rounded-[3px]";
@@ -45,7 +57,7 @@ const SQUARE = "relative size-4 shrink-0 rounded-[3px]";
  * Um bloco de uma sala num dia: vazio com contorno; ocupado com a cor da matéria, uma faixa por
  * ocupação e canto recortado quando alguma não cobre o bloco inteiro.
  */
-export function OverviewCell({ cell, room, date }: Props) {
+export function OverviewCell({ cell, room, date, highlight }: Props) {
   const where = { "data-room": room.id, "data-date": date, "data-block": cell.block.short };
   if (cell.items.length === 0) {
     return <span {...where} data-cell="livre" className={`${SQUARE} block border border-border`} />;
@@ -62,14 +74,22 @@ export function OverviewCell({ cell, room, date }: Props) {
       aria-label={`${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}: ${titles}`}
       className={`${SQUARE} flex overflow-hidden outline-offset-2`}
     >
-      {cell.items.map(({ item }) => (
-        <span
-          key={item.id}
-          data-stripe=""
-          style={toneStyle(toneOf(item))}
-          className="h-full flex-1 bg-[var(--tone-light)] dark:bg-[var(--tone-dark)]"
-        />
-      ))}
+      {cell.items.map(({ item }) => {
+        const entry = legendEntryOf(item);
+        const dimmed = highlight !== null && entry.key !== highlight;
+        return (
+          <span
+            key={item.id}
+            data-stripe=""
+            data-dimmed={dimmed ? "" : undefined}
+            style={toneStyle(entry.tone)}
+            className={cn(
+              "h-full flex-1 bg-[var(--tone-light)] transition-opacity dark:bg-[var(--tone-dark)]",
+              dimmed && "opacity-20",
+            )}
+          />
+        );
+      })}
       {partial && (
         <span
           aria-hidden="true"

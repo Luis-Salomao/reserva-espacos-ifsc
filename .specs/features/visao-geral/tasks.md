@@ -199,8 +199,10 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes: clicar numa matéria marca `aria-pressed` e esmaece os quadradinhos das outras; clicar de novo remove; a matéria destacada não esmaece
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: clicar numa matéria marca `aria-pressed` e esmaece os quadradinhos das outras; clicar de novo remove; a matéria destacada não esmaece
+- [x] Gate check passes: `bun test test/components`
+
+**Desvio**: o esmaecimento é por faixa, não pelo quadradinho inteiro: num bloco com duas matérias, a destacada fica em cor cheia e a outra esmaece. A legenda lista as matérias das salas mostradas (depois dos filtros) e sempre termina em "Reserva".
 
 **Tests**: unit
 **Gate**: quick
