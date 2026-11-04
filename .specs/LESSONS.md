@@ -8,7 +8,17 @@
 
 Corroborated across multiple features. Safe to apply as guidance.
 
-_none_
+### L-005 - AC de layout responsivo deve dizer como será verificado, porque o happy-dom não mede rolagem
+- signal: `spec_precision_gap` · recurrence: 2 feature(s) · scope: `specs` · harmful: 0
+- features: todas-as-salas, admin-espacos
+- evidence: spec.md Colunas AC4 (specs) (+2 more)
+- last seen: 2026-11-04T20:53:47Z
+
+### L-011 - Toda gravação atômica de várias instruções precisa de um teste que force falha numa instrução posterior e afirme que nada foi gravado
+- signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `repo-layer` · harmful: 0
+- features: docentes-do-xml, admin-espacos
+- evidence: validation.md M14 src/infra/db/repos/user-repository.ts:123 (repo-layer) (repo-layer) (+1 more)
+- last seen: 2026-11-04T20:53:46Z
 
 ## Candidates (under observation - do NOT load as guidance yet)
 
@@ -37,12 +47,6 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - features: todas-as-salas
 - evidence: spec.md Filtros AC6 (specs)
 - last seen: 2026-11-04T17:07:01Z
-
-### L-005 - AC de layout responsivo deve dizer como será verificado, porque o happy-dom não mede rolagem
-- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
-- features: todas-as-salas
-- evidence: spec.md Colunas AC4 (specs) (+1 more)
-- last seen: 2026-11-04T17:24:57Z
 
 ### L-006 - Teste que o loader da rota repassa as deps à busca de dados, não só o retorno de loaderDeps
 - signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `routes` · harmful: 0
@@ -74,17 +78,59 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: V1 V1b src/routes/salas.tsx:121 (routes)
 - last seen: 2026-11-04T17:43:22Z
 
-### L-011 - Toda gravação atômica de várias instruções precisa de um teste que force falha numa instrução posterior e afirme que nada foi gravado
-- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `repo-layer` · harmful: 0
-- features: docentes-do-xml
-- evidence: validation.md M14 src/infra/db/repos/user-repository.ts:123 (repo-layer) (repo-layer)
-- last seen: 2026-11-04T18:17:21Z
-
 ### L-012 - Teste de ausência na interface deve afirmar que o elemento não existe, não só que um texto específico não aparece
 - signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
 - features: docentes-do-xml
 - evidence: validation.md M11 test/components/agenda-person.test.tsx:101 (components) (components)
 - last seen: 2026-11-04T18:17:21Z
+
+### L-013 - Quando a spec diz que omitir um campo mantém o valor gravado, teste a omissão na camada que monta o pedido, não só no repositório
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `server-actions` · harmful: 0
+- features: admin-espacos
+- evidence: validation.md M19 src/server/admin-actions.ts:112 (server-actions)
+- last seen: 2026-11-04T20:53:46Z
+
+### L-014 - Teste de erro de formulário deve corrigir e salvar de novo, provando que o botão de salvar volta a ficar habilitado
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: admin-espacos
+- evidence: validation.md M24 src/components/admin/space-form-dialog.tsx:106 (components)
+- last seen: 2026-11-04T20:53:46Z
+
+### L-015 - Quando a spec manda recarregar a lista depois de gravar, afirme a nova carga, não só o anúncio
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: admin-espacos
+- evidence: validation.md M25 src/components/admin/spaces-manager.tsx:35 (components)
+- last seen: 2026-11-04T20:53:46Z
+
+### L-016 - Teste de ordem natural precisa de nomes no mesmo grupo cuja ordem lexical difere da natural
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `domain` · harmful: 0
+- features: admin-espacos
+- evidence: validation.md M10 src/domain/space-groups.ts:42 (domain)
+- last seen: 2026-11-04T20:53:47Z
+
+### L-017 - Confira o layout de 360 px com texto longo sem espaço, porque break-words não reduz a largura mínima de itens de grade ou flex
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: admin-espacos
+- evidence: ESPACOS-04 AC9 src/components/admin/spaces-manager.tsx:89 (components)
+- last seen: 2026-11-04T20:53:47Z
+
+### L-018 - Matriz de autorização deve afirmar a mensagem de 401 e 403, não só o status
+- signal: `ac_gap` · recurrence: 1 feature(s) · scope: `server-actions` · harmful: 0
+- features: admin-espacos
+- evidence: ESPACOS-11 AC1 AC2 src/server/admin-actions.test.ts:173 (server-actions)
+- last seen: 2026-11-04T20:53:47Z
+
+### L-019 - Spec de edição parcial deve dizer o que acontece com cada campo omitido isoladamente, não só com todos omitidos
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
+- features: admin-espacos
+- evidence: spec.md Equipamentos AC10 src/server/admin-actions.test.ts:484 (specs)
+- last seen: 2026-11-04T20:53:47Z
+
+### L-020 - Exemplo de ordenação na spec deve cair no mesmo grupo para exercitar a regra
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
+- features: admin-espacos
+- evidence: spec.md Ver os espaços AC1 src/domain/space-groups.test.ts:63 (specs)
+- last seen: 2026-11-04T20:53:47Z
 
 ## Quarantined (failed when applied - ignore)
 
