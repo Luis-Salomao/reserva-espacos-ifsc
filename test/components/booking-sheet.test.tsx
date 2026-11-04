@@ -112,11 +112,11 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
     const endInput = screen.getByLabelText(/Fim/i) as HTMLInputElement;
 
     // Inicialmente M12 deve estar ativo
-    const m12Chip = screen.getByRole("button", { name: /^M12/i });
+    const m12Chip = screen.getByRole("button", { name: /Manh. .*08:00/i });
     expect(m12Chip.getAttribute("aria-pressed")).toBe("true");
 
     // Clica no chip T12 (13:30–15:20)
-    const t12Chip = screen.getByRole("button", { name: /^T12/i });
+    const t12Chip = screen.getByRole("button", { name: /Tarde .*13:30/i });
     fireEvent.click(t12Chip);
 
     expect(startInput.value).toBe("13:30");
@@ -125,7 +125,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
     expect(m12Chip.getAttribute("aria-pressed")).toBe("false");
 
     // Clica no chip N123 (19:00–22:00)
-    const n123Chip = screen.getByRole("button", { name: /^N123/i });
+    const n123Chip = screen.getByRole("button", { name: /Noite .*19:00/i });
     fireEvent.click(n123Chip);
 
     expect(startInput.value).toBe("19:00");

@@ -358,7 +358,7 @@ export function BookingSheet({
               {/* Chips de Atalhos de Bloco */}
               <fieldset className="grid gap-1.5 border-0 p-0 m-0 min-w-0">
                 <legend className="text-[13px] font-semibold text-muted-foreground mb-0.5">
-                  Atalhos de bloco
+                  Horários rápidos
                 </legend>
                 <div className="flex flex-wrap gap-1.5">
                   {TIMETABLE_SHORTCUTS.map((chip) => {
@@ -380,7 +380,7 @@ export function BookingSheet({
                             "border-primary bg-primary/10 text-primary font-semibold shadow-xs",
                         )}
                       >
-                        {chip.key} {chip.start}–{chip.end}
+                        {chip.name.split(" ")[0]} · {chip.start}–{chip.end}
                       </button>
                     );
                   })}
