@@ -106,18 +106,28 @@ function capacity(data: Record<string, unknown>): string | number | null | undef
 
 type EquipmentBody = NonNullable<SpaceInput["equipment"]>;
 
-/** `undefined` = pedido sem equipamentos nem observações; `null` = formato inválido. */
+/**
+ * `equipment` e `notes` são independentes: o campo ausente fica fora do resultado (a edição mantém
+ * o gravado). `undefined` = pedido sem nenhum dos dois; `null` = formato inválido.
+ */
 function equipmentBody(data: Record<string, unknown>): EquipmentBody | null | undefined {
   const { equipment, notes } = data;
   if (equipment === undefined && notes === undefined) return undefined;
-  const items = equipment === undefined ? {} : record(equipment);
-  if (items === null) return null;
-  const valid = Object.values(items).every(
-    (value) => value === null || typeof value === "string" || typeof value === "number",
-  );
-  if (!valid) return null;
-  if (notes !== undefined && notes !== null && typeof notes !== "string") return null;
-  return { items: items as EquipmentBody["items"], notes: notes ?? null };
+  const body: EquipmentBody = {};
+  if (equipment !== undefined) {
+    const items = record(equipment);
+    if (items === null) return null;
+    const valid = Object.values(items).every(
+      (value) => value === null || typeof value === "string" || typeof value === "number",
+    );
+    if (!valid) return null;
+    body.items = items as NonNullable<EquipmentBody["items"]>;
+  }
+  if (notes !== undefined) {
+    if (notes !== null && typeof notes !== "string") return null;
+    body.notes = notes;
+  }
+  return body;
 }
 
 function spaceInput(data: Record<string, unknown>): SpaceInput | null {

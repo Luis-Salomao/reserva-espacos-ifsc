@@ -7,8 +7,8 @@ import type { AppDb } from "#/infra/db/client";
 import { importRows, occupations, roomMappings, spaceEquipment, spaces } from "#/infra/db/schema";
 
 // Uma linha por INSERT: o D1 limita a 100 parâmetros por instrução.
-function equipmentInserts(db: AppDb, spaceId: string, equipment: SpaceEquipment): Statement[] {
-  return Object.entries(equipment.items).flatMap(([kind, quantity]) =>
+function equipmentInserts(db: AppDb, spaceId: string, items: SpaceEquipment["items"]): Statement[] {
+  return Object.entries(items).flatMap(([kind, quantity]) =>
     quantity === undefined ? [] : [db.insert(spaceEquipment).values({ spaceId, kind, quantity })],
   );
 }
@@ -16,6 +16,39 @@ function equipmentInserts(db: AppDb, spaceId: string, equipment: SpaceEquipment)
 // Sem db.transaction() direto: o código é compartilhado entre bun-sqlite (sync) e D1 (async);
 // gravações com equipamentos passam por runAtomically (batch no D1, transação no bun:sqlite).
 export function createSpaceRepository(db: AppDb): SpaceRepository {
+  /** Espaços com equipamentos, por nome; com `id`, só aquele espaço. */
+  async function readWithEquipment(id?: string): Promise<Space[]> {
+    const [rows, items] = await Promise.all([
+      db
+        .select({
+          id: spaces.id,
+          name: spaces.name,
+          capacity: spaces.capacity,
+          notes: spaces.equipmentNotes,
+        })
+        .from(spaces)
+        .where(id === undefined ? undefined : eq(spaces.id, id))
+        .orderBy(spaces.name),
+      db
+        .select()
+        .from(spaceEquipment)
+        .where(id === undefined ? undefined : eq(spaceEquipment.spaceId, id)),
+    ]);
+    const bySpace = new Map<string, SpaceEquipment["items"]>();
+    for (const item of items) {
+      if (!isEquipmentKind(item.kind)) continue;
+      bySpace.set(item.spaceId, { ...bySpace.get(item.spaceId), [item.kind]: item.quantity });
+    }
+    return rows.map(
+      (row): Space => ({
+        id: row.id,
+        name: row.name,
+        capacity: row.capacity,
+        equipment: { items: bySpace.get(row.id) ?? {}, notes: row.notes },
+      }),
+    );
+  }
+
   return {
     async list() {
       const rows = await db
@@ -24,32 +57,8 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
         .orderBy(spaces.name);
       return rows;
     },
-    async listWithEquipment() {
-      const [rows, items] = await Promise.all([
-        db
-          .select({
-            id: spaces.id,
-            name: spaces.name,
-            capacity: spaces.capacity,
-            notes: spaces.equipmentNotes,
-          })
-          .from(spaces)
-          .orderBy(spaces.name),
-        db.select().from(spaceEquipment),
-      ]);
-      const bySpace = new Map<string, SpaceEquipment["items"]>();
-      for (const item of items) {
-        if (!isEquipmentKind(item.kind)) continue;
-        bySpace.set(item.spaceId, { ...bySpace.get(item.spaceId), [item.kind]: item.quantity });
-      }
-      return rows.map(
-        (row): Space => ({
-          id: row.id,
-          name: row.name,
-          capacity: row.capacity,
-          equipment: { items: bySpace.get(row.id) ?? {}, notes: row.notes },
-        }),
-      );
+    listWithEquipment() {
+      return readWithEquipment();
     },
     async create(input) {
       const row = {
@@ -59,14 +68,17 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
         createdAt: new Date().toISOString(),
       };
       const space: Space = { id: row.id, name: row.name, capacity: row.capacity };
-      const { equipment } = input;
-      if (equipment === undefined) {
+      if (input.equipment === undefined) {
         await db.insert(spaces).values(row);
         return space;
       }
+      const equipment = {
+        items: input.equipment.items ?? {},
+        notes: input.equipment.notes ?? null,
+      };
       await runAtomically(db, (x) => [
         x.insert(spaces).values({ ...row, equipmentNotes: equipment.notes }),
-        ...equipmentInserts(x, row.id, equipment),
+        ...equipmentInserts(x, row.id, equipment.items),
       ]);
       return { ...space, equipment };
     },
@@ -82,15 +94,25 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
       }
       const [existing] = await db.select({ id: spaces.id }).from(spaces).where(eq(spaces.id, id));
       if (existing === undefined) return null;
+      const { items, notes } = equipment;
       await runAtomically(db, (x) => [
         x
           .update(spaces)
-          .set({ name: input.name, capacity: input.capacity, equipmentNotes: equipment.notes })
+          .set({
+            name: input.name,
+            capacity: input.capacity,
+            ...(notes === undefined ? {} : { equipmentNotes: notes }),
+          })
           .where(eq(spaces.id, id)),
-        x.delete(spaceEquipment).where(eq(spaceEquipment.spaceId, id)),
-        ...equipmentInserts(x, id, equipment),
+        ...(items === undefined
+          ? []
+          : [
+              x.delete(spaceEquipment).where(eq(spaceEquipment.spaceId, id)),
+              ...equipmentInserts(x, id, items),
+            ]),
       ]);
-      return { id, name: input.name, capacity: input.capacity, equipment };
+      const [updated] = await readWithEquipment(id);
+      return updated ?? null;
     },
     async remove(id) {
       const exists = async () =>

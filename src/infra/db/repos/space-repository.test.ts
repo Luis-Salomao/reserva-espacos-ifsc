@@ -110,6 +110,34 @@ describe("SpaceRepository com equipamentos", () => {
     ]);
   });
 
+  test("editar só observações mantém os equipamentos; só equipamentos mantém as observações", async () => {
+    const lab = await repo.create({ name: "Lab 1", capacity: 30, equipment: equipped });
+    expect(
+      await repo.update(lab.id, { name: "Lab 1", capacity: 30, equipment: { notes: "TV" } }),
+    ).toEqual({
+      id: lab.id,
+      name: "Lab 1",
+      capacity: 30,
+      equipment: { items: equipped.items, notes: "TV" },
+    });
+    expect(
+      await repo.update(lab.id, { name: "Lab 1", capacity: 30, equipment: { items: { som: 1 } } }),
+    ).toEqual({
+      id: lab.id,
+      name: "Lab 1",
+      capacity: 30,
+      equipment: { items: { som: 1 }, notes: "TV" },
+    });
+    expect(await countEquipment()).toBe(1);
+  });
+
+  test("criar só com observações grava os equipamentos como não informados", async () => {
+    const lab = await repo.create({ name: "Lab 1", capacity: null, equipment: { notes: "TV" } });
+    expect(await repo.listWithEquipment()).toEqual([
+      { id: lab.id, name: "Lab 1", capacity: null, equipment: { items: {}, notes: "TV" } },
+    ]);
+  });
+
   test("nome duplicado ao editar desfaz também equipamentos e observações", async () => {
     const lab = await repo.create({ name: "Lab 1", capacity: 30, equipment: equipped });
     await repo.create({ name: "Lab 2", capacity: null });

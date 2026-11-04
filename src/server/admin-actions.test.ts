@@ -484,7 +484,10 @@ describe("espaços (administrador)", () => {
     expect(
       (await updateSpace(ctx.deps, admin, { id, name: "Lab 2", capacity: 10, notes: null }))
         .response,
-    ).toMatchObject({ ok: true, data: { equipment: { items: {}, notes: null } } });
+    ).toMatchObject({
+      ok: true,
+      data: { equipment: { items: { projetor: 1, computadores: 20 }, notes: null } },
+    });
     expect(
       (
         await updateSpace(ctx.deps, admin, {
@@ -523,6 +526,61 @@ describe("espaços (administrador)", () => {
       (await createSpace(ctx.deps, admin, { name: "X", capacity: null, equipment: { tv: 1 } }))
         .response,
     ).toEqual({ ok: false, status: 400, message: "Tipo de equipamento desconhecido." });
+  });
+
+  test("na edição, equipamentos e observações ausentes mantêm o gravado, cada um por si", async () => {
+    const ctx = await setup();
+    const admin = ctx.req(ctx.admin.token);
+    const created = await createSpace(ctx.deps, admin, {
+      name: "Lab 3",
+      capacity: 20,
+      equipment: { projetor: 1, computadores: "15" },
+      notes: "Lousa digital",
+    });
+    if (!created.response.ok) throw new Error("esperava ok");
+    const id = created.response.data.id;
+    const stored = async () => {
+      const listed = (await listAdminSpaces(ctx.deps, admin)).response;
+      if (!listed.ok) throw new Error("esperava ok");
+      return listed.data.find((space) => space.id === id)?.equipment;
+    };
+
+    expect(
+      (await updateSpace(ctx.deps, admin, { id, name: "Lab 3", capacity: 25 })).response,
+    ).toMatchObject({ ok: true, data: { capacity: 25 } });
+    expect(await stored()).toEqual({
+      items: { projetor: 1, computadores: 15 },
+      notes: "Lousa digital",
+    });
+
+    const onlyNotes = await updateSpace(ctx.deps, admin, {
+      id,
+      name: "Lab 3",
+      capacity: 25,
+      notes: "TV",
+    });
+    expect(onlyNotes.response).toEqual({
+      ok: true,
+      data: {
+        id,
+        name: "Lab 3",
+        capacity: 25,
+        equipment: { items: { projetor: 1, computadores: 15 }, notes: "TV" },
+      },
+    });
+    expect(await stored()).toEqual({ items: { projetor: 1, computadores: 15 }, notes: "TV" });
+
+    const onlyEquipment = await updateSpace(ctx.deps, admin, {
+      id,
+      name: "Lab 3",
+      capacity: 25,
+      equipment: { som: 0 },
+    });
+    expect(onlyEquipment.response).toMatchObject({
+      ok: true,
+      data: { equipment: { items: { som: 0 }, notes: "TV" } },
+    });
+    expect(await stored()).toEqual({ items: { som: 0 }, notes: "TV" });
   });
 
   test("formato inválido de equipamentos, observações ou exclusão é 400 sem gravar", async () => {

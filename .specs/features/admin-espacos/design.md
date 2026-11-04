@@ -95,7 +95,7 @@ A abordagem A atende ao pedido de modelo extensível com o menor custo por tipo 
   - `list(): Promise<Space[]>` (sem mudança)
   - `listWithEquipment(): Promise<Space[]>` (duas consultas, junção em memória, ignora tipos fora do catálogo)
   - `create(input: SpaceWrite): Promise<Space>` (com `equipment`, atômico)
-  - `update(id, input: SpaceWrite): Promise<Space | null>` (com `equipment`, atômico; sem `equipment`, só nome e capacidade)
+  - `update(id, input: SpaceWrite): Promise<Space | null>` (com `equipment`, atômico; `equipment.items` e `equipment.notes` são independentes e o que faltar fica como está; sem `equipment`, só nome e capacidade)
   - `remove(id): Promise<"removed" | "in_use" | "not_found">` (DELETE condicional com `NOT EXISTS` em `occupations`, `room_mappings` e `import_rows`, no mesmo lote que apaga os equipamentos)
 - **Reuses**: `runAtomically`
 
@@ -104,14 +104,14 @@ A abordagem A atende ao pedido de modelo extensível com o menor custo por tipo 
 - **Purpose**: Validar nome, capacidade, equipamentos e observações; traduzir recusas.
 - **Location**: `src/application/spaces.ts`
 - **Interfaces**:
-  - `SpaceInput = { name; capacity; equipment?: { items: Record<string, number | string | null>; notes: string | null } }`
+  - `SpaceInput = { name; capacity; equipment?: { items?: Record<string, number | string | null>; notes?: string | null } }` (na edição, `items` ou `notes` ausente mantém o gravado)
   - `listWithEquipment()`, `create(input)`, `update(id, input)`, `remove(id): Result<null>`
 
 ### Ações administrativas
 
 - **Purpose**: Exigir `admin`, checar o formato do corpo e chamar o serviço.
 - **Location**: `src/server/admin-actions.ts` (+ `src/server/admin.ts`)
-- **Interfaces**: `createSpace`, `updateSpace` aceitam `equipment` (objeto) e `notes` (texto ou nulo), ambos opcionais; `listAdminSpaces` devolve com equipamentos; `deleteSpace(deps, req, { id })`; `deleteSpaceFn`.
+- **Interfaces**: `createSpace`, `updateSpace` aceitam `equipment` (objeto) e `notes` (texto ou nulo), ambos opcionais e independentes (na edição, o ausente mantém o gravado); `listAdminSpaces` devolve com equipamentos; `deleteSpace(deps, req, { id })`; `deleteSpaceFn`.
 
 ### SpaceCard
 

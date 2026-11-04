@@ -1,4 +1,4 @@
-import type { SpaceRepository, SpaceWrite } from "#/application/ports";
+import type { EquipmentWrite, SpaceRepository, SpaceWrite } from "#/application/ports";
 import { fail, ok, parseText, type Result } from "#/application/validation";
 import {
   EQUIPMENT,
@@ -21,9 +21,12 @@ type CapacityInput = number | string | null;
  * Equipamentos vindos do formulário: tipo → valor. Vazio ou nulo = não informado; presença usa
  * 1 (tem) e 0 (não tem); contagem aceita inteiro de 0 a 999.
  */
-type EquipmentInput = { items: Record<string, number | string | null>; notes: string | null };
+type EquipmentInput = { items?: Record<string, number | string | null>; notes?: string | null };
 
-/** Sem `equipment`, a edição mantém equipamentos e observações gravados. */
+/**
+ * Na edição, `items` e `notes` são independentes: o que vier substitui o gravado e o que faltar
+ * fica como está (sem `equipment`, os dois ficam).
+ */
 export type SpaceInput = { name: string; capacity: CapacityInput; equipment?: EquipmentInput };
 
 function parseCapacity(raw: CapacityInput): Result<number | null> {
@@ -90,17 +93,30 @@ function parseNotes(raw: string | null): Result<string | null> {
   return ok(value);
 }
 
-function parseEquipment(input: EquipmentInput): Result<SpaceEquipment> {
+function parseItems(input: NonNullable<EquipmentInput["items"]>): Result<SpaceEquipment["items"]> {
   const items: SpaceEquipment["items"] = {};
-  for (const [kind, raw] of Object.entries(input.items)) {
+  for (const [kind, raw] of Object.entries(input)) {
     if (!isEquipmentKind(kind)) return fail("validation", "Tipo de equipamento desconhecido.");
     const parsed = parseItem(kind, raw);
     if (!parsed.ok) return parsed;
     if (parsed.value !== undefined) items[kind] = parsed.value;
   }
-  const notes = parseNotes(input.notes);
-  if (!notes.ok) return notes;
-  return ok({ items, notes: notes.value });
+  return ok(items);
+}
+
+function parseEquipment(input: EquipmentInput): Result<EquipmentWrite> {
+  const equipment: EquipmentWrite = {};
+  if (input.items !== undefined) {
+    const items = parseItems(input.items);
+    if (!items.ok) return items;
+    equipment.items = items.value;
+  }
+  if (input.notes !== undefined) {
+    const notes = parseNotes(input.notes);
+    if (!notes.ok) return notes;
+    equipment.notes = notes.value;
+  }
+  return ok(equipment);
 }
 
 const DUPLICATE = "Já existe um espaço com este nome.";
