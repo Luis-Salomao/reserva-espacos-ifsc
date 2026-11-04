@@ -1,5 +1,6 @@
 import { describe, expect, spyOn, test } from "bun:test";
-import type { RoomsDay } from "#/application/bookings";
+import type { RoomsDay, RoomsWeek } from "#/application/bookings";
+import { weekOf } from "#/domain/overview";
 import type { User } from "#/domain/user";
 import { loadSalas, Route, validateSalasSearch } from "#/routes/salas";
 import * as bookingFns from "#/server/booking-fns";
@@ -50,6 +51,10 @@ describe("validateSalasSearch", () => {
       livres: true,
     });
     expect(validateSalasSearch({ visao: "livres" })).toEqual({ visao: "livres" });
+    expect(validateSalasSearch({ visao: "geral", data: "2026-11-10" })).toEqual({
+      visao: "geral",
+      data: "2026-11-10",
+    });
     expect(validateSalasSearch({})).toEqual({});
   });
 
@@ -155,25 +160,117 @@ describe("loadSalas", () => {
   });
 });
 
-describe("Route.loaderDeps", () => {
-  test("só a data dispara nova carga: janela, filtros e visão mudam sem ir ao servidor", () => {
-    type DepsArgs = Parameters<NonNullable<typeof Route.options.loaderDeps>>[0];
-    const deps = (search: Record<string, unknown>) =>
-      Route.options.loaderDeps?.({ search } as unknown as DepsArgs);
-    const base = { data: "2026-11-10" };
-    const changed = {
-      ...base,
-      visao: "livres",
-      ini: "14:00",
-      fim: "16:00",
-      bloco: ["A"],
-      cap: 30,
-      q: "lab",
-      livres: true,
+describe("loadSalas na visão geral", () => {
+  const week = (weekStart: string): RoomsWeek => ({
+    weekStart,
+    now: "2026-11-03T09:00",
+    days: [],
+    rooms: [],
+  });
+
+  function recorder() {
+    const days: string[] = [];
+    const weeks: string[] = [];
+    return {
+      days,
+      weeks,
+      fetchDay: async (date: string) => {
+        days.push(date);
+        return { ok: true as const, data: day(date) };
+      },
+      fetchWeek: async (weekStart: string) => {
+        weeks.push(weekStart);
+        return { ok: true as const, data: week(weekStart) };
+      },
     };
-    expect(deps(changed)).toEqual({ data: "2026-11-10" });
+  }
+
+  test("pede a semana da data da URL (a segunda-feira) numa única chamada, sem pedir o dia", async () => {
+    const r = recorder();
+    const data = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: r.fetchWeek,
+    });
+    expect(r.weeks).toEqual(["2026-11-09"]);
+    expect(r.days).toEqual([]);
+    expect(data.selectedDate).toBe("2026-11-12");
+    expect(data.roomsWeek).toEqual(week("2026-11-09"));
+    expect(data.roomsDay).toBeNull();
+    expect(data.error).toBeNull();
+  });
+
+  test("sem data, pede a semana de hoje no fuso configurado; domingo volta à segunda anterior", async () => {
+    const r = recorder();
+    const today = await loadSalas(undefined, session(DOCENTE), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: r.fetchWeek,
+    });
+    expect(today.selectedDate).toBe("2026-11-03");
+    await loadSalas("2026-11-08", session(null), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: r.fetchWeek,
+    });
+    await loadSalas("2026-11-09", session(null), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: r.fetchWeek,
+    });
+    expect(r.weeks).toEqual(["2026-11-02", "2026-11-02", "2026-11-09"]);
+    expect(r.days).toEqual([]);
+  });
+
+  test("fora da visão geral pede só o dia", async () => {
+    const r = recorder();
+    const data = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+      geral: false,
+      fetchWeek: r.fetchWeek,
+    });
+    expect(r.days).toEqual(["2026-11-12"]);
+    expect(r.weeks).toEqual([]);
+    expect(data.roomsDay).toEqual(day("2026-11-12"));
+    expect(data.roomsWeek).toBeNull();
+  });
+
+  test("falha do servidor na semana vira mensagem, sem dados", async () => {
+    const r = recorder();
+    const failed = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: async () => ({ ok: false, message: "Erro interno." }),
+    });
+    expect(failed.roomsWeek).toBeNull();
+    expect(failed.error).toBe("Não foi possível carregar as salas");
+    const thrown = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+      geral: true,
+      fetchWeek: async () => {
+        throw new Error("rede");
+      },
+    });
+    expect(thrown.roomsWeek).toBeNull();
+    expect(thrown.error).toBe("Não foi possível carregar as salas");
+  });
+});
+
+describe("Route.loaderDeps", () => {
+  type DepsArgs = Parameters<NonNullable<typeof Route.options.loaderDeps>>[0];
+  const deps = (search: Record<string, unknown>) =>
+    Route.options.loaderDeps?.({ search } as unknown as DepsArgs);
+  const base = { data: "2026-11-10" };
+  const filters = { ini: "14:00", fim: "16:00", bloco: ["A"], cap: 30, q: "lab", livres: true };
+
+  test("janela, filtros e troca entre Colunas e Livres não disparam nova carga", () => {
+    const changed = { ...base, visao: "livres", ...filters };
+    expect(deps(changed)).toEqual({ data: "2026-11-10", geral: false });
     expect(deps(changed)).toEqual(deps(base));
+    expect(deps({ ...base, visao: "colunas" })).toEqual(deps({ ...base, visao: "livres" }));
     expect(deps({ data: "2026-11-11" })).not.toEqual(deps(base));
+  });
+
+  test("entrar ou sair da visão geral dispara nova carga; filtros dentro dela não", () => {
+    const geral = { ...base, visao: "geral" };
+    expect(deps(geral)).toEqual({ data: "2026-11-10", geral: true });
+    expect(deps(geral)).not.toEqual(deps({ ...base, visao: "colunas" }));
+    expect(deps(geral)).not.toEqual(deps({ ...base, visao: "livres" }));
+    expect(deps({ ...geral, ...filters })).toEqual(deps(geral));
+    expect(deps({ ...geral, data: "2026-11-17" })).not.toEqual(deps(geral));
   });
 });
 
@@ -213,6 +310,46 @@ describe("Route.loader", () => {
       expect(today.error).toBeNull();
     } finally {
       spy.mockRestore();
+    }
+  });
+
+  test("na visão geral pede ao servidor só a semana (segunda da data da URL ou de hoje)", async () => {
+    const loader = Route.options.loader as unknown as (
+      args: unknown,
+    ) => ReturnType<typeof loadSalas>;
+    const weekCalls: unknown[] = [];
+    const dayCalls: unknown[] = [];
+    const weekSpy = spyOn(bookingFns, "getRoomsWeekFn").mockImplementation((async (args: {
+      data: { weekStart: string };
+    }) => {
+      weekCalls.push(args);
+      return {
+        ok: true,
+        data: { weekStart: args.data.weekStart, now: "2026-11-03T09:00", days: [], rooms: [] },
+      };
+    }) as unknown as typeof bookingFns.getRoomsWeekFn);
+    const daySpy = spyOn(bookingFns, "getRoomsDayFn").mockImplementation((async (args: unknown) => {
+      dayCalls.push(args);
+      return { ok: false, message: "não deveria" };
+    }) as unknown as typeof bookingFns.getRoomsDayFn);
+    try {
+      const withDate = await loader({
+        deps: { data: "2030-01-17", geral: true },
+        context: { session: session(DOCENTE) },
+      });
+      const today = await loader({ deps: { geral: true }, context: { session: session(null) } });
+      expect(weekCalls).toEqual([
+        { data: { weekStart: "2030-01-14" } },
+        { data: { weekStart: weekOf(today.selectedDate)[0] } },
+      ]);
+      expect(dayCalls).toEqual([]);
+      expect(withDate.selectedDate).toBe("2030-01-17");
+      expect(withDate.roomsWeek?.weekStart).toBe("2030-01-14");
+      expect(withDate.error).toBeNull();
+      expect(today.error).toBeNull();
+    } finally {
+      weekSpy.mockRestore();
+      daySpy.mockRestore();
     }
   });
 });
