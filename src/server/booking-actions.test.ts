@@ -155,6 +155,7 @@ describe("todas as salas: leitura", () => {
     expect(logged.response.data.rooms[1]?.occupations[0]?.person).toEqual({
       name: "Pessoa doca",
       code: "DOCA",
+      placeholder: false,
     });
     expect(logged.setCookie).toContain("sid=doca");
   });
