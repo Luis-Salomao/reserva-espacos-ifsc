@@ -170,8 +170,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Teste: item aparece para docente; link aparece para visitante
-- [ ] Gate check passes: `bun test src/components test/components`
+- [x] Teste: item aparece para docente; link aparece para visitante
+- [x] Gate check passes: `bun test src/components test/components`
+
+**Desvio**: o link "Todas as salas" é um `Link` do roteador; o teste antigo de 360 px que montava `AgendaView` sem roteador passou a usar `renderAgenda` (mesmas asserções). A opção "Ver todas as salas" dentro do seletor de sala fica para quando `room-selector.tsx` for commitado.
 
 **Tests**: unit
 **Gate**: quick
