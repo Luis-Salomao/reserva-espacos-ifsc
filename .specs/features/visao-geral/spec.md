@@ -251,7 +251,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | GERAL-11 | P1: Página única (AC 1–6) | T13, T14, T15 | Done |
 | GERAL-12 | P1: Livres primeiro (AC 1–5) | T11, T12 | Done |
 | GERAL-13 | P1: Selecionar horário (AC 1–7) | T17 | Pending |
-| GERAL-14 | P2: Filtro por andar (AC 1–3) | T16 | Pending |
+| GERAL-14 | P2: Filtro por andar (AC 1–3) | T16, T17 (painel) | In progress (T16; painel na T17) |
 
 **Coverage:** 14 total, 14 mapped to tasks, 0 unmapped
 

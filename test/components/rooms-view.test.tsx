@@ -223,6 +223,33 @@ describe("RoomsView", () => {
     );
   });
 
+  test("o chip de andar muda a URL e mostra só as salas do andar", async () => {
+    const { router } = await setup();
+    fireEvent.click(screen.getByRole("button", { name: "Filtros" }));
+    const panel = await screen.findByRole("dialog", { name: "Filtros" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Andar 2" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ andar: [2] }));
+    expect(screen.getByText("1 de 3 salas")).toBeDefined();
+    expect(columnOf("a202")).not.toBeNull();
+    expect(columnOf("b104")).toBeNull();
+    expect(columnOf("lab")).toBeNull();
+    expect(screen.getByRole("button", { name: "Filtros · 1" })).toBeDefined();
+  });
+
+  test("na visão geral, 'andar' da URL filtra as linhas", async () => {
+    await setup({ url: "/?visao=geral&andar=1" });
+    expect(document.querySelectorAll("[data-cell][data-room='b104']").length).toBe(10);
+    expect(document.querySelectorAll("[data-cell][data-room='a202']").length).toBe(0);
+    expect(document.querySelectorAll("[data-cell][data-room='lab']").length).toBe(0);
+  });
+
+  test("'Limpar filtros' tira também o andar da URL", async () => {
+    const { router } = await setup({ url: "/?andar=1&q=xyz" });
+    expect(screen.getByText("Nenhuma sala com esses filtros")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    await waitFor(() => expect(router.state.location.search).toEqual({}));
+  });
+
   test("na visão 'Livres', o contador mostra só as salas livres na janela", async () => {
     await setup({ url: "/?visao=livres&ini=14:00&fim=16:00" });
     expect(screen.getByText("2 de 3 salas")).toBeDefined();

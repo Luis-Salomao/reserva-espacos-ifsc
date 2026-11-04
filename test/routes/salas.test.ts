@@ -281,6 +281,7 @@ describe("Route.beforeLoad (redirecionamento)", () => {
   test("filtros e janela são mantidos", () => {
     const filters = {
       bloco: ["A", "Outros"],
+      andar: [2],
       cap: 30,
       q: "lab",
       ini: "14:00",

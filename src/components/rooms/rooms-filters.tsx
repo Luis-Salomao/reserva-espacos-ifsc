@@ -11,6 +11,8 @@ import { cn } from "#/lib/utils";
 export type RoomsFiltersProps = {
   /** Blocos com pelo menos uma sala (`blocksOf`). */
   blocks: readonly string[];
+  /** Andares com pelo menos uma sala (`floorsOf`). */
+  floors: readonly number[];
   filter: RoomFilter;
   total: number;
   shown: number;
@@ -48,11 +50,11 @@ function useFieldText(value: string, toValue: (text: string) => string) {
 /** Filtros escondidos em "Filtros" que estão ativos; a busca fica visível e não conta. */
 function hiddenCount(
   filter: RoomFilter,
-  blocks: readonly string[],
-  view: RoomsFiltersProps["view"],
+  { blocks, floors, view }: Pick<RoomsFiltersProps, "blocks" | "floors" | "view">,
 ) {
   return [
     filter.blocks.some((block) => blocks.includes(block)),
+    filter.floors.some((floor) => floors.includes(floor)),
     filter.minCapacity !== null,
     view !== "geral" && filter.onlyFree,
   ].filter(Boolean).length;
@@ -125,12 +127,17 @@ function SearchField({ filter, onChange }: FieldsProps) {
   );
 }
 
+const CHIP = "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors";
+const CHIP_ON = "border-primary bg-primary text-primary-foreground";
+const CHIP_OFF = "bg-background text-muted-foreground hover:text-foreground";
+
 function HiddenFields({
   blocks,
+  floors,
   filter,
   view,
   onChange,
-}: FieldsProps & Pick<RoomsFiltersProps, "blocks" | "view">) {
+}: FieldsProps & Pick<RoomsFiltersProps, "blocks" | "floors" | "view">) {
   const id = useId();
   const capacityValue = filter.minCapacity === null ? "" : String(filter.minCapacity);
   const [capacity, setCapacity] = useFieldText(capacityValue, (text) => {
@@ -142,6 +149,12 @@ function HiddenFields({
       ? filter.blocks.filter((item) => item !== block)
       : [...filter.blocks, block];
     onChange({ ...filter, blocks: next });
+  };
+  const toggleFloor = (floor: number) => {
+    const next = filter.floors.includes(floor)
+      ? filter.floors.filter((item) => item !== floor)
+      : [...filter.floors, floor];
+    onChange({ ...filter, floors: next });
   };
   return (
     <div className="flex flex-col gap-3">
@@ -184,14 +197,28 @@ function HiddenFields({
                 type="button"
                 aria-pressed={pressed}
                 onClick={() => toggleBlock(block)}
-                className={cn(
-                  "h-8 rounded-full border px-3 text-[13px] font-medium transition-colors",
-                  pressed
-                    ? "border-primary bg-primary text-primary-foreground"
-                    : "bg-background text-muted-foreground hover:text-foreground",
-                )}
+                className={cn(CHIP, pressed ? CHIP_ON : CHIP_OFF)}
               >
                 {blockLabel(block)}
+              </button>
+            );
+          })}
+        </fieldset>
+      )}
+      {floors.length > 0 && (
+        <fieldset className="flex flex-wrap gap-1.5">
+          <legend className="sr-only">Andares</legend>
+          {floors.map((floor) => {
+            const pressed = filter.floors.includes(floor);
+            return (
+              <button
+                key={floor}
+                type="button"
+                aria-pressed={pressed}
+                onClick={() => toggleFloor(floor)}
+                className={cn(CHIP, pressed ? CHIP_ON : CHIP_OFF)}
+              >
+                {`Andar ${floor}`}
               </button>
             );
           })}
@@ -202,12 +229,12 @@ function HiddenFields({
 }
 
 /**
- * Filtros de `/salas`: busca sempre visível (e a janela em "Livres"); bloco, capacidade mínima,
+ * Filtros das salas: busca sempre visível (e a janela em "Livres"); bloco, andar, capacidade mínima,
  * "Só livres" e, em "Colunas", a janela ficam no botão "Filtros · n". Abaixo, o contador.
  */
 export function RoomsFilters(props: RoomsFiltersProps) {
-  const { blocks, filter, total, shown, hiddenNoCapacity, view, onChange } = props;
-  const count = hiddenCount(filter, blocks, view);
+  const { blocks, floors, filter, total, shown, hiddenNoCapacity, view, onChange } = props;
+  const count = hiddenCount(filter, props);
   return (
     <section aria-label="Filtros das salas" className="grid gap-3">
       <div className="flex flex-wrap items-end gap-3">
@@ -225,7 +252,13 @@ export function RoomsFilters(props: RoomsFiltersProps) {
             aria-label="Filtros"
             className="w-[min(20rem,calc(100vw-2rem))]"
           >
-            <HiddenFields blocks={blocks} filter={filter} view={view} onChange={onChange} />
+            <HiddenFields
+              blocks={blocks}
+              floors={floors}
+              filter={filter}
+              view={view}
+              onChange={onChange}
+            />
           </PopoverContent>
         </Popover>
       </div>

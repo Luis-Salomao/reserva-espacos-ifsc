@@ -31,6 +31,7 @@ describe("validateAgendaSearch", () => {
   test("mantém a visão e os filtros de salas válidos", () => {
     const filters = {
       bloco: ["A", "Outros"],
+      andar: [1, 2],
       cap: 30,
       q: "lab",
       ini: "14:00",
@@ -57,6 +58,17 @@ describe("validateAgendaSearch", () => {
       }),
     ).toEqual({});
     expect(validateAgendaSearch({ visao: "Sala" })).toEqual({});
+  });
+
+  test("'andar' aceita andares de 0 a 9, sem repetição; inválidos são descartados", () => {
+    expect(validateAgendaSearch({ andar: [2, "3", 2] })).toEqual({ andar: [2, 3] });
+    expect(validateAgendaSearch({ andar: 1 })).toEqual({ andar: [1] });
+    expect(validateAgendaSearch({ andar: "0" })).toEqual({ andar: [0] });
+    expect(validateAgendaSearch({ andar: [10, -1, 2.5, "x", "", null, true, 4] })).toEqual({
+      andar: [4],
+    });
+    for (const andar of ["abc", 12, [], ["1a"]])
+      expect(validateAgendaSearch({ andar })).toEqual({});
   });
 });
 
