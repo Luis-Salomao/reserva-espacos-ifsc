@@ -111,19 +111,15 @@ export function AgendaView({
       {/* 1. Banner para visitante em leitura pública */}
       {isVisitor && publicRead && <PublicBanner />}
 
-      <div className="layout grid gap-0 pb-24 lg:grid-cols-[288px_1fr] lg:gap-6 lg:pb-10">
-        {/* 2. Barra Lateral Desktop */}
+      <div className="layout grid gap-0 pb-24 lg:pb-6 xl:grid-cols-[248px_1fr] xl:gap-8">
+        {/* Lateral de filtros: só em telas largas; abaixo disso, chips de sala acima da grade. */}
         <aside
           aria-label="Filtros da agenda"
-          className="side hidden lg:sticky lg:top-[65px] lg:flex lg:h-[calc(100vh-65px)] lg:flex-col lg:gap-6 lg:overflow-y-auto lg:p-4 lg:pl-0"
+          className="side hidden xl:sticky xl:top-8 xl:flex xl:max-h-[calc(100vh-4rem)] xl:flex-col xl:gap-6 xl:overflow-y-auto"
         >
           {canBook && (
-            <Button
-              size="lg"
-              className="min-h-[46px] w-full font-semibold"
-              onClick={handleNewBookingClick}
-            >
-              <Plus className="mr-2 size-4" /> Nova reserva
+            <Button className="w-full" onClick={handleNewBookingClick}>
+              <Plus className="size-4" /> Nova reserva
             </Button>
           )}
 
@@ -134,9 +130,7 @@ export function AgendaView({
           />
 
           <div>
-            <h4 className="mb-2 text-[11.5px] font-semibold tracking-wider text-muted-foreground uppercase">
-              Salas
-            </h4>
+            <h2 className="mb-1.5 px-2 text-[11px] font-medium text-muted-foreground">Salas</h2>
             <RoomSelector
               spaces={spaces}
               selectedSpaceId={selectedSpaceId}
@@ -146,11 +140,60 @@ export function AgendaView({
           </div>
         </aside>
 
-        {/* 3. Área Principal */}
-        <main id="agenda-main" className="main min-w-0 p-0 sm:p-2 lg:p-4 lg:pl-0">
-          {/* Controles do Mobile: Faixa semanal + Carrossel de salas */}
-          <div className="mnav mctl mb-3 grid gap-3 lg:hidden">
-            <div className="wk">
+        <div id="agenda-main" className="main min-w-0">
+          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
+            <h1 className="text-lg font-semibold tracking-tight text-foreground first-letter:uppercase">
+              {mode === "week"
+                ? formatWeekHeader(weekAgenda.weekStart)
+                : formatDayHeader(selectedDate)}
+            </h1>
+            <span className="rounded-md border px-2 py-0.5 text-[12px] font-medium text-muted-foreground">
+              {currentSpace?.name ?? ""}
+            </span>
+            <div className="flex-1" />
+            <div className="toolbar hidden items-center gap-1 lg:flex">
+              <Button variant="outline" size="sm" onClick={() => onSelectDate(todayIso)}>
+                Hoje
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label="Anterior"
+                onClick={() => handleStep(mode === "week" ? -7 : -1)}
+              >
+                <ChevronLeft className="size-4" />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon"
+                className="size-8"
+                aria-label="Próximo"
+                onClick={() => handleStep(mode === "week" ? 7 : 1)}
+              >
+                <ChevronRight className="size-4" />
+              </Button>
+              <div className="seg ml-1 flex rounded-md border bg-surface p-0.5">
+                {(["day", "week"] as const).map((value) => (
+                  <button
+                    key={value}
+                    type="button"
+                    aria-pressed={mode === value}
+                    onClick={() => setMode(value)}
+                    className={cn(
+                      "rounded-[5px] px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+                      mode === value && "bg-background text-foreground shadow-xs",
+                    )}
+                  >
+                    {value === "day" ? "Dia" : "Semana"}
+                  </button>
+                ))}
+              </div>
+            </div>
+          </div>
+
+          <div className="mb-3 grid gap-2 xl:hidden">
+            <div className="wk lg:hidden">
               <TimelineDayStrip
                 weekStart={weekAgenda.weekStart}
                 selectedDate={selectedDate}
@@ -168,69 +211,7 @@ export function AgendaView({
             </div>
           </div>
 
-          {/* Barra de Ferramentas Desktop */}
-          <div className="toolbar hidden lg:mb-4 lg:flex lg:items-center lg:gap-2">
-            <Button variant="outline" size="sm" onClick={() => onSelectDate(todayIso)}>
-              Hoje
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Anterior"
-              onClick={() => handleStep(mode === "week" ? -7 : -1)}
-            >
-              <ChevronLeft className="size-4" />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              aria-label="Próximo"
-              onClick={() => handleStep(mode === "week" ? 7 : 1)}
-            >
-              <ChevronRight className="size-4" />
-            </Button>
-
-            <div className="flex-1" />
-
-            <div className="seg flex rounded-full border bg-surface p-1">
-              <button
-                type="button"
-                aria-pressed={mode === "day"}
-                onClick={() => setMode("day")}
-                className={cn(
-                  "rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground transition-colors",
-                  mode === "day" && "bg-background text-foreground shadow-xs",
-                )}
-              >
-                Dia
-              </button>
-              <button
-                type="button"
-                aria-pressed={mode === "week"}
-                onClick={() => setMode("week")}
-                className={cn(
-                  "rounded-full px-3.5 py-1 text-xs font-semibold text-muted-foreground transition-colors",
-                  mode === "week" && "bg-background text-foreground shadow-xs",
-                )}
-              >
-                Semana
-              </button>
-            </div>
-          </div>
-
-          {/* Cabeçalho de Título */}
-          <div className="my-2 mb-3 flex flex-wrap items-baseline gap-2.5">
-            <h1 className="text-xl font-bold tracking-tight text-foreground sm:text-2xl">
-              {mode === "week"
-                ? formatWeekHeader(weekAgenda.weekStart)
-                : formatDayHeader(selectedDate)}
-            </h1>
-            <span className="text-sm font-medium text-muted-foreground">
-              {currentSpace?.name ?? ""}
-            </span>
-          </div>
-
-          {/* Grade Dinâmica: Semanal no Desktop (modo week) ou Timeline no Mobile */}
+          {/* Semana (ou dia) a partir de lg; abaixo disso, linha do tempo de um dia. */}
           <div className="hidden lg:block">
             {mode === "week" ? (
               <WeekGrid
@@ -261,15 +242,15 @@ export function AgendaView({
           </div>
 
           <AgendaLegend />
-        </main>
+        </div>
       </div>
 
-      {/* Botão Flutuante (FAB) do Mobile */}
+      {/* Botão flutuante enquanto a lateral (com Nova reserva) está oculta. */}
       {canBook && (
         <Button
           size="lg"
           aria-label="Reservar"
-          className="fab fixed right-4 bottom-4 z-20 flex min-h-[52px] items-center gap-2 rounded-full px-5 font-semibold shadow-lg lg:hidden"
+          className="fab fixed right-4 bottom-4 z-20 flex h-11 items-center gap-2 rounded-full px-5 shadow-lg xl:hidden"
           onClick={handleNewBookingClick}
         >
           <Plus className="size-5" /> Reservar

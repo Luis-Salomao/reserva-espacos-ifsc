@@ -61,6 +61,7 @@ export function createMockAgendaItem(overrides?: Partial<AgendaItem>): AgendaIte
     status: "ativa",
     canCancel: false,
     mine: false,
+    person: null,
     ...overrides,
   };
 }

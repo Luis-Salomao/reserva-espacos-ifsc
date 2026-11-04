@@ -32,7 +32,7 @@ export function RoomSelector({
 
   if (variant === "vertical") {
     return (
-      <div className="grid gap-1">
+      <div className="grid gap-px">
         {spaces.map((space) => {
           const isSelected = space.id === selectedSpaceId;
           return (
@@ -42,22 +42,24 @@ export function RoomSelector({
               aria-pressed={isSelected}
               onClick={() => onSelectSpace(space.id)}
               className={cn(
-                "flex w-full items-center gap-2.5 rounded-xl px-3 py-2 text-left text-sm font-medium transition-colors",
+                "flex h-8 w-full items-center gap-2 rounded-md px-2 text-left text-[13px] transition-colors",
                 isSelected
-                  ? "bg-surface-2 font-semibold text-foreground shadow-[inset_3px_0_0_var(--accent)]"
-                  : "text-muted-foreground hover:bg-surface-2 hover:text-foreground",
+                  ? "bg-surface-2 font-medium text-foreground"
+                  : "text-muted-foreground hover:bg-surface-2/70 hover:text-foreground",
               )}
             >
               <DoorClosed
                 className={cn(
-                  "size-4 shrink-0",
-                  isSelected ? "text-primary" : "text-muted-foreground",
+                  "size-3.5 shrink-0",
+                  isSelected ? "text-foreground" : "text-muted-foreground",
                 )}
                 aria-hidden="true"
               />
               <span className="min-w-0 truncate">{space.name}</span>
               {space.capacity !== null && (
-                <span className="ml-auto text-xs text-muted-foreground">{space.capacity} lug.</span>
+                <span className="ml-auto text-[11px] tabular-nums text-muted-foreground">
+                  {space.capacity}
+                </span>
               )}
             </button>
           );
@@ -82,10 +84,10 @@ export function RoomSelector({
             aria-pressed={isSelected}
             onClick={() => onSelectSpace(space.id)}
             className={cn(
-              "inline-flex shrink-0 items-center gap-1.5 rounded-full border px-3.5 py-1.5 text-xs font-semibold whitespace-nowrap transition-colors",
+              "inline-flex h-7 shrink-0 items-center rounded-md border px-2.5 text-[12px] font-medium whitespace-nowrap transition-colors",
               isSelected
-                ? "border-primary bg-primary text-primary-foreground shadow-xs"
-                : "border-border bg-background text-foreground hover:bg-surface-2",
+                ? "border-foreground/25 bg-surface-2 text-foreground"
+                : "border-border bg-background text-muted-foreground hover:bg-surface-2 hover:text-foreground",
             )}
           >
             {space.name}
