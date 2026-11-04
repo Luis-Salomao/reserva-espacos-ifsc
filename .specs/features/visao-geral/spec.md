@@ -16,7 +16,6 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | ------- | ------ |
 | Mês inteiro ou duas semanas | O usuário escolheu uma semana. |
 | Cor por professor | O usuário escolheu cor por matéria. |
-| Reservar a partir da visão geral | A visão é para consulta; reservar continua nas visões "Colunas" e "Livres". |
 | Arrastar aulas para outra sala | Remanejar grade é outra feature. |
 
 ---
@@ -35,6 +34,10 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | Animação | Ao passar o mouse ou focar, o quadradinho cresce (scale 1.6, 120 ms) e abre um cartão com detalhes; sem animação com `prefers-reduced-motion` | Pedido do usuário, com respeito à acessibilidade | n |
 | Celular | Abaixo de 768 px mostra um dia por vez (salas × blocos), com troca de dia por abas | Semana inteira não cabe em 360 px | n |
 | Fora de semestre | Sem blocos: mostra "Esta semana não tem blocos de horário" e sugere a visão "Colunas" | Sem blocos não há grade | n |
+| Reservar pelo quadradinho | Quadradinho livre abre a reserva com sala, dia e horário do bloco; a sala continua editável | Pedido do usuário em 2026-11-04 | y |
+| Página única | Agenda e salas viram uma página (`/`) com as visualizações "Sala", "Colunas", "Livres" e "Visão geral"; `/salas` redireciona | Pedido do usuário: "não faz sentido serem lugares diferentes" | y |
+| Visualização padrão | "Sala" (a agenda de uma sala), em qualquer largura | Escolha do usuário | y |
+| Livres primeiro | Na visão "Livres" e na escolha de sala da reserva, livres primeiro e depois as ocupadas com o motivo (o que ocupa e o horário) | Pedido do usuário | y |
 
 **Open questions:** none - all resolved or logged above.
 
@@ -92,7 +95,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 2. WHILE o usuário estiver logado the sistema SHALL incluir no cartão o avatar e o nome do responsável.
 3. WHILE o usuário for visitante the sistema SHALL NOT mostrar nome, iniciais nem avatar no cartão.
 4. WHERE o sistema operacional pede movimento reduzido the sistema SHALL abrir o cartão sem animação de escala.
-5. WHEN o usuário clica num quadradinho THEN o sistema SHALL abrir a agenda daquela sala no dia do quadradinho.
+5. WHEN o usuário clica num quadradinho ocupado THEN o sistema SHALL abrir a visualização "Sala" daquela sala no dia do quadradinho, na mesma página.
 
 **Independent Test**: Passar o mouse numa aula, ver o quadradinho crescer e o cartão com os dados; navegar com Tab e ver o mesmo cartão.
 
@@ -131,6 +134,61 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 
 ---
 
+### P1: Reservar pelo quadradinho
+
+**User Story**: Como docente, quero clicar num quadradinho livre e já reservar aquele bloco, escolhendo a sala na reserva.
+
+**Why P1**: Pedido do usuário; a grade mostra os buracos, então reservar dali é o passo natural.
+
+**Acceptance Criteria**:
+
+1. WHEN quem pode reservar clica (ou toca, no celular) num quadradinho livre de um bloco que ainda não terminou THEN o sistema SHALL abrir a reserva com a sala, o dia e o horário do bloco preenchidos.
+2. THE sistema SHALL deixar a sala editável na reserva aberta pelo quadradinho.
+3. IF o visitante clica num quadradinho livre THEN o sistema SHALL mostrar o convite para entrar, sem abrir a reserva.
+4. IF o bloco do quadradinho livre já terminou THEN o sistema SHALL NOT abrir a reserva.
+5. WHEN a reserva é confirmada THEN o sistema SHALL recarregar a semana e pintar o bloco reservado.
+
+**Independent Test**: Logado como docente, clicar num quadradinho livre de amanhã, ver a reserva com sala, dia e horário do bloco, trocar a sala e confirmar.
+
+---
+
+### P1: Uma página com todas as visualizações
+
+**User Story**: Como usuário, quero agenda e salas no mesmo lugar, trocando só a visualização.
+
+**Why P1**: Pedido do usuário: ver uma sala ou todas não deve exigir ir para outra página.
+
+**Acceptance Criteria**:
+
+1. THE sistema SHALL oferecer em `/` as visualizações "Sala", "Colunas", "Livres" e "Visão geral", trocadas por um seletor que atualiza `visao` na URL.
+2. WHEN `/` abre sem `visao` THEN o sistema SHALL mostrar a visualização "Sala".
+3. WHEN o usuário troca de visualização THEN o sistema SHALL manter a data e a sala escolhidas.
+4. WHEN alguém abre `/salas` THEN o sistema SHALL redirecionar para `/` mantendo os parâmetros e, sem `visao`, usar "Colunas".
+5. THE sistema SHALL NOT mostrar o item "Salas" no menu nem o link "Todas as salas" na barra da agenda; "Ver todas as salas" no seletor de sala SHALL trocar para "Colunas".
+6. WHEN o usuário clica no nome de uma sala em "Colunas" ou "Livres" THEN o sistema SHALL abrir a visualização "Sala" dela no mesmo dia.
+
+**Independent Test**: Abrir `/`, trocar entre as quatro visualizações e ver a URL e a data mantidas; abrir `/salas` e cair em `/?visao=colunas`.
+
+---
+
+### P1: Livres primeiro, ocupadas com o motivo
+
+**User Story**: Como docente, quero ver primeiro as salas livres e depois as ocupadas com o motivo, para decidir rápido.
+
+**Why P1**: Pedido do usuário.
+
+**Acceptance Criteria**:
+
+1. WHEN a visão "Livres" abre THEN o sistema SHALL listar primeiro as salas livres na janela e depois as ocupadas, separadas por um título "Ocupadas".
+2. THE sistema SHALL mostrar em cada sala ocupada o motivo: título e horário de cada ocupação que cruza a janela (e "Horário já passou" quando for o caso).
+3. WHEN a reserva abre THEN o sistema SHALL listar na escolha de sala primeiro as livres no dia e horário escolhidos e depois as ocupadas com o motivo, recalculando ao trocar data ou horário.
+4. THE sistema SHALL impedir a escolha de uma sala ocupada na reserva.
+5. WHILE o usuário for visitante the sistema SHALL NOT mostrar nomes de pessoas no motivo.
+
+**Independent Test**: Na visão "Livres" das 14:00 às 16:00, ver as livres no topo e as ocupadas abaixo com "Cálculo I, 14:00–15:40"; abrir a reserva e ver a mesma ordem na escolha de sala.
+
+---
+
 ## Edge Cases
 
 - IF uma ocupação começar antes do primeiro bloco ou terminar depois do último THEN o sistema SHALL pintar os blocos que ela cruza e mostrar o horário real no cartão.
@@ -152,8 +210,11 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | GERAL-07 | P1: Detalhe (AC 2, 3) | T2, T8 | In Progress (T2) |
 | GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | Pending |
 | GERAL-09 | P2: Celular (AC 1–3) | T9 | Pending |
+| GERAL-10 | P1: Reservar pelo quadradinho (AC 1–5) | T10 | Pending |
+| GERAL-11 | P1: Página única (AC 1–6) | T13, T14, T15 | Pending |
+| GERAL-12 | P1: Livres primeiro (AC 1–5) | T11, T12 | Pending |
 
-**Coverage:** 9 total, 9 mapped to tasks, 0 unmapped
+**Coverage:** 12 total, 12 mapped to tasks, 0 unmapped
 
 ---
 
