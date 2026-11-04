@@ -127,8 +127,10 @@ T5 → T6 → T7 → T8 → T9
 
 **Done when**:
 
-- [ ] Testes: `visao=geral` é mantida; trocar "Colunas"↔"Livres" não muda as deps, entrar na visão geral muda; o loader manda a `weekStart` certa a `getRoomsWeekFn` com e sem `data` na URL (afirmar o argumento, lição L-010); falha vira mensagem
-- [ ] Gate check passes: `bun run check`
+- [x] Testes: `visao=geral` é mantida; trocar "Colunas"↔"Livres" não muda as deps, entrar na visão geral muda; o loader manda a `weekStart` certa a `getRoomsWeekFn` com e sem `data` na URL (afirmar o argumento, lição L-010); falha vira mensagem
+- [x] Gate check passes: `bun run check`
+
+**Desvio**: na visão geral o loader pede só a semana (`roomsDay` vem `null`), e a `RoomsView` só ganhou `"geral"` no tipo. Até a T9, `/salas?visao=geral` digitada na URL mostra o aviso "Não foi possível carregar as salas" com "Tentar de novo", sem nenhum botão de visão marcado; "Colunas" ou "Livres" voltam ao normal. Não há link para a visão geral antes da T9. O teste existente de `loaderDeps` foi reescrito para a nova regra `{ data, geral }`, como a tarefa pede.
 
 **Tests**: unit
 **Gate**: build

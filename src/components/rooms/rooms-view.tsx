@@ -26,7 +26,7 @@ import { type RoomDraft, RoomsColumns } from "./rooms-columns";
 import { RoomsFilters } from "./rooms-filters";
 import { RoomsFreeList } from "./rooms-free-list";
 
-type SalasView = "colunas" | "livres";
+type SalasView = "colunas" | "livres" | "geral";
 
 /** Estado de `/salas` na URL: dia, visão, filtros e janela de horário. */
 export type SalasSearch = {
