@@ -1,4 +1,4 @@
-import type { TimeRange } from "./availability";
+import { freeIntervals, type Hours, type TimeRange } from "./availability";
 import { addDays, weekdayOf } from "./calendar";
 
 /** Cor de uma matéria em cada tema: `light` sobre o fundo claro, `dark` sobre o escuro. */
@@ -78,4 +78,43 @@ export function cellsFor<I extends TimeRange, B extends TimeRange>(
 export function weekOf(date: string): string[] {
   const monday = addDays(date, -weekdayOf(date));
   return [0, 1, 2, 3, 4].map((offset) => addDays(monday, offset));
+}
+
+/** Do início do bloco `from` ao fim do bloco `to`, em qualquer ordem; `null` se algum não existe. */
+export function spanOf(blocks: readonly TimeRange[], from: number, to: number): TimeRange | null {
+  const first = blocks[Math.min(from, to)];
+  const last = blocks[Math.max(from, to)];
+  return first === undefined || last === undefined ? null : { start: first.start, end: last.end };
+}
+
+/** A semana não traz o expediente das salas; a reserva confere o expediente real. */
+const WHOLE_DAY: Hours = { opens: "00:00", closes: "23:59" };
+
+type WeekRoom = {
+  space: { id: string };
+  occupations: readonly (TimeRange & { date: string })[];
+};
+
+/** As salas num dia da semana, no formato de `availabilityIn`: ocupações do dia e o que sobra livre. */
+export function roomsOnDay<R extends WeekRoom>(
+  rooms: readonly R[],
+  date: string,
+): Array<
+  R & {
+    spaceId: string;
+    date: string;
+    occupations: Array<R["occupations"][number]>;
+    free: TimeRange[];
+  }
+> {
+  return rooms.map((room) => {
+    const occupations = room.occupations.filter((item) => item.date === date);
+    return {
+      ...room,
+      spaceId: room.space.id,
+      date,
+      occupations,
+      free: freeIntervals(WHOLE_DAY, occupations),
+    };
+  });
 }

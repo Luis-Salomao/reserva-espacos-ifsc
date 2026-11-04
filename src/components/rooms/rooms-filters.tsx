@@ -60,7 +60,8 @@ function hiddenCount(
   ].filter(Boolean).length;
 }
 
-function WindowFields({ filter, onChange }: FieldsProps) {
+/** Início e fim da janela, com o aviso quando o fim não vem depois do início. */
+export function WindowFields({ filter, onChange }: FieldsProps) {
   const id = useId();
   const issue = windowIssue(filter.window);
   const setWindow = (key: "start" | "end", value: string) => {
@@ -131,19 +132,13 @@ const CHIP = "h-8 rounded-full border px-3 text-[13px] font-medium transition-co
 const CHIP_ON = "border-primary bg-primary text-primary-foreground";
 const CHIP_OFF = "bg-background text-muted-foreground hover:text-foreground";
 
-function HiddenFields({
+/** Chips de bloco e de andar; só aparecem os que têm alguma sala. */
+export function PlaceChips({
   blocks,
   floors,
   filter,
-  view,
   onChange,
-}: FieldsProps & Pick<RoomsFiltersProps, "blocks" | "floors" | "view">) {
-  const id = useId();
-  const capacityValue = filter.minCapacity === null ? "" : String(filter.minCapacity);
-  const [capacity, setCapacity] = useFieldText(capacityValue, (text) => {
-    const parsed = parseCapacity(text);
-    return parsed === null ? "" : String(parsed);
-  });
+}: FieldsProps & Pick<RoomsFiltersProps, "blocks" | "floors">) {
   const toggleBlock = (block: string) => {
     const next = filter.blocks.includes(block)
       ? filter.blocks.filter((item) => item !== block)
@@ -157,35 +152,7 @@ function HiddenFields({
     onChange({ ...filter, floors: next });
   };
   return (
-    <div className="flex flex-col gap-3">
-      {view === "colunas" && <WindowFields filter={filter} onChange={onChange} />}
-      <div className="grid gap-1.5">
-        <Label htmlFor={`${id}-cap`}>Capacidade mínima</Label>
-        <Input
-          id={`${id}-cap`}
-          type="number"
-          inputMode="numeric"
-          min={1}
-          max={999}
-          className="h-9 w-full"
-          placeholder="Lugares"
-          value={capacity}
-          onChange={(event) => {
-            setCapacity(event.target.value);
-            onChange({ ...filter, minCapacity: parseCapacity(event.target.value) });
-          }}
-        />
-      </div>
-      {view !== "geral" && (
-        <div className="flex h-9 items-center gap-2">
-          <Switch
-            id={`${id}-livres`}
-            checked={filter.onlyFree}
-            onCheckedChange={(checked) => onChange({ ...filter, onlyFree: checked })}
-          />
-          <Label htmlFor={`${id}-livres`}>Só livres</Label>
-        </div>
-      )}
+    <>
       {blocks.length > 0 && (
         <fieldset className="flex flex-wrap gap-1.5">
           <legend className="sr-only">Blocos</legend>
@@ -224,6 +191,54 @@ function HiddenFields({
           })}
         </fieldset>
       )}
+    </>
+  );
+}
+
+function HiddenFields({
+  blocks,
+  floors,
+  filter,
+  view,
+  onChange,
+}: FieldsProps & Pick<RoomsFiltersProps, "blocks" | "floors" | "view">) {
+  const id = useId();
+  const capacityValue = filter.minCapacity === null ? "" : String(filter.minCapacity);
+  const [capacity, setCapacity] = useFieldText(capacityValue, (text) => {
+    const parsed = parseCapacity(text);
+    return parsed === null ? "" : String(parsed);
+  });
+  return (
+    <div className="flex flex-col gap-3">
+      {view === "colunas" && <WindowFields filter={filter} onChange={onChange} />}
+      <div className="grid gap-1.5">
+        <Label htmlFor={`${id}-cap`}>Capacidade mínima</Label>
+        <Input
+          id={`${id}-cap`}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={999}
+          className="h-9 w-full"
+          placeholder="Lugares"
+          value={capacity}
+          onChange={(event) => {
+            setCapacity(event.target.value);
+            onChange({ ...filter, minCapacity: parseCapacity(event.target.value) });
+          }}
+        />
+      </div>
+      {view !== "geral" && (
+        <div className="flex h-9 items-center gap-2">
+          <Switch
+            id={`${id}-livres`}
+            checked={filter.onlyFree}
+            onCheckedChange={(checked) => onChange({ ...filter, onlyFree: checked })}
+          />
+          <Label htmlFor={`${id}-livres`}>Só livres</Label>
+        </div>
+      )}
+      <PlaceChips blocks={blocks} floors={floors} filter={filter} onChange={onChange} />
     </div>
   );
 }

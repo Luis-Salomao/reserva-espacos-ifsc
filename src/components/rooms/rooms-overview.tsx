@@ -1,10 +1,11 @@
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { weekdayOf } from "#/domain/calendar";
-import { cellsFor } from "#/domain/overview";
+import { cellsFor, spanOf } from "#/domain/overview";
 import { cn } from "#/lib/utils";
 import { dayLabel, type LegendEntry, legendEntryOf, OverviewCell } from "./overview-cell";
 import { OverviewLegend } from "./overview-legend";
+import { type OverviewPick, OverviewSelection } from "./overview-selection";
 
 type Props = {
   week: RoomsWeek;
@@ -15,12 +16,15 @@ type Props = {
   compact: boolean;
   /** Dia escolhido: a aba aberta no celular. */
   selectedDate: string;
-  /** Pode reservar ou é visitante (que recebe o convite para entrar): livre clicável. */
+  /** Pode reservar ou é visitante (que recebe o convite para entrar): "Reservar" no painel. */
   canReserve: boolean;
   onBook: (slot: { spaceId: string; date: string; start: string; end: string }) => void;
 };
 
 const TAB_DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex"];
+
+/** Arrasto em andamento: índices dos blocos do dia onde começou e onde o ponteiro está. */
+type Sweep = { date: string; from: number; to: number; spaceId: string };
 
 const RESERVA = legendEntryOf({ source: "manual", title: "" });
 
@@ -45,7 +49,11 @@ function legendOf(rooms: Props["rooms"]): LegendEntry[] {
   return [...sorted, RESERVA];
 }
 
-/** Salas × (segunda a sexta × blocos do semestre), um quadradinho por bloco, com a legenda. */
+/**
+ * Salas × (segunda a sexta × blocos do semestre), um quadradinho por bloco, com a legenda.
+ * Arrastar com o mouse num dia ou clicar num bloco seleciona o trecho e abre o painel com as salas
+ * livres e ocupadas; na tela larga o painel ocupa o lugar da legenda.
+ */
 export function RoomsOverview({
   week,
   rooms,
@@ -57,7 +65,74 @@ export function RoomsOverview({
 }: Props) {
   const [highlight, setHighlight] = useState<string | null>(null);
   const [tab, setTab] = useState(() => Math.min(weekdayOf(selectedDate), week.days.length - 1));
+  const [pick, setPick] = useState<OverviewPick | null>(null);
+  const [sweep, setSweep] = useState<Sweep | null>(null);
+  const panelRef = useRef<HTMLElement>(null);
   const shownDays = compact ? week.days.slice(tab, tab + 1) : week.days;
+  const active = pick !== null && shownDays.some((day) => day.date === pick.date) ? pick : null;
+
+  useEffect(() => {
+    if (sweep === null) return;
+    function finish() {
+      setSweep(null);
+      if (sweep === null || sweep.from === sweep.to) return;
+      const blocks = week.days.find((day) => day.date === sweep.date)?.blocks ?? [];
+      const range = spanOf(blocks, sweep.from, sweep.to);
+      if (range !== null) setPick({ date: sweep.date, ...range, suggested: sweep.spaceId });
+    }
+    const cancel = () => setSweep(null);
+    document.addEventListener("pointerup", finish);
+    document.addEventListener("pointercancel", cancel);
+    return () => {
+      document.removeEventListener("pointerup", finish);
+      document.removeEventListener("pointercancel", cancel);
+    };
+  }, [sweep, week.days]);
+
+  const hasPick = active !== null;
+  useEffect(() => {
+    if (!hasPick) return;
+    function onKey(event: KeyboardEvent) {
+      if (event.key === "Escape") setPick(null);
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [hasPick]);
+
+  const pickDate = active?.date;
+  const pickStart = active?.start;
+  // biome-ignore lint/correctness/useExhaustiveDependencies: rola até o painel a cada novo trecho
+  useEffect(() => {
+    if (compact && pickDate !== undefined) panelRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [compact, pickDate, pickStart]);
+
+  function isSelected(date: string, index: number, block: { start: string; end: string }) {
+    if (sweep !== null) {
+      return (
+        sweep.date === date &&
+        index >= Math.min(sweep.from, sweep.to) &&
+        index <= Math.max(sweep.from, sweep.to)
+      );
+    }
+    return (
+      active !== null &&
+      active.date === date &&
+      block.start < active.end &&
+      block.end > active.start
+    );
+  }
+
+  function startSweep(event: { button: number; pointerType: string }, next: Sweep) {
+    if (compact || event.button !== 0 || event.pointerType === "touch") return;
+    setSweep(next);
+  }
+
+  const extendSweep = (date: string, index: number) =>
+    setSweep((current) =>
+      current !== null && current.date === date && current.to !== index
+        ? { ...current, to: index }
+        : current,
+    );
   const rows = rooms.map((room) => {
     const days = shownDays.map((day) =>
       cellsFor(
@@ -69,14 +144,33 @@ export function RoomsOverview({
   });
   return (
     <div className="grid gap-3 xl:grid-cols-[max-content_minmax(12rem,1fr)] xl:items-start">
-      {/* `absolute` na tela larga: a legenda rola dentro da altura da grade, sem esticar a página. */}
-      <div className="xl:relative xl:order-last xl:self-stretch">
-        <OverviewLegend
-          entries={legendOf(rooms)}
-          active={highlight}
-          onToggle={(key) => setHighlight((current) => (current === key ? null : key))}
-          className="max-h-24 overflow-y-auto xl:absolute xl:inset-0 xl:max-h-none"
-        />
+      {/* `absolute` na tela larga: legenda e painel rolam dentro da altura da grade, sem esticar a página. */}
+      <div
+        className={cn(
+          "xl:relative xl:self-stretch",
+          active === null ? "xl:order-last" : "order-last",
+        )}
+      >
+        {active === null ? (
+          <OverviewLegend
+            entries={legendOf(rooms)}
+            active={highlight}
+            onToggle={(key) => setHighlight((current) => (current === key ? null : key))}
+            className="max-h-24 overflow-y-auto xl:absolute xl:inset-0 xl:max-h-none"
+          />
+        ) : (
+          <OverviewSelection
+            ref={panelRef}
+            selection={active}
+            rooms={rooms}
+            now={week.now}
+            canReserve={canReserve}
+            onRangeChange={(range) => setPick({ ...active, ...range })}
+            onClose={() => setPick(null)}
+            onBook={onBook}
+            className="xl:absolute xl:inset-0 xl:overflow-y-auto"
+          />
+        )}
       </div>
       {compact && (
         <div
@@ -103,7 +197,7 @@ export function RoomsOverview({
       )}
       <div data-testid="rooms-overview" className="w-full max-w-full overflow-x-auto">
         <div
-          className="grid w-max min-w-full items-center"
+          className="grid w-max min-w-full items-center select-none"
           style={{
             gridTemplateColumns: `${compact ? "5rem" : "minmax(5rem, 9rem)"} repeat(${shownDays.length}, max-content)`,
           }}
@@ -158,7 +252,7 @@ export function RoomsOverview({
                     compact ? "gap-0.5 px-1" : "gap-[3px] px-1.5",
                   )}
                 >
-                  {days[index]?.cells.map((cell) => (
+                  {days[index]?.cells.map((cell, blockIndex) => (
                     <OverviewCell
                       key={`${cell.block.short}-${cell.block.start}`}
                       cell={cell}
@@ -167,17 +261,24 @@ export function RoomsOverview({
                       highlight={highlight}
                       isVisitor={isVisitor}
                       compact={compact}
-                      onBook={
-                        canReserve && `${day.date}T${cell.block.end}` > week.now
-                          ? () =>
-                              onBook({
-                                spaceId: room.space.id,
-                                date: day.date,
-                                start: cell.block.start,
-                                end: cell.block.end,
-                              })
-                          : null
+                      selected={isSelected(day.date, blockIndex, cell.block)}
+                      onSelect={() =>
+                        setPick({
+                          date: day.date,
+                          start: cell.block.start,
+                          end: cell.block.end,
+                          suggested: room.space.id,
+                        })
                       }
+                      onPointerDown={(event) =>
+                        startSweep(event, {
+                          date: day.date,
+                          from: blockIndex,
+                          to: blockIndex,
+                          spaceId: room.space.id,
+                        })
+                      }
+                      onPointerEnter={() => extendSweep(day.date, blockIndex)}
                     />
                   ))}
                 </div>
