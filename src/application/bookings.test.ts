@@ -781,8 +781,8 @@ describe("roomsDay", () => {
     expect(
       logged.value.rooms.flatMap((room) => room.occupations.map((item) => item.person)),
     ).toEqual([
-      { name: "Pessoa doca", code: "DOCA" },
-      { name: "Pessoa docb", code: "DOCB" },
+      { name: "Pessoa doca", code: "DOCA", placeholder: false },
+      { name: "Pessoa docb", code: "DOCB", placeholder: false },
     ]);
 
     const visitor = await svc.roomsDay(null, { date: "2026-11-10" });

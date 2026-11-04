@@ -12,6 +12,7 @@ const DOCENTE: User = {
   code: "CSILVA",
   roles: ["docente"],
   active: true,
+  placeholder: false,
 };
 
 const session = (user: User | null, publicRead = true): SessionInfo => ({
