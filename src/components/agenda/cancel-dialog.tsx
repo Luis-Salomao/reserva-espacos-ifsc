@@ -22,6 +22,8 @@ export type CancelTarget = {
   title: string;
   source: "import" | "manual";
   spaceName: string;
+  /** Reserva avulsa de uma série recorrente: oferece "esta e as próximas". */
+  inSeries?: boolean;
 };
 
 export type CancelDialogProps = {
@@ -172,20 +174,22 @@ export function CancelDialog({
 
   if (!item) return null;
 
-  const isManual = item.source === "manual";
+  const manualSeries = item.source === "manual" && item.inSeries === true;
+  const isManual = item.source === "manual" && !manualSeries;
   const formattedShort = formatShortDate(item.date);
   const formattedLong = formatLongDate(item.date);
 
   const seriesDatesCount = previewDates?.length ?? 0;
   const isSeriesDisabled = scope === "serie" && (isLoadingPreview || previewDates === null);
+  const seriesLabel = manualSeries ? "Cancelar esta e as próximas" : "Cancelar toda a série";
 
   const confirmLabel = isManual
     ? "Cancelar reserva"
     : scope === "data"
       ? `Cancelar só ${formattedShort}`
       : previewDates !== null
-        ? `Cancelar toda a série (${seriesDatesCount})`
-        : "Cancelar toda a série";
+        ? `${seriesLabel} (${seriesDatesCount})`
+        : seriesLabel;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -195,7 +199,9 @@ export function CancelDialog({
           <p className="text-sm text-muted-foreground">
             {isManual
               ? "Reserva feita por você."
-              : "Aula importada do horário oficial. Você é a pessoa responsável."}
+              : manualSeries
+                ? "Reserva feita por você, parte de uma série."
+                : "Aula importada do horário oficial. Você é a pessoa responsável."}
           </p>
         </AlertDialogHeader>
 
@@ -241,7 +247,9 @@ export function CancelDialog({
                 value="data"
                 checked={scope === "data"}
                 onChange={() => handleScopeChange("data")}
-                title={`Somente ${formattedShort}`}
+                title={
+                  manualSeries ? `Somente esta (${formattedShort})` : `Somente ${formattedShort}`
+                }
                 description="As demais datas continuam valendo."
               />
               <ChoiceCard
@@ -250,8 +258,12 @@ export function CancelDialog({
                 value="serie"
                 checked={scope === "serie"}
                 onChange={() => handleScopeChange("serie")}
-                title="Toda a série a partir de hoje"
-                description="Todas as ocorrências semanais desta aula de hoje em diante."
+                title={manualSeries ? "Esta e as próximas" : "Toda a série a partir de hoje"}
+                description={
+                  manualSeries
+                    ? "Esta data e as seguintes desta série de reservas."
+                    : "Todas as ocorrências semanais desta aula de hoje em diante."
+                }
               />
 
               {/* Prévia da Série */}

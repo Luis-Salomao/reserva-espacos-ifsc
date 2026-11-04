@@ -36,4 +36,4 @@ Modo rápido: quatro tarefas, um commit cada. Sem design.md (o desenho cabe nas 
 - **Tests**: serviço (cancelar série avulsa a partir da data, posse), diálogo e lista
 - **Gate**: `bun test`
 - **Done when**: testes passam; `bun run check` com saída 0.
-- **Status**: [ ]
+- **Status**: [x]

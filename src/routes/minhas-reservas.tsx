@@ -163,6 +163,14 @@ export function MinhasReservasList({ items, newId, onSelectCancel }: MinhasReser
                     Reserva manual
                   </span>
                 )}
+                {item.inSeries && (
+                  <span
+                    data-testid="series-badge"
+                    className="inline-flex items-center rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs font-medium text-foreground"
+                  >
+                    Série
+                  </span>
+                )}
               </div>
             </div>
 

@@ -402,7 +402,7 @@ describe("cancelOccupation", () => {
     const { s, svc } = await setup();
     const created = await svc.createBooking(s.docA, book(s));
     if (!created.ok) throw new Error("criação");
-    const message = "Reservas avulsas não têm série; cancele apenas esta data.";
+    const message = "Esta reserva não faz parte de uma série; cancele apenas esta data.";
     expect(
       await svc.cancelOccupation(s.docA, { occupationId: created.value.id, scope: "serie" }),
     ).toMatchObject({ ok: false, kind: "validation", message });

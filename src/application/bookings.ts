@@ -30,7 +30,7 @@ const MAX_PURPOSE = 120;
 const WORKDAYS = 5;
 const DEFAULT_PAGE = 50;
 const MAX_PAGE = 100;
-const SERIES_ON_MANUAL = "Reservas avulsas não têm série; cancele apenas esta data.";
+const SERIES_ON_MANUAL = "Esta reserva não faz parte de uma série; cancele apenas esta data.";
 const FORBIDDEN_BOOK = "Sem permissão para reservar.";
 const FORBIDDEN_CANCEL = "Sem permissão para cancelar esta ocupação.";
 const ENDED = "Esta ocupação já terminou e não pode ser cancelada.";
@@ -124,7 +124,8 @@ type ConflictInfo = {
 type BookingFailure = Failure & { conflict?: ConflictInfo };
 export type BookingResult = { ok: true; value: BookingView } | BookingFailure;
 
-export type MyBooking = AgendaItem & { spaceId: string; spaceName: string };
+/** `inSeries`: faz parte de uma série de reservas recorrentes. */
+export type MyBooking = AgendaItem & { spaceId: string; spaceName: string; inSeries: boolean };
 
 /** Data da série na prévia: livre, ou com o motivo do conflito (título e horário, sem pessoas). */
 export type RecurringDate =
@@ -178,6 +179,11 @@ function ownsOccupation(user: User, item: OccupationRecord): boolean {
   if (!user.active) return false;
   if (user.roles.includes("admin")) return true;
   return item.source === "manual" ? item.createdBy === user.id : item.responsibleUserId === user.id;
+}
+
+/** Avulsa fora de série recorrente: não há "série" para cancelar. */
+function isLoneManual(item: OccupationRecord): boolean {
+  return item.source === "manual" && item.seriesId === null;
 }
 
 /** Restrição de posse da série: `null` para admin (série inteira), senão o próprio usuário. */
@@ -575,11 +581,11 @@ export function createBookingsService(deps: BookingsDeps) {
     },
 
     /**
-     * Cancela uma data ou a série. Série só existe para importada: mesma aula (`lesson_id`), lote,
-     * espaço, dia da semana e horário, de agora em diante (corte: hora de parede atual; a âncora
-     * sempre entra). O admin cancela a série inteira; os demais, só as linhas em que SÃO o
-     * responsável (uma nova versão pode ter trocado o responsável de algumas datas). Em avulsa a
-     * série é recusada. Com `expectedCount` (o tamanho mostrado na prévia), uma série recalculada
+     * Cancela uma data ou a série. Na importada: mesma aula (`lesson_id`), lote, espaço, dia da
+     * semana e horário, de agora em diante (corte: hora de parede atual; a âncora sempre entra). Na
+     * avulsa recorrente: a âncora e as próximas da mesma série. O admin cancela a série inteira; os
+     * demais, só as linhas em que SÃO o responsável (uma nova versão pode ter trocado o responsável
+     * de algumas datas). Em avulsa fora de série a série é recusada. Com `expectedCount` (o tamanho mostrado na prévia), uma série recalculada
      * de outro tamanho não é cancelada (conflito).
      */
     async cancelOccupation(
@@ -590,7 +596,7 @@ export function createBookingsService(deps: BookingsDeps) {
       if (!anchor.ok) return anchor;
       const at = clock.now().toISOString();
       if (input.scope === "serie") {
-        if (anchor.value.source === "manual") return fail("validation", SERIES_ON_MANUAL);
+        if (isLoneManual(anchor.value)) return fail("validation", SERIES_ON_MANUAL);
         const from = nowLocal();
         const owner = seriesOwner(user);
         if (input.expectedCount !== undefined) {
@@ -614,7 +620,7 @@ export function createBookingsService(deps: BookingsDeps) {
     async previewSeries(user: User, occupationId: string): Promise<Result<{ dates: string[] }>> {
       const anchor = await loadCancellable(user, occupationId);
       if (!anchor.ok) return anchor;
-      if (anchor.value.source === "manual") return fail("validation", SERIES_ON_MANUAL);
+      if (isLoneManual(anchor.value)) return fail("validation", SERIES_ON_MANUAL);
       return ok({
         dates: await occupations.seriesDates(anchor.value, nowLocal(), seriesOwner(user)),
       });
@@ -649,6 +655,7 @@ export function createBookingsService(deps: BookingsDeps) {
         ...toItem(row, user, now, people),
         spaceId: row.spaceId,
         spaceName: row.spaceName,
+        inSeries: row.seriesId !== null,
       }));
       return ok({ items, hasMore: rows.length > limit });
     },
