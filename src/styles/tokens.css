@@ -1,19 +1,19 @@
-/* Tokens do design system. Claro: branco e preto com destaque laranja. Escuro: preto e branco com o mesmo laranja. */
+/* Tokens do design system. Neutros frios e densos; o laranja fica só para destaque e ação principal. */
 :root {
   color-scheme: light;
   --bg: #ffffff;
-  --surface: #fafafa;
-  --surface-2: #f4f4f5;
-  --border: #e4e4e7;
-  --text: #0a0a0a;
-  --text-muted: #52525b;
+  --surface: #fbfbfc;
+  --surface-2: #f2f2f5;
+  --border: #e5e5ea;
+  --text: #16161b;
+  --text-muted: #5f5f6c;
   --accent: #f38020;
   --accent-contrast: #111111;
   --accent-text: #b54708;
-  --occ-free: #dcf2e3;
-  --occ-booked: #ffe3c9;
-  --occ-imported: #dde8f6;
-  --occ-conflict: #fcd5d3;
+  --occ-free: #e8f5ed;
+  --occ-booked: #fdf0e4;
+  --occ-imported: #ecf2fb;
+  --occ-conflict: #fde9e8;
   --focus: #c2410c;
   --line-free: #2f8f50;
   --line-booked: #c25a08;
@@ -23,19 +23,19 @@
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0a0a0a;
-  --surface: #141414;
-  --surface-2: #1c1c1c;
-  --border: #2e2e2e;
-  --text: #fafafa;
-  --text-muted: #a1a1aa;
+  --bg: #0e0e11;
+  --surface: #141418;
+  --surface-2: #1c1c21;
+  --border: #27272d;
+  --text: #ececf1;
+  --text-muted: #9d9daa;
   --accent: #f38020;
   --accent-contrast: #111111;
-  --accent-text: #f38020;
-  --occ-free: #14391f;
-  --occ-booked: #5a2d08;
-  --occ-imported: #1d2f4a;
-  --occ-conflict: #5c1d1f;
+  --accent-text: #f59a4c;
+  --occ-free: #11291a;
+  --occ-booked: #2e1d0e;
+  --occ-imported: #15213a;
+  --occ-conflict: #351619;
   --focus: #f38020;
   --line-free: #4cc27a;
   --line-booked: #f38020;
@@ -46,19 +46,19 @@
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0a0a0a;
-    --surface: #141414;
-    --surface-2: #1c1c1c;
-    --border: #2e2e2e;
-    --text: #fafafa;
-    --text-muted: #a1a1aa;
+    --bg: #0e0e11;
+    --surface: #141418;
+    --surface-2: #1c1c21;
+    --border: #27272d;
+    --text: #ececf1;
+    --text-muted: #9d9daa;
     --accent: #f38020;
     --accent-contrast: #111111;
-    --accent-text: #f38020;
-    --occ-free: #14391f;
-    --occ-booked: #5a2d08;
-    --occ-imported: #1d2f4a;
-    --occ-conflict: #5c1d1f;
+    --accent-text: #f59a4c;
+    --occ-free: #11291a;
+    --occ-booked: #2e1d0e;
+    --occ-imported: #15213a;
+    --occ-conflict: #351619;
     --focus: #f38020;
     --line-free: #4cc27a;
     --line-booked: #f38020;

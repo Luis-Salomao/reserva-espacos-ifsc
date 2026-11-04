@@ -1,9 +1,11 @@
 import { createFileRoute, redirect, useRouter } from "@tanstack/react-router";
 import { useEffect, useState } from "react";
-import type { WeekAgenda } from "#/application/bookings";
+import type { AgendaItem, WeekAgenda } from "#/application/bookings";
 import { AgendaView, type SlotSelection } from "#/components/agenda/agenda-view";
 import { BookingSheet, type BookingSlotInit } from "#/components/agenda/booking-sheet";
+import { CancelDialog, type CancelTarget } from "#/components/agenda/cancel-dialog";
 import { GateDialog } from "#/components/agenda/gate-dialog";
+import { OccupationDetails } from "#/components/agenda/occupation-details";
 import { AppShell } from "#/components/app-shell";
 import { Notice, PageHeader } from "#/components/page";
 import { localNow } from "#/domain/availability";
@@ -148,6 +150,8 @@ function HomePage() {
   const [gateOpen, setGateOpen] = useState(false);
   const [bookingOpen, setBookingOpen] = useState(false);
   const [selectedSlot, setSelectedSlot] = useState<BookingSlotInit | null>(null);
+  const [details, setDetails] = useState<AgendaItem | null>(null);
+  const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
 
   const { spaces, selectedDate, selectedSpaceId, weekAgenda, isVisitor, session, timeZone } = data;
 
@@ -210,6 +214,28 @@ function HomePage() {
 
   const firstSpace = spaces[0];
   const activeSpaceId = selectedSpaceId || (firstSpace?.id ?? "");
+  const activeSpaceName = spaces.find((space) => space.id === activeSpaceId)?.name ?? "";
+
+  const refresh = async () => {
+    try {
+      await router.invalidate();
+    } catch {
+      // Roteador não instanciado em teste
+    }
+  };
+
+  const handleCancel = (item: AgendaItem) => {
+    setDetails(null);
+    setCancelTarget({
+      id: item.id,
+      date: item.date,
+      start: item.start,
+      end: item.end,
+      title: item.title,
+      source: item.source,
+      spaceName: activeSpaceName,
+    });
+  };
 
   const handleNewBooking = () => {
     if (isVisitor) {
@@ -245,6 +271,7 @@ function HomePage() {
               onSelectDate={handleSelectDate}
               onSelectSlot={handleSelectSlot}
               onNewBooking={handleNewBooking}
+              onOpenOccupation={setDetails}
             />
           ) : (
             <Notice role="alert" tone="error" className="m-4 p-6">
@@ -258,13 +285,23 @@ function HomePage() {
             spaces={spaces}
             initialSlot={selectedSlot}
             timeZone={timeZone}
-            onSuccess={async () => {
-              try {
-                await router.invalidate();
-              } catch {
-                // Roteador não instanciado em teste
-              }
+            onSuccess={refresh}
+          />
+          <OccupationDetails
+            occupation={details}
+            spaceName={activeSpaceName}
+            onOpenChange={(open) => {
+              if (!open) setDetails(null);
             }}
+            onCancel={handleCancel}
+          />
+          <CancelDialog
+            open={cancelTarget !== null}
+            onOpenChange={(open) => {
+              if (!open) setCancelTarget(null);
+            }}
+            target={cancelTarget}
+            onSuccess={() => void refresh()}
           />
         </>
       )}

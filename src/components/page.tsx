@@ -18,7 +18,7 @@ export function PageHeader({ title, description, actions, back }: HeaderProps) {
       {back !== undefined && <div className="text-sm">{back}</div>}
       <div className="flex flex-wrap items-end justify-between gap-x-4 gap-y-3">
         <div className="grid min-w-0 gap-1">
-          <h1 className="text-[22px] leading-tight font-bold tracking-[-0.02em]">{title}</h1>
+          <h1 className="text-xl leading-tight font-semibold tracking-[-0.015em]">{title}</h1>
           {description !== undefined && (
             <p className="max-w-prose text-muted-foreground">{description}</p>
           )}
@@ -44,7 +44,7 @@ export function PageSection({ title, description, children, className }: Section
     <section className={cn("mt-8 grid gap-3 first:mt-0", className)}>
       {title !== undefined && (
         <div className="grid gap-1">
-          <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+          <h2 className="text-[15px] font-semibold tracking-tight">{title}</h2>
           {description !== undefined && (
             <p className="text-sm text-muted-foreground">{description}</p>
           )}
@@ -66,8 +66,8 @@ export function Card({
     <div
       data-slot="card"
       className={cn(
-        "rounded-2xl border bg-surface shadow-xs",
-        compact ? "p-3" : "p-4 sm:p-5",
+        "rounded-lg border bg-surface",
+        compact ? "p-3" : "p-4",
         tone !== undefined && TONE_SURFACE[tone],
         className,
       )}
@@ -84,7 +84,7 @@ export function Callout({
 }: ComponentProps<"div"> & { tone?: "error" | "ok" | "info" | "neutral" }) {
   return (
     <div
-      className={cn("rounded-xl border p-3 text-sm sm:p-4", NOTICE_TONE[tone], className)}
+      className={cn("rounded-lg border p-3 text-[13px]", NOTICE_TONE[tone], className)}
       {...props}
     />
   );
@@ -103,7 +103,7 @@ const NOTICE_TONE = {
 export function Notice({ tone = "neutral", className, ...props }: NoticeProps) {
   return (
     <p
-      className={cn("rounded-xl border p-3 text-sm sm:p-4", NOTICE_TONE[tone], className)}
+      className={cn("rounded-lg border p-3 text-[13px]", NOTICE_TONE[tone], className)}
       {...props}
     />
   );

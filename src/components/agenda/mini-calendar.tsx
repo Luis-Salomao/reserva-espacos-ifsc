@@ -127,11 +127,11 @@ export function MiniCalendar({ selectedDate, todayDate, onSelectDate }: MiniCale
               aria-pressed={isSelected}
               aria-label={`${cell.dayNum} de ${MONTH_NAMES[month - 1]}`}
               className={cn(
-                "flex aspect-square items-center justify-center rounded-full text-xs font-medium tabular-nums transition-colors",
+                "flex aspect-square items-center justify-center rounded-md text-[12px] tabular-nums transition-colors",
                 cell.isWeekend ? "text-muted-foreground" : "text-foreground",
                 !isSelected && "hover:bg-surface-2",
-                isToday && !isSelected && "ring-2 ring-primary ring-inset",
-                isSelected && "!bg-primary !text-primary-foreground font-bold shadow-xs",
+                isToday && !isSelected && "font-semibold text-[var(--accent-text)]",
+                isSelected && "!bg-foreground !text-background font-semibold",
               )}
             >
               {cell.dayNum}

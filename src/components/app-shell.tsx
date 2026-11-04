@@ -1,6 +1,17 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
-import { CalendarDays, Menu, X } from "lucide-react";
+import {
+  CalendarDays,
+  CalendarRange,
+  FileUp,
+  ListChecks,
+  LogOut,
+  type LucideIcon,
+  Menu,
+  Users,
+  X,
+} from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { Avatar } from "#/components/avatar";
 import { ThemeToggle } from "#/components/theme-toggle";
 import { Button } from "#/components/ui/button";
 import { cn } from "#/lib/utils";
@@ -12,6 +23,20 @@ type NavItem = {
   to: "/" | "/minhas-reservas" | "/importar" | "/semestres" | "/admin/contas";
   label: string;
   exact?: true;
+};
+
+const NAV_ICONS: Record<NavItem["to"], LucideIcon> = {
+  "/": CalendarDays,
+  "/minhas-reservas": ListChecks,
+  "/importar": FileUp,
+  "/semestres": CalendarRange,
+  "/admin/contas": Users,
+};
+
+const ROLE_LABELS: Record<string, string> = {
+  admin: "Administração",
+  horarios: "Horários",
+  docente: "Docente",
 };
 
 /** Lê o usuário do contexto da raiz (ausente em roteadores de teste sem sessão). */
@@ -35,83 +60,77 @@ export function navItems(user: SessionInfo["user"]): NavItem[] {
   return items;
 }
 
-function initials(name: string): string {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const first = parts[0]?.[0] ?? "?";
-  const last = parts.length > 1 ? (parts[parts.length - 1]?.[0] ?? "") : "";
-  return (first + last).toUpperCase();
-}
-
 function Brand() {
   return (
-    <Link to="/" className="flex min-w-0 items-center gap-2.5 rounded-lg">
+    <Link to="/" className="flex min-w-0 items-center gap-2.5 rounded-md md:px-1.5 md:py-1">
       <span
         aria-hidden="true"
-        className="grid size-9 shrink-0 place-items-center rounded-xl bg-primary text-primary-foreground"
+        className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground"
       >
-        <CalendarDays className="size-5" />
+        <CalendarDays className="size-4" />
       </span>
       <span className="min-w-0 leading-tight">
-        <span className="block truncate text-sm font-bold tracking-tight">Reserva de Espaços</span>
-        <small className="block truncate text-xs font-medium text-muted-foreground">
-          IFSC Garopaba
-        </small>
+        <span className="block truncate text-[13px] font-semibold tracking-tight">
+          Reserva de Espaços
+        </span>
+        <small className="block truncate text-[11px] text-muted-foreground">IFSC Garopaba</small>
       </span>
     </Link>
   );
 }
 
-const PILL =
-  "rounded-full px-3.5 py-2 text-sm font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground";
-const PILL_ACTIVE = "bg-surface-2 text-foreground shadow-[inset_0_-2px_0_var(--accent)]";
+const NAV_LINK =
+  "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground";
+const NAV_LINK_ACTIVE = "bg-surface-2 text-foreground";
 
-/** Estrutura base das páginas: barra superior no estilo agenda limpa, navegação por papel e área principal. */
+/**
+ * Estrutura base das páginas. No computador a barra é lateral (navegação, conta e tema);
+ * no celular vira uma barra superior com menu.
+ */
 export function AppShell({ children, wide = false }: Props) {
-  const width = wide ? "max-w-6xl" : "max-w-3xl";
   const user = useSessionUser();
   const items = navItems(user);
   return (
-    <div className="flex min-h-screen flex-col bg-background text-foreground">
+    <div className="min-h-screen bg-background text-foreground">
       <a
         href="#conteudo"
-        className="sr-only z-50 rounded-lg bg-background px-4 py-2 text-sm font-semibold focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
+        className="sr-only z-50 rounded-md bg-background px-4 py-2 text-sm font-semibold focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
       >
         Pular para o conteúdo
       </a>
-      <header className="sticky top-0 z-20 border-b bg-background">
-        <div className="mx-auto flex min-h-16 w-full max-w-6xl items-center gap-2 px-4 py-2 sm:px-6">
-          <Brand />
-          <nav aria-label="Principal" className="ml-3 hidden items-center gap-1 md:flex">
-            {items.map((item) => (
+      <header className="sticky top-0 z-30 flex h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:h-auto md:w-60 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:bg-surface md:px-3 md:py-3 md:backdrop-blur-none">
+        <Brand />
+        <nav aria-label="Principal" className="mt-5 hidden flex-col gap-0.5 md:flex">
+          {items.map((item) => {
+            const Icon = NAV_ICONS[item.to];
+            return (
               <Link
                 key={item.to}
                 to={item.to}
                 activeOptions={{ exact: item.exact === true }}
-                className={PILL}
-                activeProps={{ className: cn(PILL, PILL_ACTIVE) }}
+                className={NAV_LINK}
+                activeProps={{ className: cn(NAV_LINK, NAV_LINK_ACTIVE) }}
               >
+                <Icon className="size-4 shrink-0" aria-hidden="true" />
                 {item.label}
               </Link>
-            ))}
-          </nav>
-          <div className="flex-1" />
+            );
+          })}
+        </nav>
+        <div className="flex-1" />
+        <div className="flex items-center gap-1 md:border-t md:pt-3">
           {user !== null ? (
-            <div className="hidden items-center gap-2 md:flex">
-              <span
-                aria-hidden="true"
-                className="grid size-9 place-items-center rounded-full border bg-surface-2 text-xs font-bold"
-              >
-                {initials(user.name)}
+            <div className="hidden min-w-0 flex-1 items-center gap-2 md:flex">
+              <Avatar name={user.name} />
+              <span className="min-w-0 leading-tight">
+                <span className="block truncate text-[13px] font-medium">{user.name}</span>
+                <small className="block truncate text-[11px] text-muted-foreground">
+                  {user.roles.map((role) => ROLE_LABELS[role] ?? role).join(" · ")}
+                </small>
               </span>
-              <span className="max-w-40 truncate text-sm font-medium">{user.name}</span>
-              <form method="post" action="/api/sair">
-                <Button type="submit" variant="outline" size="sm">
-                  Sair
-                </Button>
-              </form>
             </div>
           ) : (
-            <Button asChild size="sm" className="hidden md:inline-flex">
+            <Button asChild size="sm" className="hidden flex-1 md:inline-flex">
               <Link to="/entrar">Entrar</Link>
             </Button>
           )}
@@ -121,17 +140,29 @@ export function AppShell({ children, wide = false }: Props) {
             </Button>
           )}
           <ThemeToggle />
+          {user !== null && (
+            <form method="post" action="/api/sair" className="hidden md:block">
+              <Button type="submit" variant="ghost" size="icon" aria-label="Sair" title="Sair">
+                <LogOut aria-hidden="true" />
+              </Button>
+            </form>
+          )}
           {/* Visitante só teria "Agenda" (a marca já leva a ela): sem menu, sobra espaço ao nome. */}
           {user !== null && <MobileMenu items={items} user={user} />}
         </div>
       </header>
-      <main
-        id="conteudo"
-        tabIndex={-1}
-        className={cn("mx-auto w-full flex-1 px-4 py-8 outline-none sm:px-6", width)}
-      >
-        {children}
-      </main>
+      <div className="md:pl-60">
+        <main
+          id="conteudo"
+          tabIndex={-1}
+          className={cn(
+            "mx-auto w-full px-4 py-6 outline-none sm:px-6 md:py-8",
+            wide ? "max-w-[1440px]" : "max-w-3xl",
+          )}
+        >
+          {children}
+        </main>
+      </div>
     </div>
   );
 }
@@ -173,7 +204,7 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
   }, [open]);
 
   const itemClass =
-    "flex min-h-11 w-full items-center rounded-lg px-3 text-left text-sm font-medium hover:bg-surface-2";
+    "flex min-h-11 w-full items-center gap-2.5 rounded-md px-3 text-left text-sm font-medium hover:bg-surface-2";
   return (
     <div ref={root} className="relative md:hidden">
       <Button
@@ -190,25 +221,30 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
       {open && (
         <div
           id={panelId}
-          className="absolute top-full right-0 z-30 mt-2 grid w-60 gap-0.5 rounded-xl border bg-popover p-1.5 text-popover-foreground shadow-lg"
+          className="absolute top-full right-0 z-30 mt-2 grid w-64 gap-0.5 rounded-lg border bg-popover p-1.5 text-popover-foreground shadow-lg"
         >
           {user !== null && (
-            <p className="truncate border-b px-3 pt-1.5 pb-2.5 text-sm font-semibold">
-              {user.name}
-            </p>
+            <div className="flex items-center gap-2.5 border-b px-3 pt-1.5 pb-2.5">
+              <Avatar name={user.name} />
+              <p className="truncate text-sm font-semibold">{user.name}</p>
+            </div>
           )}
-          {items.map((item) => (
-            <Link
-              key={item.to}
-              to={item.to}
-              activeOptions={{ exact: item.exact === true }}
-              className={itemClass}
-              activeProps={{ className: cn(itemClass, "bg-surface-2") }}
-              onClick={() => setOpen(false)}
-            >
-              {item.label}
-            </Link>
-          ))}
+          {items.map((item) => {
+            const Icon = NAV_ICONS[item.to];
+            return (
+              <Link
+                key={item.to}
+                to={item.to}
+                activeOptions={{ exact: item.exact === true }}
+                className={itemClass}
+                activeProps={{ className: cn(itemClass, "bg-surface-2") }}
+                onClick={() => setOpen(false)}
+              >
+                <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+                {item.label}
+              </Link>
+            );
+          })}
           {user !== null && (
             <form method="post" action="/api/sair" className="mt-1 border-t pt-1">
               <button type="submit" className={itemClass}>
