@@ -62,19 +62,11 @@ export function navItems(user: SessionInfo["user"]): NavItem[] {
 
 function Brand() {
   return (
-    <Link to="/" className="flex min-w-0 items-center gap-2.5 rounded-md md:px-1.5 md:py-1">
-      <span
-        aria-hidden="true"
-        className="grid size-7 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground"
-      >
-        <CalendarDays className="size-4" />
-      </span>
-      <span className="min-w-0 leading-tight">
-        <span className="block truncate text-[13px] font-semibold tracking-tight">
-          Reserva de Espaços
-        </span>
-        <small className="block truncate text-[11px] text-muted-foreground">IFSC Garopaba</small>
-      </span>
+    <Link
+      to="/"
+      className="min-w-0 truncate rounded-md text-[14px] font-semibold tracking-tight md:px-2 md:py-1.5"
+    >
+      Reserva de Espaços
     </Link>
   );
 }
