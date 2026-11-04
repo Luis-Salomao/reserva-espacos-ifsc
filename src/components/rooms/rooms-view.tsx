@@ -19,6 +19,7 @@ import {
   blocksOf,
   defaultWindow,
   filterRooms,
+  floorsOf,
   isFreeIn,
   type RoomFilter,
   windowIssue,
@@ -36,6 +37,7 @@ export type SalasSearch = {
   data?: string;
   visao?: PageView;
   bloco?: string[];
+  andar?: number[];
   cap?: number;
   q?: string;
   ini?: string;
@@ -83,7 +85,16 @@ const sameWindow = (a: TimeRange, b: TimeRange) => a.start === b.start && a.end 
 
 /** Filtros e janela na URL; vazios saem dela, e a janela só entra quando o usuário a muda. */
 function withFilter(prev: SalasSearch, next: RoomFilter, shown: TimeRange): SalasSearch {
-  const { bloco: _bloco, cap: _cap, q: _q, livres: _livres, ini, fim, ...rest } = prev;
+  const {
+    bloco: _bloco,
+    andar: _andar,
+    cap: _cap,
+    q: _q,
+    livres: _livres,
+    ini,
+    fim,
+    ...rest
+  } = prev;
   const query = next.query.trim();
   const times = sameWindow(next.window, shown)
     ? { ...(ini !== undefined ? { ini } : {}), ...(fim !== undefined ? { fim } : {}) }
@@ -91,6 +102,7 @@ function withFilter(prev: SalasSearch, next: RoomFilter, shown: TimeRange): Sala
   return {
     ...rest,
     ...(next.blocks.length > 0 ? { bloco: [...next.blocks] } : {}),
+    ...(next.floors.length > 0 ? { andar: [...next.floors] } : {}),
     ...(next.minCapacity !== null ? { cap: next.minCapacity } : {}),
     ...(query !== "" ? { q: query } : {}),
     ...times,
@@ -99,7 +111,7 @@ function withFilter(prev: SalasSearch, next: RoomFilter, shown: TimeRange): Sala
 }
 
 function withoutFilters(prev: SalasSearch): SalasSearch {
-  const { bloco: _bloco, cap: _cap, q: _q, livres: _livres, ...rest } = prev;
+  const { bloco: _bloco, andar: _andar, cap: _cap, q: _q, livres: _livres, ...rest } = prev;
   return rest;
 }
 
@@ -173,6 +185,7 @@ export function RoomsView({
 
   const filter: RoomFilter = {
     blocks: search.bloco ?? [],
+    floors: search.andar ?? [],
     minCapacity: search.cap ?? null,
     query: search.q ?? "",
     onlyFree: search.livres === true,
@@ -290,6 +303,7 @@ export function RoomsView({
         <>
           <RoomsFilters
             blocks={blocksOf(geral ? weekRooms : rooms)}
+            floors={floorsOf(geral ? weekRooms : rooms)}
             filter={filter}
             total={total}
             shown={shown}

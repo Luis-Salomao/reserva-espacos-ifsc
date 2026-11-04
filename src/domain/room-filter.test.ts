@@ -7,6 +7,8 @@ import {
   busyReasonText,
   defaultWindow,
   filterRooms,
+  floorOf,
+  floorsOf,
   isFreeIn,
   OTHER_BLOCK,
   type RoomFilter,
@@ -39,6 +41,7 @@ const ROOMS = [
 
 const NONE: RoomFilter = {
   blocks: [],
+  floors: [],
   minCapacity: null,
   query: "",
   onlyFree: false,
@@ -68,7 +71,47 @@ describe("blocksOf", () => {
   });
 });
 
+describe("floorOf", () => {
+  test("primeiro dígito do código (letra + três dígitos); sem código, nenhum andar", () => {
+    expect(floorOf("A-202")).toBe(2);
+    expect(floorOf("Lab. A102")).toBe(1);
+    expect(floorOf("b-104")).toBe(1);
+    expect(floorOf("C 301")).toBe(3);
+    expect(floorOf("Auditório")).toBeNull();
+    expect(floorOf("ADM 2")).toBeNull();
+    expect(floorOf("A-1000")).toBeNull();
+  });
+});
+
+describe("floorsOf", () => {
+  test("andares com pelo menos uma sala, em ordem crescente, sem repetição", () => {
+    expect(floorsOf(ROOMS)).toEqual([1, 2]);
+    expect(floorsOf([room("Auditório", null, ALL_DAY)])).toEqual([]);
+  });
+});
+
 describe("filterRooms", () => {
+  test("um andar: só as salas desse andar; salas sem andar ficam de fora", () => {
+    expect(names(filterRooms(ROOMS, { ...NONE, floors: [2] }, BEFORE))).toEqual(["A-202"]);
+  });
+
+  test("vários andares: as salas de qualquer um deles, na ordem recebida", () => {
+    expect(names(filterRooms(ROOMS, { ...NONE, floors: [2, 1] }, BEFORE))).toEqual([
+      "A-202",
+      "Lab. A102",
+      "B-104",
+    ]);
+  });
+
+  test("andar sem nenhuma sala é ignorado; andar combina com bloco", () => {
+    expect(names(filterRooms(ROOMS, { ...NONE, floors: [7] }, BEFORE))).toEqual(
+      names({ rooms: ROOMS }),
+    );
+    expect(names(filterRooms(ROOMS, { ...NONE, floors: [1], blocks: ["B"] }, BEFORE))).toEqual([
+      "B-104",
+    ]);
+  });
+
   test("sem filtros, todas as salas na ordem recebida", () => {
     expect(filterRooms(ROOMS, NONE, BEFORE)).toEqual({ rooms: ROOMS, hiddenNoCapacity: 0 });
   });

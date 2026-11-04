@@ -17,6 +17,8 @@ type FilterableRoom = {
 export type RoomFilter = {
   /** Vazio = todos; `OTHER_BLOCK` = salas sem bloco. Blocos sem nenhuma sala são ignorados. */
   blocks: readonly string[];
+  /** Vazio = todos; senão só as salas desses andares. Andares sem nenhuma sala são ignorados. */
+  floors: readonly number[];
   minCapacity: number | null;
   query: string;
   onlyFree: boolean;
@@ -26,6 +28,22 @@ export type RoomFilter = {
 /** Letra do bloco no nome (`A-202` → `A`, `Lab. A102` → `A`); `null` sem código. */
 export function blockOf(name: string): string | null {
   return /(?:^|\s)([A-Z])\s*[-.]?\s*\d/i.exec(name)?.[1]?.toUpperCase() ?? null;
+}
+
+/** Andar pelo código da sala (letra + três dígitos): o primeiro dígito (`A-202` → 2); `null` sem código. */
+export function floorOf(name: string): number | null {
+  const code = /(?:^|\s)[A-Z]\s*[-.]?\s*(\d{3})(?!\d)/i.exec(name)?.[1];
+  return code === undefined ? null : Number(code[0]);
+}
+
+/** Andares com pelo menos uma sala, em ordem crescente. */
+export function floorsOf(rooms: readonly FilterableRoom[]): number[] {
+  const found = new Set<number>();
+  for (const room of rooms) {
+    const floor = floorOf(room.space.name);
+    if (floor !== null) found.add(floor);
+  }
+  return [...found].sort((a, b) => a - b);
 }
 
 function groupOf(name: string): string {
@@ -108,7 +126,7 @@ export function windowIssue(window: TimeRange): string | null {
 }
 
 /**
- * Aplica bloco, capacidade mínima, busca (sem acento nem caixa) e "só livres", na ordem recebida.
+ * Aplica bloco, andar, capacidade mínima, busca (sem acento nem caixa) e "só livres", na ordem recebida.
  * `hiddenNoCapacity` conta as salas sem capacidade cadastrada que só ficaram de fora por isso.
  */
 export function filterRooms<R extends FilterableRoom>(
@@ -118,9 +136,12 @@ export function filterRooms<R extends FilterableRoom>(
 ): { rooms: R[]; hiddenNoCapacity: number } {
   const present = new Set(blocksOf(rooms));
   const blocks = new Set(filter.blocks.filter((block) => present.has(block)));
+  const presentFloors = new Set(floorsOf(rooms));
+  const floors = new Set(filter.floors.filter((floor) => presentFloors.has(floor)));
   const query = normalize(filter.query);
   const passesOthers = (room: R) =>
     (blocks.size === 0 || blocks.has(groupOf(room.space.name))) &&
+    (floors.size === 0 || floors.has(floorOf(room.space.name) ?? -1)) &&
     normalize(room.space.name).includes(query) &&
     (!filter.onlyFree || isFreeIn(room, filter.window, now));
   const kept: R[] = [];

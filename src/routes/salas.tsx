@@ -19,6 +19,15 @@ function blocksFrom(value: unknown): string[] {
   return [...new Set(blocks)];
 }
 
+function floorsFrom(value: unknown): number[] {
+  const raw = Array.isArray(value) ? value : [value];
+  const floors = raw
+    .filter((item) => typeof item === "number" || (typeof item === "string" && item !== ""))
+    .map(Number)
+    .filter((item) => Number.isInteger(item) && item >= 0 && item <= 9);
+  return [...new Set(floors)];
+}
+
 function capacityFrom(value: unknown): number | undefined {
   const parsed =
     typeof value === "number" ? value : typeof value === "string" ? Number(value) : Number.NaN;
@@ -36,8 +45,9 @@ const timeFrom = (value: unknown) =>
   typeof value === "string" && isValidTime(value) ? value : undefined;
 
 /**
- * Parâmetros de `/salas`: data, visão, blocos, capacidade mínima (1–999), busca, janela e "só
- * livres". Valores inválidos são descartados; blocos sem nenhuma sala são ignorados no filtro.
+ * Parâmetros das visualizações de salas: data, visão, blocos, andares (0–9), capacidade mínima
+ * (1–999), busca, janela e "só livres". Valores inválidos são descartados; blocos e andares sem
+ * nenhuma sala são ignorados no filtro.
  */
 export function validateSalasSearch(search: Record<string, unknown>): SalasSearch {
   const data =
@@ -47,6 +57,7 @@ export function validateSalasSearch(search: Record<string, unknown>): SalasSearc
       ? search.visao
       : undefined;
   const bloco = blocksFrom(search.bloco);
+  const andar = floorsFrom(search.andar);
   const cap = capacityFrom(search.cap);
   const q = queryFrom(search.q);
   const ini = timeFrom(search.ini);
@@ -56,6 +67,7 @@ export function validateSalasSearch(search: Record<string, unknown>): SalasSearc
     ...(data !== undefined ? { data } : {}),
     ...(visao !== undefined ? { visao } : {}),
     ...(bloco.length > 0 ? { bloco } : {}),
+    ...(andar.length > 0 ? { andar } : {}),
     ...(cap !== undefined ? { cap } : {}),
     ...(q !== undefined ? { q } : {}),
     ...(ini !== undefined ? { ini } : {}),

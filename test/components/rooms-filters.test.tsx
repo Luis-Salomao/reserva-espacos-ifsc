@@ -5,6 +5,7 @@ import type { RoomFilter } from "#/domain/room-filter";
 
 const NONE: RoomFilter = {
   blocks: [],
+  floors: [],
   minCapacity: null,
   query: "",
   onlyFree: false,
@@ -15,6 +16,7 @@ function renderFilters(over: Partial<RoomsFiltersProps> = {}) {
   const onChange = mock((_filter: RoomFilter) => {});
   const props: RoomsFiltersProps = {
     blocks: ["A", "B", "Outros"],
+    floors: [1, 2],
     filter: NONE,
     total: 21,
     shown: 21,
@@ -105,6 +107,39 @@ describe("RoomsFilters", () => {
     expect(lastFilter(onChange)).toEqual({ ...NONE, blocks: ["A", "Outros"] });
     fireEvent.click(within(panel).getByRole("button", { name: "Bloco A" }));
     expect(lastFilter(onChange)).toEqual({ ...NONE, blocks: [] });
+  });
+
+  test("chips de andar ficam em 'Filtros' e ligam e desligam andares", async () => {
+    const { onChange, rerender, props } = renderFilters();
+    expect(absent(screen.queryByRole("button", { name: "Andar 1" }))).toBe(true);
+    let panel = await openFilters();
+    expect(
+      within(panel)
+        .getAllByRole("button", { name: /^Andar/ })
+        .map((chip) => [chip.textContent, chip.getAttribute("aria-pressed")]),
+    ).toEqual([
+      ["Andar 1", "false"],
+      ["Andar 2", "false"],
+    ]);
+    fireEvent.click(within(panel).getByRole("button", { name: "Andar 2" }));
+    expect(lastFilter(onChange)).toEqual({ ...NONE, floors: [2] });
+
+    rerender(<RoomsFilters {...props} filter={{ ...NONE, floors: [2] }} />);
+    panel = screen.getByRole("dialog", { name: "Filtros" });
+    expect(
+      within(panel).getByRole("button", { name: "Andar 2" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+    fireEvent.click(within(panel).getByRole("button", { name: "Andar 1" }));
+    expect(lastFilter(onChange)).toEqual({ ...NONE, floors: [2, 1] });
+    fireEvent.click(within(panel).getByRole("button", { name: "Andar 2" }));
+    expect(lastFilter(onChange)).toEqual({ ...NONE, floors: [] });
+  });
+
+  test("andar escolhido entra na contagem 'Filtros · n'; andar sem sala não conta", () => {
+    renderFilters({ filter: { ...NONE, floors: [2], blocks: ["A"] } });
+    expect(screen.getByRole("button", { name: "Filtros · 2" })).toBeDefined();
+    renderFilters({ filter: { ...NONE, floors: [7] } });
+    expect(screen.getAllByRole("button", { name: /^Filtros/ }).at(-1)?.textContent).toBe("Filtros");
   });
 
   test("capacidade mínima: inteiro de 1 a 999, vazio ou inválido limpa o filtro", async () => {

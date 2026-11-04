@@ -404,9 +404,11 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes de domínio: `A-202` → 2, `Lab. A102` → 1, `Auditório` → `null`; filtro por um e por vários andares
-- [ ] Testes: `andar` inválido descartado na URL; chips de andar mudam o filtro e entram na contagem "Filtros · n"
-- [ ] Gate check passes: `bun test src/domain test/routes test/components`
+- [x] Testes de domínio: `A-202` → 2, `Lab. A102` → 1, `Auditório` → `null`; filtro por um e por vários andares
+- [x] Testes: `andar` inválido descartado na URL; chips de andar mudam o filtro e entram na contagem "Filtros · n"
+- [x] Gate check passes: `bun test src/domain test/routes test/components`
+
+**Desvio**: o `andar` da URL é lido por `validateSalasSearch` (em `src/routes/salas.tsx`), que `/` reaproveita; aceita andares de 0 a 9, sem repetição. Como os blocos, andar sem nenhuma sala é ignorado no filtro e na contagem; com andar escolhido, salas sem código ficam de fora. "Limpar filtros" tira também o andar. Código com quatro dígitos (`A-1000`) não tem andar. Os chips "Andar N" ficam abaixo dos de bloco. `RoomsFiltersProps` ganhou `floors` (de `floorsOf`); os `NONE` dos testes de `RoomsFilter` ganharam `floors: []`.
 
 **Tests**: unit
 **Gate**: quick
