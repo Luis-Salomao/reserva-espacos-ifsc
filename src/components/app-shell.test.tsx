@@ -175,9 +175,9 @@ describe("AppShell", () => {
 });
 
 describe("AppShell, estilo agenda", () => {
-  test("marca com a unidade e link ativo com aria-current", async () => {
+  test("marca só com o nome do sistema e link ativo com aria-current", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
-    expect(screen.getByRole("banner").textContent).toContain("IFSC Garopaba");
+    expect(screen.getByRole("link", { name: "Reserva de Espaços" }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("link", { name: "Agenda" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "Importar" }).getAttribute("aria-current")).toBeNull();
   });
