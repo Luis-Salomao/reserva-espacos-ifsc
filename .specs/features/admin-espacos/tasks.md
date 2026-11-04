@@ -182,8 +182,10 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes 1:1 com P1 Equipamentos AC 4–8 e edge cases (" 12 ", vazio, observações só com espaços, quebra de linha aceita); sem `equipment` o repositório não recebe `equipment`
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes 1:1 com P1 Equipamentos AC 4–8 e edge cases (" 12 ", vazio, observações só com espaços, quebra de linha aceita); sem `equipment` o repositório não recebe `equipment`
+- [x] Gate check passes: `bun test src/application` (184 testes)
+
+**Desvio**: a marcação da T1 neste arquivo entrou no commit da T2 (`81e52b4`), não no da T1; o histórico não foi reescrito.
 
 **Tests**: unit
 **Gate**: quick
