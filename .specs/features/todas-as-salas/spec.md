@@ -137,7 +137,7 @@ A agenda mostra uma sala por vez. Para achar uma sala livre, quem reserva precis
 | SALAS-05 | P1: Filtros (AC 2, 3) | - | In Progress |
 | SALAS-06 | P1: Filtros (AC 4) | - | In Progress |
 | SALAS-07 | P1: Filtros (AC 5, 7) | - | In Progress |
-| SALAS-08 | P1: Filtros (AC 8) | - | Pending |
+| SALAS-08 | P1: Filtros (AC 8) | - | In Progress |
 | SALAS-09 | P1: Livres (AC 1, 2, 3, 4) | - | In Progress |
 | SALAS-10 | P1: Livres (AC 5) | - | Pending |
 | SALAS-11 | P2: Reservar (AC 1, 2, 6) | - | Pending |
