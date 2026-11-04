@@ -87,8 +87,8 @@ T5 → T6 → T7 → T8 → T9
 
 **Done when**:
 
-- [ ] Testes: `weekStart` que não é segunda falha; ocupações de sábado ficam de fora; dia fora de semestre vem sem blocos; visitante recebe `person: null`; logado recebe o responsável; ordem natural das salas; uma única consulta de ocupações
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: `weekStart` que não é segunda falha; ocupações de sábado ficam de fora; dia fora de semestre vem sem blocos; visitante recebe `person: null`; logado recebe o responsável; ordem natural das salas; uma única consulta de ocupações
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick
