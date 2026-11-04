@@ -8,33 +8,46 @@ import { GateDialog } from "#/components/agenda/gate-dialog";
 import { OccupationDetails } from "#/components/agenda/occupation-details";
 import { AppShell } from "#/components/app-shell";
 import { Notice, PageHeader } from "#/components/page";
+import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
 import { localNow } from "#/domain/availability";
 import { addDays, weekdayOf } from "#/domain/calendar";
-import { isValidDate } from "#/domain/semester";
 import type { Space } from "#/domain/space";
-import { getWeekAgendaFn } from "#/server/booking-fns";
+import { loadSalas, type SalasLoaderData, validateSalasSearch } from "#/routes/salas";
+import { getRoomsDayFn, getRoomsWeekFn, getWeekAgendaFn } from "#/server/booking-fns";
 import { BOOKING_ROLES, canViewHome, type SessionInfo } from "#/server/session";
 import { listSpaces } from "#/server/spaces";
 
-export type AgendaSearch = {
-  data?: string;
+type HomeView = "sala" | NonNullable<SalasSearch["visao"]>;
+
+/** Estado de `/` na URL: dia, sala, visualização e os filtros das visualizações de salas. */
+export type AgendaSearch = Omit<SalasSearch, "visao"> & {
   espaco?: string;
+  visao?: HomeView;
 };
 
+/** De onde vêm os dados: semana de uma sala, dia de todas as salas ou semana de todas. */
+type Source = "sala" | "dia" | "semana";
+
+function sourceOf(visao: HomeView | undefined): Source {
+  if (visao === undefined || visao === "sala") return "sala";
+  return visao === "geral" ? "semana" : "dia";
+}
+
 /**
- * Validador puro dos parâmetros de busca da agenda (?data=YYYY-MM-DD&espaco=<id>).
- * Descarta valores corrompidos ou inválidos para aplicação segura dos fallbacks.
+ * Validador puro dos parâmetros de `/`: data, sala, visualização (`sala` quando ausente) e os
+ * filtros de salas. Descarta valores corrompidos ou inválidos para aplicação segura dos fallbacks.
  */
 export function validateAgendaSearch(search: Record<string, unknown>): AgendaSearch {
-  const data =
-    typeof search.data === "string" && isValidDate(search.data) ? search.data : undefined;
+  const { visao: roomsView, ...filters } = validateSalasSearch(search);
+  const visao = search.visao === "sala" ? "sala" : roomsView;
   const espaco =
     typeof search.espaco === "string" && search.espaco.trim().length > 0
       ? search.espaco.trim()
       : undefined;
   return {
-    ...(data !== undefined ? { data } : {}),
+    ...filters,
     ...(espaco !== undefined ? { espaco } : {}),
+    ...(visao !== undefined ? { visao } : {}),
   };
 }
 
@@ -61,6 +74,70 @@ export type AgendaLoaderData = {
   session: SessionInfo;
 };
 
+type HomeLoaderData =
+  | ({ fonte: "sala" } & AgendaLoaderData)
+  | ({ fonte: "dia" | "semana" } & SalasLoaderData);
+
+async function loadAgenda(
+  deps: { data?: string | undefined; espaco?: string | undefined },
+  session: SessionInfo,
+): Promise<AgendaLoaderData> {
+  const { user, timeZone } = session;
+  const isVisitor = user === null;
+  const canBook = Boolean(
+    user?.roles.some((r) => BOOKING_ROLES.includes(r as (typeof BOOKING_ROLES)[number])),
+  );
+
+  // 1. Carrega a lista de espaços
+  const spaces = await listSpaces();
+
+  if (spaces.length === 0) {
+    const today = getTodayDate(timeZone);
+    const selectedDate = deps.data ?? today;
+    return {
+      spaces: [],
+      selectedDate,
+      selectedSpaceId: null,
+      weekStart: null,
+      weekAgenda: null,
+      isVisitor,
+      canBook,
+      timeZone,
+      session,
+    };
+  }
+
+  // 2. Safe defaults para data e espaço
+  const today = getTodayDate(timeZone);
+  const selectedDate = deps.data ?? today;
+
+  const matchingSpace = deps.espaco ? spaces.find((s) => s.id === deps.espaco) : undefined;
+  const firstSpace = spaces[0];
+  const selectedSpaceId = matchingSpace ? matchingSpace.id : (firstSpace?.id ?? "");
+
+  // 3. Normalização para segunda-feira da semana
+  const weekStart = getWeekStart(selectedDate);
+
+  // 4. Carrega a agenda semanal
+  const agendaRes = await getWeekAgendaFn({
+    data: { spaceId: selectedSpaceId, weekStart },
+  });
+
+  const weekAgenda = agendaRes.ok ? agendaRes.data : null;
+
+  return {
+    spaces,
+    selectedDate,
+    selectedSpaceId,
+    weekStart,
+    weekAgenda,
+    isVisitor,
+    canBook,
+    timeZone,
+    session,
+  };
+}
+
 export const Route = createFileRoute("/")({
   validateSearch: validateAgendaSearch,
   // Com PUBLIC_READ=false a página inicial exige login.
@@ -80,63 +157,22 @@ export const Route = createFileRoute("/")({
       });
     }
   },
-  loaderDeps: ({ search: { data, espaco } }) => ({ data, espaco }),
-  loader: async ({ deps, context }): Promise<AgendaLoaderData> => {
+  // Só a fonte vai ao servidor: trocar "Colunas" e "Livres", filtros e janela ficam no cliente.
+  loaderDeps: ({ search: { data, espaco, visao } }) => ({ data, espaco, fonte: sourceOf(visao) }),
+  loader: async ({ deps, context }): Promise<HomeLoaderData> => {
     const { session } = context;
-    const { user, timeZone } = session;
-    const isVisitor = user === null;
-    const canBook = Boolean(
-      user?.roles.some((r) => BOOKING_ROLES.includes(r as (typeof BOOKING_ROLES)[number])),
-    );
-
-    // 1. Carrega a lista de espaços
-    const spaces = await listSpaces();
-
-    if (spaces.length === 0) {
-      const today = getTodayDate(timeZone);
-      const selectedDate = deps.data ?? today;
-      return {
-        spaces: [],
-        selectedDate,
-        selectedSpaceId: null,
-        weekStart: null,
-        weekAgenda: null,
-        isVisitor,
-        canBook,
-        timeZone,
-        session,
-      };
-    }
-
-    // 2. Safe defaults para data e espaço
-    const today = getTodayDate(timeZone);
-    const selectedDate = deps.data ?? today;
-
-    const matchingSpace = deps.espaco ? spaces.find((s) => s.id === deps.espaco) : undefined;
-    const firstSpace = spaces[0];
-    const selectedSpaceId = matchingSpace ? matchingSpace.id : (firstSpace?.id ?? "");
-
-    // 3. Normalização para segunda-feira da semana
-    const weekStart = getWeekStart(selectedDate);
-
-    // 4. Carrega a agenda semanal
-    const agendaRes = await getWeekAgendaFn({
-      data: { spaceId: selectedSpaceId, weekStart },
-    });
-
-    const weekAgenda = agendaRes.ok ? agendaRes.data : null;
-
-    return {
-      spaces,
-      selectedDate,
-      selectedSpaceId,
-      weekStart,
-      weekAgenda,
-      isVisitor,
-      canBook,
-      timeZone,
+    if (deps.fonte === "sala") return { fonte: "sala", ...(await loadAgenda(deps, session)) };
+    const salas = await loadSalas(
+      deps.data,
       session,
-    };
+      (date) => getRoomsDayFn({ data: { date } }),
+      new Date(),
+      {
+        geral: deps.fonte === "semana",
+        fetchWeek: (weekStart) => getRoomsWeekFn({ data: { weekStart } }),
+      },
+    );
+    return { fonte: deps.fonte, ...salas };
   },
   component: HomePage,
   errorComponent: HomeError,
@@ -144,6 +180,46 @@ export const Route = createFileRoute("/")({
 
 function HomePage() {
   const data = Route.useLoaderData();
+  return data.fonte === "sala" ? <AgendaPage data={data} /> : <RoomsPage data={data} />;
+}
+
+/** A visualização de salas não conhece `espaco` nem "Sala": a sala escolhida segue na URL. */
+function roomsSearchOf({ espaco: _espaco, visao, ...rest }: AgendaSearch): SalasSearch {
+  return { ...rest, ...(visao !== undefined && visao !== "sala" ? { visao } : {}) };
+}
+
+function RoomsPage({ data }: { data: SalasLoaderData }) {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const router = useRouter();
+  return (
+    <AppShell wide>
+      <RoomsView
+        roomsDay={data.roomsDay}
+        roomsWeek={data.roomsWeek}
+        error={data.error}
+        selectedDate={data.selectedDate}
+        search={roomsSearchOf(search)}
+        canBook={data.canBook}
+        isVisitor={data.isVisitor}
+        isAdmin={data.isAdmin}
+        timeZone={data.session.timeZone}
+        onSearchChange={(update, replace) =>
+          void navigate({
+            search: (prev) => ({
+              ...update(roomsSearchOf(prev)),
+              ...(prev.espaco !== undefined ? { espaco: prev.espaco } : {}),
+            }),
+            replace,
+          })
+        }
+        onRetry={() => void router.invalidate()}
+      />
+    </AppShell>
+  );
+}
+
+function AgendaPage({ data }: { data: AgendaLoaderData }) {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const router = useRouter();
