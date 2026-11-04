@@ -375,4 +375,22 @@ Phase 3:  T10 → T11 → T12 → T13
 | T10, T11, T12 | Component | unit | unit | ✅ |
 | T13 | Route wiring | none | none | ✅ |
 
-Diagrama e `Depends on` conferidos por `validate_tasks.py`. São 13 tarefas (mais de um lote de ~7); como este agente já é um subagente e não pode abrir outros, a execução é inline, em ordem.
+Diagrama e `Depends on` conferidos por `validate_tasks.py`.
+
+---
+
+## Correções da validação (rodada 1)
+
+Lacunas de `validation.md` (2026-11-04). Cada teste novo falha no código anterior ou com o mutante citado, conferido aplicando o mutante e restaurando o arquivo.
+
+| Lacuna | Correção | Commit |
+| ------ | -------- | ------ |
+| M16 atomicidade | Gatilho `BEFORE INSERT` em `space_equipment` que aborta só na linha de computadores (a segunda); criar não deixa espaço nem projetor, editar mantém nome, capacidade, observações e equipamentos (`space-repository.test.ts`). M16 mata 2 testes | `3c5ee92` |
+| M19 + imprecisão do AC10 | Decisão do orquestrador: `equipment` e `notes` são independentes; o ausente mantém o gravado. Spec (AC10 e premissa), design, porta (`EquipmentWrite`), repositório (`update` só troca o que veio e relê o espaço), serviço e ação. Testes na ação (sem os dois, só observações, só equipamentos), no serviço e no repositório; o teste antigo que esperava `items: {}` passou a esperar os equipamentos mantidos. O diálogo continua enviando os dois (teste "editar envia o id…"). Com a regra nova, o M19 original vira mutante equivalente | `9ebed0b` |
+| Mensagens 401/403 | A matriz de acesso afirma `{ ok, status, message }` exato para todas as ações | `db6603a` |
+| M10 ordem natural | Teste com `A-201 Lab 2`/`A-201 Lab 10` (mesmo andar) e `Sala 2`/`Sala 10` ("Sem andar identificado"); exemplo do AC1 corrigido | `bc59847` |
+| M24 regravar | O teste de erro de computadores confere o botão "Salvar" habilitado, corrige para 10 e salva com sucesso | `2b6066c` |
+| M25 recarga | A rota de teste tem loader que conta as cargas e devolve a lista do servidor; salvar e excluir recarregam (2 cargas) e a lista mostra o nome novo / some o excluído | `2b6066c` |
+| 360 px com texto sem espaço | `min-w-0` no item da grade e `wrap-anywhere` no nome, nas observações e no título da confirmação; teste afirma as classes. Navegador (360×780, observação de 120 caracteres e nome de 85 sem espaço): lista, confirmação e diálogo com `scrollWidth` 360. AC9 diz como é verificado | `9812b65` |
+
+**Desvio**: a decisão sobre `equipment`/`notes` mudou a porta `SpaceWrite` (`equipment` agora é `EquipmentWrite`, com `items` e `notes` opcionais) e o repositório falso de `src/application/spaces.test.ts` (converte a escrita parcial e registra o que recebeu). São 13 tarefas (mais de um lote de ~7); como este agente já é um subagente e não pode abrir outros, a execução é inline, em ordem.
