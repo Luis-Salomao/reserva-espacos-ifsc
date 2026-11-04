@@ -20,5 +20,7 @@
 ## Handoff
 
 - **Data**: 2026-11-04
-- **Situação**: specs de `todas-as-salas`, `docentes-do-xml` e `materia-na-reserva` escritas e aguardando aprovação. Nada implementado.
+- **Situação**: specs aprovadas; desenho e tarefas de `docentes-do-xml` (16), `todas-as-salas` (10) e `materia-na-reserva` (6) escritos e aguardando aprovação. Nada implementado.
+- **Paralelismo planejado**: `docentes-do-xml` e `todas-as-salas` em worktrees separadas; `materia-na-reserva` depois do merge de `docentes-do-xml`. Conflitos esperados em `ports.ts`, `bookings.ts`, `occupation-repository.ts` e `booking-actions.ts` (métodos novos lado a lado).
+- **Próxima spec**: `visao-geral` (salas × semana por bloco, cor por matéria, filtros recolhidos) escrita; implementar depois do merge de `todas-as-salas` e `docentes-do-xml`.
 - **Em andamento por outra pessoa**: `src/components/agenda/room-selector.tsx` (seletor com busca e agrupamento por bloco), não commitado.
