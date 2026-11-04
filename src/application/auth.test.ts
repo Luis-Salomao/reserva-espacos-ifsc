@@ -186,6 +186,19 @@ describe("login", () => {
     });
   });
 
+  test("conta fantasma não entra: mesma falha e mesmo custo da senha errada", async () => {
+    ctx.record.placeholder = true;
+    const ghost = await ctx.service.login("ana@ifsc.edu.br", SECRET);
+    const wrong = await ctx.service.login("outra@ifsc.edu.br", WRONG);
+    expect(ghost).toEqual({ ok: false, reason: "invalid" });
+    expect(ghost).toEqual(wrong);
+    expect(ctx.hasher.calls).toHaveLength(2);
+    expect(ctx.sessionMap.size).toBe(0);
+    expect(ctx.attemptList.filter((a) => a.email === "ana@ifsc.edu.br")).toEqual([
+      expect.objectContaining({ success: false }),
+    ]);
+  });
+
   test("bloqueia após 5 falhas em 15 minutos, mesmo com a senha certa", async () => {
     for (let i = 0; i < 5; i++) {
       expect(await ctx.service.login("ana@ifsc.edu.br", WRONG)).toEqual({
