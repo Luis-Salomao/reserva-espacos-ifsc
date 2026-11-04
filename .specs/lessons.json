@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 11,
+  "next_id": 13,
   "lessons": [
     {
       "id": "L-001",
@@ -185,6 +185,42 @@
       ],
       "created": "2026-11-04T17:43:22Z",
       "last_seen": "2026-11-04T17:43:22Z"
+    },
+    {
+      "id": "L-011",
+      "key": "surviving_mutant::toda gravacao atomica de varias instrucoes precisa de um teste que force falha numa instrucao posterior e afirme que nada foi gravado",
+      "text": "Toda gravação atômica de várias instruções precisa de um teste que force falha numa instrução posterior e afirme que nada foi gravado",
+      "signal": "surviving_mutant",
+      "scope": "repo-layer",
+      "status": "candidate",
+      "features": [
+        "docentes-do-xml"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M14 src/infra/db/repos/user-repository.ts:123 (repo-layer) (repo-layer)"
+      ],
+      "created": "2026-11-04T18:17:21Z",
+      "last_seen": "2026-11-04T18:17:21Z"
+    },
+    {
+      "id": "L-012",
+      "key": "surviving_mutant::teste de ausencia na interface deve afirmar que o elemento nao existe nao so que um texto especifico nao aparece",
+      "text": "Teste de ausência na interface deve afirmar que o elemento não existe, não só que um texto específico não aparece",
+      "signal": "surviving_mutant",
+      "scope": "components",
+      "status": "candidate",
+      "features": [
+        "docentes-do-xml"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M11 test/components/agenda-person.test.tsx:101 (components) (components)"
+      ],
+      "created": "2026-11-04T18:17:21Z",
+      "last_seen": "2026-11-04T18:17:21Z"
     }
   ]
 }
