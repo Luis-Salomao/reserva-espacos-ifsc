@@ -55,6 +55,8 @@ type Props = {
   isVisitor: boolean;
   /** Celular: quadradinho de 32 px, e o toque abre o cartão em vez de navegar. */
   compact: boolean;
+  /** Reserva do bloco livre; `null` quando o bloco já terminou ou quem vê não pode reservar. */
+  onBook: (() => void) | null;
 };
 
 const SQUARE = "relative shrink-0 rounded-[3px]";
@@ -135,19 +137,24 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProp
 /**
  * Um bloco de uma sala num dia: vazio com contorno; ocupado com a cor da matéria, uma faixa por
  * ocupação e canto recortado quando alguma não cobre o bloco inteiro. Mouse ou foco num ocupado
- * aumenta o quadradinho e abre o cartão de detalhes.
+ * aumenta o quadradinho e abre o cartão de detalhes; o livre, quando há `onBook`, pede a reserva.
  */
-export function OverviewCell({ cell, room, date, highlight, isVisitor, compact }: Props) {
+export function OverviewCell({ cell, room, date, highlight, isVisitor, compact, onBook }: Props) {
   const cardId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const size = compact ? "size-8" : "size-4";
   const where = { "data-room": room.id, "data-date": date, "data-block": cell.block.short };
   if (cell.items.length === 0) {
+    const look = cn(SQUARE, size, "block border border-border");
+    if (onBook === null) return <span {...where} data-cell="livre" className={look} />;
     return (
-      <span
+      <button
+        type="button"
         {...where}
         data-cell="livre"
-        className={cn(SQUARE, size, "block border border-border")}
+        aria-label={`Reservar ${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}`}
+        onClick={onBook}
+        className={cn(look, "outline-offset-2 hover:border-primary hover:bg-primary/15")}
       />
     );
   }

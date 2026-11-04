@@ -328,6 +328,8 @@ export function RoomsView({
                 isVisitor={isVisitor}
                 compact={compact}
                 selectedDate={selectedDate}
+                canReserve={canBook || isVisitor}
+                onBook={book}
               />
             )
           ) : result.rooms.length === 0 ? (

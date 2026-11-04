@@ -1,4 +1,4 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, mock, test } from "bun:test";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -70,15 +70,21 @@ const WEEK: RoomsWeek = {
   ],
 };
 
-async function renderOverview(options: { isVisitor?: boolean } = {}) {
+type RenderOptions = { isVisitor?: boolean; canReserve?: boolean; now?: string };
+
+async function renderOverview(options: RenderOptions = {}) {
+  const onBook = mock();
+  const week = { ...WEEK, now: options.now ?? WEEK.now };
   const root = createRootRoute({
     component: () => (
       <RoomsOverview
-        week={WEEK}
-        rooms={WEEK.rooms}
+        week={week}
+        rooms={week.rooms}
         isVisitor={options.isVisitor ?? false}
         compact={false}
         selectedDate={MON}
+        canReserve={options.canReserve ?? true}
+        onBook={onBook}
       />
     ),
   });
@@ -88,6 +94,7 @@ async function renderOverview(options: { isVisitor?: boolean } = {}) {
   });
   render(<RouterProvider router={router} />);
   await screen.findByTestId("rooms-overview");
+  return { onBook, router };
 }
 
 const cellAt = (room: string, date: string, block: string) =>
@@ -256,6 +263,55 @@ describe("RoomsOverview", () => {
     expect(classes()).not.toContain("scale-160");
     fireEvent.focus(cell);
     expect(classes()).toEqual(expect.arrayContaining(["scale-160", "motion-reduce:scale-100"]));
+  });
+
+  test("clicar num quadradinho livre de bloco futuro pede a reserva com sala, dia e horário do bloco", async () => {
+    const { onBook } = await renderOverview();
+    const free = cellAt("b104", TUE, "M34");
+    expect(free.tagName).toBe("BUTTON");
+    expect(free.getAttribute("aria-label")).toBe(
+      "Reservar B-104, terça 10/11, Manhã 34 10:10–12:00",
+    );
+    fireEvent.click(free);
+    expect(onBook).toHaveBeenCalledTimes(1);
+    expect(onBook).toHaveBeenCalledWith({
+      spaceId: "b104",
+      date: TUE,
+      start: "10:10",
+      end: "12:00",
+    });
+  });
+
+  test("quadradinho livre de bloco que já terminou não pede reserva", async () => {
+    const { onBook } = await renderOverview({ now: `${TUE}T10:00` });
+    const ended = cellAt("b104", TUE, "M12");
+    expect(ended.tagName).not.toBe("BUTTON");
+    fireEvent.click(ended);
+    fireEvent.click(cellAt("b104", MON, "M34"));
+    expect(onBook).toHaveBeenCalledTimes(0);
+    const running = cellAt("b104", TUE, "M34");
+    expect(running.tagName).toBe("BUTTON");
+    fireEvent.click(running);
+    expect(onBook).toHaveBeenCalledWith({
+      spaceId: "b104",
+      date: TUE,
+      start: "10:10",
+      end: "12:00",
+    });
+  });
+
+  test("quadradinho ocupado não pede reserva", async () => {
+    const { onBook } = await renderOverview();
+    fireEvent.click(cellAt("a202", MON, "M12"));
+    expect(onBook).toHaveBeenCalledTimes(0);
+  });
+
+  test("quem não pode reservar nem é visitante não recebe quadradinho clicável", async () => {
+    const { onBook } = await renderOverview({ canReserve: false });
+    const free = cellAt("b104", TUE, "M34");
+    expect(free.tagName).not.toBe("BUTTON");
+    fireEvent.click(free);
+    expect(onBook).toHaveBeenCalledTimes(0);
   });
 
   test("ocupação fora de todos os blocos aparece no aviso da linha da sala", async () => {
