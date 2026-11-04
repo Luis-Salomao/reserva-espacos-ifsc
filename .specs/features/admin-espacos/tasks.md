@@ -327,8 +327,10 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Verificação manual com playwright em 1280 px e 360 px (lista, busca, diálogo, erro de campo, exclusão), sem rolagem horizontal
-- [ ] Gate check passes: `bun run check` (log em `C:\Users\luiss\tcc\tmp\admin-check.log`)
+- [x] Verificação manual com playwright em 1280 px e 360 px (lista, busca, diálogo, erro de campo, exclusão), sem rolagem horizontal; também erro de carga forçado (500 só na lista) com "Tentar de novo" recarregando
+- [x] Gate check passes: `bun run check` (log em `C:\Users\luiss\tcc\tmp\admin-check.log`; 1348 testes, 3 pulados)
+
+**Desvio**: a verificação manual levou a dois ajustes visuais fora do arquivo da rota: em `space-card.tsx`, "Editar" e "Excluir" foram para uma linha fixa no pé do cartão (antes, ficavam ao lado do nome ou quebravam abaixo dele, conforme o tamanho do texto); em `space-form-dialog.tsx`, o título dos grupos de presença passou a usar o mesmo estilo dos rótulos. A rota ganhou `pendingComponent` ("Carregando espaços…").
 
 **Tests**: none
 **Gate**: build
