@@ -12,6 +12,7 @@ import type { PreviewView } from "#/server/import-preview-view";
 
 export const IGNORE_VALUE = "ignore";
 export const CREATE_VALUE = "create";
+export const PLACEHOLDER_VALUE = "placeholder";
 const SPACE_PREFIX = "space:";
 const USER_PREFIX = "user:";
 
@@ -51,8 +52,11 @@ export function userValue(userId: string): string {
   return `${USER_PREFIX}${userId}`;
 }
 
-/** Valor do seletor de docente: "" = sem vínculo; "user:<id>". */
+/** Valor do seletor de docente: "" = sem vínculo; "placeholder" = criar conta fantasma; "user:<id>". */
 export function teacherChoiceOf(suggestion: TeacherSuggestion): string {
+  if (suggestion.saved === null && suggestion.defaultAction === "fantasma") {
+    return PLACEHOLDER_VALUE;
+  }
   const userId = suggestion.saved
     ? suggestion.saved.userId
     : (suggestion.suggestion?.userId ?? null);
@@ -100,16 +104,29 @@ export function roomMappingsToSave(
   return items;
 }
 
-/** Todos os docentes com a escolha atual; "sem vínculo" grava `userId: null` de forma explícita. */
+type TeacherMappingItem = {
+  sourceTeacherId: string;
+  sourceShort: string;
+  userId: string | null;
+  createPlaceholder?: { name: string };
+};
+
+/**
+ * Todos os docentes com a escolha atual; "sem vínculo" grava `userId: null` de forma explícita e
+ * "criar conta fantasma" leva o nome do docente no arquivo.
+ */
 export function teacherMappingsToSave(
-  teachers: ReadonlyArray<{ id: string; short: string }>,
+  teachers: ReadonlyArray<{ id: string; short: string; name: string }>,
   choices: Readonly<Record<string, string>>,
-): Array<{ sourceTeacherId: string; sourceShort: string; userId: string | null }> {
+): TeacherMappingItem[] {
   return teachers.map((teacher) => {
     const choice = choices[teacher.id] ?? "";
+    const base = { sourceTeacherId: teacher.id, sourceShort: teacher.short };
+    if (choice === PLACEHOLDER_VALUE) {
+      return { ...base, userId: null, createPlaceholder: { name: teacher.name } };
+    }
     return {
-      sourceTeacherId: teacher.id,
-      sourceShort: teacher.short,
+      ...base,
       userId: choice.startsWith(USER_PREFIX) ? choice.slice(USER_PREFIX.length) : null,
     };
   });

@@ -223,8 +223,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Teste: `teacherMappingsToSave` gera `createPlaceholder` com o nome
-- [ ] Gate check passes: `bun test src/components test/components`
+- [x] Teste: `teacherMappingsToSave` gera `createPlaceholder` com o nome
+- [x] Gate check passes: `bun test src/components test/components`
 
 **Tests**: unit
 **Gate**: quick
