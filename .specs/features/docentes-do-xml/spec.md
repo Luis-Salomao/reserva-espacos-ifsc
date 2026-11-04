@@ -133,12 +133,12 @@ Das 2945 ocupações importadas, só 80 têm responsável, porque só 2 dos 45 d
 | DOC-03 | P1: Fantasmas (AC 3, 4) | 1-2 | Verified |
 | DOC-04 | P1: Fantasmas (AC 5, 6) | 2 | Verified |
 | DOC-05 | P1: Avatar (AC 1, 2, 4) | 3 | Verified |
-| DOC-06 | P1: Avatar (AC 3) | 3 | Needs Fix |
+| DOC-06 | P1: Avatar (AC 3) | 3 | Fixed (teste afirma ausência de qualquer avatar para visitante; M11 morre; sem nova rodada independente) |
 | DOC-07 | P1: Avatar (AC 5) | 3 | Verified |
 | DOC-08 | P1: Atualizar responsáveis (AC 1, 2, 3, 6) | 3 | Verified |
 | DOC-09 | P1: Atualizar responsáveis (AC 4, 5) | 3 | Verified |
 | DOC-10 | P2: Ativar ou fundir (AC 1, 2, 3, 6) | 1, 4 | Verified |
-| DOC-11 | P2: Ativar ou fundir (AC 4, 5) | 4 | Needs Fix |
+| DOC-11 | P2: Ativar ou fundir (AC 4, 5) | 4 | Fixed (falha simulada no meio da fusão não muda nada; M14 morre; sem nova rodada independente) |
 
 **Coverage:** 11 total, 11 mapped to tasks, 0 unmapped
 

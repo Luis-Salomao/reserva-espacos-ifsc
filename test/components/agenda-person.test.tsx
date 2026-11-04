@@ -95,6 +95,7 @@ describe("responsável na grade", () => {
     );
     const card = screen.getByRole("button", { name: /Cálculo I/ });
     expect(within(card).getByText("ZQ")).toBeTruthy();
+    expect(card.querySelector('[data-slot="avatar"]') === null).toBe(false);
     expect(within(card).getByText("Zeca Quintal")).toBeTruthy();
   });
 
@@ -109,6 +110,7 @@ describe("responsável na grade", () => {
     const card = screen.getByRole("button", { name: /Cálculo I/ });
     expect(card.textContent).not.toContain("Fabiana");
     expect(within(card).queryByText("FL")).toBeNull();
+    expect(card.querySelector('[data-slot="avatar"]') === null).toBe(true);
   });
 
   test("sem pessoa (visitante) não há nome nem avatar", () => {
@@ -122,6 +124,7 @@ describe("responsável na grade", () => {
     const card = screen.getByRole("button", { name: /Cálculo I/ });
     expect(card.textContent).not.toContain("Fabiana");
     expect(within(card).queryByText("FL") === null).toBe(true);
+    expect(card.querySelector('[data-slot="avatar"]') === null).toBe(true);
   });
 
   test("abre a ocupação ao clicar no cartão", () => {
