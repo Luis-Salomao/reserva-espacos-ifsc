@@ -357,8 +357,10 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes: trocar de visualização atualiza `visao` mantendo `data` e `espaco`; menu sem "Salas"; agenda sem "Todas as salas"; "Ver todas as salas" leva a "Colunas"; nome da sala leva a "Sala" com `espaco` e `data`
-- [ ] Gate check passes: `bun test test/components src/components`
+- [x] Testes: trocar de visualização atualiza `visao` mantendo `data` e `espaco`; menu sem "Salas"; agenda sem "Todas as salas"; "Ver todas as salas" leva a "Colunas"; nome da sala leva a "Sala" com `espaco` e `data`
+- [x] Gate check passes: `bun test test/components src/components`
+
+**Desvio**: o `ViewSwitcher` é um `fieldset` "Visualização" (o Biome pede o elemento semântico em vez de `role="group"`). Na agenda, trocar de visualização e "Ver todas as salas" navegam pela própria `AgendaView` para `/`, gravando a data e a sala mostradas (mesmo quando a URL ainda não as tinha). `SalasSearch.visao` passou a aceitar `sala` e `AgendaSearch` é `SalasSearch` com `espaco`, então a `RoomsView` mantém `espaco` na URL ao trocar de visualização. Os links de sala (nome em "Colunas" e em "Livres", quadradinho ocupado) levam a `/?espaco=…&data=…` sem `visao`, que vale "Sala"; o nome em "Livres" virou link nesta tarefa. Testes reescritos pelo comportamento novo: "Todas as salas" na agenda (agora afirma a ausência do link e o seletor com "Sala"), o menu com "Salas" em `app-shell.test.tsx` (agora afirma a ausência do item no menu lateral e no do celular). O harness de `rooms-view.test.tsx` passou a validar a URL com `validateAgendaSearch`, e o de `rooms-free-list.test.tsx` monta um roteador porque o nome virou `Link` (asserções iguais).
 
 **Tests**: unit
 **Gate**: quick
