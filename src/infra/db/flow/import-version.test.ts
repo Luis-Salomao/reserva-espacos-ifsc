@@ -1539,4 +1539,98 @@ describe("cenário integrado: critérios de aceitação", () => {
     expect(resendV1.value.batch.id).toBe(v1.id);
     expect(resendV1.value.superseded).toEqual({ appliedAt: appliedV2.batch.appliedAt as string });
   });
+
+  test("permutação circular de 3 salas com conflito pontual intermediário e bloqueio em cascata", async () => {
+    const env = await setup();
+
+    // 1. Versão 1: L1 em R1 (8h), B2 em R2 (8h), C3 em R3 (8h)
+    const v1 = await publish(
+      env,
+      version("h1-circ", [at("L1", "R1", 8), at("B2", "R2", 8), at("C3", "R3", 8)]),
+    );
+    const v1Occs = await occupationsOf(env, v1.id);
+    expect(v1Occs).toHaveLength(9);
+
+    // 2. No dia 10/08: cancelamento manual de B2 em R2, seguido de reserva avulsa em R2
+    const b2On10 = v1Occs.find((o) => o.lessonId === "B2" && o.startsAt.startsWith("2026-08-10"));
+    if (!b2On10) throw new Error("B2 em 10/08 não encontrada");
+    await env.db
+      .update(schema.occupations)
+      .set({ status: "cancelada" })
+      .where(eq(schema.occupations.id, b2On10.id));
+
+    const manualRow = manualBooking(env.spaces.R2, "2026-08-10T08:00", "2026-08-10T08:50");
+    await env.db.insert(schema.occupations).values(manualRow);
+
+    // 3. Versão 2: Permutação circular completa: L1 -> R2, B2 -> R3, C3 -> R1
+    const v2Plan = version("h2-circ", [at("L1", "R2", 8), at("B2", "R3", 8), at("C3", "R1", 8)]);
+
+    const preparedV2 = await prepareAll(env, v2Plan);
+    expect(preparedV2.batch.status).toBe("rascunho");
+
+    const appliedV2 = await applyAll(env, preparedV2.batch.id);
+    expect(appliedV2.batch.status).toBe("aplicado");
+
+    const allOccs = await occupationsOf(env);
+
+    // Reserva avulsa preservada
+    const manualAfter = allOccs.find((o) => o.id === manualRow.id);
+    expect(manualAfter?.status).toBe("ativa");
+
+    // Nas datas 03/08 e 17/08: permuta circular ocorre com sucesso
+    for (const date of ["2026-08-03", "2026-08-17"]) {
+      const l1New = allOccs.find(
+        (o) =>
+          o.batchId === appliedV2.batch.id && o.lessonId === "L1" && o.startsAt.startsWith(date),
+      );
+      const b2New = allOccs.find(
+        (o) =>
+          o.batchId === appliedV2.batch.id && o.lessonId === "B2" && o.startsAt.startsWith(date),
+      );
+      const c3New = allOccs.find(
+        (o) =>
+          o.batchId === appliedV2.batch.id && o.lessonId === "C3" && o.startsAt.startsWith(date),
+      );
+      expect(l1New).toMatchObject({ status: "ativa", spaceId: env.spaces.R2 });
+      expect(b2New).toMatchObject({ status: "ativa", spaceId: env.spaces.R3 });
+      expect(c3New).toMatchObject({ status: "ativa", spaceId: env.spaces.R1 });
+
+      const l1Old = allOccs.find(
+        (o) => o.batchId === v1.id && o.lessonId === "L1" && o.startsAt.startsWith(date),
+      );
+      const b2Old = allOccs.find(
+        (o) => o.batchId === v1.id && o.lessonId === "B2" && o.startsAt.startsWith(date),
+      );
+      const c3Old = allOccs.find(
+        (o) => o.batchId === v1.id && o.lessonId === "C3" && o.startsAt.startsWith(date),
+      );
+      expect(l1Old?.status).toBe("cancelada");
+      expect(b2Old?.status).toBe("cancelada");
+      expect(c3Old?.status).toBe("cancelada");
+    }
+
+    // No dia 10/08:
+    // - B2 estava cancelada: movedCancelled, não insere em R3 e continua cancelada
+    const b2On10After = allOccs.find((o) => o.id === b2On10.id);
+    expect(b2On10After?.status).toBe("cancelada");
+    const b2On10New = allOccs.find(
+      (o) =>
+        o.batchId === appliedV2.batch.id &&
+        o.lessonId === "B2" &&
+        o.startsAt.startsWith("2026-08-10"),
+    );
+    expect(b2On10New).toBeUndefined();
+
+    // - L1 quer ir para R2, mas colide com a reserva manual -> bloqueada em R1
+    const l1On10 = allOccs.find(
+      (o) => o.batchId === v1.id && o.lessonId === "L1" && o.startsAt.startsWith("2026-08-10"),
+    );
+    expect(l1On10).toMatchObject({ status: "ativa", spaceId: env.spaces.R1 });
+
+    // - C3 quer ir para R1, mas L1 foi segurada em R1 -> cascata de bloqueio, C3 fica em R3
+    const c3On10 = allOccs.find(
+      (o) => o.batchId === v1.id && o.lessonId === "C3" && o.startsAt.startsWith("2026-08-10"),
+    );
+    expect(c3On10).toMatchObject({ status: "ativa", spaceId: env.spaces.R3 });
+  });
 });
