@@ -62,9 +62,9 @@ describe("AppShell", () => {
 
   test("visitante vê Entrar e não vê Importar nem Sair", async () => {
     await renderShell("x");
-    // Um Entrar na barra (computador) e outro ao lado do tema (celular); só um aparece por tamanho.
+    // Visitante usa cabeçalho simples, com uma única entrada para a conta.
     const entrar = screen.getAllByRole("link", { name: "Entrar" });
-    expect(entrar).toHaveLength(2);
+    expect(entrar).toHaveLength(1);
     for (const link of entrar) expect(link.getAttribute("href")).toBe("/entrar");
     expect(screen.queryByRole("link", { name: "Importar" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Sair" })).toBeNull();
@@ -73,7 +73,9 @@ describe("AppShell", () => {
   test("usuário logado vê o nome e Sair (POST em /api/sair), sem Entrar", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     expect(screen.getByText("Ana Souza")).toBeDefined();
-    const button = screen.getByRole("button", { name: "Sair" });
+    expect(screen.queryByRole("button", { name: "Sair" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Configurações de Ana Souza" }));
+    const button = await screen.findByRole("button", { name: "Sair" });
     const form = button.closest("form");
     expect(form?.getAttribute("method")?.toLowerCase()).toBe("post");
     expect(form?.getAttribute("action")).toBe("/api/sair");
@@ -194,7 +196,7 @@ describe("AppShell, estilo agenda", () => {
     const panel = document.getElementById(trigger.getAttribute("aria-controls") ?? "");
     expect(panel).not.toBeNull();
     expect(panel?.querySelectorAll("a")).toHaveLength(3);
-    expect(panel?.querySelector("form[action='/api/sair'] button")?.textContent).toBe("Sair");
+    expect(panel?.querySelector("form[action='/api/sair']")).toBeNull();
   });
 
   test("menu do celular fecha ao tocar fora", async () => {
