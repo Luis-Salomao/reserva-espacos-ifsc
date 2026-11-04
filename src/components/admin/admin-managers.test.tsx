@@ -502,6 +502,25 @@ describe("SpaceCard", () => {
     expect(screen.queryByText(/Observações/) === null).toBe(true);
   });
 
+  test("nome e observações longos sem espaço podem quebrar em qualquer ponto", async () => {
+    const long = "x".repeat(120);
+    renderCard({
+      id: "l1",
+      name: `Sala-${long}`,
+      capacity: null,
+      equipment: { items: {}, notes: long },
+    });
+    const notes = screen.getByText(long);
+    expect(notes.textContent).toBe(`Observações: ${long}`);
+    expect(notes.classList.contains("wrap-anywhere")).toBe(true);
+    const name = screen.getByText(`Sala-${long}`, { selector: "p" });
+    expect(name.classList.contains("wrap-anywhere")).toBe(true);
+    expect((name.closest("li") as HTMLElement).classList.contains("min-w-0")).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: `Excluir Sala-${long}` }));
+    const title = within(await screen.findByRole("alertdialog")).getByRole("heading");
+    expect(title.classList.contains("wrap-anywhere")).toBe(true);
+  });
+
   test("Editar avisa o gerenciador", () => {
     const { edits } = renderCard(informed);
     fireEvent.click(screen.getByRole("button", { name: "Editar A-202" }));

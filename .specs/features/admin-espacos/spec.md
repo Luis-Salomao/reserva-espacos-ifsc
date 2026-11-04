@@ -65,7 +65,7 @@ A tela `/admin/espacos` é um formulário de criação seguido de uma lista plan
 6. IF a busca não encontra nenhum espaço THEN o sistema SHALL mostrar "Nenhum espaço encontrado." e o botão "Limpar busca", que volta a lista completa.
 7. WHEN não há espaço cadastrado THEN o sistema SHALL mostrar "Nenhum espaço cadastrado." e o botão "Cadastrar espaço", que abre o diálogo de novo espaço.
 8. IF o carregamento da lista falhar THEN o sistema SHALL mostrar "Não foi possível carregar os espaços." e o botão "Tentar de novo", que refaz a carga.
-9. WHILE a largura da tela for 360 px the sistema SHALL mostrar a lista e o diálogo sem rolagem horizontal da página.
+9. WHILE a largura da tela for 360 px the sistema SHALL mostrar a lista e o diálogo sem rolagem horizontal da página, inclusive com nome ou observações longos sem espaço (verificado no navegador: `document.documentElement.scrollWidth` igual a 360 com uma observação de 120 caracteres sem espaço; o teste de componente só afirma as classes de quebra, porque o happy-dom não mede layout).
 
 **Independent Test**: Com 21 salas, abrir `/admin/espacos`, ver "Bloco A > Andar 2 > A-202" com "Capacidade não informada" e "Projetor não informado", buscar "a202" e ver "1 de 21 espaços".
 
