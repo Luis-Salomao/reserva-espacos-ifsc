@@ -45,6 +45,17 @@ async function renderShell(children: ReactNode, session: SessionInfo = anonymous
 }
 
 describe("AppShell", () => {
+  test("recolhe e expande a lateral, preservando links e a preferência", async () => {
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    fireEvent.click(screen.getByRole("button", { name: "Recolher menu lateral" }));
+    expect(
+      screen.getByRole("button", { name: "Expandir menu lateral" }).getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(localStorage.getItem("sidebar-collapsed")).toBe("true");
+    expect(screen.getByRole("link", { name: "Importar" }).getAttribute("href")).toBe("/importar");
+    fireEvent.click(screen.getByRole("button", { name: "Expandir menu lateral" }));
+    expect(localStorage.getItem("sidebar-collapsed")).toBe("false");
+  });
   test("mostra o nome do sistema e o conteúdo", async () => {
     await renderShell(<p>conteúdo</p>);
     expect(screen.getByRole("banner").textContent).toContain("Reserva de Espaços");
