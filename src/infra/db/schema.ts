@@ -12,7 +12,22 @@ export const spaces = sqliteTable("spaces", {
   name: text("name").notNull().unique(),
   capacity: integer("capacity"),
   createdAt: text("created_at").notNull(),
+  /** Outros equipamentos e observações; `null` = não informado. */
+  equipmentNotes: text("equipment_notes"),
 });
+
+/** Equipamento informado de um espaço (AD-003). Sem linha = não informado; 0 = não tem. */
+export const spaceEquipment = sqliteTable(
+  "space_equipment",
+  {
+    spaceId: text("space_id")
+      .notNull()
+      .references(() => spaces.id, { onDelete: "cascade" }),
+    kind: text("kind").notNull(),
+    quantity: integer("quantity").notNull(),
+  },
+  (table) => [primaryKey({ columns: [table.spaceId, table.kind] })],
+);
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey(),

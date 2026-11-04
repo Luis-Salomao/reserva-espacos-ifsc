@@ -8,7 +8,7 @@ import * as schema from "#/infra/db/schema";
 function open() {
   const sqlite = new Database(":memory:");
   sqlite.run(
-    "CREATE TABLE spaces (id text primary key not null, name text not null unique, capacity integer, created_at text not null)",
+    "CREATE TABLE spaces (id text primary key not null, name text not null unique, capacity integer, created_at text not null, equipment_notes text)",
   );
   return drizzle(sqlite, { schema });
 }

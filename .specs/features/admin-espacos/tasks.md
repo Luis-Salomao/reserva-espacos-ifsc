@@ -115,8 +115,10 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Teste: banco migrado até 0008 com um espaço; aplicar 0009 mantém nome e capacidade, `equipment_notes` nulo e nenhuma linha em `space_equipment`; apagar o espaço apaga os equipamentos (FK em cascata)
-- [ ] Gate check passes: `bun test src/infra`
+- [x] Teste: banco migrado até 0008 com um espaço; aplicar 0009 mantém nome e capacidade, `equipment_notes` nulo e nenhuma linha em `space_equipment`; apagar o espaço apaga os equipamentos (FK em cascata)
+- [x] Gate check passes: `bun test` (1283 testes, 2 pulados que já existiam)
+
+**Desvio**: migração gerada como `drizzle/0009_little_tomas.sql`. O teste de `runAtomically` cria a tabela `spaces` à mão; a DDL do teste ganhou `equipment_notes text`, porque o drizzle passa a inserir essa coluna (nenhuma asserção mudou).
 
 **Tests**: integration
 **Gate**: full
