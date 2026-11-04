@@ -229,6 +229,176 @@ describe("editar espaço", () => {
   });
 });
 
+describe("equipamentos e observações", () => {
+  let ctx: ReturnType<typeof setup>;
+  beforeEach(() => {
+    ctx = setup();
+  });
+
+  const COUNT_ERROR = "A quantidade de computadores deve ser um número inteiro de 0 a 999.";
+  const PRESENCE_ERROR = "Escolha sim, não ou não informado.";
+  const create = (items: Record<string, number | string | null>, notes: string | null = null) =>
+    ctx.service.create({ name: "Lab", capacity: null, equipment: { items, notes } });
+
+  test("grava presença, contagem aparada e observações aparadas com quebra de linha", async () => {
+    const result = await create(
+      { projetor: 1, computadores: " 12 ", som: null },
+      "  Lousa digital\n\tCaixa portátil  ",
+    );
+    expect(result).toMatchObject({
+      ok: true,
+      value: {
+        equipment: {
+          items: { projetor: 1, computadores: 12 },
+          notes: "Lousa digital\n\tCaixa portátil",
+        },
+      },
+    });
+  });
+
+  test("vazio, só espaços ou nulo = não informado; 0 = não tem", async () => {
+    const result = await create({ projetor: "", computadores: "   ", som: 0 }, "   ");
+    expect(result).toMatchObject({
+      ok: true,
+      value: { equipment: { items: { som: 0 }, notes: null } },
+    });
+    if (!result.ok) throw new Error("setup");
+    expect(result.value.equipment?.items).toEqual({ som: 0 });
+  });
+
+  test("contagem aceita os limites 0 e 999", async () => {
+    expect(await create({ computadores: 0 })).toMatchObject({
+      ok: true,
+      value: { equipment: { items: { computadores: 0 } } },
+    });
+    ctx = setup();
+    expect(await create({ computadores: "999" })).toMatchObject({
+      ok: true,
+      value: { equipment: { items: { computadores: 999 } } },
+    });
+  });
+
+  test.each([
+    ["negativa", -1],
+    ["acima do limite", 1000],
+    ["fracionária", 2.5],
+    ["texto", "doze"],
+    ["texto fracionário", "1.5"],
+    ["texto enorme", "10000"],
+  ])("recusa quantidade de computadores %s", async (_label, value) => {
+    expect(await create({ computadores: value })).toEqual({
+      ok: false,
+      kind: "validation",
+      message: COUNT_ERROR,
+      field: "computadores",
+    });
+    expect(ctx.rows.size).toBe(0);
+  });
+
+  test.each([
+    ["projetor", 2],
+    ["projetor", "1"],
+    ["projetor", -1],
+    ["som", 5],
+    ["som", "sim"],
+  ])("recusa %s = %p", async (kind, value) => {
+    expect(await create({ [kind]: value })).toEqual({
+      ok: false,
+      kind: "validation",
+      message: PRESENCE_ERROR,
+      field: kind,
+    });
+    expect(ctx.rows.size).toBe(0);
+  });
+
+  test("observações: 500 caracteres valem; 501 são recusados", async () => {
+    expect((await create({}, "x".repeat(500))).ok).toBe(true);
+    expect(await create({}, ` ${"x".repeat(501)} `)).toEqual({
+      ok: false,
+      kind: "validation",
+      message: "As observações devem ter no máximo 500 caracteres.",
+      field: "notes",
+    });
+  });
+
+  test.each([
+    ["sino (U+0007)", "a\u0007b"],
+    ["DEL", "a\u007fb"],
+    ["C1 (U+0085)", "a\u0085b"],
+  ])("observações com controle %s são recusadas", async (_label, notes) => {
+    expect(await create({}, notes)).toEqual({
+      ok: false,
+      kind: "validation",
+      message: "As observações contêm caracteres inválidos.",
+      field: "notes",
+    });
+    expect(ctx.rows.size).toBe(0);
+  });
+
+  test("tipo fora do catálogo é recusado sem gravar", async () => {
+    expect(await create({ projetor: 1, lousa: 1 })).toEqual({
+      ok: false,
+      kind: "validation",
+      message: "Tipo de equipamento desconhecido.",
+    });
+    expect(ctx.rows.size).toBe(0);
+  });
+
+  test("sem equipamentos, o repositório não recebe equipamentos ao criar nem ao editar", async () => {
+    const created = await ctx.service.create({ name: "Lab", capacity: null });
+    if (!created.ok) throw new Error("setup");
+    expect("equipment" in created.value).toBe(false);
+    const updated = await ctx.service.update(created.value.id, { name: "Lab 2", capacity: 3 });
+    if (!updated.ok) throw new Error("setup");
+    expect("equipment" in updated.value).toBe(false);
+  });
+
+  test("editar com equipamentos repassa o conjunto validado", async () => {
+    const created = await ctx.service.create({ name: "Lab", capacity: null });
+    if (!created.ok) throw new Error("setup");
+    expect(
+      await ctx.service.update(created.value.id, {
+        name: "Lab",
+        capacity: null,
+        equipment: { items: { computadores: "3" }, notes: null },
+      }),
+    ).toEqual({
+      ok: true,
+      value: {
+        id: created.value.id,
+        name: "Lab",
+        capacity: null,
+        equipment: { items: { computadores: 3 }, notes: null },
+      },
+    });
+  });
+
+  test("editar com equipamento inválido não grava", async () => {
+    const created = await ctx.service.create({ name: "Lab", capacity: 10 });
+    if (!created.ok) throw new Error("setup");
+    expect(
+      await ctx.service.update(created.value.id, {
+        name: "Outro",
+        capacity: 10,
+        equipment: { items: { computadores: -1 }, notes: null },
+      }),
+    ).toMatchObject({ ok: false, field: "computadores" });
+    expect(ctx.rows.get(created.value.id)?.name).toBe("Lab");
+  });
+
+  test("listWithEquipment devolve o que o repositório lê com equipamentos", async () => {
+    await create({ projetor: 1 }, "Lousa");
+    expect(await ctx.service.listWithEquipment()).toEqual([
+      {
+        id: "s1",
+        name: "Lab",
+        capacity: null,
+        equipment: { items: { projetor: 1 }, notes: "Lousa" },
+      },
+    ]);
+  });
+});
+
 describe("listar", () => {
   test("devolve os espaços do repositório", async () => {
     const ctx = setup();
