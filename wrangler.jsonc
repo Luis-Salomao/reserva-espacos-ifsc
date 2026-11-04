@@ -9,8 +9,7 @@
     {
       "binding": "DB",
       "database_name": "reserva-espacos",
-      // Substitua pelo ID real ao criar o banco (wrangler d1 create reserva-espacos).
-      "database_id": "local-placeholder",
+      "database_id": "f9201b02-2d51-4d7a-9ebb-ec1b1ab3ba87",
       "migrations_dir": "drizzle"
     }
   ],
