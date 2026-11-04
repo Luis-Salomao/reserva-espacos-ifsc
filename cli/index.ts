@@ -1,7 +1,9 @@
 #!/usr/bin/env bun
+import { runBackup } from "./backup.ts";
 import { runCreateAdmin } from "./create-admin.ts";
 import { runImportPreview } from "./import-preview.ts";
 import { runInit } from "./init.ts";
+import { runRestore } from "./restore.ts";
 
 const HELP = `reserva-espacos: CLI de instalação
 
@@ -11,6 +13,10 @@ Comandos:
           Cria uma conta admin (senha sem eco ou --password-stdin)
   import-preview <arquivo.xml> [--json] [--full]
           Mostra a prévia de um XML do aSc Horários (não grava nada)
+  backup --out <arquivo> [--overwrite]
+          Cria uma cópia íntegra do banco SQLite via VACUUM INTO
+  restore --from <arquivo> [--target <banco>] [--yes]
+          Restaura o banco a partir de uma cópia com integridade verificada
 
 Opções:
   --help  Mostra esta ajuda
@@ -26,6 +32,12 @@ if (command === "create-admin") {
 }
 if (command === "import-preview") {
   process.exit(runImportPreview(rest));
+}
+if (command === "backup") {
+  process.exit(await runBackup(rest));
+}
+if (command === "restore") {
+  process.exit(await runRestore(rest));
 }
 if (command === "--help" || command === "-h") {
   console.log(HELP);

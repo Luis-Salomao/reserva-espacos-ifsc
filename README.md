@@ -106,6 +106,85 @@ O padrão é scrypt com N=16384. Medições **locais** (tempo de parede numa má
 
 Contas e espaços são geridos por quem tem o papel `admin`, em `/admin/contas` e `/admin/espacos` (menu "Administração"). O primeiro administrador nasce pela CLI (veja "Primeiro acesso"). Quem tem o papel `horarios` pode criar espaços a partir do fluxo de importação (vínculo de salas), mas só o `admin` edita espaços depois. Desativar uma conta ou redefinir sua senha encerra todas as sessões dela, e o último administrador ativo não pode se desativar nem perder o papel `admin`. Espaços não têm exclusão nesta etapa.
 
+## Cópia e restauração
+
+O sistema oferece procedimentos de cópia de segurança (backup) e restauração para SQLite local e Cloudflare D1 (RO-01).
+
+### SQLite local e Docker
+
+A CLI oficial provê os comandos `backup` e `restore`:
+
+```bash
+# Cópia consistente com a aplicação em execução (modo WAL):
+bun run cli backup --out ./backups/backup-2026-11-04.sqlite [--overwrite]
+
+# Restauração com a aplicação PARADA:
+bun run cli restore --from ./backups/backup-2026-11-04.sqlite [--yes]
+```
+
+- **Backup (`cli backup --out <arquivo>`):**
+  - Utiliza o comando `VACUUM INTO '<arquivo>'` do SQLite em modo somente-leitura.
+  - Permite criar uma cópia estritamente consistente sem paralisar o servidor nem bloquear requisições HTTP de leitura ou escrita em modo WAL.
+  - Valida o arquivo gerado e exibe o tamanho em bytes na saída padrão.
+
+- **Restauração (`cli restore --from <arquivo>`):**
+  - **Atenção:** deve ser executada com o servidor da aplicação **parado**, evitando conflitos de arquivos e bloqueios (`EBUSY`).
+  - Executa verificação prévia de integridade via `PRAGMA integrity_check` no arquivo de backup antes de qualquer alteração no banco ativo. Se a cópia estiver corrompida, o processo é abortado imediatamente sem tocar no banco ativo.
+  - Compara a contagem de migrações registradas no backup com o journal local do Drizzle (`drizzle/meta/_journal.json`).
+  - Cria automaticamente uma cópia de segurança do banco ativo (`<alvo>.bak-<timestamp>`) antes da substituição.
+  - Remove arquivos residuais `-wal` e `-shm` para impedir que logs transacionais antigos sejam reaplicados sobre o banco restaurado.
+  - Substitui o arquivo de banco e executa validação final com `PRAGMA integrity_check`. Em caso de qualquer falha na verificação final, restaura automaticamente a cópia de segurança anterior.
+
+#### No Docker / Contêiner
+
+A imagem Docker empacota os mesmos comandos em `/app/cli.mjs`:
+
+```bash
+# Cópia em contêiner ativo:
+docker exec app bun /app/cli.mjs backup --out /data/backup.sqlite
+
+# Restauração (parar a aplicação web antes de restaurar):
+docker stop app
+docker run --rm -v reserva-data:/data reserva bun /app/cli.mjs restore --from /data/backup.sqlite --yes
+docker start app
+```
+
+### Cloudflare D1
+
+Para instalações no Cloudflare Workers com D1, utilize as ferramentas oficiais do Wrangler:
+
+```bash
+# Exportar cópia remota (gera arquivo SQL com schema e dados):
+wrangler d1 export DB --output backup-d1.sql --remote --config wrangler.jsonc
+
+# Exportar do D1 local (ambiente de desenvolvimento):
+wrangler d1 export DB --output backup-d1-local.sql --local --config wrangler.jsonc
+
+# Restaurar cópia remota:
+wrangler d1 execute DB --file backup-d1.sql --remote --config wrangler.jsonc
+
+# Restaurar no D1 local:
+wrangler d1 execute DB --file backup-d1-local.sql --local --config wrangler.jsonc
+```
+
+> **Aviso:** Nunca execute comandos de restauração (`wrangler d1 execute`) contra ambientes remotos de produção sem validação prévia em ambiente local ou de homologação.
+
+### Demonstração sintética e testes automatizados
+
+O ciclo completo de backup, alteração de dados, exclusão e restauração com verificação atômica é coberto pelo teste automatizado em `cli/backup-restore.test.ts`:
+1. Inicialização de banco SQLite de teste com todas as migrações aplicadas.
+2. Inserção de dados sintéticos de espaços, usuários e uma reserva avulsa específica.
+3. Execução de `cli backup` em modo WAL ativo e confirmação da integridade do arquivo.
+4. Exclusão e alteração de registros no banco ativo.
+5. Execução de `cli restore` com confirmação.
+6. Validação de integridade pós-restauração, contagens de tabelas e recuperação exata da reserva alvo.
+7. Teste de rejeição de arquivo corrompido sem degradar o banco ativo.
+
+Para executar a demonstração e toda a suíte de testes do CLI:
+```bash
+bun test cli/
+```
+
 ## Desenvolvimento
 
 ```bash
