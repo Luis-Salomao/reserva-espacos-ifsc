@@ -338,15 +338,32 @@ describe("RoomsOverview", () => {
     expect(panelTitle()).toBe("terça 10/11 · 08:00–12:00");
   });
 
-  test("o arrasto não passa para outro dia", async () => {
+  test("o arrasto não passa para outro dia: o trecho fica no dia onde começou", async () => {
     await renderOverview();
-    const start = cellAt("b104", TUE, "M12");
-    fireEvent.pointerDown(start, { pointerType: "mouse", button: 0 });
+    fireEvent.pointerDown(cellAt("b104", TUE, "M12"), { pointerType: "mouse", button: 0 });
+    fireEvent.pointerEnter(cellAt("b104", TUE, "M34"), { pointerType: "mouse" });
+    fireEvent.pointerEnter(cellAt("b104", WED, "M12"), { pointerType: "mouse" });
+    const tuesday = [
+      ["a202", TUE, "M12"],
+      ["a202", TUE, "M34"],
+      ["b104", TUE, "M12"],
+      ["b104", TUE, "M34"],
+      ["lab", TUE, "M12"],
+      ["lab", TUE, "M34"],
+    ];
+    expect(selectedCells()).toEqual(tuesday);
+    fireEvent.pointerUp(cellAt("b104", WED, "M12"), { pointerType: "mouse" });
+    expect(panelTitle()).toBe("terça 10/11 · 08:00–12:00");
+    expect(selectedCells()).toEqual(tuesday);
+  });
+
+  test("arrastar de um bloco direto para outro dia não seleciona trecho", async () => {
+    await renderOverview();
+    fireEvent.pointerDown(cellAt("b104", TUE, "M12"), { pointerType: "mouse", button: 0 });
     fireEvent.pointerEnter(cellAt("b104", WED, "M34"), { pointerType: "mouse" });
     fireEvent.pointerUp(cellAt("b104", WED, "M34"), { pointerType: "mouse" });
-    fireEvent.click(start);
-    expect(panelTitle()).toBe("terça 10/11 · 08:00–09:50");
-    expect(selectedCells().every(([, date]) => date === TUE)).toBe(true);
+    expect(screen.queryByRole("region", { name: "Horário selecionado" }) === null).toBe(true);
+    expect(selectedCells()).toEqual([]);
   });
 
   test("o painel lista as livres antes das ocupadas, com o motivo da ocupação", async () => {
@@ -354,7 +371,11 @@ describe("RoomsOverview", () => {
     fireEvent.click(cellAt("b104", TUE, "M12"));
     expect(namesIn("Salas livres no horário")).toEqual(["B-104", "LAB 1"]);
     expect(namesIn("Salas ocupadas no horário")).toEqual(["A-202"]);
+    const free = listOf("Salas livres no horário");
+    const title = within(selectionPanel()).getByRole("heading", { name: "Ocupadas", level: 3 });
     const busy = listOf("Salas ocupadas no horário");
+    expect(free.compareDocumentPosition(title) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(title.compareDocumentPosition(busy) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
     expect(within(busy).getByText("Física — 2B, 08:30–09:50")).toBeDefined();
   });
 
@@ -430,6 +451,19 @@ describe("RoomsOverview", () => {
     ).toBeDefined();
   });
 
+  test("trecho em andamento mostra todas as salas ocupadas com 'Horário já passou', sem reserva", async () => {
+    await renderOverview({ now: `${TUE}T09:00` });
+    fireEvent.click(cellAt("b104", TUE, "M12"));
+    const panel = selectionPanel();
+    expect(within(panel).queryByText("Esse horário já terminou") === null).toBe(true);
+    expect(maybeList("Salas livres no horário") === null).toBe(true);
+    expect(within(panel).getByText("Nenhuma sala livre nesse horário")).toBeDefined();
+    expect(namesIn("Salas ocupadas no horário")).toEqual(["A-202", "B-104", "LAB 1"]);
+    for (const room of within(listOf("Salas ocupadas no horário")).getAllByRole("listitem"))
+      expect(within(room).getByText("Horário já passou")).toBeDefined();
+    expect(within(panel).queryByRole("button", { name: /^Reservar/ }) === null).toBe(true);
+  });
+
   test("quem não pode reservar nem é visitante vê as livres sem botão de reservar", async () => {
     await renderOverview({ canReserve: false });
     fireEvent.click(cellAt("b104", TUE, "M34"));
@@ -454,6 +488,27 @@ describe("RoomsOverview", () => {
     expect(screen.queryByRole("region", { name: "Horário selecionado" }) === null).toBe(true);
     expect(selectedCells()).toEqual([]);
     expect(screen.getByRole("group", { name: "Legenda" })).toBeDefined();
+  });
+
+  test("Escape fecha o painel de seleção e volta a legenda", async () => {
+    await renderOverview();
+    fireEvent.click(cellAt("b104", TUE, "M12"));
+    expect(screen.queryByRole("group", { name: "Legenda" }) === null).toBe(true);
+    fireEvent.keyDown(document, { key: "Escape" });
+    expect(screen.queryByRole("region", { name: "Horário selecionado" }) === null).toBe(true);
+    expect(selectedCells()).toEqual([]);
+    expect(screen.getByRole("group", { name: "Legenda" })).toBeDefined();
+  });
+
+  test("Escape fecha o cartão de detalhe do quadradinho focado", async () => {
+    await renderOverview();
+    const cell = cellAt("a202", TUE, "M12");
+    fireEvent.focus(cell);
+    expect(screen.getByRole("tooltip")).toBeDefined();
+    fireEvent.keyDown(cell, { key: "Escape" });
+    expect(screen.queryByRole("tooltip") === null).toBe(true);
+    expect(cell.hasAttribute("aria-describedby")).toBe(false);
+    expect(cell.className.split(" ")).not.toContain("scale-160");
   });
 
   test("no celular, o toque seleciona um bloco por vez, sem arrasto", async () => {
