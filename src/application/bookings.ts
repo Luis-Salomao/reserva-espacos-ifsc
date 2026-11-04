@@ -18,6 +18,7 @@ import {
 } from "#/domain/availability";
 import { addDays, weekdayOf } from "#/domain/calendar";
 import { CANCEL_REASONS } from "#/domain/cancel-reasons";
+import { expandRecurrence, type Recurrence, recurrenceSummary } from "#/domain/recurrence";
 import { isValidDate, type Semester } from "#/domain/semester";
 import type { User } from "#/domain/user";
 
@@ -36,6 +37,9 @@ const ENDED = "Esta ocupação já terminou e não pode ser cancelada.";
 const ALREADY_CANCELLED = "Esta ocupação já foi cancelada.";
 const SERIES_CHANGED = "A série mudou desde a confirmação. Revise as datas e confirme de novo.";
 const RACE_LOST = "O horário foi ocupado por outra reserva. Atualize a agenda e escolha outro.";
+const NONE_FREE = "Nenhuma data da série está livre; nada foi reservado.";
+const PREVIEW_CHANGED =
+  "As datas livres mudaram desde a prévia; nada foi reservado. Revise a prévia atualizada e confirme de novo.";
 
 /**
  * Pessoa ligada à ocupação: responsável (importada) ou quem reservou (avulsa). `placeholder`:
@@ -121,6 +125,30 @@ type BookingFailure = Failure & { conflict?: ConflictInfo };
 export type BookingResult = { ok: true; value: BookingView } | BookingFailure;
 
 export type MyBooking = AgendaItem & { spaceId: string; spaceName: string };
+
+/** Data da série na prévia: livre, ou com o motivo do conflito (título e horário, sem pessoas). */
+export type RecurringDate =
+  | { date: string; free: true }
+  | { date: string; free: false; reason: string };
+
+export type RecurringPreview = { summary: string; dates: RecurringDate[] };
+
+type RecurringInput = {
+  spaceId: string;
+  date: string;
+  start: string;
+  end: string;
+  purpose: string;
+  rule: Recurrence;
+};
+
+/**
+ * Confirmação da série: `created` com as datas gravadas e as puladas; ou nada gravado (nenhuma
+ * livre, ou as livres mudaram desde a prévia) com o motivo e a prévia atualizada.
+ */
+export type RecurringOutcome =
+  | { created: true; seriesId: string; dates: string[]; skipped: RecurringDate[] }
+  | { created: false; message: string; preview: RecurringPreview };
 
 export type BookingsDeps = {
   occupations: OccupationRepository;
@@ -257,6 +285,47 @@ export function createBookingsService(deps: BookingsDeps) {
     if (anchor.status !== "ativa") return fail("conflict", ALREADY_CANCELLED);
     if (anchor.endsAt <= nowLocal()) return fail("validation", ENDED);
     return ok(anchor);
+  }
+
+  /**
+   * Valida a série como a reserva simples (papel, finalidade, data inicial, horário, espaço) e a
+   * sobreposição de cada data, com uma única consulta de ocupações. As demais datas vêm depois da
+   * inicial, com o mesmo horário: se a inicial passa no expediente e no "sem passado", todas passam.
+   */
+  async function planRecurring(
+    user: User,
+    input: RecurringInput,
+  ): Promise<Result<{ title: string; preview: RecurringPreview }>> {
+    if (!canBook(user)) return fail("forbidden", FORBIDDEN_BOOK);
+    const purpose = parseText(input.purpose, MAX_PURPOSE, "A finalidade", "purpose");
+    if (!purpose.ok) return purpose;
+    const issue = validateBookingWhen(input, hours, nowLocal());
+    if (issue !== null) return validationFrom(issue);
+    if ((await spaceName(input.spaceId)) === null) {
+      return fail("not_found", "Espaço não encontrado.", "spaceId");
+    }
+    const expansion = expandRecurrence(input.date, input.rule);
+    if (!expansion.ok) return fail("validation", expansion.message, "repeat");
+    const { dates } = expansion;
+    const busy = await occupations.listActiveInRange(
+      input.spaceId,
+      `${dates[0] ?? input.date}T00:00`,
+      `${addDays(dates.at(-1) ?? input.date, 1)}T00:00`,
+    );
+    const statuses = dates.map((date): RecurringDate => {
+      const startsAt = `${date}T${input.start}`;
+      const endsAt = `${date}T${input.end}`;
+      const blocking = busy.filter((item) => item.startsAt < endsAt && item.endsAt > startsAt);
+      if (blocking.length === 0) return { date, free: true };
+      const reason = blocking
+        .map((item) => `${item.title}, ${item.startsAt.slice(11, 16)}–${item.endsAt.slice(11, 16)}`)
+        .join("; ");
+      return { date, free: false, reason };
+    });
+    return ok({
+      title: purpose.value,
+      preview: { summary: recurrenceSummary(input.date, input.rule, dates), dates: statuses },
+    });
   }
 
   return {
@@ -450,6 +519,59 @@ export function createBookingsService(deps: BookingsDeps) {
         ),
         conflict,
       };
+    },
+
+    /** Prévia da série: datas livres e com conflito, sem gravar nada. */
+    async previewRecurring(user: User, input: RecurringInput): Promise<Result<RecurringPreview>> {
+      const plan = await planRecurring(user, input);
+      return plan.ok ? ok(plan.value.preview) : plan;
+    },
+
+    /**
+     * Grava só as datas livres, ligadas por um id de série, numa unidade atômica. `confirmed` são
+     * as datas livres que a pessoa viu na prévia: se o servidor calcula outras (ou a gravação perde
+     * uma corrida), nada é gravado e volta a prévia atualizada.
+     */
+    async createRecurring(
+      user: User,
+      input: RecurringInput & { confirmed: readonly string[] },
+    ): Promise<Result<RecurringOutcome>> {
+      const plan = await planRecurring(user, input);
+      if (!plan.ok) return plan;
+      const { title, preview } = plan.value;
+      const free = preview.dates.filter((item) => item.free).map((item) => item.date);
+      if (free.length === 0) return ok({ created: false, message: NONE_FREE, preview });
+      const confirmed = new Set(input.confirmed);
+      if (free.length !== confirmed.size || free.some((date) => !confirmed.has(date))) {
+        return ok({ created: false, message: PREVIEW_CHANGED, preview });
+      }
+      const seriesId = crypto.randomUUID();
+      const inserted = await occupations.insertSeriesIfFree({
+        seriesId,
+        spaceId: input.spaceId,
+        title,
+        createdBy: user.id,
+        createdAt: clock.now().toISOString(),
+        slots: free.map((date) => ({
+          id: crypto.randomUUID(),
+          startsAt: `${date}T${input.start}`,
+          endsAt: `${date}T${input.end}`,
+        })),
+      });
+      if (!inserted) {
+        const again = await planRecurring(user, input);
+        return ok({
+          created: false,
+          message: PREVIEW_CHANGED,
+          preview: again.ok ? again.value.preview : preview,
+        });
+      }
+      return ok({
+        created: true,
+        seriesId,
+        dates: free,
+        skipped: preview.dates.filter((item) => !item.free),
+      });
     },
 
     /**

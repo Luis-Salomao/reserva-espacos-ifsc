@@ -311,6 +311,7 @@ export function createImportRepository(db: AppDb): ImportRepository {
                   cancelReason: null,
                   cancelledAt: null,
                   createdBy: null,
+                  seriesId: null,
                 })}
                   WHERE NOT EXISTS (SELECT 1 FROM occupations o WHERE ${overlapping})`,
               )

@@ -1,6 +1,7 @@
 import { and, asc, eq, gt, gte, lt, or, sql } from "drizzle-orm";
 import type { OccupationRecord, OccupationRepository } from "#/application/ports";
 import { weekdaySqlite } from "#/domain/availability";
+import { runAtomically } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
 import { occupationSelectList } from "#/infra/db/occupation-insert";
 import { occupations, spaces } from "#/infra/db/schema";
@@ -17,6 +18,7 @@ const columns = {
   createdBy: occupations.createdBy,
   title: occupations.title,
   status: occupations.status,
+  seriesId: occupations.seriesId,
 };
 
 /**
@@ -53,7 +55,7 @@ function seriesCondition(
   );
 }
 
-// Sem db.transaction(): cada operação de escrita é uma única instrução (atômica nos dois alvos).
+// Sem db.transaction(): cada escrita é uma única instrução ou passa por `runAtomically` (série).
 export function createOccupationRepository(db: AppDb): OccupationRepository {
   return {
     async listActiveInRange(spaceId, from, to) {
@@ -115,6 +117,7 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
             cancelReason: null,
             cancelledAt: null,
             createdBy: input.createdBy,
+            seriesId: null,
           })}
             WHERE NOT EXISTS (SELECT 1 FROM occupations o WHERE ${overlapping})`,
         )
@@ -138,6 +141,53 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
         .orderBy(asc(occupations.startsAt))
         .limit(1);
       return { inserted: false, blocking: blocking ?? null };
+    },
+
+    async insertSeriesIfFree(input) {
+      const [first, ...rest] = input.slots;
+      if (first === undefined) return false;
+      const expected = input.slots.length;
+      // Cada data é um INSERT condicional (uma instrução por data: o D1 limita 100 parâmetros); a
+      // última instrução apaga a série inteira se alguma data não entrou, dentro da mesma unidade.
+      const insertSlot = (x: AppDb, slot: typeof first) =>
+        x.insert(occupations).select(
+          sql`SELECT ${occupationSelectList({
+            id: slot.id,
+            spaceId: input.spaceId,
+            startsAt: slot.startsAt,
+            endsAt: slot.endsAt,
+            source: "manual",
+            batchId: null,
+            lessonId: null,
+            responsibleUserId: input.createdBy,
+            title: input.title,
+            status: "ativa",
+            createdAt: input.createdAt,
+            cancelReason: null,
+            cancelledAt: null,
+            createdBy: input.createdBy,
+            seriesId: input.seriesId,
+          })}
+            WHERE NOT EXISTS (SELECT 1 FROM occupations o WHERE o.space_id = ${input.spaceId}
+              AND o.status = 'ativa' AND o.starts_at < ${slot.endsAt} AND o.ends_at > ${slot.startsAt})`,
+        );
+      await runAtomically(db, (x) => [
+        insertSlot(x, first),
+        ...rest.map((slot) => insertSlot(x, slot)),
+        x
+          .delete(occupations)
+          .where(
+            and(
+              eq(occupations.seriesId, input.seriesId),
+              sql`(SELECT count(*) FROM occupations s WHERE s.series_id = ${input.seriesId}) <> ${expected}`,
+            ),
+          ),
+      ]);
+      const [row] = await db
+        .select({ total: sql<number>`count(*)` })
+        .from(occupations)
+        .where(eq(occupations.seriesId, input.seriesId));
+      return row?.total === expected;
     },
 
     async cancelOne(id, reason, at) {

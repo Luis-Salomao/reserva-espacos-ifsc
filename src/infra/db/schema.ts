@@ -198,9 +198,12 @@ export const occupations = sqliteTable(
     cancelledAt: text("cancelled_at"),
     /** Quem criou a reserva avulsa (`null` nas importadas). */
     createdBy: text("created_by").references(() => users.id),
+    /** Série de reservas avulsas recorrentes (`null` na reserva simples e nas importadas). */
+    seriesId: text("series_id"),
   },
   (table) => [
     index("occupations_space_starts_idx").on(table.spaceId, table.startsAt),
+    index("occupations_series_idx").on(table.seriesId, table.startsAt),
     index("occupations_created_by_idx").on(table.createdBy, table.startsAt),
     index("occupations_responsible_idx").on(table.responsibleUserId, table.startsAt),
     index("occupations_space_ends_idx").on(table.spaceId, table.endsAt),

@@ -72,7 +72,7 @@ Hoje cada reserva avulsa vale para uma data só. Quem precisa da mesma sala no m
 3. REC-08 IF nenhuma data está livre THEN o sistema SHALL NOT reservar nada e SHALL desabilitar a confirmação.
 4. REC-09 IF o conjunto de datas livres mudou entre a prévia e a confirmação THEN o sistema SHALL NOT reservar nada e SHALL devolver a prévia atualizada com o aviso.
 5. REC-09 IF a gravação de qualquer data falha THEN o sistema SHALL NOT gravar nenhuma data da série.
-6. REC-10 THE sistema SHALL aplicar a cada data as mesmas regras da reserva simples no servidor: papel (docente, horários, admin; visitante recebe 401, outros papéis 403), finalidade, expediente, sem passado e sem sobreposição.
+6. REC-10 THE sistema SHALL aplicar no servidor as mesmas regras da reserva simples: papel (docente, horários, admin; visitante recebe 401, outros papéis 403), finalidade, data inicial e horário (expediente, sem passado) e, em cada data, sem sobreposição. As demais datas vêm depois da inicial com o mesmo horário, então expediente e "sem passado" valem para todas quando valem para a inicial.
 7. REC-10 WHEN a repetição é "Não repete" THEN o sistema SHALL reservar uma data só, pelo fluxo da reserva simples.
 
 ### P2: Série em "Minhas reservas"
