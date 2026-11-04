@@ -260,11 +260,12 @@ T14 → T15 → T16
 **Depends on**: T9
 **Reuses**: `responsibleOf`, `loadMaps`, `latestAppliedBatchId`
 **Requirement**: DOC-08, DOC-09
+**Desvio**: os testes ficam em `src/infra/db/flow/import-version.test.ts` (com repositórios reais), porque o depcruise proíbe teste de `src/application` importar infra; `refreshResponsibles` não recebe `actorId`, que não seria usado.
 
 **Done when**:
 
-- [ ] Testes: hash diferente recusa sem escrita; resultado com `changed` e `withoutResponsible`; idempotente
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: hash diferente recusa sem escrita; resultado com `changed` e `withoutResponsible`; idempotente
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick
