@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 21,
+  "next_id": 22,
   "lessons": [
     {
       "id": "L-001",
@@ -203,10 +203,11 @@
       "harmful": 0,
       "evidence": [
         "validation.md M14 src/infra/db/repos/user-repository.ts:123 (repo-layer) (repo-layer)",
-        "validation.md M16 src/infra/db/repos/space-repository.ts:85 (repo-layer)"
+        "validation.md M16 src/infra/db/repos/space-repository.ts:85 (repo-layer)",
+        "validation.md N17 src/infra/db/repos/space-repository.ts:121 (repo-layer)"
       ],
       "created": "2026-11-04T18:17:21Z",
-      "last_seen": "2026-11-04T20:53:46Z"
+      "last_seen": "2026-11-04T21:54:25Z"
     },
     {
       "id": "L-012",
@@ -369,6 +370,24 @@
       ],
       "created": "2026-11-04T20:53:47Z",
       "last_seen": "2026-11-04T20:53:47Z"
+    },
+    {
+      "id": "L-021",
+      "key": "surviving_mutant::ligacao de nova tentativa no errorcomponent da rota nao tem teste de componente confira no navegador forcando falha do loader e veja a nova carga",
+      "text": "Ligação de nova tentativa no errorComponent da rota não tem teste de componente; confira no navegador forçando falha do loader e veja a nova carga",
+      "signal": "surviving_mutant",
+      "scope": "routes",
+      "status": "candidate",
+      "features": [
+        "admin-espacos"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md N18 src/routes/admin.espacos.tsx:48 (routes)"
+      ],
+      "created": "2026-11-04T21:54:25Z",
+      "last_seen": "2026-11-04T21:54:25Z"
     }
   ]
 }

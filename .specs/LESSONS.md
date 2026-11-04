@@ -17,8 +17,8 @@ Corroborated across multiple features. Safe to apply as guidance.
 ### L-011 - Toda gravação atômica de várias instruções precisa de um teste que force falha numa instrução posterior e afirme que nada foi gravado
 - signal: `surviving_mutant` · recurrence: 2 feature(s) · scope: `repo-layer` · harmful: 0
 - features: docentes-do-xml, admin-espacos
-- evidence: validation.md M14 src/infra/db/repos/user-repository.ts:123 (repo-layer) (repo-layer) (+1 more)
-- last seen: 2026-11-04T20:53:46Z
+- evidence: validation.md M14 src/infra/db/repos/user-repository.ts:123 (repo-layer) (repo-layer) (+2 more)
+- last seen: 2026-11-04T21:54:25Z
 
 ## Candidates (under observation - do NOT load as guidance yet)
 
@@ -131,6 +131,12 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - features: admin-espacos
 - evidence: spec.md Ver os espaços AC1 src/domain/space-groups.test.ts:63 (specs)
 - last seen: 2026-11-04T20:53:47Z
+
+### L-021 - Ligação de nova tentativa no errorComponent da rota não tem teste de componente; confira no navegador forçando falha do loader e veja a nova carga
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `routes` · harmful: 0
+- features: admin-espacos
+- evidence: validation.md N18 src/routes/admin.espacos.tsx:48 (routes)
+- last seen: 2026-11-04T21:54:25Z
 
 ## Quarantined (failed when applied - ignore)
 

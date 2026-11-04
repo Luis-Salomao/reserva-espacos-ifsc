@@ -197,22 +197,22 @@ A tela `/admin/espacos` é um formulário de criação seguido de uma lista plan
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| ESPACOS-01 | P1: Ver os espaços (AC 1) | Validate | Needs Fix |
+| ESPACOS-01 | P1: Ver os espaços (AC 1) | Validate | Verified |
 | ESPACOS-02 | P1: Ver os espaços (AC 2, 3, 4) | Validate | Verified |
 | ESPACOS-03 | P1: Ver os espaços (AC 5, 6, 7) | Validate | Verified |
-| ESPACOS-04 | P1: Ver os espaços (AC 8, 9) | Validate | Needs Fix |
+| ESPACOS-04 | P1: Ver os espaços (AC 8, 9) | Validate | Verified |
 | ESPACOS-05 | P1: Diálogo (AC 1, 2, 7) | Validate | Verified |
-| ESPACOS-06 | P1: Diálogo (AC 3, 4, 5, 6) | Validate | Needs Fix |
+| ESPACOS-06 | P1: Diálogo (AC 3, 4, 5, 6) | Validate | Verified |
 | ESPACOS-07 | P1: Diálogo (AC 8) | Validate | Verified |
 | ESPACOS-08 | P1: Equipamentos (AC 1, 4, 5, 6, 7, 8) | Validate | Verified |
 | ESPACOS-09 | P1: Equipamentos (AC 2, 3) | Validate | Verified |
-| ESPACOS-10 | P1: Equipamentos (AC 9, 10) | Validate | Needs Fix |
-| ESPACOS-11 | P1: Acesso (AC 1, 2, 3) | Validate | Needs Fix |
-| ESPACOS-12 | P2: Excluir (AC 3, 4, 5) | Validate | Needs Fix |
+| ESPACOS-10 | P1: Equipamentos (AC 9, 10) | Validate | Verified |
+| ESPACOS-11 | P1: Acesso (AC 1, 2, 3) | Validate | Verified |
+| ESPACOS-12 | P2: Excluir (AC 3, 4, 5) | Validate | Verified |
 | ESPACOS-13 | P2: Excluir (AC 1, 2, 6, 7) | Validate | Verified |
 | ESPACOS-14 | P2: Agenda (AC 1, 2, 3) | Validate | Verified |
 
-**Coverage:** 14 total, 14 mapped to tasks, 0 unmapped. Validação de 2026-11-04 (`validation.md`): 8 Verified, 6 Needs Fix.
+**Coverage:** 14 total, 14 mapped to tasks, 0 unmapped. Validação de 2026-11-04, rodada 2 (`validation.md`): 14 Verified.
 
 ---
 
