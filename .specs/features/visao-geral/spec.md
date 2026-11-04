@@ -17,6 +17,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | Mês inteiro ou duas semanas | O usuário escolheu uma semana. |
 | Cor por professor | O usuário escolheu cor por matéria. |
 | Arrastar aulas para outra sala | Remanejar grade é outra feature. |
+| Reservar várias salas de uma vez | O usuário quer uma reserva por vez nesta tela; várias de uma vez só nas reservas recorrentes. |
 
 ---
 
@@ -189,6 +190,42 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 
 ---
 
+### P1: Selecionar um horário na visão geral e ver o que está livre
+
+**User Story**: Como professor, quero arrastar um trecho de horário num dia da visão geral e ver na hora quais salas estão livres, para escolher uma e reservar.
+
+**Why P1**: Pedido do usuário: "arrasto o quadrado e mostra o que tá livre". Na agenda de uma sala a seleção fica presa à coluna; com várias salas, o horário vem primeiro e a sala depois.
+
+**Acceptance Criteria**:
+
+1. WHEN o usuário arrasta sobre quadradinhos de um mesmo dia THEN o sistema SHALL selecionar o trecho do início do primeiro bloco ao fim do último e destacar esses blocos em todas as salas.
+2. WHEN o usuário clica num quadradinho livre THEN o sistema SHALL selecionar aquele bloco e sugerir a sala da linha.
+3. WHEN um trecho é selecionado THEN o sistema SHALL abrir um painel com o dia e o horário, as salas livres primeiro e depois as ocupadas com o motivo (mesma regra da visão "Livres").
+4. THE sistema SHALL permitir no painel filtrar por bloco e por andar e ajustar início e fim.
+5. WHEN o usuário escolhe uma sala livre no painel THEN o sistema SHALL abrir a reserva com sala, dia e horário do trecho; visitante vê o convite para entrar.
+6. IF o trecho já terminou THEN o sistema SHALL NOT oferecer reserva no painel.
+7. WHILE a largura for menor que 768 px the sistema SHALL selecionar por toque um bloco por vez e permitir ajustar início e fim no painel.
+
+**Independent Test**: Na visão geral, arrastar a tarde de quarta, ver 1 sala livre no topo do painel, filtrar por bloco e andar, escolher a livre e ver a reserva preenchida.
+
+---
+
+### P2: Filtro por andar
+
+**User Story**: Como usuário, quero filtrar salas por andar, além de bloco.
+
+**Why P2**: Pedido do usuário; o andar vem do código da sala (A-202 = bloco A, andar 2).
+
+**Acceptance Criteria**:
+
+1. THE sistema SHALL derivar o andar do primeiro dígito do código da sala (letra + três dígitos); sala sem código não tem andar.
+2. WHEN o usuário escolhe um ou mais andares em "Filtros" THEN o sistema SHALL mostrar só as salas desses andares, em todas as visualizações de salas e no painel de seleção.
+3. THE sistema SHALL guardar os andares escolhidos na URL (`andar`).
+
+**Independent Test**: Escolher "Andar 2" e ver só salas como A-202 e B-210.
+
+---
+
 ## Edge Cases
 
 - IF uma ocupação começar antes do primeiro bloco ou terminar depois do último THEN o sistema SHALL pintar os blocos que ela cruza e mostrar o horário real no cartão.
@@ -213,8 +250,10 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | GERAL-10 | P1: Reservar pelo quadradinho (AC 1–5) | T10 | Pending |
 | GERAL-11 | P1: Página única (AC 1–6) | T13, T14, T15 | Pending |
 | GERAL-12 | P1: Livres primeiro (AC 1–5) | T11, T12 | Pending |
+| GERAL-13 | P1: Selecionar horário (AC 1–7) | T17 | Pending |
+| GERAL-14 | P2: Filtro por andar (AC 1–3) | T16 | Pending |
 
-**Coverage:** 12 total, 12 mapped to tasks, 0 unmapped
+**Coverage:** 14 total, 14 mapped to tasks, 0 unmapped
 
 ---
 

@@ -54,7 +54,7 @@ T5 → T6 → T7 → T8 → T9 → T10 → T11 → T12
 ### Phase 3: Página única
 
 ```
-T13 → T14 → T15
+T13 → T14 → T15 → T16 → T17
 ```
 
 ---
@@ -370,6 +370,48 @@ T13 → T14 → T15
 
 ---
 
+### T16: Filtro por andar
+
+**What**: `floorOf(name)` (primeiro dígito do código letra + três dígitos; `null` sem código), `floorsOf`, filtro `floors` em `filterRooms`, parâmetro `andar` na URL e chips de andar dentro de "Filtros".
+**Where**: `src/domain/room-filter.ts` (+ `rooms-filters.tsx`, `src/routes/index.tsx`)
+**Depends on**: T15
+**Reuses**: `blockOf`, regex de andar de `room-selector.tsx`
+**Requirement**: GERAL-14
+
+**Done when**:
+
+- [ ] Testes de domínio: `A-202` → 2, `Lab. A102` → 1, `Auditório` → `null`; filtro por um e por vários andares
+- [ ] Testes: `andar` inválido descartado na URL; chips de andar mudam o filtro e entram na contagem "Filtros · n"
+- [ ] Gate check passes: `bun test src/domain test/routes test/components`
+
+**Tests**: unit
+**Gate**: quick
+
+**Commit**: `feat(salas): filtro por andar`
+
+---
+
+### T17: Selecionar horário na visão geral
+
+**What**: Arrastar sobre quadradinhos de um dia seleciona o trecho (destacado em todas as salas); clique em livre seleciona o bloco e sugere a sala da linha (substitui a abertura direta da reserva da T10); painel com dia e horário, livres primeiro e ocupadas com o motivo, filtros de bloco e andar, início e fim ajustáveis; escolher uma livre abre a reserva preenchida (visitante: convite); trecho terminado sem reserva; no celular, toque seleciona um bloco.
+**Where**: `src/components/rooms/overview-selection.tsx` (+ `rooms-overview.tsx`, `overview-cell.tsx`)
+**Depends on**: T16
+**Reuses**: `availabilityIn` (T11), `BookingSheet`, `GateDialog`, `filterRooms`
+**Requirement**: GERAL-13
+
+**Done when**:
+
+- [ ] Testes: arrastar de um bloco a outro no mesmo dia seleciona do início do primeiro ao fim do último; clique em livre seleciona o bloco com a sala sugerida; painel lista livres antes das ocupadas com o motivo; filtro por bloco e andar no painel; escolher livre chama a reserva com sala, dia e horário; visitante abre o convite; trecho passado sem botão de reservar
+- [ ] Verificação manual (playwright) em 1280 × 800 e 360 px
+- [ ] Gate check passes: `bun run check`
+
+**Tests**: unit
+**Gate**: build
+
+**Commit**: `feat(salas): selecionar horário e ver salas livres na visão geral`
+
+---
+
 ## Phase Execution Map
 
 ```
@@ -377,5 +419,5 @@ Phase 1 → Phase 2 → Phase 3
 
 Phase 1:  T1 → T2 → T3 → T4
 Phase 2:  T5 → T6 → T7 → T8 → T9 → T10 → T11 → T12
-Phase 3:  T13 → T14 → T15
+Phase 3:  T13 → T14 → T15 → T16 → T17
 ```
