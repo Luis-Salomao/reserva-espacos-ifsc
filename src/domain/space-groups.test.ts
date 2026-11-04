@@ -60,11 +60,24 @@ describe("groupSpaces", () => {
     });
   });
 
-  test("ordem natural: A-202 antes de A-1000 no mesmo grupo", () => {
-    const group = groupSpaces([{ name: "Sala A-1000" }, { name: "Sala A-202" }]);
-    expect(group[0]?.floors.flatMap((floor) => names(floor.spaces))).toEqual([
-      "Sala A-202",
-      "Sala A-1000",
+  test("ordem natural dentro do mesmo andar: 'Lab 2' antes de 'Lab 10'", () => {
+    const groups = groupSpaces([
+      { name: "A-201 Lab 10" },
+      { name: "A-201 Lab 2" },
+      { name: "Sala 10" },
+      { name: "Sala 2" },
+    ]);
+    expect(
+      groups.map((block) => ({
+        label: block.label,
+        floors: block.floors.map((floor) => ({ label: floor.label, names: names(floor.spaces) })),
+      })),
+    ).toEqual([
+      { label: "Bloco A", floors: [{ label: "Andar 2", names: ["A-201 Lab 2", "A-201 Lab 10"] }] },
+      {
+        label: "Outros espaços",
+        floors: [{ label: "Sem andar identificado", names: ["Sala 2", "Sala 10"] }],
+      },
     ]);
   });
 
