@@ -157,6 +157,10 @@ describe("RoomsColumns", () => {
     expect(grid.className).toContain("overflow-auto");
     const template = (grid.firstElementChild as HTMLElement).style.gridTemplateColumns;
     expect(template).toBe("52px repeat(3, minmax(140px, 1fr))");
+    // Elemento sticky não sai do bloco que o contém: a grade tem a largura do conteúdo.
+    expect((grid.firstElementChild as HTMLElement).className.split(" ")).toEqual(
+      expect.arrayContaining(["w-max", "min-w-full"]),
+    );
   });
 
   test("nomes das salas ficam fixos no topo e o eixo de horas fixo à esquerda ao rolar a grade", async () => {
