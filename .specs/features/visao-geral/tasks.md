@@ -379,9 +379,13 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes: `/salas?data=D` redireciona para `/` com `data=D` e `visao=colunas`; `visao` existente é mantida; filtros mantidos
-- [ ] Verificação manual (playwright) da página única em 1280 × 800 e 360 px
-- [ ] Gate check passes: `bun run check`
+- [x] Testes: `/salas?data=D` redireciona para `/` com `data=D` e `visao=colunas`; `visao` existente é mantida; filtros mantidos
+- [x] Verificação manual (playwright) da página única em 1280 × 800 e 360 px
+- [x] Gate check passes: `bun run check`
+
+**Desvio**: o redirecionamento usa os parâmetros já validados por `validateSalasSearch` (valores inválidos saem antes, como em `/`), e o login fica a cargo de `/`: visitante com `PUBLIC_READ=false` vai de `/salas` para `/` e de lá para `/entrar`. `loadSalas` e `validateSalasSearch` continuam exportados de `src/routes/salas.tsx`, usados por `/`. Os testes de `loaderDeps`, `loader` e da guarda de login de `/salas` saíram com o loader dessa rota; os equivalentes de `/` estão em `test/routes/index.test.ts` (T13).
+
+**Verificação manual** (2026-11-04, cópia local do banco com 21 salas, visitante): `/salas?data=2026-11-04&bloco=A` abre `/?data=2026-11-04&bloco=["A"]&visao=colunas` com "Colunas" marcada e sem "Salas" no menu; em 1280 × 800, "Visão geral" mantém a data, `scrollHeight` 800 (sem rolagem vertical) com 21 salas × 35 quadradinhos; o quadradinho ocupado abre "Sala" com `espaco` e `data` (sem "Todas as salas" na agenda); "Livres" mantém `espaco` e `data`. Em 360 × 740, `/` abre em "Sala", o seletor cabe (254 px) sem rolagem horizontal, e "Visão geral" mostra as abas "Seg 02" a "Sex 06".
 
 **Tests**: unit
 **Gate**: build

@@ -1,9 +1,7 @@
-import { describe, expect, spyOn, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import type { RoomsDay, RoomsWeek } from "#/application/bookings";
-import { weekOf } from "#/domain/overview";
 import type { User } from "#/domain/user";
 import { loadSalas, Route, validateSalasSearch } from "#/routes/salas";
-import * as bookingFns from "#/server/booking-fns";
 import type { SessionInfo } from "#/server/session";
 
 const DOCENTE: User = {
@@ -249,133 +247,55 @@ describe("loadSalas na visão geral", () => {
   });
 });
 
-describe("Route.loaderDeps", () => {
-  type DepsArgs = Parameters<NonNullable<typeof Route.options.loaderDeps>>[0];
-  const deps = (search: Record<string, unknown>) =>
-    Route.options.loaderDeps?.({ search } as unknown as DepsArgs);
-  const base = { data: "2026-11-10" };
-  const filters = { ini: "14:00", fim: "16:00", bloco: ["A"], cap: 30, q: "lab", livres: true };
-
-  test("janela, filtros e troca entre Colunas e Livres não disparam nova carga", () => {
-    const changed = { ...base, visao: "livres", ...filters };
-    expect(deps(changed)).toEqual({ data: "2026-11-10", geral: false });
-    expect(deps(changed)).toEqual(deps(base));
-    expect(deps({ ...base, visao: "colunas" })).toEqual(deps({ ...base, visao: "livres" }));
-    expect(deps({ data: "2026-11-11" })).not.toEqual(deps(base));
-  });
-
-  test("entrar ou sair da visão geral dispara nova carga; filtros dentro dela não", () => {
-    const geral = { ...base, visao: "geral" };
-    expect(deps(geral)).toEqual({ data: "2026-11-10", geral: true });
-    expect(deps(geral)).not.toEqual(deps({ ...base, visao: "colunas" }));
-    expect(deps(geral)).not.toEqual(deps({ ...base, visao: "livres" }));
-    expect(deps({ ...geral, ...filters })).toEqual(deps(geral));
-    expect(deps({ ...geral, data: "2026-11-17" })).not.toEqual(deps(geral));
-  });
-});
-
-describe("Route.loader", () => {
-  test("carrega o dia que vem das deps, não o de hoje", async () => {
-    const loader = Route.options.loader as unknown as (
-      args: unknown,
-    ) => ReturnType<typeof loadSalas>;
-    const data = await loader({
-      deps: { data: "2030-01-15" },
-      context: { session: session(DOCENTE) },
-    });
-    expect(data.selectedDate).toBe("2030-01-15");
-  });
-
-  test("pede ao servidor o dia da URL ou, sem data, o de hoje", async () => {
-    const loader = Route.options.loader as unknown as (
-      args: unknown,
-    ) => ReturnType<typeof loadSalas>;
-    const calls: unknown[] = [];
-    const spy = spyOn(bookingFns, "getRoomsDayFn").mockImplementation((async (args: {
-      data: { date: string };
-    }) => {
-      calls.push(args);
-      return { ok: true, data: day(args.data.date) };
-    }) as unknown as typeof bookingFns.getRoomsDayFn);
-    try {
-      const withDate = await loader({
-        deps: { data: "2030-01-15" },
-        context: { session: session(DOCENTE) },
-      });
-      const today = await loader({ deps: {}, context: { session: session(DOCENTE) } });
-      expect(calls[0]).toEqual({ data: { date: "2030-01-15" } });
-      expect(calls[1]).toEqual({ data: { date: today.selectedDate } });
-      expect(today.selectedDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
-      expect(withDate.error).toBeNull();
-      expect(today.error).toBeNull();
-    } finally {
-      spy.mockRestore();
-    }
-  });
-
-  test("na visão geral pede ao servidor só a semana (segunda da data da URL ou de hoje)", async () => {
-    const loader = Route.options.loader as unknown as (
-      args: unknown,
-    ) => ReturnType<typeof loadSalas>;
-    const weekCalls: unknown[] = [];
-    const dayCalls: unknown[] = [];
-    const weekSpy = spyOn(bookingFns, "getRoomsWeekFn").mockImplementation((async (args: {
-      data: { weekStart: string };
-    }) => {
-      weekCalls.push(args);
-      return {
-        ok: true,
-        data: { weekStart: args.data.weekStart, now: "2026-11-03T09:00", days: [], rooms: [] },
-      };
-    }) as unknown as typeof bookingFns.getRoomsWeekFn);
-    const daySpy = spyOn(bookingFns, "getRoomsDayFn").mockImplementation((async (args: unknown) => {
-      dayCalls.push(args);
-      return { ok: false, message: "não deveria" };
-    }) as unknown as typeof bookingFns.getRoomsDayFn);
-    try {
-      const withDate = await loader({
-        deps: { data: "2030-01-17", geral: true },
-        context: { session: session(DOCENTE) },
-      });
-      const today = await loader({ deps: { geral: true }, context: { session: session(null) } });
-      expect(weekCalls).toEqual([
-        { data: { weekStart: "2030-01-14" } },
-        { data: { weekStart: weekOf(today.selectedDate)[0] } },
-      ]);
-      expect(dayCalls).toEqual([]);
-      expect(withDate.selectedDate).toBe("2030-01-17");
-      expect(withDate.roomsWeek?.weekStart).toBe("2030-01-14");
-      expect(withDate.error).toBeNull();
-      expect(today.error).toBeNull();
-    } finally {
-      weekSpy.mockRestore();
-      daySpy.mockRestore();
-    }
-  });
-});
-
-describe("Route.beforeLoad", () => {
+describe("Route.beforeLoad (redirecionamento)", () => {
   type GuardArgs = Parameters<NonNullable<typeof Route.options.beforeLoad>>[0];
-  const beforeLoad = (context: { session: SessionInfo }) =>
-    Route.options.beforeLoad?.({
-      context,
-      location: { pathname: "/salas", searchStr: "?data=2026-11-10" },
-    } as unknown as GuardArgs);
-
-  test("PUBLIC_READ=false: visitante é mandado ao login com retorno", () => {
+  /** Destino do redirecionamento de `/salas` com a URL dada (já validada pela rota). */
+  function target(raw: Record<string, unknown>, user: User | null = DOCENTE, publicRead = true) {
     let thrown: unknown;
     try {
-      beforeLoad({ session: session(null, false) });
+      Route.options.beforeLoad?.({
+        search: validateSalasSearch(raw),
+        context: { session: session(user, publicRead) },
+        location: { pathname: "/salas", searchStr: "" },
+      } as unknown as GuardArgs);
     } catch (error) {
       thrown = error;
     }
-    expect(thrown).toMatchObject({
-      options: { to: "/entrar", search: { voltar: "/salas?data=2026-11-10" } },
+    return (thrown as { options?: { to?: string; search?: unknown } } | undefined)?.options;
+  }
+
+  test("/salas?data=D vai para / com data=D e visao=colunas", () => {
+    expect(target({ data: "2026-11-10" })).toMatchObject({
+      to: "/",
+      search: { data: "2026-11-10", visao: "colunas" },
     });
+    expect(target({})?.search).toEqual({ visao: "colunas" });
   });
 
-  test("PUBLIC_READ=true ou logado: entra", () => {
-    expect(() => beforeLoad({ session: session(null, true) })).not.toThrow();
-    expect(() => beforeLoad({ session: session(DOCENTE, false) })).not.toThrow();
+  test("a visão que já está na URL é mantida", () => {
+    for (const visao of ["colunas", "livres", "geral"]) {
+      expect(target({ data: "2026-11-10", visao })?.search).toEqual({ data: "2026-11-10", visao });
+    }
+  });
+
+  test("filtros e janela são mantidos", () => {
+    const filters = {
+      bloco: ["A", "Outros"],
+      cap: 30,
+      q: "lab",
+      ini: "14:00",
+      fim: "16:00",
+      livres: true,
+    };
+    const options = target({ data: "2026-11-10", visao: "livres", ...filters });
+    expect(options?.to).toBe("/");
+    expect(options?.search).toEqual({ data: "2026-11-10", visao: "livres", ...filters });
+  });
+
+  test("visitante também é redirecionado; o login fica a cargo de /", () => {
+    expect(target({ data: "2026-11-10" }, null, false)).toMatchObject({
+      to: "/",
+      search: { data: "2026-11-10", visao: "colunas" },
+    });
   });
 });
