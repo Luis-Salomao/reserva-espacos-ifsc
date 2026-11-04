@@ -17,7 +17,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | Mês inteiro ou duas semanas | O usuário escolheu uma semana. |
 | Cor por professor | O usuário escolheu cor por matéria. |
 | Arrastar aulas para outra sala | Remanejar grade é outra feature. |
-| Reservar várias salas de uma vez | O usuário quer uma reserva por vez nesta tela; várias de uma vez só nas reservas recorrentes. |
+| Reservar várias salas ou várias datas de uma vez | Uma reserva por vez nesta tela. Várias datas ficam para a feature de reserva recorrente (próxima, depois do checkpoint desta), uma sala por recorrência. |
 
 ---
 
