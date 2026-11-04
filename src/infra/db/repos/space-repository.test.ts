@@ -47,3 +47,47 @@ describe("SpaceRepository", () => {
     await expect(repo.update(lab.id, { name: "Lab 2", capacity: 1 })).rejects.toThrow();
   });
 });
+
+describe("migração dos equipamentos", () => {
+  type Journal = { entries: { idx: number; tag: string }[] };
+
+  async function applyMigration(sqlite: Database, tag: string) {
+    const sql = await Bun.file(`drizzle/${tag}.sql`).text();
+    for (const statement of sql.split("--> statement-breakpoint")) {
+      if (statement.trim() !== "") sqlite.run(statement);
+    }
+  }
+
+  test("espaços que já existiam ficam intactos e com tudo não informado; excluir apaga os equipamentos", async () => {
+    const journal: Journal = await Bun.file("drizzle/meta/_journal.json").json();
+    const equipmentMigration = journal.entries.find((entry) => entry.idx === 9);
+    expect(equipmentMigration).toBeDefined();
+    const sqlite = new Database(":memory:");
+    sqlite.run("PRAGMA foreign_keys = ON");
+    for (const entry of journal.entries.filter((e) => e.idx < 9)) {
+      await applyMigration(sqlite, entry.tag);
+    }
+    sqlite.run(
+      "INSERT INTO spaces (id, name, capacity, created_at) VALUES ('s1', 'A-202', 40, 't'), ('s2', 'Auditório', NULL, 't')",
+    );
+    await applyMigration(sqlite, equipmentMigration?.tag ?? "");
+
+    expect(
+      sqlite.query("SELECT id, name, capacity, equipment_notes FROM spaces ORDER BY id").all(),
+    ).toEqual([
+      { id: "s1", name: "A-202", capacity: 40, equipment_notes: null },
+      { id: "s2", name: "Auditório", capacity: null, equipment_notes: null },
+    ]);
+    expect(sqlite.query("SELECT COUNT(*) AS total FROM space_equipment").get()).toEqual({
+      total: 0,
+    });
+
+    sqlite.run(
+      "INSERT INTO space_equipment (space_id, kind, quantity) VALUES ('s1', 'projetor', 1)",
+    );
+    sqlite.run("DELETE FROM spaces WHERE id = 's1'");
+    expect(sqlite.query("SELECT COUNT(*) AS total FROM space_equipment").get()).toEqual({
+      total: 0,
+    });
+  });
+});
