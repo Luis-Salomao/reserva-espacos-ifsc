@@ -238,20 +238,20 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| GERAL-01 | P1: Grade (AC 1, 3, 6) | T1, T2, T6, T9 | Done |
-| GERAL-02 | P1: Grade (AC 2, 4) | T1, T6 | Done |
-| GERAL-03 | P1: Grade (AC 5, 7) | T2, T3, T4, T9 | Done |
-| GERAL-04 | P1: Cor (AC 1, 2, 5) | T1, T6 | Done |
-| GERAL-05 | P1: Cor (AC 3, 4) | T7 | Done |
-| GERAL-06 | P1: Detalhe (AC 1, 4, 5) | T6, T8 | Done |
-| GERAL-07 | P1: Detalhe (AC 2, 3) | T2, T8 | Done |
-| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | Done |
-| GERAL-09 | P2: Celular (AC 1–3) | T9 | Done |
-| GERAL-10 | P1: Reservar pelo quadradinho (AC 1–5) | T10 | Done |
-| GERAL-11 | P1: Página única (AC 1–6) | T13, T14, T15 | Done |
-| GERAL-12 | P1: Livres primeiro (AC 1–5) | T11, T12 | Done |
-| GERAL-13 | P1: Selecionar horário (AC 1–7) | T17 | Done |
-| GERAL-14 | P2: Filtro por andar (AC 1–3) | T16, T17 (painel) | Done |
+| GERAL-01 | P1: Grade (AC 1, 3, 6) | T1, T2, T6, T9 | Verified |
+| GERAL-02 | P1: Grade (AC 2, 4) | T1, T6 | Verified |
+| GERAL-03 | P1: Grade (AC 5, 7) | T2, T3, T4, T9 | Verified |
+| GERAL-04 | P1: Cor (AC 1, 2, 5) | T1, T6 | Verified |
+| GERAL-05 | P1: Cor (AC 3, 4) | T7 | Verified |
+| GERAL-06 | P1: Detalhe (AC 1, 4, 5) | T6, T8 | Verified |
+| GERAL-07 | P1: Detalhe (AC 2, 3) | T2, T8 | Verified |
+| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | Needs Fix |
+| GERAL-09 | P2: Celular (AC 1–3) | T9 | Verified |
+| GERAL-10 | P1: Reservar pelo quadradinho (AC 1–5) | T10 | Needs Fix |
+| GERAL-11 | P1: Página única (AC 1–6) | T13, T14, T15 | Verified |
+| GERAL-12 | P1: Livres primeiro (AC 1–5) | T11, T12 | Verified |
+| GERAL-13 | P1: Selecionar horário (AC 1–7) | T17 | Needs Fix |
+| GERAL-14 | P2: Filtro por andar (AC 1–3) | T16, T17 (painel) | Verified |
 
 **Coverage:** 14 total, 14 mapped to tasks, 0 unmapped
 
