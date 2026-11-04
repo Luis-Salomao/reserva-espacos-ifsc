@@ -499,6 +499,49 @@ describe("agenda", () => {
     }
   });
 
+  test("logado vê o responsável da aula e quem fez a reserva; sem responsável fica nulo", async () => {
+    const { db, s, svc } = await setup();
+    const base = { spaceId: s.sala1.id, date: "2026-11-10" };
+    insertImported(db, {
+      ...base,
+      id: "a",
+      start: "08:00",
+      end: "09:00",
+      title: "A",
+      responsibleUserId: s.docA.id,
+    });
+    insertImported(db, {
+      ...base,
+      id: "b",
+      start: "09:00",
+      end: "10:00",
+      title: "B",
+      responsibleUserId: null,
+    });
+    await svc.createBooking(s.docB, book(s, { start: "11:00", end: "12:00", purpose: "Minha" }));
+
+    const day = await svc.dayAgenda(s.horarios, base);
+    if (!day.ok) throw new Error(day.message);
+    expect(day.value.occupations.map((item) => [item.title, item.person])).toEqual([
+      ["A", { name: "Pessoa doca", code: "DOCA" }],
+      ["B", null],
+      ["Minha", { name: "Pessoa docb", code: "DOCB" }],
+    ]);
+
+    const week = await svc.weekAgenda(s.docA, { spaceId: s.sala1.id, weekStart: "2026-11-09" });
+    if (!week.ok) throw new Error(week.message);
+    const persons = week.value.days.flatMap((d) => d.occupations.map((item) => item.person?.code));
+    expect(persons).toEqual(["DOCA", undefined, "DOCB"]);
+
+    const visitor = await svc.weekAgenda(null, { spaceId: s.sala1.id, weekStart: "2026-11-09" });
+    if (!visitor.ok) throw new Error(visitor.message);
+    expect(visitor.value.days.flatMap((d) => d.occupations.map((item) => item.person))).toEqual([
+      null,
+      null,
+      null,
+    ]);
+  });
+
   test("passadas não podem ser canceladas (canCancel falso)", async () => {
     const { db, s, svc } = await setup();
     insertImported(db, {
