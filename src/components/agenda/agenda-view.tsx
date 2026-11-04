@@ -1,4 +1,4 @@
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, LayoutGrid, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
@@ -52,6 +52,8 @@ export function AgendaView({
   onNewBooking,
   onOpenOccupation,
 }: AgendaViewProps) {
+  const navigate = useNavigate();
+  const seeAllRooms = () => void navigate({ to: "/salas", search: { data: selectedDate } });
   const [mode, setMode] = useState<"week" | "day">("week");
   const [gateOpen, setGateOpen] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -156,6 +158,7 @@ export function AgendaView({
               selectedSpaceId={selectedSpaceId}
               onSelectSpace={onSelectSpace}
               variant="vertical"
+              onSeeAllRooms={seeAllRooms}
             />
           </div>
         </aside>
@@ -182,6 +185,7 @@ export function AgendaView({
                 selectedSpaceId={selectedSpaceId}
                 onSelectSpace={onSelectSpace}
                 variant="chips"
+                onSeeAllRooms={seeAllRooms}
               />
             </div>
             <Link

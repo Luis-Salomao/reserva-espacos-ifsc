@@ -1,8 +1,9 @@
-import { Building2, Check, ChevronsUpDown, Search, X } from "lucide-react";
+import { Building2, Check, ChevronsUpDown, LayoutGrid, Search, X } from "lucide-react";
 import { Dialog } from "radix-ui";
 import { useId, useState } from "react";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
+import { blockOf } from "#/domain/room-filter";
 import type { Space } from "#/domain/space";
 import { cn } from "#/lib/utils";
 import { matchesRoomSearch } from "./room-search";
@@ -12,6 +13,8 @@ export type RoomSelectorProps = {
   selectedSpaceId: string;
   onSelectSpace: (spaceId: string) => void;
   variant: "vertical" | "chips";
+  /** Abre a tela com todas as salas; sem ela, o atalho não aparece. */
+  onSeeAllRooms?: () => void;
 };
 
 export function RoomSelector({
@@ -19,6 +22,7 @@ export function RoomSelector({
   selectedSpaceId,
   onSelectSpace,
   variant,
+  onSeeAllRooms,
 }: RoomSelectorProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -26,8 +30,7 @@ export function RoomSelector({
   const selected = spaces.find((space) => space.id === selectedSpaceId);
   const groups = new Map<string, Space[]>();
   for (const space of spaces) {
-    // O cadastro não tem bloco: agrupamos apenas códigos reconhecíveis no nome.
-    const block = /(?:^|\s)([A-Z])\s*[-.]?\s*\d/i.exec(space.name)?.[1]?.toUpperCase();
+    const block = blockOf(space.name);
     const group = block ? `Bloco ${block}` : "Outros espaços";
     if (!matchesRoomSearch(space.name, query)) continue;
     const rooms = groups.get(group) ?? [];
@@ -168,14 +171,27 @@ export function RoomSelector({
               </p>
             )}
           </div>
-          <p
-            id={`${id}-count`}
-            role="status"
-            className="border-t px-4 py-2 text-xs text-muted-foreground"
-          >
-            {[...groups.values()].reduce((total, rooms) => total + rooms.length, 0)} de{" "}
-            {spaces.length} espaços
-          </p>
+          <div className="flex items-center gap-2 border-t px-4 py-2">
+            <p id={`${id}-count`} role="status" className="text-xs text-muted-foreground">
+              {[...groups.values()].reduce((total, rooms) => total + rooms.length, 0)} de{" "}
+              {spaces.length} espaços
+            </p>
+            {onSeeAllRooms && (
+              <Button
+                variant="ghost"
+                size="sm"
+                className="ml-auto h-8 gap-1.5 text-primary"
+                onClick={() => {
+                  setOpen(false);
+                  setQuery("");
+                  onSeeAllRooms();
+                }}
+              >
+                <LayoutGrid className="size-3.5" aria-hidden="true" />
+                Ver todas as salas
+              </Button>
+            )}
+          </div>
         </Dialog.Content>
       </Dialog.Portal>
     </Dialog.Root>
