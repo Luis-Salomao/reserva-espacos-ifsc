@@ -1,155 +1,114 @@
 import { useRouter } from "@tanstack/react-router";
-import { type FormEvent, useId, useState } from "react";
-import { Card, Notice } from "#/components/page";
+import { Plus, Search } from "lucide-react";
+import { useId, useState } from "react";
+import { matchesRoomSearch } from "#/components/agenda/room-search";
+import { Callout, Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
-import { Label } from "#/components/ui/label";
 import type { Space } from "#/domain/space";
-import { createSpaceFn, updateSpaceFn } from "#/server/admin";
-import type { AdminResponse } from "#/server/admin-actions";
-import { FieldError } from "./field-error";
-import { fieldError, generalError, runAdminAction, useFocusInvalidField } from "./use-admin-action";
+import { groupSpaces } from "#/domain/space-groups";
+import { SpaceCard } from "./space-card";
+import { SpaceFormDialog } from "./space-form-dialog";
 
-type FormProps = {
-  space: Space | null;
-  onDone: () => void;
-};
-
-function SpaceForm({ space, onDone }: FormProps) {
-  const router = useRouter();
-  const uid = useId();
-  const [name, setName] = useState(space?.name ?? "");
-  const [capacity, setCapacity] = useState(space?.capacity?.toString() ?? "");
-  const [pending, setPending] = useState(false);
-  const [result, setResult] = useState<AdminResponse<Space> | null>(null);
-  useFocusInvalidField(result, uid);
-
-  async function onSubmit(event: FormEvent) {
-    event.preventDefault();
-    setPending(true);
-    const response = await runAdminAction(() =>
-      space === null
-        ? createSpaceFn({ data: { name, capacity } })
-        : updateSpaceFn({ data: { id: space.id, name, capacity } }),
-    );
-    setPending(false);
-    setResult(response);
-    if (response.ok) {
-      if (space === null) {
-        setName("");
-        setCapacity("");
-      }
-      await router.invalidate();
-      onDone();
-    }
-  }
-
-  const nameError = fieldError(result, "name");
-  const capacityError = fieldError(result, "capacity");
-  const general = generalError(result);
+/** Falha ao carregar a lista, com nova tentativa. */
+export function SpacesLoadError({ onRetry }: { onRetry: () => void }) {
   return (
-    <form onSubmit={onSubmit} className="grid gap-3">
-      {general !== undefined && (
-        <Notice tone="error" role="alert">
-          {general}
-        </Notice>
-      )}
-      <div className="grid gap-2">
-        <Label htmlFor={`${uid}-name`}>Nome</Label>
-        <Input
-          id={`${uid}-name`}
-          required
-          maxLength={80}
-          value={name}
-          onChange={(event) => setName(event.target.value)}
-          aria-invalid={nameError === undefined ? undefined : true}
-          aria-describedby={nameError === undefined ? undefined : `${uid}-name-error`}
-        />
-        <FieldError id={`${uid}-name-error`} message={nameError} />
-      </div>
-      <div className="grid gap-2">
-        <Label htmlFor={`${uid}-capacity`}>Capacidade (opcional)</Label>
-        <Input
-          id={`${uid}-capacity`}
-          inputMode="numeric"
-          value={capacity}
-          onChange={(event) => setCapacity(event.target.value)}
-          aria-invalid={capacityError === undefined ? undefined : true}
-          aria-describedby={capacityError === undefined ? undefined : `${uid}-capacity-error`}
-        />
-        <FieldError id={`${uid}-capacity-error`} message={capacityError} />
-      </div>
-      <div className="flex flex-wrap gap-2">
-        <Button type="submit" size="sm" disabled={pending}>
-          {pending ? "Salvando…" : space === null ? "Criar espaço" : "Salvar"}
-        </Button>
-        {space !== null && (
-          <Button type="button" size="sm" variant="outline" onClick={onDone}>
-            Cancelar
-          </Button>
-        )}
-      </div>
-    </form>
-  );
-}
-
-function SpaceItem({ space }: { space: Space }) {
-  const [editing, setEditing] = useState(false);
-  return (
-    <li>
-      <Card>
-        <div className="flex flex-wrap items-center justify-between gap-2">
-          <div className="min-w-0">
-            <p className="break-words font-medium">{space.name}</p>
-            <p className="text-sm text-muted-foreground">
-              {space.capacity === null ? "Capacidade não informada" : `${space.capacity} lugares`}
-            </p>
-          </div>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            aria-expanded={editing}
-            onClick={() => setEditing(!editing)}
-          >
-            Editar
-          </Button>
-        </div>
-        {editing && (
-          <div className="mt-3 border-t pt-3">
-            <SpaceForm space={space} onDone={() => setEditing(false)} />
-          </div>
-        )}
-      </Card>
-    </li>
+    <Callout tone="error" role="alert" className="grid justify-items-start gap-2">
+      <p className="font-medium">Não foi possível carregar os espaços.</p>
+      <Button type="button" size="sm" variant="outline" onClick={onRetry}>
+        Tentar de novo
+      </Button>
+    </Callout>
   );
 }
 
 export function SpacesManager({ spaces }: { spaces: Space[] }) {
+  const router = useRouter();
+  const uid = useId();
+  const [query, setQuery] = useState("");
+  /** `undefined` = diálogo fechado; `null` = novo espaço. */
+  const [editing, setEditing] = useState<Space | null | undefined>(undefined);
+  const [status, setStatus] = useState("");
+
+  async function reload(message: string) {
+    setStatus("");
+    await router.invalidate();
+    setStatus(message);
+  }
+
+  const visible = spaces.filter((space) => matchesRoomSearch(space.name, query));
+  const groups = groupSpaces(visible);
   return (
-    <div className="grid gap-6">
-      <section aria-labelledby="new-space-title">
-        <Card>
-          <h2 id="new-space-title" className="mb-3 text-lg font-semibold tracking-tight">
-            Novo espaço
-          </h2>
-          <SpaceForm space={null} onDone={() => {}} />
-        </Card>
-      </section>
-      <section aria-labelledby="spaces-title" className="grid gap-3">
-        <h2 id="spaces-title" className="text-lg font-semibold tracking-tight">
-          Espaços ({spaces.length})
-        </h2>
-        {spaces.length === 0 ? (
-          <Notice className="p-6 text-muted-foreground">Nenhum espaço cadastrado</Notice>
-        ) : (
-          <ul className="grid gap-3">
-            {spaces.map((space) => (
-              <SpaceItem key={space.id} space={space} />
+    <div className="grid gap-4">
+      <div className="flex flex-wrap items-center gap-2">
+        <div className="relative min-w-0 flex-1 basis-56">
+          <Search
+            className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+            aria-hidden="true"
+          />
+          <Input
+            type="search"
+            aria-label="Buscar espaço"
+            placeholder="Buscar sala ou bloco..."
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            aria-describedby={`${uid}-count`}
+            className="pl-9"
+          />
+        </div>
+        <Button type="button" onClick={() => setEditing(null)}>
+          <Plus className="size-4" aria-hidden="true" />
+          Novo espaço
+        </Button>
+      </div>
+      <p id={`${uid}-count`} className="text-sm text-muted-foreground">
+        {visible.length} de {spaces.length} espaços
+      </p>
+      <div role="status">{status !== "" && <Notice tone="ok">{status}</Notice>}</div>
+      {spaces.length === 0 ? (
+        <Callout className="grid justify-items-center gap-2 p-6 text-center text-muted-foreground">
+          <p>Nenhum espaço cadastrado.</p>
+          <Button type="button" size="sm" variant="outline" onClick={() => setEditing(null)}>
+            Cadastrar espaço
+          </Button>
+        </Callout>
+      ) : visible.length === 0 ? (
+        <Callout className="grid justify-items-center gap-2 p-6 text-center text-muted-foreground">
+          <p>Nenhum espaço encontrado.</p>
+          <Button type="button" size="sm" variant="outline" onClick={() => setQuery("")}>
+            Limpar busca
+          </Button>
+        </Callout>
+      ) : (
+        groups.map((block) => (
+          <section key={block.label} aria-label={block.label} className="grid min-w-0 gap-3">
+            <h2 className="text-lg font-semibold tracking-tight">{block.label}</h2>
+            {block.floors.map((floor) => (
+              <div key={floor.label} className="grid min-w-0 gap-2">
+                <h3 className="text-sm font-medium text-muted-foreground">{floor.label}</h3>
+                <ul className="grid gap-3 md:grid-cols-2">
+                  {floor.spaces.map((space) => (
+                    <SpaceCard
+                      key={space.id}
+                      space={space}
+                      onEdit={() => setEditing(space)}
+                      onDeleted={() => void reload("Espaço excluído.")}
+                    />
+                  ))}
+                </ul>
+              </div>
             ))}
-          </ul>
-        )}
-      </section>
+          </section>
+        ))
+      )}
+      <SpaceFormDialog
+        space={editing}
+        onClose={() => setEditing(undefined)}
+        onSaved={() => {
+          setEditing(undefined);
+          void reload("Espaço salvo.");
+        }}
+      />
     </div>
   );
 }

@@ -104,7 +104,7 @@ O padrão é scrypt com N=16384. Medições **locais** (tempo de parede numa má
 
 ## Administração
 
-Contas e espaços são geridos por quem tem o papel `admin`, em `/admin/contas` e `/admin/espacos` (menu "Administração"). O primeiro administrador nasce pela CLI (veja "Primeiro acesso"). Quem tem o papel `horarios` pode criar espaços a partir do fluxo de importação (vínculo de salas), mas só o `admin` edita espaços depois. Desativar uma conta ou redefinir sua senha encerra todas as sessões dela, e o último administrador ativo não pode se desativar nem perder o papel `admin`. Espaços não têm exclusão nesta etapa.
+Contas e espaços são geridos por quem tem o papel `admin`, em `/admin/contas` e `/admin/espacos` (menu "Administração"). O primeiro administrador nasce pela CLI (veja "Primeiro acesso"). Quem tem o papel `horarios` pode criar espaços a partir do fluxo de importação (vínculo de salas), mas só o `admin` edita espaços depois. Desativar uma conta ou redefinir sua senha encerra todas as sessões dela, e o último administrador ativo não pode se desativar nem perder o papel `admin`. Cada espaço registra seus equipamentos (projetor, computadores, aparelho de som e outros) e observações. Só é possível excluir um espaço sem reservas, aulas ou vínculo com o XML importado.
 
 ## Cópia e restauração
 
