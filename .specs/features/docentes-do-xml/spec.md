@@ -128,7 +128,7 @@ Das 2945 ocupações importadas, só 80 têm responsável, porque só 2 dos 45 d
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| DOC-01 | P1: Fantasmas (AC 1) | - | Pending |
+| DOC-01 | P1: Fantasmas (AC 1) | 1 | Done |
 | DOC-02 | P1: Fantasmas (AC 2) | - | Pending |
 | DOC-03 | P1: Fantasmas (AC 3, 4) | 1-2 | In Progress |
 | DOC-04 | P1: Fantasmas (AC 5, 6) | - | Pending |
