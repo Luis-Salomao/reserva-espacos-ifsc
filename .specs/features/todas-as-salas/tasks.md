@@ -126,8 +126,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes 1:1 com os ACs de filtro: blocos múltiplos e "Outros", capacidade com `hiddenNoCapacity`, busca sem acento, só livres, trecho passado conta como ocupado, janela padrão arredondada
-- [ ] Gate check passes: `bun test src/domain`
+- [x] Testes 1:1 com os ACs de filtro: blocos múltiplos e "Outros", capacidade com `hiddenNoCapacity`, busca sem acento, só livres, trecho passado conta como ocupado, janela padrão arredondada
+- [x] Gate check passes: `bun test src/domain`
+
+**Desvio**: `defaultWindow(now)` não recebe `date`: a janela é a mesma hora do dia em qualquer data escolhida, então o parâmetro ficaria sem uso. A janela começa no meio horário seguinte a agora (09:00 → 09:30, porque reservar exige início depois de agora) e não passa de 23:59. Entraram também `blocksOf` (chips da tela, com "Outros" por último), `windowIssue` (mensagem "O fim precisa ser depois do início") e `OTHER_BLOCK`. Blocos sem nenhuma sala são ignorados dentro de `filterRooms` (a rota só valida o formato). `isFreeIn` usa `DayAgenda.free`, então janela fora do expediente não é livre. `hiddenNoCapacity` conta só as salas sem capacidade que passariam nos outros filtros.
 
 **Tests**: unit
 **Gate**: quick
