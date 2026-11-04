@@ -214,3 +214,10 @@ Isolamento: `git -C C:\Users\luiss\wt-todas-as-salas status --porcelain` vazio a
 **Issues found**: Fix 1 (afirmar o dia que o `loader` pede ao servidor).
 
 **Next steps**: rodada 3 de 3 concluída com um gap Minor só de teste; escalar ao usuário para decidir entre aplicar Fix 1 e re-verificar ou aceitar o risco.
+
+## Correção após a rodada 3 (orquestrador, sem nova rodada independente)
+
+- Fix 1 aplicado em `test/routes/salas.test.ts`: novo teste "pede ao servidor o dia da URL ou, sem data, o de hoje" observa `getRoomsDayFn` com `spyOn` e afirma o argumento com e sem `data` na URL.
+- Mutantes V1 (data fixa) e V1b (`deps.data` cru) reaplicados um por vez na worktree: ambos morrem (1 fail cada); arquivo restaurado com `git checkout`.
+- `bun run check`: exit 0, 1164 pass, 2 skip, 0 fail.
+- Esta seção não é uma quarta verificação independente; registra a correção do único gap apontado.

@@ -130,7 +130,7 @@ A agenda mostra uma sala por vez. Para achar uma sala livre, quem reserva precis
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| SALAS-01 | P1: Colunas por sala (AC 1, 2) | - | Needs Fix (AC 1, 2: teste do loader não afirma o dia pedido ao servidor) |
+| SALAS-01 | P1: Colunas por sala (AC 1, 2) | - | Fixed (teste do loader afirma o dia pedido ao servidor; V1 e V1b morrem; sem nova rodada independente) |
 | SALAS-02 | P1: Colunas por sala (AC 3) | - | Verified |
 | SALAS-03 | P1: Colunas por sala (AC 4, 5, 6) | - | Verified |
 | SALAS-04 | P1: Filtros (AC 1, 6) | - | Verified |
