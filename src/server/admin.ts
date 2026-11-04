@@ -12,6 +12,7 @@ import { getEnv } from "#/infra/env";
 import { getDb, getRuntimeEnv } from "#db-client";
 import {
   type AdminDeps,
+  activatePlaceholderAccount,
   createAccount,
   createSemester,
   createSpace,
@@ -19,6 +20,7 @@ import {
   listAccounts,
   listAdminSpaces,
   listSemesters,
+  mergePlaceholderAccount,
   resetAccountPassword,
   setAccountActive,
   updateAccount,
@@ -74,6 +76,18 @@ export const resetAccountPasswordFn = createServerFn({ method: "POST" })
   .validator(passthrough)
   .handler(async ({ data }) =>
     finish(await resetAccountPassword(getAdminDeps(), getRequest(), data)),
+  );
+
+export const activatePlaceholderAccountFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await activatePlaceholderAccount(getAdminDeps(), getRequest(), data)),
+  );
+
+export const mergePlaceholderAccountFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await mergePlaceholderAccount(getAdminDeps(), getRequest(), data)),
   );
 
 export const listAdminSpacesFn = createServerFn({ method: "GET" }).handler(async () =>

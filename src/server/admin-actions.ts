@@ -165,6 +165,29 @@ export function resetAccountPassword(deps: AdminDeps, request: RequestLike, data
   });
 }
 
+export function activatePlaceholderAccount(deps: AdminDeps, request: RequestLike, data: unknown) {
+  return asAdmin<User>(deps, request, async () => {
+    const body = record(data);
+    const id = body && text(body, "id");
+    const email = body && text(body, "email");
+    const password = body && text(body, "password");
+    if (!body || id === null || email === null || password === null) {
+      return reject(400, BAD_REQUEST);
+    }
+    return fromResult(await deps.users.activatePlaceholder(id, { email, password }));
+  });
+}
+
+export function mergePlaceholderAccount(deps: AdminDeps, request: RequestLike, data: unknown) {
+  return asAdmin<null>(deps, request, async () => {
+    const body = record(data);
+    const id = body && text(body, "id");
+    const targetId = body && text(body, "targetId");
+    if (!body || id === null || targetId === null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.users.mergePlaceholder(id, targetId));
+  });
+}
+
 export function listAdminSpaces(deps: AdminDeps, request: RequestLike) {
   return asAdmin<Space[]>(deps, request, async () => ({
     ok: true,
