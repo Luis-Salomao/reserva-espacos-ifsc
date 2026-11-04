@@ -45,7 +45,7 @@ export function RoomsColumns({
       className="max-h-[calc(100dvh-14rem)] min-h-80 w-full max-w-full overflow-auto overscroll-x-contain rounded-lg border border-border bg-background select-none"
     >
       <div
-        className="grid"
+        className="grid w-max min-w-full"
         style={{
           gridTemplateColumns: `${AXIS_WIDTH}px repeat(${rooms.length}, minmax(${MIN_COLUMN}px, 1fr))`,
         }}

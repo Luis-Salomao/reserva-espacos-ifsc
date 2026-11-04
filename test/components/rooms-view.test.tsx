@@ -183,6 +183,12 @@ describe("RoomsView", () => {
     );
   });
 
+  test("na visão 'Livres', o contador mostra só as salas livres na janela", async () => {
+    await setup({ url: "/?visao=livres&ini=14:00&fim=16:00" });
+    expect(screen.getByText("2 de 3 salas")).toBeDefined();
+    expect(freeNames()).toEqual(["B-104", "LAB 1"]);
+  });
+
   test("trocar de visão vai para a URL", async () => {
     const { router } = await setup();
     fireEvent.click(screen.getByRole("button", { name: "Livres" }));

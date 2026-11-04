@@ -175,6 +175,19 @@ describe("Route.loaderDeps", () => {
   });
 });
 
+describe("Route.loader", () => {
+  test("carrega o dia que vem das deps, não o de hoje", async () => {
+    const loader = Route.options.loader as unknown as (
+      args: unknown,
+    ) => ReturnType<typeof loadSalas>;
+    const data = await loader({
+      deps: { data: "2030-01-15" },
+      context: { session: session(DOCENTE) },
+    });
+    expect(data.selectedDate).toBe("2030-01-15");
+  });
+});
+
 describe("Route.beforeLoad", () => {
   type GuardArgs = Parameters<NonNullable<typeof Route.options.beforeLoad>>[0];
   const beforeLoad = (context: { session: SessionInfo }) =>
