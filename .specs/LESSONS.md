@@ -74,6 +74,18 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: V1 V1b src/routes/salas.tsx:121 (routes)
 - last seen: 2026-11-04T17:43:22Z
 
+### L-011 - Toda gravação atômica de várias instruções precisa de um teste que force falha numa instrução posterior e afirme que nada foi gravado
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `repo-layer` · harmful: 0
+- features: docentes-do-xml
+- evidence: validation.md M14 src/infra/db/repos/user-repository.ts:123 (repo-layer) (repo-layer)
+- last seen: 2026-11-04T18:17:21Z
+
+### L-012 - Teste de ausência na interface deve afirmar que o elemento não existe, não só que um texto específico não aparece
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: docentes-do-xml
+- evidence: validation.md M11 test/components/agenda-person.test.tsx:101 (components) (components)
+- last seen: 2026-11-04T18:17:21Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.
