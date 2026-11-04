@@ -1,7 +1,8 @@
-import { describe, expect, test } from "bun:test";
+import { describe, expect, spyOn, test } from "bun:test";
 import type { RoomsDay } from "#/application/bookings";
 import type { User } from "#/domain/user";
 import { loadSalas, Route, validateSalasSearch } from "#/routes/salas";
+import * as bookingFns from "#/server/booking-fns";
 import type { SessionInfo } from "#/server/session";
 
 const DOCENTE: User = {
@@ -185,6 +186,33 @@ describe("Route.loader", () => {
       context: { session: session(DOCENTE) },
     });
     expect(data.selectedDate).toBe("2030-01-15");
+  });
+
+  test("pede ao servidor o dia da URL ou, sem data, o de hoje", async () => {
+    const loader = Route.options.loader as unknown as (
+      args: unknown,
+    ) => ReturnType<typeof loadSalas>;
+    const calls: unknown[] = [];
+    const spy = spyOn(bookingFns, "getRoomsDayFn").mockImplementation((async (args: {
+      data: { date: string };
+    }) => {
+      calls.push(args);
+      return { ok: true, data: day(args.data.date) };
+    }) as unknown as typeof bookingFns.getRoomsDayFn);
+    try {
+      const withDate = await loader({
+        deps: { data: "2030-01-15" },
+        context: { session: session(DOCENTE) },
+      });
+      const today = await loader({ deps: {}, context: { session: session(DOCENTE) } });
+      expect(calls[0]).toEqual({ data: { date: "2030-01-15" } });
+      expect(calls[1]).toEqual({ data: { date: today.selectedDate } });
+      expect(today.selectedDate).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+      expect(withDate.error).toBeNull();
+      expect(today.error).toBeNull();
+    } finally {
+      spy.mockRestore();
+    }
   });
 });
 
