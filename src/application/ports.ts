@@ -58,6 +58,17 @@ export interface UserRepository {
    * administrador ativo (checagem atômica na própria instrução).
    */
   setActive(id: string, active: boolean): Promise<boolean>;
+  /**
+   * Ativa uma conta fantasma: grava e-mail e hash e tira a marca. `false` se a conta não existe
+   * ou não é fantasma. E-mail em uso estoura a restrição única (confira antes).
+   */
+  activatePlaceholder(id: string, email: string, passwordHash: string): Promise<boolean>;
+  /**
+   * Funde a fantasma `fromId` na conta `toId` numa unidade atômica: ocupações (responsável e quem
+   * criou) e vínculos do XML passam para `toId`, as sessões da fantasma caem e ela é apagada. Só
+   * age se `fromId` é fantasma e `toId` é conta ativa não fantasma; `false` se nada foi feito.
+   */
+  mergeInto(fromId: string, toId: string): Promise<boolean>;
 }
 
 /** Sessão persistida. Só o SHA-256 do token existe no banco. Datas em ISO 8601 UTC. */
@@ -115,9 +126,27 @@ export interface RoomMappingRepository {
   saveMany(items: readonly RoomMapping[], updatedAt: string): Promise<void>;
 }
 
+/** Conta fantasma de um docente do XML: papel `docente`, hash de uma senha que ninguém conhece. */
+export type NewPlaceholder = {
+  id: string;
+  email: string;
+  name: string;
+  code: string | null;
+  passwordHash: string;
+};
+
 export interface TeacherMappingRepository {
   list(): Promise<TeacherMapping[]>;
   saveMany(items: readonly TeacherMapping[], updatedAt: string): Promise<void>;
+  /**
+   * Cria as contas fantasmas e grava (insere ou atualiza) os vínculos numa única unidade atômica:
+   * se qualquer conta ou vínculo falha, nada do envio fica gravado.
+   */
+  saveWithPlaceholders(
+    placeholders: readonly NewPlaceholder[],
+    mappings: readonly TeacherMapping[],
+    at: string,
+  ): Promise<void>;
 }
 
 /** Filtro das linhas do lote; `search` casa com título, sala e detalhe do motivo. */
@@ -207,6 +236,18 @@ export interface ImportRepository {
     from: string,
     to: string,
   ): Promise<VersionOccupation[]>;
+  /**
+   * Define o responsável (`lessonId → userId | null`) das ocupações importadas ATIVAS dos lotes
+   * `aplicado` do semestre com início em `[from, to)`; aulas fora do mapa ficam como estão. Grava
+   * em blocos atômicos de 50 aulas e só toca o que muda (repetir não grava nada). Devolve quantas
+   * ocupações mudaram de responsável.
+   */
+  setResponsibles(
+    semesterId: string,
+    from: string,
+    to: string,
+    responsibles: ReadonlyMap<string, string | null>,
+  ): Promise<number>;
   /**
    * Aplica as linhas de um bloco numa unidade atômica: insere cada ocupação só se não houver
    * ocupação ativa sobreposta no espaço e registra, na mesma unidade, `aplicada` ou `conflito`.

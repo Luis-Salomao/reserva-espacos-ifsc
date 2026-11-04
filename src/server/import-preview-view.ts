@@ -47,8 +47,8 @@ export type PreviewView = {
   termsUsed: ImportPreview["termsUsed"];
   periods: ImportPreview["periods"];
   rooms: RoomView[];
-  /** Docentes do arquivo (só id e sigla). */
-  teachers: Array<{ id: string; short: string }>;
+  /** Docentes do arquivo: id, sigla e nome (AD-001). */
+  teachers: Array<{ id: string; short: string; name: string }>;
   withoutRoom: SlotView[];
   multipleRooms: SlotView[];
 };
@@ -137,6 +137,7 @@ export function toPreviewView(preview: ImportPreview): PreviewView {
     teachers: timetable.teachers.map((teacher) => ({
       id: teacher.id,
       short: teacher.short || teacher.id,
+      name: teacher.name,
     })),
     periods: preview.periods,
     rooms: preview.classrooms.map((room) => ({

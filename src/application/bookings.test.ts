@@ -30,7 +30,7 @@ const book = (s: Seed, over: Partial<Record<string, string>> = {}) => ({
 });
 
 function guest(roles: Role[], active = true): User {
-  return { id: "u-x", email: "x@x.org", name: "X", code: null, roles, active };
+  return { id: "u-x", email: "x@x.org", name: "X", code: null, roles, active, placeholder: false };
 }
 
 describe("createBooking", () => {
@@ -525,9 +525,9 @@ describe("agenda", () => {
     const day = await svc.dayAgenda(s.horarios, base);
     if (!day.ok) throw new Error(day.message);
     expect(day.value.occupations.map((item) => [item.title, item.person])).toEqual([
-      ["A", { name: "Pessoa doca", code: "DOCA" }],
+      ["A", { name: "Pessoa doca", code: "DOCA", placeholder: false }],
       ["B", null],
-      ["Minha", { name: "Pessoa docb", code: "DOCB" }],
+      ["Minha", { name: "Pessoa docb", code: "DOCB", placeholder: false }],
     ]);
 
     const week = await svc.weekAgenda(s.docA, { spaceId: s.sala1.id, weekStart: "2026-11-09" });
@@ -542,6 +542,33 @@ describe("agenda", () => {
       null,
       null,
     ]);
+  });
+
+  test("responsável conta fantasma: logado recebe a marca; visitante recebe person nulo", async () => {
+    const { db, s, svc } = await setup();
+    const base = { spaceId: s.sala1.id, date: "2026-11-10" };
+    insertImported(db, {
+      ...base,
+      id: "a",
+      start: "08:00",
+      end: "09:00",
+      title: "A",
+      responsibleUserId: s.docB.id,
+    });
+    rawAll(db, `UPDATE users SET placeholder = 1 WHERE id = '${s.docB.id}'`);
+
+    const day = await svc.dayAgenda(s.docA, base);
+    if (!day.ok) throw new Error(day.message);
+    expect(day.value.occupations[0]?.person).toEqual({
+      name: "Pessoa docb",
+      code: "DOCB",
+      placeholder: true,
+    });
+
+    const visitor = await svc.dayAgenda(null, base);
+    if (!visitor.ok) throw new Error(visitor.message);
+    expect(visitor.value.occupations[0]?.person).toBeNull();
+    expect(JSON.stringify(visitor)).not.toContain("placeholder");
   });
 
   test("passadas não podem ser canceladas (canCancel falso)", async () => {

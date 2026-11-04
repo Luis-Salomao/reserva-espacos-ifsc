@@ -1,10 +1,16 @@
 import { MAX_PASSWORD_LENGTH, validatePassword } from "#/application/auth";
 import type { PasswordHasher, SessionRepository, UserRepository } from "#/application/ports";
 import { fail, ok, parseText, type Result } from "#/application/validation";
-import { isRole, isValidEmail, normalizeEmail, type Role, type User } from "#/domain/user";
+import {
+  isRole,
+  isValidCode,
+  isValidEmail,
+  normalizeEmail,
+  type Role,
+  type User,
+} from "#/domain/user";
 
-const MAX_NAME_LENGTH = 120;
-const CODE_PATTERN = /^[A-Za-z0-9._-]{1,16}$/;
+export const MAX_NAME_LENGTH = 120;
 
 export type UsersDeps = {
   users: UserRepository;
@@ -31,7 +37,7 @@ function parseEmail(raw: string): Result<string> {
 function parseCode(raw: string): Result<string | null> {
   const code = raw.trim();
   if (code === "") return ok(null);
-  return CODE_PATTERN.test(code)
+  return isValidCode(code)
     ? ok(code)
     : fail(
         "validation",
@@ -68,6 +74,13 @@ const DUPLICATE = "Já existe uma conta com este e-mail.";
 const DUPLICATE_CODE = "Já existe uma conta com esta sigla.";
 const NOT_FOUND = "Conta não encontrada.";
 const LAST_ADMIN = "Não é possível deixar o sistema sem administrador ativo.";
+const EMAIL_IN_USE = "Este e-mail já está em uso.";
+const NOT_PLACEHOLDER = "Esta conta já está ativada.";
+const MERGE_TARGET_MISSING = "Escolha uma conta existente para receber as aulas.";
+const MERGE_TARGET_PLACEHOLDER =
+  "A conta escolhida também não está ativada. Escolha uma conta ativada.";
+const MERGE_TARGET_INACTIVE = "A conta escolhida está desativada. Reative-a ou escolha outra.";
+const MERGE_CHANGED = "As contas mudaram enquanto a fusão rodava. Recarregue e tente de novo.";
 
 export function createUsersService(deps: UsersDeps) {
   const { users, sessions, hasher } = deps;
@@ -171,6 +184,57 @@ export function createUsersService(deps: UsersDeps) {
       if ((await users.findById(id)) === null) return fail("not_found", NOT_FOUND);
       await users.updatePasswordHash(id, await hasher.hash(parsed.value));
       await sessions.revokeAllForUser(id);
+      return ok(null);
+    },
+
+    /** Ativa uma conta fantasma com e-mail e senha reais: a partir daí ela entra normalmente. */
+    async activatePlaceholder(
+      id: string,
+      input: { email: string; password: string },
+    ): Promise<Result<User>> {
+      const email = parseEmail(input.email);
+      if (!email.ok) return email;
+      const password = parseNewPassword(input.password);
+      if (!password.ok) return password;
+      const target = await users.findById(id);
+      if (target === null) return fail("not_found", NOT_FOUND);
+      if (!target.placeholder) return fail("validation", NOT_PLACEHOLDER);
+      const emailTaken = async () => {
+        const owner = await users.findByEmail(email.value);
+        return owner !== null && owner.id !== id;
+      };
+      if (await emailTaken()) return fail("conflict", EMAIL_IN_USE, "email");
+
+      const passwordHash = await hasher.hash(password.value);
+      let activated: boolean;
+      try {
+        activated = await users.activatePlaceholder(id, email.value, passwordHash);
+      } catch (error) {
+        // Corrida entre a checagem e a gravação: a restrição de unicidade do banco decide.
+        if (await emailTaken()) return fail("conflict", EMAIL_IN_USE, "email");
+        throw error;
+      }
+      if (!activated) {
+        return (await users.findById(id)) === null
+          ? fail("not_found", NOT_FOUND)
+          : fail("validation", NOT_PLACEHOLDER);
+      }
+      return ok({ ...target, email: email.value, placeholder: false });
+    },
+
+    /**
+     * Funde a fantasma `id` na conta `targetId` (ativada e ativa): as aulas e os vínculos do XML
+     * passam para ela e a fantasma é apagada.
+     */
+    async mergePlaceholder(id: string, targetId: string): Promise<Result<null>> {
+      const from = await users.findById(id);
+      if (from === null) return fail("not_found", NOT_FOUND);
+      if (!from.placeholder) return fail("validation", NOT_PLACEHOLDER);
+      const target = await users.findById(targetId);
+      if (target === null) return fail("validation", MERGE_TARGET_MISSING, "targetId");
+      if (target.placeholder) return fail("validation", MERGE_TARGET_PLACEHOLDER, "targetId");
+      if (!target.active) return fail("validation", MERGE_TARGET_INACTIVE, "targetId");
+      if (!(await users.mergeInto(id, targetId))) return fail("conflict", MERGE_CHANGED);
       return ok(null);
     },
   };

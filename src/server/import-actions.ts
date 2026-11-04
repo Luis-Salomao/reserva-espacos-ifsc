@@ -4,7 +4,7 @@ import {
   type PrepareOutput,
   type StepOutput,
 } from "#/application/import-apply";
-import type { MappingsService } from "#/application/import-mappings";
+import type { MappingsService, TeacherMappingInput } from "#/application/import-mappings";
 import { previewAscXml } from "#/import-asc/index.ts";
 import {
   type AdminOutcome,
@@ -58,12 +58,13 @@ export function suggestMappings(deps: ImportDeps, request: RequestLike, data: un
       if (id === null || short === null || name === null) return reject(400, BAD_REQUEST);
       rooms.push({ id, short, name });
     }
-    const people: Array<{ id: string; short: string }> = [];
+    const people: Array<{ id: string; short: string; name: string }> = [];
     for (const item of teachers) {
       const id = text(item, "id");
       const short = text(item, "short");
-      if (id === null || short === null) return reject(400, BAD_REQUEST);
-      people.push({ id, short });
+      const name = item.name === undefined ? "" : text(item, "name");
+      if (id === null || short === null || name === null) return reject(400, BAD_REQUEST);
+      people.push({ id, short, name });
     }
     return {
       ok: true,
@@ -104,19 +105,28 @@ export function saveTeacherMappings(deps: ImportDeps, request: RequestLike, data
     const body = record(data);
     const items = body && objects(body, "items");
     if (!items) return reject(400, BAD_REQUEST);
-    const mappings = [];
+    const mappings: TeacherMappingInput[] = [];
     for (const item of items) {
       const sourceTeacherId = text(item, "sourceTeacherId");
       const sourceShort = text(item, "sourceShort");
       const userId = item.userId === null ? null : text(item, "userId");
+      const placeholder =
+        item.createPlaceholder === undefined ? undefined : record(item.createPlaceholder);
+      const placeholderName = placeholder ? text(placeholder, "name") : undefined;
       if (
         sourceTeacherId === null ||
         sourceShort === null ||
-        (item.userId !== null && userId === null)
+        (item.userId !== null && userId === null) ||
+        placeholder === null ||
+        placeholderName === null
       ) {
         return reject(400, BAD_REQUEST);
       }
-      mappings.push({ sourceTeacherId, sourceShort, userId });
+      mappings.push(
+        placeholderName === undefined
+          ? { sourceTeacherId, sourceShort, userId }
+          : { sourceTeacherId, sourceShort, userId, createPlaceholder: { name: placeholderName } },
+      );
     }
     return fromResult(await deps.mappings.saveTeachers(mappings));
   });
@@ -150,6 +160,30 @@ export function prepareImport(
         },
         maxCalls === undefined ? {} : { maxCalls },
       ),
+    );
+  });
+}
+
+/**
+ * Reaplica os vínculos de docentes atuais à versão aplicada do semestre. O XML (bytes) precisa
+ * ser o mesmo dessa versão: é dele que sai o docente de cada aula.
+ */
+export function refreshResponsibles(
+  deps: ImportDeps,
+  request: RequestLike,
+  semesterId: string,
+  bytes: Uint8Array,
+) {
+  return asImporter(deps, request, async () => {
+    if (semesterId === "" || bytes.byteLength === 0) return reject(400, BAD_REQUEST);
+    const parsed = previewAscXml(bytes);
+    if (!parsed.ok) return reject(400, parsed.error.message);
+    return fromResult(
+      await deps.imports.refreshResponsibles({
+        semesterId,
+        fileHash: await hashImportFile(bytes),
+        preview: parsed.preview,
+      }),
     );
   });
 }

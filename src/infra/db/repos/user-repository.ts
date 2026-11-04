@@ -1,8 +1,9 @@
 import { and, eq, type SQL, sql } from "drizzle-orm";
 import type { UserRecord, UserRepository } from "#/application/ports";
 import { normalizeEmail, parseRoles, serializeRoles, type User } from "#/domain/user";
+import { runAtomically } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
-import { users } from "#/infra/db/schema";
+import { occupations, sessions, teacherMappings, users } from "#/infra/db/schema";
 
 type Row = typeof users.$inferSelect;
 
@@ -19,6 +20,7 @@ function toRecord(row: Row): UserRecord {
     code: row.code,
     roles: parseRoles(row.roles),
     active: row.active,
+    placeholder: row.placeholder,
     passwordHash: row.passwordHash,
   };
 }
@@ -86,24 +88,56 @@ export function createUserRepository(db: AppDb): UserRepository {
         roles: serializeRoles(input.roles),
         passwordHash: input.passwordHash,
         active: true,
+        placeholder: false,
         createdAt: now,
         updatedAt: now,
       };
       await db.insert(users).values(row);
-      return {
-        id: row.id,
-        email: row.email,
-        name: row.name,
-        code: row.code,
-        roles: parseRoles(row.roles),
-        active: true,
-      };
+      return toUser(row);
     },
     async updatePasswordHash(id, passwordHash) {
       await db
         .update(users)
         .set({ passwordHash, updatedAt: new Date().toISOString() })
         .where(eq(users.id, id));
+    },
+    async activatePlaceholder(id, email, passwordHash) {
+      const rows = await db
+        .update(users)
+        .set({
+          email: normalizeEmail(email),
+          passwordHash,
+          placeholder: false,
+          updatedAt: new Date().toISOString(),
+        })
+        .where(and(eq(users.id, id), eq(users.placeholder, true)))
+        .returning({ id: users.id });
+      return rows.length > 0;
+    },
+    async mergeInto(fromId, toId) {
+      // Repetida em cada instrução: a fantasma só some na última, então a condição vale para todas.
+      const allowed = sql`(EXISTS (SELECT 1 FROM users f WHERE f.id = ${fromId} AND f.placeholder = 1)
+        AND EXISTS (SELECT 1 FROM users t WHERE t.id = ${toId} AND t.placeholder = 0 AND t.active = 1))`;
+      const [before] = await db.select({ id: users.id }).from(users).where(eq(users.id, fromId));
+      if (before === undefined || fromId === toId) return false;
+      await runAtomically(db, (x) => [
+        x
+          .update(occupations)
+          .set({ responsibleUserId: toId })
+          .where(and(eq(occupations.responsibleUserId, fromId), allowed)),
+        x
+          .update(occupations)
+          .set({ createdBy: toId })
+          .where(and(eq(occupations.createdBy, fromId), allowed)),
+        x
+          .update(teacherMappings)
+          .set({ userId: toId })
+          .where(and(eq(teacherMappings.userId, fromId), allowed)),
+        x.delete(sessions).where(and(eq(sessions.userId, fromId), allowed)),
+        x.delete(users).where(and(eq(users.id, fromId), allowed)),
+      ]);
+      const [after] = await db.select({ id: users.id }).from(users).where(eq(users.id, fromId));
+      return after === undefined;
     },
   };
   return repo;

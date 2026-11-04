@@ -13,10 +13,10 @@ import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 import { createUserRepository } from "#/infra/db/repos/user-repository";
 import * as schema from "#/infra/db/schema";
-import { systemClock } from "#/infra/runtime";
+import { cryptoRandom, systemClock } from "#/infra/runtime";
 import type { ImportDeps } from "./import-actions.ts";
 import { applyImportBatch } from "./import-actions.ts";
-import { handlePrepareRequest } from "./import-prepare.ts";
+import { handlePrepareRequest, handleResponsiblesRequest } from "./import-prepare.ts";
 
 const XML = readFileSync(join(import.meta.dir, "../../test/fixtures/asc/complete.xml"));
 
@@ -63,6 +63,12 @@ async function setup() {
       spaces: createSpaceRepository(db),
       users,
       clock: systemClock,
+      hasher: {
+        hash: async (p: string) => `hash:${p}`,
+        verify: async () => false,
+        needsRehash: () => false,
+      },
+      random: cryptoRandom,
     }),
     cookieSecure: "auto",
   };
@@ -168,5 +174,55 @@ describe("POST de preparo do lote", () => {
     const json = (await response.json()) as Json;
     expect(json.ok).toBe(false);
     expect(json.message).toContain("10 MB");
+  });
+});
+
+describe("POST de atualizar responsáveis", () => {
+  let ctx: Awaited<ReturnType<typeof setup>>;
+  beforeEach(async () => {
+    ctx = await setup();
+  });
+
+  test("sem sessão 401, docente 403, sem ler o corpo", async () => {
+    for (const [token, status] of [
+      [null, 401],
+      ["doc", 403],
+    ] as const) {
+      let touched = false;
+      const request = {
+        ...ctx.post(`?semesterId=${ctx.semester.id}`, token),
+        get body() {
+          touched = true;
+          return null;
+        },
+      };
+      expect((await handleResponsiblesRequest(request, ctx.deps)).status).toBe(status);
+      expect(touched).toBe(false);
+    }
+  });
+
+  test("devolve a contagem depois de aplicar o mesmo arquivo; sem semestre é inválido", async () => {
+    const prepared = (await (
+      await handlePrepareRequest(ctx.post(`?semesterId=${ctx.semester.id}`, "hor"), ctx.deps)
+    ).json()) as { data: { batch: { id: string } } };
+    await applyImportBatch(
+      ctx.deps,
+      { url: "https://reservas.ifsc.edu.br/x", headers: new Headers({ cookie: "sid=hor" }) },
+      { batchId: prepared.data.batch.id },
+    );
+
+    const response = await handleResponsiblesRequest(
+      ctx.post(`?semesterId=${ctx.semester.id}`, "hor"),
+      ctx.deps,
+    );
+    expect(response.headers.get("cache-control")).toBe("no-store");
+    expect(await response.json()).toEqual({
+      ok: true,
+      data: { changed: 0, withoutResponsible: 0 },
+    });
+    const invalid = (await (
+      await handleResponsiblesRequest(ctx.post("?semesterId=", "hor"), ctx.deps)
+    ).json()) as Json;
+    expect(invalid.ok).toBe(false);
   });
 });

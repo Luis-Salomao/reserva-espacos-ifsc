@@ -143,8 +143,10 @@ Parser em duas camadas:
 3. **Fixtures**: conjunto de XMLs sintéticos cobrindo cada variação + teste opcional com o XML real em
    `data/real/` (pulado se ausente; imprime só contagens).
 
-Campos pessoais de docentes (nome completo, e-mail, celular, gênero) **não entram no DTO**; usa-se apenas `id`
-e `short` (sigla) para sugerir vínculo. [Claude, herdando a regra de minimização das specs anteriores]
+Do docente entram no DTO só `id`, `short` (sigla) e o nome (`name`, senão `firstname` + `lastname`, senão a
+sigla), usados para sugerir vínculo e criar a conta fantasma do docente sem conta. E-mail, celular, gênero e cor
+**não entram no DTO**. O nome só aparece para quem está logado. [AD-001 em `.specs/STATE.md`, 2026-11-04, que
+substitui a regra anterior de usar apenas `id` e `short`]
 
 ### 7.3 Fluxo na UI (quem importa: admin e responsável por horários)
 

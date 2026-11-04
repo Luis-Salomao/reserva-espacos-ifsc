@@ -115,7 +115,7 @@ function limitCards(cards: Card[], warnings: ImportWarning[]): Card[] {
 /**
  * Converte a árvore XML em `AscTimetable`. Nunca lança: problemas viram avisos.
  * Dados de alunos (students, groups.studentids, studentsubjects) e campos pessoais
- * de docentes nunca são lidos.
+ * de docentes além do nome (AD-001) nunca são lidos.
  */
 export function normalizeAsc(root: XmlNode): NormalizeResult {
   const warnings: ImportWarning[] = [];
@@ -209,14 +209,18 @@ export function normalizeAsc(root: XmlNode): NormalizeResult {
     warnings,
   );
 
-  // Somente id e short: nome, e-mail, celular, gênero e cor nunca entram no DTO.
+  // Id, sigla e nome (AD-001): e-mail, celular, gênero e cor nunca entram no DTO.
   const teachers = readSection<Teacher>(
     root,
     {
       section: "teachers",
       item: "teacher",
       keyAttr: "id",
-      build: (node, id) => ({ id, short: text(node, "short") }),
+      build: (node, id) => {
+        const short = text(node, "short");
+        const fullName = [text(node, "firstname"), text(node, "lastname")].join(" ").trim();
+        return { id, short, name: attr(node, "name") ?? (fullName || short) };
+      },
     },
     warnings,
   );

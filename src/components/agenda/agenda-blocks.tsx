@@ -152,7 +152,10 @@ type OccupationCardProps = {
   onOpen?: (() => void) | undefined;
 };
 
-/** Ocupação na grade: barra de estado à esquerda, título, horário, responsável e etiqueta. */
+/**
+ * Ocupação na grade: barra de estado à esquerda, título, horário, responsável e etiqueta. Cartão
+ * baixo demais para o nome mostra só o avatar ao lado do título; o nome fica para leitores de tela.
+ */
 export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
   const top = yOf(scale, ev.startMinutes);
   const height = Math.max(18, (ev.endMinutes - ev.startMinutes) * scale.pxPerMin - 2);
@@ -183,7 +186,12 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
         aria-hidden="true"
         className={cn("absolute inset-y-1 left-1 w-[3px] rounded-full", BARS[state])}
       />
-      <b className="block truncate text-[12px] font-semibold text-foreground">{ev.title}</b>
+      <span className="flex min-w-0 items-center gap-1">
+        {!showPerson && ev.person !== null && <Avatar name={ev.person.name} size="xs" />}
+        <b className="block min-w-0 truncate text-[12px] font-semibold text-foreground">
+          {ev.title}
+        </b>
+      </span>
       <span className="block text-[11px] tabular-nums text-muted-foreground">
         {ev.start}–{ev.end}
       </span>

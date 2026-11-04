@@ -1,0 +1,1 @@
+ALTER TABLE `users` ADD `placeholder` integer DEFAULT false NOT NULL;

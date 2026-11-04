@@ -19,6 +19,7 @@ const ana: User = {
   code: null,
   roles: ["horarios"],
   active: true,
+  placeholder: false,
 };
 const anonymous: SessionInfo = { user: null, publicRead: true, timeZone: "America/Sao_Paulo" };
 

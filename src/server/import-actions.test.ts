@@ -13,12 +13,13 @@ import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 import { createUserRepository } from "#/infra/db/repos/user-repository";
 import * as schema from "#/infra/db/schema";
-import { systemClock } from "#/infra/runtime";
+import { cryptoRandom, systemClock } from "#/infra/runtime";
 import {
   applyImportBatch,
   discardImportBatch,
   type ImportDeps,
   prepareImport,
+  refreshResponsibles,
   saveRoomMappings,
   saveTeacherMappings,
   suggestMappings,
@@ -73,6 +74,12 @@ async function setup() {
       spaces,
       users,
       clock: systemClock,
+      hasher: {
+        hash: async (p: string) => `hash:${p}`,
+        verify: async () => false,
+        needsRehash: () => false,
+      },
+      random: cryptoRandom,
     }),
     cookieSecure: "auto",
   };
@@ -114,6 +121,7 @@ describe("ações de importação: controle de acesso", () => {
     ["saveTeacherMappings", (c, t) => saveTeacherMappings(c.deps, c.req(t), { items: [] })],
     ["prepareImport", (c, t) => prepareImport(c.deps, c.req(t), c.semester.id, XML)],
     ["applyImportBatch", (c, t) => applyImportBatch(c.deps, c.req(t), { batchId: "x" })],
+    ["refreshResponsibles", (c, t) => refreshResponsibles(c.deps, c.req(t), c.semester.id, XML)],
   ];
 
   for (const [name, call] of calls) {
@@ -289,10 +297,105 @@ describe("ações de importação: fluxo", () => {
     expect(a.response.ok || a.response.status === 409).toBe(true);
   });
 
+  test("docentes: nome vai para a sugestão e criar fantasma é aceito", async () => {
+    const t = ctx.req("hor");
+    const suggestions = await suggestMappings(ctx.deps, t, {
+      classrooms: [],
+      teachers: [{ id: "P9", short: "ZQ", name: "Zeca Quintal" }],
+    });
+    expect(suggestions.response.ok && suggestions.response.data.teachers[0]).toMatchObject({
+      name: "Zeca Quintal",
+      defaultAction: "fantasma",
+    });
+    const saved = await saveTeacherMappings(ctx.deps, t, {
+      items: [
+        {
+          sourceTeacherId: "P9",
+          sourceShort: "ZQ",
+          userId: null,
+          createPlaceholder: { name: "Zeca Quintal" },
+        },
+      ],
+    });
+    expect(saved.response).toEqual({ ok: true, data: null });
+    const again = await suggestMappings(ctx.deps, t, {
+      classrooms: [],
+      teachers: [{ id: "P9", short: "ZQ", name: "Zeca Quintal" }],
+    });
+    expect(again.response.ok && again.response.data.teachers[0]?.defaultAction).toBe("salvo");
+  });
+
+  test("docentes: criar fantasma ou nome com formato inválido é 400", async () => {
+    const t = ctx.req("adm");
+    const base = { sourceTeacherId: "P1", sourceShort: "ZQ", userId: null };
+    for (const createPlaceholder of ["Zeca", null, [], { name: 3 }, {}]) {
+      const result = await saveTeacherMappings(ctx.deps, t, {
+        items: [{ ...base, createPlaceholder }],
+      });
+      expect(result.response).toMatchObject({ ok: false, status: 400 });
+    }
+    const badName = await suggestMappings(ctx.deps, t, {
+      classrooms: [],
+      teachers: [{ id: "P1", short: "ZQ", name: 3 }],
+    });
+    expect(badName.response).toMatchObject({ ok: false, status: 400 });
+    const both = await saveTeacherMappings(ctx.deps, t, {
+      items: [{ ...base, userId: ctx.accounts.get("hor")?.id, createPlaceholder: { name: "Z" } }],
+    });
+    expect(both.response).toMatchObject({ ok: false, status: 400, field: "userId" });
+  });
+
   test("falha de validação do serviço volta como 400 com o campo", async () => {
     const result = await saveRoomMappings(ctx.deps, ctx.req("adm"), {
       items: [{ sourceRoomId: "R1", sourceShort: "S1", spaceId: "nao-existe", ignored: false }],
     });
     expect(result.response).toMatchObject({ ok: false, status: 400, field: "spaceId" });
+  });
+
+  test("atualizar responsáveis: vínculo novo chega às aulas aplicadas; repetir não muda nada", async () => {
+    await saveRoomMappings(ctx.deps, ctx.req("adm"), {
+      items: [{ sourceRoomId: "R1", sourceShort: "101", spaceId: ctx.space.id, ignored: false }],
+    });
+    const prepared = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
+    if (!prepared.response.ok) throw new Error("prepare");
+    await applyImportBatch(ctx.deps, ctx.req("hor"), { batchId: prepared.response.data.batch.id });
+    await saveTeacherMappings(ctx.deps, ctx.req("adm"), {
+      items: [{ sourceTeacherId: "P1", sourceShort: "FT", userId: ctx.accounts.get("hor")?.id }],
+    });
+
+    const first = await refreshResponsibles(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
+    expect(first.response.ok).toBe(true);
+    if (!first.response.ok) return;
+    expect(first.response.data.changed).toBeGreaterThan(0);
+    expect(first.response.data.withoutResponsible).toBe(0);
+
+    const second = await refreshResponsibles(ctx.deps, ctx.req("adm"), ctx.semester.id, XML);
+    expect(second.response).toEqual({ ok: true, data: { changed: 0, withoutResponsible: 0 } });
+  });
+
+  test("atualizar responsáveis: outro arquivo é recusado; corpo inválido é 400", async () => {
+    const t = ctx.req("adm");
+    await saveRoomMappings(ctx.deps, t, {
+      items: [{ sourceRoomId: "R1", sourceShort: "101", spaceId: ctx.space.id, ignored: false }],
+    });
+    const prepared = await prepareImport(ctx.deps, t, ctx.semester.id, XML);
+    if (!prepared.response.ok) throw new Error("prepare");
+    await applyImportBatch(ctx.deps, t, { batchId: prepared.response.data.batch.id });
+
+    const other = new Uint8Array([...XML, ...new TextEncoder().encode("\n<!-- v2 -->")]);
+    const refused = await refreshResponsibles(ctx.deps, t, ctx.semester.id, other);
+    expect(refused.response).toMatchObject({
+      ok: false,
+      status: 400,
+      message: "Envie o mesmo arquivo da versão aplicada.",
+    });
+    for (const [semesterId, bytes] of [
+      ["", XML],
+      [ctx.semester.id, new Uint8Array()],
+      [ctx.semester.id, new TextEncoder().encode("não é xml")],
+    ] as const) {
+      const result = await refreshResponsibles(ctx.deps, t, semesterId, bytes);
+      expect(result.response).toMatchObject({ ok: false, status: 400 });
+    }
   });
 });

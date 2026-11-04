@@ -17,6 +17,7 @@ import * as schema from "#/infra/db/schema";
 import { cryptoRandom, systemClock } from "#/infra/runtime";
 import {
   type AdminDeps,
+  activatePlaceholderAccount,
   createAccount,
   createSemester,
   createSpace,
@@ -24,6 +25,7 @@ import {
   listAccounts,
   listAdminSpaces,
   listSemesters,
+  mergePlaceholderAccount,
   resetAccountPassword,
   setAccountActive,
   updateAccount,
@@ -128,6 +130,27 @@ describe("controle de acesso no servidor", () => {
           await resetAccountPassword(c.deps, c.req(t), {
             id: c.docente.id,
             password: NEW_PASSWORD,
+          })
+        ).response,
+    ],
+    [
+      "activatePlaceholderAccount",
+      async (c, t) =>
+        (
+          await activatePlaceholderAccount(c.deps, c.req(t), {
+            id: c.docente.id,
+            email: "nova@ifsc.edu.br",
+            password: NEW_PASSWORD,
+          })
+        ).response,
+    ],
+    [
+      "mergePlaceholderAccount",
+      async (c, t) =>
+        (
+          await mergePlaceholderAccount(c.deps, c.req(t), {
+            id: c.docente.id,
+            targetId: c.horarios.id,
           })
         ).response,
     ],
@@ -317,6 +340,100 @@ describe("contas (administrador)", () => {
       ).response,
     ).toMatchObject({ ok: false, status: 409, field: "roles" });
     expect(await ctx.auth.authenticate(ctx.admin.token)).not.toBeNull();
+  });
+});
+
+describe("contas fantasmas (administrador)", () => {
+  let ctx: Ctx;
+  const ghost = async (id: string) => {
+    await ctx.db.insert(schema.users).values({
+      id,
+      email: `${id}@ifsc.edu.br`,
+      name: "Zeca Quintal",
+      code: null,
+      roles: "docente",
+      passwordHash: "descartada",
+      active: true,
+      placeholder: true,
+      createdAt: "t",
+      updatedAt: "t",
+    });
+  };
+  beforeEach(async () => {
+    ctx = await setup();
+    await ghost("fantasma");
+  });
+
+  test("ativar com e-mail e senha válidos tira a marca e permite entrar", async () => {
+    expect((await ctx.auth.login("fantasma@ifsc.edu.br", NEW_PASSWORD)).ok).toBe(false);
+    const out = await activatePlaceholderAccount(ctx.deps, ctx.req(ctx.admin.token), {
+      id: "fantasma",
+      email: "Zeca.Real@IFSC.edu.br",
+      password: NEW_PASSWORD,
+    });
+    expect(out.response).toMatchObject({
+      ok: true,
+      data: { id: "fantasma", email: "zeca.real@ifsc.edu.br", placeholder: false },
+    });
+    expect((await ctx.auth.login("zeca.real@ifsc.edu.br", NEW_PASSWORD)).ok).toBe(true);
+  });
+
+  test("ativar com e-mail de outra conta: 'Este e-mail já está em uso'", async () => {
+    const out = await activatePlaceholderAccount(ctx.deps, ctx.req(ctx.admin.token), {
+      id: "fantasma",
+      email: "docente@ifsc.edu.br",
+      password: NEW_PASSWORD,
+    });
+    expect(out.response).toMatchObject({
+      ok: false,
+      status: 409,
+      field: "email",
+      message: "Este e-mail já está em uso.",
+    });
+    expect((await ctx.deps.users.list()).find((u) => u.id === "fantasma")?.placeholder).toBe(true);
+  });
+
+  test("fundir move os vínculos para a conta escolhida e apaga a fantasma", async () => {
+    await ctx.db
+      .insert(schema.teacherMappings)
+      .values({ sourceTeacherId: "P1", sourceShort: "ZQ", userId: "fantasma", updatedAt: "t" });
+    const out = await mergePlaceholderAccount(ctx.deps, ctx.req(ctx.admin.token), {
+      id: "fantasma",
+      targetId: ctx.docente.id,
+    });
+    expect(out.response).toEqual({ ok: true, data: null });
+    expect((await ctx.deps.users.list()).some((u) => u.id === "fantasma")).toBe(false);
+    const [mapping] = await ctx.db.select().from(schema.teacherMappings);
+    expect(mapping?.userId).toBe(ctx.docente.id);
+  });
+
+  test("fundir em outra fantasma ou em conta inativa é recusado", async () => {
+    const admin = ctx.req(ctx.admin.token);
+    await ghost("outra");
+    await ctx.deps.users.setActive(ctx.horarios.id, false);
+    for (const targetId of ["outra", ctx.horarios.id]) {
+      const out = await mergePlaceholderAccount(ctx.deps, admin, { id: "fantasma", targetId });
+      expect(out.response).toMatchObject({ ok: false, status: 400, field: "targetId" });
+    }
+    expect((await ctx.deps.users.list()).some((u) => u.id === "fantasma")).toBe(true);
+  });
+
+  test("corpo malformado vira 400", async () => {
+    const admin = ctx.req(ctx.admin.token);
+    for (const body of [null, {}, { id: "fantasma", email: "a@ifsc.edu.br" }]) {
+      expect((await activatePlaceholderAccount(ctx.deps, admin, body)).response).toMatchObject({
+        ok: false,
+        status: 400,
+        message: "Requisição inválida.",
+      });
+    }
+    for (const body of [null, {}, { id: "fantasma", targetId: 3 }]) {
+      expect((await mergePlaceholderAccount(ctx.deps, admin, body)).response).toMatchObject({
+        ok: false,
+        status: 400,
+        message: "Requisição inválida.",
+      });
+    }
   });
 });
 

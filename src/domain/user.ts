@@ -2,7 +2,10 @@ const ROLES = ["admin", "horarios", "docente"] as const;
 
 export type Role = (typeof ROLES)[number];
 
-/** Conta local. `code` é a sigla do docente (opcional). Sem dados de senha. */
+/**
+ * Conta local. `code` é a sigla do docente (opcional). `placeholder` marca a conta fantasma de um
+ * docente do XML, que não entra até ser ativada. Sem dados de senha.
+ */
 export type User = {
   id: string;
   email: string;
@@ -10,6 +13,7 @@ export type User = {
   code: string | null;
   roles: Role[];
   active: boolean;
+  placeholder: boolean;
 };
 
 export function isRole(value: string): value is Role {
@@ -31,6 +35,13 @@ export function serializeRoles(roles: readonly Role[]): string {
 
 export function normalizeEmail(email: string): string {
   return email.trim().toLowerCase();
+}
+
+const CODE_PATTERN = /^[A-Za-z0-9._-]{1,16}$/;
+
+/** Sigla de conta: de 1 a 16 letras, números, ponto, hífen ou sublinhado. */
+export function isValidCode(code: string): boolean {
+  return CODE_PATTERN.test(code);
 }
 
 const EMAIL_PATTERN = /^[^\s@,'"`$\\]+@[^\s@,'"`$\\]+\.[^\s@,'"`$\\]+$/;
