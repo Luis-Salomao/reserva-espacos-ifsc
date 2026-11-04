@@ -27,7 +27,7 @@ Modo rápido: quatro tarefas, um commit cada. Sem design.md (o desenho cabe nas 
 - **Tests**: `test/components/booking-sheet-repeat.test.tsx`
 - **Gate**: `bun test test/components`
 - **Done when**: testes passam.
-- **Status**: [ ]
+- **Status**: [x]
 
 ## T4 (P2): Série em "Minhas reservas"
 

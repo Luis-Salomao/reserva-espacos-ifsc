@@ -22,7 +22,7 @@ export type Recurrence = {
 export const MAX_OCCURRENCES = 120;
 /** A última data fica no máximo a tantos dias da data inicial. */
 const MAX_SPAN_DAYS = 365;
-const MAX_INTERVAL = 12;
+export const MAX_INTERVAL = 12;
 
 export type Expansion = { ok: true; dates: string[] } | { ok: false; message: string };
 

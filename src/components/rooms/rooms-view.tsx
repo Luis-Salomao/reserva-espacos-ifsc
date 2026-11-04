@@ -357,6 +357,7 @@ export function RoomsView({
         initialSlot={slot}
         timeZone={timeZone}
         onSuccess={() => setDraft(null)}
+        onSeriesSuccess={() => setDraft(null)}
         {...(createFn !== undefined ? { createFn } : {})}
         availability={dayFn ?? getRoomsDayFn}
       />

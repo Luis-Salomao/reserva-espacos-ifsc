@@ -2,18 +2,42 @@ import { Link, useRouter } from "@tanstack/react-router";
 import { AlertCircle, Calendar, Check, Clock, DoorClosed, X } from "lucide-react";
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { type FormEvent, useEffect, useId, useState } from "react";
-import type { BookingView, RoomDay, RoomsDay } from "#/application/bookings";
+import type {
+  BookingView,
+  RecurringOutcome,
+  RecurringPreview,
+  RoomDay,
+  RoomsDay,
+} from "#/application/bookings";
 import { runAdminAction } from "#/components/admin/use-admin-action";
+import {
+  NO_REPEAT,
+  RepeatSection,
+  type RepeatState,
+  repeatSummary,
+  ruleOf,
+} from "#/components/agenda/repeat-section";
+import { SeriesPreview } from "#/components/agenda/series-preview";
 import { Field } from "#/components/ds";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { DEFAULT_HOURS, localNow, validateBookingWhen } from "#/domain/availability";
+import type { Recurrence } from "#/domain/recurrence";
 import { availabilityIn, busyReasonText } from "#/domain/room-filter";
 import type { Space } from "#/domain/space";
 import { cn } from "#/lib/utils";
 import type { AdminResponse } from "#/server/admin-actions";
-import { createBookingFn } from "#/server/booking-fns";
+import { createBookingFn, createRecurringFn, previewRecurringFn } from "#/server/booking-fns";
+
+type RecurringData = {
+  spaceId: string;
+  date: string;
+  start: string;
+  end: string;
+  purpose: string;
+  rule: Recurrence;
+};
 
 export type BookingSlotInit = {
   spaceId?: string;
@@ -42,7 +66,15 @@ export type BookingSheetProps = {
   availability?:
     | ((input: { data: { date: string } }) => Promise<AdminResponse<RoomsDay>>)
     | undefined;
+  previewRecurring?: (input: { data: RecurringData }) => Promise<AdminResponse<RecurringPreview>>;
+  createRecurring?: (input: {
+    data: RecurringData & { confirmed: string[] };
+  }) => Promise<AdminResponse<RecurringOutcome>>;
+  /** Série gravada (ao menos uma data). */
+  onSeriesSuccess?: () => void;
 };
+
+type SeriesDone = { created: number; skipped: number };
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
 const BUSY_ROOM = "Essa sala está ocupada nesse horário.";
@@ -135,6 +167,9 @@ export function BookingSheet({
   onSuccess,
   createFn,
   availability,
+  previewRecurring,
+  createRecurring,
+  onSeriesSuccess,
 }: BookingSheetProps) {
   const uid = useId();
   const router = useRouter();
@@ -151,6 +186,9 @@ export function BookingSheet({
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [submittedBooking, setSubmittedBooking] = useState<BookingView | null>(null);
+  const [repeat, setRepeat] = useState<RepeatState>(NO_REPEAT);
+  const [preview, setPreview] = useState<RecurringPreview | null>(null);
+  const [seriesDone, setSeriesDone] = useState<SeriesDone | null>(null);
   // A busca do dia espera o formulário receber a data do slot, para não pedir o dia errado.
   const [synced, setSynced] = useState(false);
   const [day, setDay] = useState<RoomsDay | null>(null);
@@ -167,6 +205,9 @@ export function BookingSheet({
       setErrorMessage(null);
       setFieldErrors({});
       setSubmittedBooking(null);
+      setRepeat(NO_REPEAT);
+      setPreview(null);
+      setSeriesDone(null);
     }
     setSynced(open);
   }, [open, initialSlot, spaces, timeZone]);
@@ -182,7 +223,12 @@ export function BookingSheet({
     };
   }, [synced, availability, date]);
 
-  const choices = roomChoices(spaces, day, { date, start, end }, localNow(new Date(), timeZone));
+  const rule = ruleOf(repeat);
+  // Na série a sala ocupada na data inicial pode estar livre nas outras: a prévia mostra os conflitos.
+  const choices =
+    rule === null
+      ? roomChoices(spaces, day, { date, start, end }, localNow(new Date(), timeZone))
+      : null;
   const activeSpace = spaces.find((s) => s.id === spaceId) ?? spaces[0];
 
   function validateClient(): boolean {
@@ -195,6 +241,10 @@ export function BookingSheet({
     }
     if (choices?.busy.some((item) => item.space.id === spaceId)) {
       errors.spaceId = BUSY_ROOM;
+    }
+    const summary = repeatSummary(date, repeat);
+    if (summary !== null && !summary.ok) {
+      errors.repeat = summary.text;
     }
 
     const trimmedPurpose = purpose.trim();
@@ -214,9 +264,67 @@ export function BookingSheet({
     return true;
   }
 
+  function showFailure(response: { status: number; message: string; field?: string }) {
+    if (response.status !== 409 && response.field) {
+      setFieldErrors({ [response.field]: response.message });
+      setErrorMessage(response.message);
+      document.getElementById(`${uid}-${response.field}`)?.focus();
+    } else {
+      setErrorMessage(response.message);
+    }
+  }
+
+  function recurringData(recurrence: Recurrence): RecurringData {
+    return { spaceId, date, start, end, purpose: purpose.trim(), rule: recurrence };
+  }
+
+  async function requestPreview(recurrence: Recurrence) {
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    const caller = previewRecurring ?? previewRecurringFn;
+    const response = await runAdminAction(() => caller({ data: recurringData(recurrence) }));
+    setIsSubmitting(false);
+    if (response.ok) setPreview(response.data);
+    else showFailure(response);
+  }
+
+  async function confirmSeries() {
+    if (rule === null || preview === null) return;
+    const confirmed = preview.dates.filter((item) => item.free).map((item) => item.date);
+    setIsSubmitting(true);
+    setErrorMessage(null);
+    const caller = createRecurring ?? createRecurringFn;
+    const response = await runAdminAction(() =>
+      caller({ data: { ...recurringData(rule), confirmed } }),
+    );
+    setIsSubmitting(false);
+    if (!response.ok) {
+      if (response.field) setPreview(null);
+      showFailure(response);
+      return;
+    }
+    const outcome = response.data;
+    if (!outcome.created) {
+      setPreview(outcome.preview);
+      setErrorMessage(outcome.message);
+      return;
+    }
+    setSeriesDone({ created: outcome.dates.length, skipped: outcome.skipped.length });
+    onSeriesSuccess?.();
+    try {
+      await router.invalidate();
+    } catch {
+      // Ignora se o roteador não estiver presente ou configurado em ambiente de teste
+    }
+  }
+
   async function handleSubmit(event: FormEvent) {
     event.preventDefault();
     if (!validateClient()) return;
+    if (rule !== null) {
+      await requestPreview(rule);
+      return;
+    }
 
     setIsSubmitting(true);
     setErrorMessage(null);
@@ -245,15 +353,7 @@ export function BookingSheet({
         // Ignora se o roteador não estiver presente ou configurado em ambiente de teste
       }
     } else {
-      if (response.status === 409) {
-        setErrorMessage(response.message);
-      } else if (response.field) {
-        setFieldErrors({ [response.field]: response.message });
-        setErrorMessage(response.message);
-        document.getElementById(`${uid}-${response.field}`)?.focus();
-      } else {
-        setErrorMessage(response.message);
-      }
+      showFailure(response);
     }
   }
 
@@ -282,7 +382,13 @@ export function BookingSheet({
           {/* Cabeçalho */}
           <div className="flex items-center justify-between gap-4">
             <DialogPrimitive.Title className="text-lg font-bold tracking-tight text-foreground">
-              {submittedBooking !== null ? "Reserva confirmada" : "Nova reserva"}
+              {seriesDone !== null
+                ? "Série reservada"
+                : preview !== null
+                  ? "Confirmar série"
+                  : submittedBooking !== null
+                    ? "Reserva confirmada"
+                    : "Nova reserva"}
             </DialogPrimitive.Title>
             <DialogPrimitive.Close asChild>
               <Button
@@ -337,6 +443,47 @@ export function BookingSheet({
                 </Button>
               </div>
             </div>
+          ) : seriesDone !== null ? (
+            <div
+              className="grid justify-items-center gap-2 py-4 text-center"
+              data-testid="series-success-view"
+            >
+              <div className="flex size-14 items-center justify-center rounded-full border-2 border-line-free bg-occ-free text-line-free">
+                <Check className="size-7" />
+              </div>
+              <p className="text-base font-semibold text-foreground">
+                {seriesDone.created === 1
+                  ? "1 data reservada"
+                  : `${seriesDone.created} datas reservadas`}
+              </p>
+              {seriesDone.skipped > 0 && (
+                <p className="text-sm text-muted-foreground">
+                  {seriesDone.skipped === 1
+                    ? "1 data ficou de fora por conflito."
+                    : `${seriesDone.skipped} datas ficaram de fora por conflito.`}
+                </p>
+              )}
+              <div className="mt-4 flex w-full flex-col-reverse gap-2 sm:flex-row sm:justify-end">
+                <Button variant="outline" type="button" onClick={() => onOpenChange(false)}>
+                  Fechar
+                </Button>
+                <Button asChild>
+                  <Link to="/minhas-reservas">Ver reservas</Link>
+                </Button>
+              </div>
+            </div>
+          ) : preview !== null ? (
+            <SeriesPreview
+              preview={preview}
+              where={`${activeSpace?.name ?? "Espaço"} · ${start}–${end} · ${purpose.trim()}`}
+              errorMessage={errorMessage}
+              isSubmitting={isSubmitting}
+              onBack={() => {
+                setPreview(null);
+                setErrorMessage(null);
+              }}
+              onConfirm={() => void confirmSeries()}
+            />
           ) : (
             /* Formulário de Criação */
             <form onSubmit={handleSubmit} className="grid gap-4" noValidate>
@@ -470,6 +617,18 @@ export function BookingSheet({
                 </div>
               </fieldset>
 
+              <RepeatSection
+                id={`${uid}-repeat`}
+                date={date}
+                value={repeat}
+                onChange={(next) => {
+                  setRepeat(next);
+                  setFieldErrors((prev) => ({ ...prev, repeat: undefined, spaceId: undefined }));
+                  setErrorMessage(null);
+                }}
+                error={fieldErrors.repeat}
+              />
+
               {/* Finalidade */}
               <Field
                 id={`${uid}-purpose`}
@@ -498,7 +657,13 @@ export function BookingSheet({
                   Cancelar
                 </Button>
                 <Button type="submit" disabled={isSubmitting}>
-                  {isSubmitting ? "Reservando..." : "Reservar"}
+                  {rule !== null
+                    ? isSubmitting
+                      ? "Buscando datas..."
+                      : "Ver datas"
+                    : isSubmitting
+                      ? "Reservando..."
+                      : "Reservar"}
                 </Button>
               </div>
             </form>
