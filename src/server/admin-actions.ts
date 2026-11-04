@@ -1,5 +1,5 @@
 import type { SemesterInput, SemestersService } from "#/application/semesters";
-import type { SpacesService } from "#/application/spaces";
+import type { SpaceInput, SpacesService } from "#/application/spaces";
 import type { UsersService } from "#/application/users";
 import type { Failure, Result } from "#/application/validation";
 import type { Semester } from "#/domain/semester";
@@ -104,6 +104,30 @@ function capacity(data: Record<string, unknown>): string | number | null | undef
   return undefined;
 }
 
+type EquipmentBody = NonNullable<SpaceInput["equipment"]>;
+
+/** `undefined` = pedido sem equipamentos nem observações; `null` = formato inválido. */
+function equipmentBody(data: Record<string, unknown>): EquipmentBody | null | undefined {
+  const { equipment, notes } = data;
+  if (equipment === undefined && notes === undefined) return undefined;
+  const items = equipment === undefined ? {} : record(equipment);
+  if (items === null) return null;
+  const valid = Object.values(items).every(
+    (value) => value === null || typeof value === "string" || typeof value === "number",
+  );
+  if (!valid) return null;
+  if (notes !== undefined && notes !== null && typeof notes !== "string") return null;
+  return { items: items as EquipmentBody["items"], notes: notes ?? null };
+}
+
+function spaceInput(data: Record<string, unknown>): SpaceInput | null {
+  const name = text(data, "name");
+  const cap = capacity(data);
+  const equipment = equipmentBody(data);
+  if (name === null || cap === undefined || equipment === null) return null;
+  return equipment === undefined ? { name, capacity: cap } : { name, capacity: cap, equipment };
+}
+
 export function listAccounts(deps: AdminDeps, request: RequestLike) {
   return asAdmin(deps, request, async () => ({ ok: true, data: await deps.users.list() }));
 }
@@ -191,17 +215,16 @@ export function mergePlaceholderAccount(deps: AdminDeps, request: RequestLike, d
 export function listAdminSpaces(deps: AdminDeps, request: RequestLike) {
   return asAdmin<Space[]>(deps, request, async () => ({
     ok: true,
-    data: await deps.spaces.list(),
+    data: await deps.spaces.listWithEquipment(),
   }));
 }
 
 export function createSpace(deps: AdminDeps, request: RequestLike, data: unknown) {
   return asAdmin<Space>(deps, request, async () => {
     const body = record(data);
-    const name = body && text(body, "name");
-    const cap = body && capacity(body);
-    if (!body || name === null || cap === undefined) return reject(400, BAD_REQUEST);
-    return fromResult(await deps.spaces.create({ name, capacity: cap }));
+    const input = body && spaceInput(body);
+    if (!input) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.spaces.create(input));
   });
 }
 
@@ -209,12 +232,18 @@ export function updateSpace(deps: AdminDeps, request: RequestLike, data: unknown
   return asAdmin<Space>(deps, request, async () => {
     const body = record(data);
     const id = body && text(body, "id");
-    const name = body && text(body, "name");
-    const cap = body && capacity(body);
-    if (!body || id === null || name === null || cap === undefined) {
-      return reject(400, BAD_REQUEST);
-    }
-    return fromResult(await deps.spaces.update(id, { name, capacity: cap }));
+    const input = body && spaceInput(body);
+    if (id === null || !input) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.spaces.update(id, input));
+  });
+}
+
+export function deleteSpace(deps: AdminDeps, request: RequestLike, data: unknown) {
+  return asAdmin<null>(deps, request, async () => {
+    const body = record(data);
+    const id = body && text(body, "id");
+    if (id === null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.spaces.remove(id));
   });
 }
 

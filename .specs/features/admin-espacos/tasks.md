@@ -224,8 +224,8 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes: 401/403 para `deleteSpace`; 400 para cada formato inválido do P1 Acesso AC 3; caminho feliz grava e lista equipamentos; exclusão 200/409/404
-- [ ] Gate check passes: `bun test src/server`
+- [x] Testes: 401/403 para `deleteSpace`; 400 para cada formato inválido do P1 Acesso AC 3; caminho feliz grava e lista equipamentos; exclusão 200/409/404
+- [x] Gate check passes: `bun test src/server` (210 testes) e `bun test` (1328 testes, 3 pulados)
 
 **Tests**: unit
 **Gate**: full
