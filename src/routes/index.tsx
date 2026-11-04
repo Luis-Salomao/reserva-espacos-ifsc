@@ -9,6 +9,7 @@ import { OccupationDetails } from "#/components/agenda/occupation-details";
 import { AppShell } from "#/components/app-shell";
 import { Notice, PageHeader } from "#/components/page";
 import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
+import type { PageView } from "#/components/view-switcher";
 import { localNow } from "#/domain/availability";
 import { addDays, weekdayOf } from "#/domain/calendar";
 import type { Space } from "#/domain/space";
@@ -17,18 +18,13 @@ import { getRoomsDayFn, getRoomsWeekFn, getWeekAgendaFn } from "#/server/booking
 import { BOOKING_ROLES, canViewHome, type SessionInfo } from "#/server/session";
 import { listSpaces } from "#/server/spaces";
 
-type HomeView = "sala" | NonNullable<SalasSearch["visao"]>;
-
 /** Estado de `/` na URL: dia, sala, visualização e os filtros das visualizações de salas. */
-export type AgendaSearch = Omit<SalasSearch, "visao"> & {
-  espaco?: string;
-  visao?: HomeView;
-};
+export type AgendaSearch = SalasSearch & { espaco?: string };
 
 /** De onde vêm os dados: semana de uma sala, dia de todas as salas ou semana de todas. */
 type Source = "sala" | "dia" | "semana";
 
-function sourceOf(visao: HomeView | undefined): Source {
+function sourceOf(visao: PageView | undefined): Source {
   if (visao === undefined || visao === "sala") return "sala";
   return visao === "geral" ? "semana" : "dia";
 }
@@ -183,11 +179,6 @@ function HomePage() {
   return data.fonte === "sala" ? <AgendaPage data={data} /> : <RoomsPage data={data} />;
 }
 
-/** A visualização de salas não conhece `espaco` nem "Sala": a sala escolhida segue na URL. */
-function roomsSearchOf({ espaco: _espaco, visao, ...rest }: AgendaSearch): SalasSearch {
-  return { ...rest, ...(visao !== undefined && visao !== "sala" ? { visao } : {}) };
-}
-
 function RoomsPage({ data }: { data: SalasLoaderData }) {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
@@ -199,20 +190,12 @@ function RoomsPage({ data }: { data: SalasLoaderData }) {
         roomsWeek={data.roomsWeek}
         error={data.error}
         selectedDate={data.selectedDate}
-        search={roomsSearchOf(search)}
+        search={search}
         canBook={data.canBook}
         isVisitor={data.isVisitor}
         isAdmin={data.isAdmin}
         timeZone={data.session.timeZone}
-        onSearchChange={(update, replace) =>
-          void navigate({
-            search: (prev) => ({
-              ...update(roomsSearchOf(prev)),
-              ...(prev.espaco !== undefined ? { espaco: prev.espaco } : {}),
-            }),
-            replace,
-          })
-        }
+        onSearchChange={(update, replace) => void navigate({ search: update, replace })}
         onRetry={() => void router.invalidate()}
       />
     </AppShell>

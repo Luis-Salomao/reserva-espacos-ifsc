@@ -11,7 +11,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { AgendaItem, BookingView, RoomDay, RoomsDay, RoomsWeek } from "#/application/bookings";
 import type { BookingSheetProps } from "#/components/agenda/booking-sheet";
 import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
-import { validateSalasSearch } from "#/routes/salas";
+import { validateAgendaSearch } from "#/routes/index";
 
 const DATE = "2030-11-12";
 const NOW = "2030-11-11T09:00";
@@ -121,7 +121,7 @@ async function setup(options: Options = {}) {
   const loads = { count: 0 };
   const onRetry = mock();
   const root = createRootRoute({
-    validateSearch: validateSalasSearch,
+    validateSearch: validateAgendaSearch,
     loader: () => {
       loads.count++;
     },
@@ -236,6 +236,42 @@ describe("RoomsView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Livres" }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ visao: "livres" }));
     expect(screen.getAllByRole("listitem").length).toBeGreaterThan(0);
+  });
+
+  test("o seletor tem 'Sala'; trocar de visualização mantém a data e a sala na URL", async () => {
+    const { router } = await setup({ url: `/?visao=livres&data=${DATE}&espaco=b104` });
+    const views = screen.getByRole("group", { name: "Visualização" });
+    expect(
+      within(views)
+        .getAllByRole("button")
+        .map((button) => [button.textContent, button.getAttribute("aria-pressed")]),
+    ).toEqual([
+      ["Sala", "false"],
+      ["Colunas", "false"],
+      ["Livres", "true"],
+      ["Visão geral", "false"],
+    ]);
+    fireEvent.click(within(views).getByRole("button", { name: "Visão geral" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ visao: "geral", data: DATE, espaco: "b104" }),
+    );
+    fireEvent.click(within(views).getByRole("button", { name: "Sala" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ visao: "sala", data: DATE, espaco: "b104" }),
+    );
+  });
+
+  test("em 'Livres', o nome da sala abre a agenda dela no mesmo dia", async () => {
+    await setup({ url: "/?visao=livres&ini=14:00&fim=16:00" });
+    for (const [name, id] of [
+      ["LAB 1", "lab"],
+      ["A-202", "a202"],
+    ] as const) {
+      const href = screen.getByRole("link", { name }).getAttribute("href") ?? "";
+      const url = new URL(href, "http://x");
+      expect(url.pathname).toBe("/");
+      expect(Object.fromEntries(url.searchParams)).toEqual({ espaco: id, data: DATE });
+    }
   });
 
   test("trocar o dia vai para a URL", async () => {

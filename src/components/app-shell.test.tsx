@@ -69,11 +69,10 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Agenda" }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("link", { name: "Importar" }).getAttribute("href")).toBe("/importar");
     expect(screen.getByRole("link", { name: "Semestres" }).getAttribute("href")).toBe("/semestres");
-    expect(screen.getByRole("link", { name: "Salas" }).getAttribute("href")).toBe("/salas");
-    expect(nav.querySelectorAll("a")).toHaveLength(4);
+    expect(nav.querySelectorAll("a")).toHaveLength(3);
   });
 
-  test("Salas para todo papel logado, logo depois da Agenda; visitante não tem o item", async () => {
+  test("nenhum papel tem o item 'Salas' no menu: as salas são visualizações da Agenda", async () => {
     for (const role of ["admin", "horarios", "docente"] as const) {
       await renderShell("x", {
         user: { ...ana, roles: [role] },
@@ -82,11 +81,15 @@ describe("AppShell", () => {
       });
       const nav = screen.getByRole("navigation", { name: "Principal" });
       const labels = [...nav.querySelectorAll("a")].map((link) => link.textContent);
-      expect(labels.slice(0, 2)).toEqual(["Agenda", "Salas"]);
+      expect(labels[0]).toBe("Agenda");
+      expect(labels.includes("Salas")).toBe(false);
+      expect(document.querySelector("a[href='/salas']") === null).toBe(true);
+      fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+      expect(screen.queryByRole("link", { name: "Salas" }) === null).toBe(true);
       cleanup();
     }
     await renderShell("x", anonymous);
-    expect(screen.queryByRole("link", { name: "Salas" })).toBeNull();
+    expect(document.querySelector("a[href='/salas']") === null).toBe(true);
   });
 
   test("visitante vê Entrar e não vê Importar nem Sair", async () => {
@@ -224,8 +227,8 @@ describe("AppShell, estilo agenda", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     const panel = document.getElementById(trigger.getAttribute("aria-controls") ?? "");
     expect(panel).not.toBeNull();
-    expect(panel?.querySelectorAll("a")).toHaveLength(4);
-    expect(panel?.querySelector("a[href='/salas']")?.textContent).toBe("Salas");
+    expect(panel?.querySelectorAll("a")).toHaveLength(3);
+    expect(panel?.querySelector("a[href='/salas']") === null).toBe(true);
     expect(panel?.querySelector("form[action='/api/sair']")).toBeNull();
   });
 

@@ -11,6 +11,7 @@ import { GateDialog } from "#/components/agenda/gate-dialog";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { DatePicker } from "#/components/ui/date-picker";
+import { type PageView, ViewSwitcher } from "#/components/view-switcher";
 import { localNow, type TimeRange } from "#/domain/availability";
 import { addDays } from "#/domain/calendar";
 import { weekOf } from "#/domain/overview";
@@ -22,25 +23,18 @@ import {
   type RoomFilter,
   windowIssue,
 } from "#/domain/room-filter";
-import { cn } from "#/lib/utils";
 import { getRoomsDayFn } from "#/server/booking-fns";
 import { type RoomDraft, RoomsColumns } from "./rooms-columns";
 import { RoomsFilters } from "./rooms-filters";
 import { RoomsFreeList } from "./rooms-free-list";
 import { RoomsOverview } from "./rooms-overview";
 
-type SalasView = "colunas" | "livres" | "geral";
+type SalasView = Exclude<PageView, "sala">;
 
-const VIEWS: ReadonlyArray<{ value: SalasView; label: string }> = [
-  { value: "colunas", label: "Colunas" },
-  { value: "livres", label: "Livres" },
-  { value: "geral", label: "Visão geral" },
-];
-
-/** Estado de `/salas` na URL: dia, visão, filtros e janela de horário. */
+/** Estado das visualizações de salas na URL: dia, visualização, filtros e janela de horário. */
 export type SalasSearch = {
   data?: string;
-  visao?: SalasView;
+  visao?: PageView;
   bloco?: string[];
   cap?: number;
   q?: string;
@@ -155,7 +149,12 @@ export function RoomsView({
   dayFn,
 }: Props) {
   const compact = useCompact();
-  const view: SalasView = search.visao ?? (compact ? "livres" : "colunas");
+  const view: SalasView =
+    search.visao === undefined || search.visao === "sala"
+      ? compact
+        ? "livres"
+        : "colunas"
+      : search.visao;
   const geral = view === "geral";
   const now = (geral ? roomsWeek?.now : roomsDay?.now) ?? localNow(new Date(), timeZone);
   const today = now.slice(0, 10);
@@ -211,7 +210,7 @@ export function RoomsView({
   }
 
   const goTo = (data: string) => onSearchChange((prev) => ({ ...prev, data }), false);
-  const setView = (visao: SalasView) => onSearchChange((prev) => ({ ...prev, visao }), true);
+  const setView = (visao: PageView) => onSearchChange((prev) => ({ ...prev, visao }), true);
   const clearFilters = () => onSearchChange(withoutFilters, true);
   const step = geral ? 7 : 1;
   const noRooms = (
@@ -259,22 +258,7 @@ export function RoomsView({
             onChange={(value) => value !== "" && goTo(value)}
             className="w-36"
           />
-          <div className="ml-1 flex rounded-md border bg-surface p-0.5">
-            {VIEWS.map(({ value, label }) => (
-              <button
-                key={value}
-                type="button"
-                aria-pressed={view === value}
-                onClick={() => setView(value)}
-                className={cn(
-                  "rounded-[5px] px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground",
-                  view === value && "bg-background text-foreground shadow-xs",
-                )}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+          <ViewSwitcher value={view} onChange={setView} className="ml-1" />
         </div>
       </div>
 

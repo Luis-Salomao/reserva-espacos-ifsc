@@ -6,7 +6,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
 import { AgendaView, type AgendaViewProps } from "#/components/agenda/agenda-view";
 import type { Space } from "#/domain/space";
@@ -615,7 +615,7 @@ describe("AgendaView — Suíte 5: Intervalos Livres Clicáveis", () => {
 });
 
 describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", () => {
-  test("visitante e logado veem 'Todas as salas', que leva ao mesmo dia", async () => {
+  test("visitante e logado não têm o link 'Todas as salas'; o seletor marca 'Sala'", async () => {
     for (const session of [createAnonymousSession(true), createMockSession()]) {
       await renderAgenda({
         spaces: MOCK_SPACES,
@@ -626,10 +626,70 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
         onSelectDate: () => {},
         onSelectSpace: () => {},
       });
-      const link = screen.getByRole("link", { name: "Todas as salas" });
-      expect(link.getAttribute("href")).toBe(`/salas?data=${MOCK_DATE_TUESDAY}`);
+      expect(screen.queryByRole("link", { name: /Todas as salas/ }) === null).toBe(true);
+      expect(document.querySelector("a[href*='salas']") === null).toBe(true);
+      const views = screen.getByRole("group", { name: "Visualização" });
+      expect(
+        within(views)
+          .getAllByRole("button")
+          .map((button) => [button.textContent, button.getAttribute("aria-pressed")]),
+      ).toEqual([
+        ["Sala", "true"],
+        ["Colunas", "false"],
+        ["Livres", "false"],
+        ["Visão geral", "false"],
+      ]);
       cleanup();
     }
+  });
+
+  test("trocar de visualização atualiza 'visao' mantendo a data e a sala", async () => {
+    for (const visao of ["colunas", "livres", "geral"] as const) {
+      const router = await renderAgenda({
+        spaces: MOCK_SPACES,
+        selectedSpaceId: "space-lab",
+        selectedDate: MOCK_DATE_TUESDAY,
+        weekAgenda: createMockWeekAgenda(),
+        session: createMockSession(),
+        onSelectDate: () => {},
+        onSelectSpace: () => {},
+      });
+      const label = { colunas: "Colunas", livres: "Livres", geral: "Visão geral" }[visao];
+      fireEvent.click(screen.getByRole("button", { name: label }));
+      await waitFor(() =>
+        expect(router.state.location.search).toEqual({
+          data: MOCK_DATE_TUESDAY,
+          espaco: "space-lab",
+          visao,
+        }),
+      );
+      expect(router.state.location.pathname).toBe("/");
+      cleanup();
+    }
+  });
+
+  test("'Ver todas as salas' no seletor de sala troca para 'Colunas' no mesmo dia", async () => {
+    setViewportWidth(1280);
+    const router = await renderAgenda({
+      spaces: MOCK_SPACES,
+      selectedSpaceId: "space-adm",
+      selectedDate: MOCK_DATE_TUESDAY,
+      weekAgenda: createMockWeekAgenda(),
+      session: createAnonymousSession(true),
+      onSelectDate: () => {},
+      onSelectSpace: () => {},
+    });
+    const aside = screen.getByLabelText("Filtros da agenda");
+    fireEvent.click(within(aside).getByRole("button", { name: /Escolher sala/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Ver todas as salas/ }));
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({
+        data: MOCK_DATE_TUESDAY,
+        espaco: "space-adm",
+        visao: "colunas",
+      }),
+    );
+    expect(router.state.location.pathname).toBe("/");
   });
 
   test("visitante não autenticado vê banner informativo com botão de entrar", async () => {

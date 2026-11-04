@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import { DoorOpen, Plus } from "lucide-react";
 import type { RoomDay } from "#/application/bookings";
 import { Button } from "#/components/ui/button";
@@ -25,7 +26,16 @@ function RoomHeader({ room }: { room: RoomDay }) {
   const block = blockOf(room.space.name);
   return (
     <>
-      <h3 className="truncate text-[15px] font-semibold tracking-tight">{room.space.name}</h3>
+      <h3 className="truncate text-[15px] font-semibold tracking-tight">
+        <Link
+          to="/"
+          search={{ espaco: room.spaceId, data: room.date }}
+          className="rounded-sm underline-offset-4 hover:underline"
+          title={`Abrir a agenda de ${room.space.name}`}
+        >
+          {room.space.name}
+        </Link>
+      </h3>
       <p className="truncate text-[13px] text-muted-foreground">
         {block === null ? "Outros espaços" : `Bloco ${block}`} ·{" "}
         {capacityLabel(room.space.capacity)}
