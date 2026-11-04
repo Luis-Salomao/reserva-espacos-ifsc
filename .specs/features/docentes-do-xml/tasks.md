@@ -305,8 +305,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: logado recebe `placeholder`; visitante recebe `person: null`
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: logado recebe `placeholder`; visitante recebe `person: null`
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick

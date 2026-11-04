@@ -133,8 +133,8 @@ Das 2945 ocupações importadas, só 80 têm responsável, porque só 2 dos 45 d
 | DOC-03 | P1: Fantasmas (AC 3, 4) | 1-2 | Done |
 | DOC-04 | P1: Fantasmas (AC 5, 6) | 2 | Done |
 | DOC-05 | P1: Avatar (AC 1, 2, 4) | - | Pending |
-| DOC-06 | P1: Avatar (AC 3) | - | Pending |
-| DOC-07 | P1: Avatar (AC 5) | - | Pending |
+| DOC-06 | P1: Avatar (AC 3) | 3 | In Progress |
+| DOC-07 | P1: Avatar (AC 5) | 3 | In Progress |
 | DOC-08 | P1: Atualizar responsáveis (AC 1, 2, 3, 6) | 3 | Done |
 | DOC-09 | P1: Atualizar responsáveis (AC 4, 5) | 3 | Done |
 | DOC-10 | P2: Ativar ou fundir (AC 1, 2, 3, 6) | 1 | In Progress |
