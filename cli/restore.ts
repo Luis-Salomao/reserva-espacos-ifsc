@@ -134,7 +134,10 @@ export async function runRestore(argv: string[]): Promise<number> {
 }
 
 /** Executa a operação de restauração programaticamente */
-export function executeRestore(options: { fromPath?: string; targetPath?: string }): number {
+export function executeRestore(options: {
+  fromPath?: string | undefined;
+  targetPath?: string | undefined;
+}): number {
   const plan = planRestore({
     fromPath: options.fromPath,
     targetPath: options.targetPath,
@@ -171,22 +174,28 @@ export function executeRestore(options: { fromPath?: string; targetPath?: string
       .query("SELECT name FROM sqlite_master WHERE type='table' AND name='__drizzle_migrations'")
       .get();
 
-    if (migrationTableExists) {
-      const result = backupDb.query("SELECT count(*) as count FROM __drizzle_migrations").get() as {
-        count: number;
-      };
-      const backupMigrations = result?.count ?? 0;
-      const localMigrations = getLocalMigrationCount();
-      if (localMigrations !== undefined) {
-        if (backupMigrations > localMigrations) {
-          console.warn(
-            `Aviso: O arquivo de backup possui ${backupMigrations} migrações registradas, ` +
-              `enquanto o código local possui ${localMigrations}. ` +
-              "O backup pode ter sido gerado por uma versão mais recente da aplicação.",
-          );
-        } else {
-          console.log(`Migrações no backup: ${backupMigrations}/${localMigrations} compatíveis.`);
-        }
+    if (!migrationTableExists) {
+      console.error(
+        "Erro: O arquivo não é uma cópia deste sistema (tabela de migrações ausente; arquivo vazio ou de outro banco).",
+      );
+      console.error("Restauração abortada. O banco de dados ativo não foi alterado.");
+      return 1;
+    }
+
+    const result = backupDb.query("SELECT count(*) as count FROM __drizzle_migrations").get() as {
+      count: number;
+    };
+    const backupMigrations = result?.count ?? 0;
+    const localMigrations = getLocalMigrationCount();
+    if (localMigrations !== undefined) {
+      if (backupMigrations > localMigrations) {
+        console.warn(
+          `Aviso: O arquivo de backup possui ${backupMigrations} migrações registradas, ` +
+            `enquanto o código local possui ${localMigrations}. ` +
+            "O backup pode ter sido gerado por uma versão mais recente da aplicação.",
+        );
+      } else {
+        console.log(`Migrações no backup: ${backupMigrations}/${localMigrations} compatíveis.`);
       }
     }
   } catch (err) {

@@ -240,6 +240,25 @@ describe("Demonstração Sintética: Ciclo de Backup, Exclusão e Restauração 
     activeDb.close(true);
   });
 
+  test("Rejeita arquivo vazio e banco SQLite que não é cópia do sistema", async () => {
+    const emptyPath = join(tempDir, "vazio.sqlite");
+    writeFileSync(emptyPath, Buffer.alloc(0));
+    const foreignPath = join(tempDir, "outro-banco.sqlite");
+    const foreign = new Database(foreignPath);
+    foreign.run("CREATE TABLE notas (id INTEGER PRIMARY KEY)");
+    foreign.close(true);
+
+    expect(await runRestore(["--from", emptyPath, "--target", activeDbPath, "--yes"])).toBe(1);
+    expect(await runRestore(["--from", foreignPath, "--target", activeDbPath, "--yes"])).toBe(1);
+
+    const activeDb = new Database(activeDbPath, { readonly: true });
+    const count = (
+      activeDb.query("SELECT count(*) as count FROM occupations").get() as { count: number }
+    ).count;
+    expect(count).toBe(2);
+    activeDb.close(true);
+  });
+
   test("Trata opções inválidas e ausência de argumentos com código de erro 1", async () => {
     // Sem --out
     const r1 = await runBackup([]);
