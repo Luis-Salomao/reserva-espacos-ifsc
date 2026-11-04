@@ -71,4 +71,27 @@ describe("Seletor agrupado de salas", () => {
     expect(select).toHaveBeenCalledWith("b");
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
   });
+  test("atalho para todas as salas só aparece quando há destino e fecha o modal", () => {
+    const seeAll = mock();
+    const { unmount } = render(
+      <RoomSelector spaces={spaces} selectedSpaceId="a" onSelectSpace={() => {}} variant="chips" />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Escolher sala: A-202" }));
+    expect(screen.queryByRole("button", { name: /Ver todas as salas/ })).toBeNull();
+    unmount();
+    render(
+      <RoomSelector
+        spaces={spaces}
+        selectedSpaceId="a"
+        onSelectSpace={() => {}}
+        variant="chips"
+        onSeeAllRooms={seeAll}
+      />,
+    );
+    const trigger = screen.getByRole("button", { name: "Escolher sala: A-202" });
+    fireEvent.click(trigger);
+    fireEvent.click(screen.getByRole("button", { name: /Ver todas as salas/ }));
+    expect(seeAll).toHaveBeenCalledTimes(1);
+    expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
 });
