@@ -285,8 +285,8 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes: valores iniciais do novo e do editar; envio com o formato do fio; erro de campo com foco e `aria-describedby`; erro geral; "Salvando…"; fechar descarta
-- [ ] Gate check passes: `bun test src/components/admin`
+- [x] Testes: valores iniciais do novo e do editar; envio com o formato do fio; erro de campo com foco e `aria-describedby`; erro geral; "Salvando…"; fechar descarta
+- [x] Gate check passes: `bun test src/components/admin` (32 testes)
 
 **Tests**: unit
 **Gate**: quick
