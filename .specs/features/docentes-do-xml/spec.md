@@ -128,17 +128,17 @@ Das 2945 ocupações importadas, só 80 têm responsável, porque só 2 dos 45 d
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| DOC-01 | P1: Fantasmas (AC 1) | 1 | Done |
-| DOC-02 | P1: Fantasmas (AC 2) | 2 | Done |
-| DOC-03 | P1: Fantasmas (AC 3, 4) | 1-2 | Done |
-| DOC-04 | P1: Fantasmas (AC 5, 6) | 2 | Done |
-| DOC-05 | P1: Avatar (AC 1, 2, 4) | 3 | Done |
-| DOC-06 | P1: Avatar (AC 3) | 3 | Done |
-| DOC-07 | P1: Avatar (AC 5) | 3 | Done |
-| DOC-08 | P1: Atualizar responsáveis (AC 1, 2, 3, 6) | 3 | Done |
-| DOC-09 | P1: Atualizar responsáveis (AC 4, 5) | 3 | Done |
-| DOC-10 | P2: Ativar ou fundir (AC 1, 2, 3, 6) | 1, 4 | Done |
-| DOC-11 | P2: Ativar ou fundir (AC 4, 5) | 4 | Done |
+| DOC-01 | P1: Fantasmas (AC 1) | 1 | Verified |
+| DOC-02 | P1: Fantasmas (AC 2) | 2 | Verified |
+| DOC-03 | P1: Fantasmas (AC 3, 4) | 1-2 | Verified |
+| DOC-04 | P1: Fantasmas (AC 5, 6) | 2 | Verified |
+| DOC-05 | P1: Avatar (AC 1, 2, 4) | 3 | Verified |
+| DOC-06 | P1: Avatar (AC 3) | 3 | Needs Fix |
+| DOC-07 | P1: Avatar (AC 5) | 3 | Verified |
+| DOC-08 | P1: Atualizar responsáveis (AC 1, 2, 3, 6) | 3 | Verified |
+| DOC-09 | P1: Atualizar responsáveis (AC 4, 5) | 3 | Verified |
+| DOC-10 | P2: Ativar ou fundir (AC 1, 2, 3, 6) | 1, 4 | Verified |
+| DOC-11 | P2: Ativar ou fundir (AC 4, 5) | 4 | Needs Fix |
 
 **Coverage:** 11 total, 11 mapped to tasks, 0 unmapped
 
