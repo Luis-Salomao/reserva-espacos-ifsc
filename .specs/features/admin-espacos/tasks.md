@@ -263,8 +263,10 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes: textos de capacidade e rótulos; observações; confirmação sem chamada ao servidor; cancelar não chama; confirmar chama com o id; recusa aparece na confirmação; "Excluindo…"
-- [ ] Gate check passes: `bun test src/components/admin`
+- [x] Testes: textos de capacidade e rótulos; observações; confirmação sem chamada ao servidor; cancelar não chama; confirmar chama com o id; recusa aparece na confirmação; "Excluindo…"
+- [x] Gate check passes: `bun test src/components/admin` (24 testes)
+
+**Desvio**: o mock de `#/server/admin` em `admin-managers.test.tsx` ganhou `deleteSpaceFn` e respostas controláveis para criar, editar e excluir espaço (o mock é global no bun, por isso os testes do cartão ficam nesse arquivo). Os botões "Editar" e "Excluir" levam o nome do espaço em texto só para leitores de tela.
 
 **Tests**: unit
 **Gate**: quick
