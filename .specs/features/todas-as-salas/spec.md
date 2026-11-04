@@ -130,18 +130,18 @@ A agenda mostra uma sala por vez. Para achar uma sala livre, quem reserva precis
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| SALAS-01 | P1: Colunas por sala (AC 1, 2) | - | Implemented |
-| SALAS-02 | P1: Colunas por sala (AC 3) | - | Implemented |
-| SALAS-03 | P1: Colunas por sala (AC 4, 5, 6) | - | Implemented |
-| SALAS-04 | P1: Filtros (AC 1, 6) | - | Implemented |
-| SALAS-05 | P1: Filtros (AC 2, 3) | - | Implemented |
-| SALAS-06 | P1: Filtros (AC 4) | - | Implemented |
-| SALAS-07 | P1: Filtros (AC 5, 7) | - | Implemented |
-| SALAS-08 | P1: Filtros (AC 8) | - | Implemented |
-| SALAS-09 | P1: Livres (AC 1, 2, 3, 4) | - | Implemented |
-| SALAS-10 | P1: Livres (AC 5) | - | Implemented |
-| SALAS-11 | P2: Reservar (AC 1, 2, 6) | - | Implemented |
-| SALAS-12 | P2: Reservar (AC 3, 4, 5) | - | Implemented |
+| SALAS-01 | P1: Colunas por sala (AC 1, 2) | - | Verified |
+| SALAS-02 | P1: Colunas por sala (AC 3) | - | Verified |
+| SALAS-03 | P1: Colunas por sala (AC 4, 5, 6) | - | Needs Fix (AC 4) |
+| SALAS-04 | P1: Filtros (AC 1, 6) | - | Verified |
+| SALAS-05 | P1: Filtros (AC 2, 3) | - | Verified |
+| SALAS-06 | P1: Filtros (AC 4) | - | Verified |
+| SALAS-07 | P1: Filtros (AC 5, 7) | - | Verified |
+| SALAS-08 | P1: Filtros (AC 8) | - | Verified |
+| SALAS-09 | P1: Livres (AC 1, 2, 3, 4) | - | Needs Fix (AC 2) |
+| SALAS-10 | P1: Livres (AC 5) | - | Verified |
+| SALAS-11 | P2: Reservar (AC 1, 2, 6) | - | Verified |
+| SALAS-12 | P2: Reservar (AC 3, 4, 5) | - | Verified |
 
 **Coverage:** 12 total, 0 mapped to tasks, 12 unmapped ⚠️
 
