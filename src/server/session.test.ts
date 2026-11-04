@@ -14,7 +14,15 @@ import {
 } from "./session.ts";
 
 function user(roles: User["roles"]): User {
-  return { id: "u1", email: "ana@ifsc.edu.br", name: "Ana", code: null, roles, active: true };
+  return {
+    id: "u1",
+    email: "ana@ifsc.edu.br",
+    name: "Ana",
+    code: null,
+    roles,
+    active: true,
+    placeholder: false,
+  };
 }
 
 describe("isSecureUrl", () => {

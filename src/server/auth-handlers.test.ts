@@ -23,6 +23,7 @@ const ana: User = {
   code: null,
   roles: ["horarios"],
   active: true,
+  placeholder: false,
 };
 
 function fakeAuth(overrides: Partial<AuthPort> = {}) {

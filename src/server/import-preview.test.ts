@@ -9,7 +9,15 @@ import { handlePreviewRequest, type PreviewImportResult } from "./import-preview
 const FIXTURE = join(import.meta.dir, "../../test/fixtures/asc/complete.xml");
 
 function userWith(roles: Role[]): User {
-  return { id: "u", email: "u@x.org", name: "U", code: null, roles, active: true };
+  return {
+    id: "u",
+    email: "u@x.org",
+    name: "U",
+    code: null,
+    roles,
+    active: true,
+    placeholder: false,
+  };
 }
 
 const AUTH: AuthPort = {

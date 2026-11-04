@@ -19,6 +19,7 @@ function toRecord(row: Row): UserRecord {
     code: row.code,
     roles: parseRoles(row.roles),
     active: row.active,
+    placeholder: row.placeholder,
     passwordHash: row.passwordHash,
   };
 }
@@ -86,18 +87,12 @@ export function createUserRepository(db: AppDb): UserRepository {
         roles: serializeRoles(input.roles),
         passwordHash: input.passwordHash,
         active: true,
+        placeholder: false,
         createdAt: now,
         updatedAt: now,
       };
       await db.insert(users).values(row);
-      return {
-        id: row.id,
-        email: row.email,
-        name: row.name,
-        code: row.code,
-        roles: parseRoles(row.roles),
-        active: true,
-      };
+      return toUser(row);
     },
     async updatePasswordHash(id, passwordHash) {
       await db

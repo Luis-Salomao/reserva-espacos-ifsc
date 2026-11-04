@@ -28,7 +28,7 @@ const book = (s: Seed, over: Partial<Record<string, string>> = {}) => ({
 });
 
 function guest(roles: Role[], active = true): User {
-  return { id: "u-x", email: "x@x.org", name: "X", code: null, roles, active };
+  return { id: "u-x", email: "x@x.org", name: "X", code: null, roles, active, placeholder: false };
 }
 
 describe("createBooking", () => {
