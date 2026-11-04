@@ -2,7 +2,10 @@ const ROLES = ["admin", "horarios", "docente"] as const;
 
 export type Role = (typeof ROLES)[number];
 
-/** Conta local. `code` é a sigla do docente (opcional). Sem dados de senha. */
+/**
+ * Conta local. `code` é a sigla do docente (opcional). `placeholder` marca a conta fantasma de um
+ * docente do XML, que não entra até ser ativada. Sem dados de senha.
+ */
 export type User = {
   id: string;
   email: string;
@@ -10,6 +13,7 @@ export type User = {
   code: string | null;
   roles: Role[];
   active: boolean;
+  placeholder: boolean;
 };
 
 export function isRole(value: string): value is Role {

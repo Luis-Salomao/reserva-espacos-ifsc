@@ -46,6 +46,7 @@ function setup(hasherOverride?: PasswordHasher) {
     code: "ANA",
     roles: ["admin"],
     active: true,
+    placeholder: false,
     passwordHash: `fake:${SECRET}`,
   };
   const userMap = new Map<string, UserRecord>([[record.email, record]]);
@@ -151,6 +152,7 @@ describe("login", () => {
       code: "ANA",
       roles: ["admin"],
       active: true,
+      placeholder: false,
     });
     expect(result.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });

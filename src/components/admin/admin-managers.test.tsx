@@ -58,6 +58,7 @@ const me: User = {
   code: null,
   roles: ["admin"],
   active: true,
+  placeholder: false,
 };
 const other: User = {
   id: "outro",
@@ -66,6 +67,7 @@ const other: User = {
   code: null,
   roles: ["docente"],
   active: true,
+  placeholder: false,
 };
 
 async function renderManager() {

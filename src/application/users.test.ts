@@ -47,6 +47,7 @@ function setup() {
         code: input.code,
         roles: input.roles,
         active: true,
+        placeholder: false,
         passwordHash: input.passwordHash,
       };
       records.set(record.id, record);
@@ -221,6 +222,7 @@ describe("corrida na criação", () => {
             code: input.code,
             roles: input.roles,
             active: true,
+            placeholder: false,
             passwordHash: input.passwordHash,
           });
           hide = false;
@@ -254,7 +256,15 @@ describe("corrida na criação", () => {
         findById: async () => null,
         findByCode: async () =>
           created
-            ? { id: "y", email: "z@x.br", name: "Z", code: "ANA", roles: [], active: true }
+            ? {
+                id: "y",
+                email: "z@x.br",
+                name: "Z",
+                code: "ANA",
+                roles: [],
+                active: true,
+                placeholder: false,
+              }
             : null,
         list: async () => [],
         create: async () => {
@@ -405,6 +415,7 @@ describe("editar conta", () => {
           code: null,
           roles: ["admin"],
           active: true,
+          placeholder: false,
         }),
         update: async () => null,
         setActive: async () => false,
@@ -442,7 +453,15 @@ describe("editar conta", () => {
         findById: async () => {
           calls += 1;
           return calls === 1
-            ? { id: "a", email: "a@x.br", name: "A", code: null, roles: ["docente"], active: true }
+            ? {
+                id: "a",
+                email: "a@x.br",
+                name: "A",
+                code: null,
+                roles: ["docente"],
+                active: true,
+                placeholder: false,
+              }
             : null;
         },
         update: async () => null,

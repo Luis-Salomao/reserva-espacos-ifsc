@@ -79,9 +79,9 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] `bun run db:generate` gera a migração; aplica em bun:sqlite e D1 local
-- [ ] Contas existentes leem `placeholder = false`
-- [ ] Gate check passes: `bun test`
+- [x] `bun run db:generate` gera a migração; aplica em bun:sqlite e D1 local
+- [x] Contas existentes leem `placeholder = false`
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full

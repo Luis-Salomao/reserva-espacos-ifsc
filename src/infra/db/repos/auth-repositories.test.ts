@@ -47,6 +47,7 @@ describe("UserRepository", () => {
       code: "ANA",
       roles: ["admin", "docente"],
       active: true,
+      placeholder: false,
     });
     expect(created.id).toMatch(/^[0-9a-f-]{36}$/);
     const byEmail = await repo.findByEmail("ana@ifsc.edu.br");
@@ -236,6 +237,49 @@ describe("UserRepository", () => {
     sqlite.run("UPDATE users SET active = 0 WHERE id = ?", [user.id]);
     expect((await repo.findById(user.id))?.active).toBe(false);
   });
+
+  test("lê a marca de conta fantasma", async () => {
+    const user = await repo.create({
+      email: "a@x.br",
+      name: "A",
+      code: null,
+      roles: ["docente"],
+      passwordHash: "h",
+    });
+    sqlite.run("UPDATE users SET placeholder = 1 WHERE id = ?", [user.id]);
+    expect((await repo.findById(user.id))?.placeholder).toBe(true);
+    expect((await repo.findByEmail("a@x.br"))?.placeholder).toBe(true);
+    expect((await repo.list())[0]?.placeholder).toBe(true);
+  });
+});
+
+describe("migração da conta fantasma", () => {
+  type Journal = { entries: { idx: number; tag: string }[] };
+
+  async function applyMigration(sqlite: Database, tag: string) {
+    const sql = await Bun.file(`drizzle/${tag}.sql`).text();
+    for (const statement of sql.split("--> statement-breakpoint")) {
+      if (statement.trim() !== "") sqlite.run(statement);
+    }
+  }
+
+  test("contas que já existiam passam a ler placeholder = false", async () => {
+    const journal: Journal = await Bun.file("drizzle/meta/_journal.json").json();
+    const placeholderMigration = journal.entries.find((entry) => entry.idx === 8);
+    expect(placeholderMigration).toBeDefined();
+    const sqlite = new Database(":memory:");
+    for (const entry of journal.entries.filter((e) => e.idx < 8)) {
+      await applyMigration(sqlite, entry.tag);
+    }
+    sqlite.run(
+      `INSERT INTO users (id, email, name, code, roles, password_hash, active, created_at, updated_at)
+       VALUES ('u1', 'antiga@x.br', 'Antiga', NULL, 'docente', 'h', 1, 't', 't')`,
+    );
+    await applyMigration(sqlite, placeholderMigration?.tag ?? "");
+    const repo = createUserRepository(drizzle(sqlite, { schema }));
+    expect((await repo.findById("u1"))?.placeholder).toBe(false);
+    expect((await repo.findByEmail("antiga@x.br"))?.placeholder).toBe(false);
+  });
 });
 
 describe("SessionRepository", () => {
@@ -360,6 +404,12 @@ describe("schema de autenticação", () => {
     expect(getTableConfig(schema.loginAttempts).indexes.map((i) => i.config.name)).toEqual([
       "login_attempts_email_idx",
     ]);
+  });
+
+  test("users tem a coluna placeholder obrigatória com padrão falso", () => {
+    const column = getTableConfig(schema.users).columns.find((c) => c.name === "placeholder");
+    expect(column?.notNull).toBe(true);
+    expect(column?.default).toBe(false);
   });
 
   test("apagar o usuário apaga suas sessões", async () => {
