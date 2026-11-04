@@ -1389,3 +1389,154 @@ describe("tipos de linha", () => {
     ]);
   });
 });
+
+describe("cenário integrado: critérios de aceitação", () => {
+  test("mudança de sala com liberação, bloqueio em conflito, preservação de avulsas, canceladas e não aplicáveis", async () => {
+    const env = await setup();
+
+    // 1. Versão 1: L1 (ALG) em R1 (8h), B2 (BD) em R2 (10h), C3 (RED) em R3 (8h)
+    const v1 = await publish(
+      env,
+      version("h1", [at("L1", "R1", 8), at("B2", "R2", 10), at("C3", "R3", 8)]),
+    );
+    const v1Occs = await occupationsOf(env, v1.id);
+    expect(v1Occs).toHaveLength(9);
+
+    // 2. Eventos prévios: reserva avulsa em R2 em 10/08; cancelamento manual de B2 em 10/08
+    const manualRow = manualBooking(env.spaces.R2, "2026-08-10T08:00", "2026-08-10T08:50");
+    await env.db.insert(schema.occupations).values(manualRow);
+
+    const b2On10 = v1Occs.find((o) => o.lessonId === "B2" && o.startsAt.startsWith("2026-08-10"));
+    if (!b2On10) throw new Error("B2 em 10/08 não encontrada");
+    await env.db
+      .update(schema.occupations)
+      .set({ status: "cancelada" })
+      .where(eq(schema.occupations.id, b2On10.id));
+
+    // 3. Regra de lote: rascunho ativo pode ser descartado para permitir novo preparo
+    const draftAbandoned = await prepareAll(env, version("h-draft", [at("L1", "R1", 8)]));
+    expect(draftAbandoned.batch.status).toBe("rascunho");
+    const discardResult = await env.service.discardBatch(draftAbandoned.batch.id);
+    expect(discardResult.ok).toBe(true);
+    expect(await env.imports.findBatch(draftAbandoned.batch.id)).toBeNull();
+
+    // 4. Versão 2:
+    // - L1 move para R2 (8h) -> em 10/08 conflita com reserva avulsa; em 03 e 17 aplica e libera R1
+    // - B2 permanece em R2 (10h) -> 03 e 17 inalteradas; 10/08 mantida cancelada
+    // - C3 torna-se 'multiple_rooms' (não aplicável) -> ocupações mantidas seguradas em R3 com motivo
+    const v2Plan = version("h2", [
+      at("L1", "R2", 8),
+      at("B2", "R2", 10),
+      at("C3", "R3", 8, { status: "multiple_rooms", classroomIds: ["R3", "R4"] }),
+    ]);
+
+    const preparedV2 = await prepareAll(env, v2Plan);
+    expect(preparedV2.batch.status).toBe("rascunho");
+    expect(preparedV2.batch.supersedesBatchId).toBe(v1.id);
+
+    const appliedV2 = await applyAll(env, preparedV2.batch.id);
+    expect(appliedV2.batch.status).toBe("aplicado");
+
+    const allOccs = await occupationsOf(env);
+
+    // AC4: Reserva avulsa nunca modificada ou removida
+    const manualAfter = allOccs.find((o) => o.id === manualRow.id);
+    expect(manualAfter).toMatchObject({
+      status: "ativa",
+      cancelReason: null,
+      spaceId: env.spaces.R2,
+    });
+
+    // AC1: Mudança de sala de L1 em 03 e 17 libera R1 e ocupa R2
+    const l1On03Old = allOccs.find(
+      (o) => o.batchId === v1.id && o.lessonId === "L1" && o.startsAt.startsWith("2026-08-03"),
+    );
+    const l1On17Old = allOccs.find(
+      (o) => o.batchId === v1.id && o.lessonId === "L1" && o.startsAt.startsWith("2026-08-17"),
+    );
+    expect(l1On03Old).toMatchObject({
+      status: "cancelada",
+      cancelReason: CANCEL_REASONS.novaVersao,
+    });
+    expect(l1On17Old).toMatchObject({
+      status: "cancelada",
+      cancelReason: CANCEL_REASONS.novaVersao,
+    });
+
+    const l1On03New = allOccs.find(
+      (o) =>
+        o.batchId === appliedV2.batch.id &&
+        o.lessonId === "L1" &&
+        o.startsAt.startsWith("2026-08-03"),
+    );
+    const l1On17New = allOccs.find(
+      (o) =>
+        o.batchId === appliedV2.batch.id &&
+        o.lessonId === "L1" &&
+        o.startsAt.startsWith("2026-08-17"),
+    );
+    expect(l1On03New).toMatchObject({ status: "ativa", spaceId: env.spaces.R2 });
+    expect(l1On17New).toMatchObject({ spaceId: env.spaces.R2, status: "ativa" });
+
+    // AC3: Mudança de L1 em 10/08 colide com reserva avulsa -> bloqueada e permanece em R1
+    const l1On10 = allOccs.find(
+      (o) => o.batchId === v1.id && o.lessonId === "L1" && o.startsAt.startsWith("2026-08-10"),
+    );
+    expect(l1On10).toMatchObject({ status: "ativa", cancelReason: null, spaceId: env.spaces.R1 });
+    const l1On10InR2 = allOccs.find(
+      (o) =>
+        o.lessonId === "L1" && o.startsAt.startsWith("2026-08-10") && o.spaceId === env.spaces.R2,
+    );
+    expect(l1On10InR2).toBeUndefined();
+
+    // AC2: Aulas sem alteração (B2 em 03 e 17) mantêm estado original sem recriação
+    const b2On03 = allOccs.find((o) => o.lessonId === "B2" && o.startsAt.startsWith("2026-08-03"));
+    const b2On17 = allOccs.find((o) => o.lessonId === "B2" && o.startsAt.startsWith("2026-08-17"));
+    expect(b2On03).toMatchObject({
+      id: v1Occs.find((o) => o.lessonId === "B2" && o.startsAt.startsWith("2026-08-03"))?.id,
+      status: "ativa",
+      batchId: v1.id,
+    });
+    expect(b2On17).toMatchObject({
+      id: v1Occs.find((o) => o.lessonId === "B2" && o.startsAt.startsWith("2026-08-17"))?.id,
+      status: "ativa",
+      batchId: v1.id,
+    });
+
+    // AC5: Aulas canceladas manualmente antes (B2 em 10/08) continuam canceladas
+    const b2On10After = allOccs.find((o) => o.id === b2On10.id);
+    expect(b2On10After?.status).toBe("cancelada");
+
+    // AC6: Aulas não aplicáveis (C3) são retidas com motivo registrado e ativas na sala original
+    const c3Occs = allOccs.filter((o) => o.lessonId === "C3");
+    expect(c3Occs).toHaveLength(3);
+    expect(
+      c3Occs.every(
+        (o) => o.status === "ativa" && o.spaceId === env.spaces.R3 && o.batchId === v1.id,
+      ),
+    ).toBe(true);
+
+    const v2Rows = await rowsOf(env, appliedV2.batch.id);
+    const heldC3Rows = v2Rows.filter(
+      (r) => r.lessonId === "C3" && r.status === "alteracao_bloqueada",
+    );
+    expect(heldC3Rows).toHaveLength(3);
+    expect(
+      heldC3Rows.every(
+        (r) => r.reasonCode === "versao_nao_aplicavel" && r.reasonDetail?.includes("várias salas"),
+      ),
+    ).toBe(true);
+
+    const naC3Rows = v2Rows.filter((r) => r.lessonId === "C3" && r.status === "nao_aplicavel");
+    expect(naC3Rows).toHaveLength(1);
+    expect(naC3Rows[0]?.reasonCode).toBe("multiple_rooms");
+
+    // AC8: Reenvio de arquivo correspondente a versão já superada informa substituição
+    const resendV1 = await env.service.prepare(input(env, version("h1", [at("L1", "R1", 8)])));
+    expect(resendV1.ok).toBe(true);
+    if (!resendV1.ok) return;
+    expect(resendV1.value.reused).toBe(true);
+    expect(resendV1.value.batch.id).toBe(v1.id);
+    expect(resendV1.value.superseded).toEqual({ appliedAt: appliedV2.batch.appliedAt as string });
+  });
+});
