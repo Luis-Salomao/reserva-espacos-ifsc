@@ -502,7 +502,7 @@ describe("AgendaView — Suíte 3: Mini Calendário Desktop", () => {
 });
 
 describe("AgendaView — Suíte 4: Seletor de Espaços (Desktop e Mobile)", () => {
-  test("no desktop lista todas as salas com destaque na sala ativa", async () => {
+  test("no desktop abre salas com destaque na sala ativa", async () => {
     setViewportWidth(1280);
     const week = createMockWeekAgenda();
     await renderAgenda({
@@ -516,14 +516,15 @@ describe("AgendaView — Suíte 4: Seletor de Espaços (Desktop e Mobile)", () =
     });
 
     const aside = screen.getByLabelText("Filtros da agenda");
-    const btnAdm = within(aside).getByRole("button", { name: /ADM 2/i });
-    const btnLab = within(aside).getByRole("button", { name: /LAB 1/i });
+    fireEvent.click(within(aside).getByRole("button", { name: /Escolher sala/i }));
+    const btnAdm = screen.getByRole("button", { name: /ADM 2/i, pressed: true });
+    const btnLab = screen.getByRole("button", { name: /LAB 1/i, pressed: false });
 
     expect(btnAdm.getAttribute("aria-pressed")).toBe("true");
     expect(btnLab.getAttribute("aria-pressed")).toBe("false");
   });
 
-  test("no mobile exibe carrossel de chips de salas", async () => {
+  test("no mobile abre seletor pesquisavel de salas", async () => {
     setViewportWidth(360);
     const week = createMockWeekAgenda();
     await renderAgenda({
@@ -536,10 +537,11 @@ describe("AgendaView — Suíte 4: Seletor de Espaços (Desktop e Mobile)", () =
       onSelectSpace: () => {},
     });
 
-    const carousel = screen.getByRole("group", { name: /Salas disponíveis/i });
-    expect(carousel).toBeTruthy();
-    expect(within(carousel).getByText("ADM 2")).toBeTruthy();
-    expect(within(carousel).getByText("LAB 1")).toBeTruthy();
+    fireEvent.click(
+      screen.getAllByRole("button", { name: /Escolher sala/i }).at(-1) as HTMLElement,
+    );
+    expect(screen.getByRole("textbox", { name: /Buscar sala/i })).toBeTruthy();
+    expect(screen.getByRole("button", { name: /LAB 1/i })).toBeTruthy();
   });
 
   test("clicar em outro espaço chama onSelectSpace mantendo a data intacta", async () => {
@@ -556,7 +558,8 @@ describe("AgendaView — Suíte 4: Seletor de Espaços (Desktop e Mobile)", () =
     });
 
     const aside = screen.getByLabelText("Filtros da agenda");
-    const btnLab = within(aside).getByRole("button", { name: /LAB 1/i });
+    fireEvent.click(within(aside).getByRole("button", { name: /Escolher sala/i }));
+    const btnLab = screen.getByRole("button", { name: /LAB 1/i });
     fireEvent.click(btnLab);
 
     expect(onSelectSpace).toHaveBeenCalledWith("space-lab");

@@ -131,7 +131,7 @@ export function AgendaView({
       {isVisitor && publicRead && <PublicBanner />}
 
       <div className="layout grid gap-0 pb-24 lg:pb-6 xl:grid-cols-[248px_1fr] xl:gap-8">
-        {/* Lateral de filtros: só em telas largas; abaixo disso, chips de sala acima da grade. */}
+        {/* Lateral em telas largas; abaixo disso, seletor de sala acima da grade. */}
         <aside
           aria-label="Filtros da agenda"
           className="side hidden xl:sticky xl:top-8 xl:flex xl:max-h-[calc(100vh-4rem)] xl:flex-col xl:gap-6 xl:overflow-y-auto"
@@ -172,9 +172,17 @@ export function AgendaView({
                   : formatDayHeader(selectedDate)}
               </span>
             </h1>
-            <span className="rounded-md border px-2 py-0.5 text-[12px] font-medium text-muted-foreground">
+            <span className="hidden rounded-md border px-2 py-0.5 text-[12px] font-medium text-muted-foreground xl:inline">
               {currentSpace?.name ?? ""}
             </span>
+            <div className="min-w-0 max-w-56 xl:hidden">
+              <RoomSelector
+                spaces={spaces}
+                selectedSpaceId={selectedSpaceId}
+                onSelectSpace={onSelectSpace}
+                variant="chips"
+              />
+            </div>
             <div className="flex-1" />
             <div className="toolbar hidden items-center gap-1 lg:flex">
               <Button variant="outline" size="sm" onClick={() => onSelectDate(todayIso)}>
@@ -217,21 +225,13 @@ export function AgendaView({
             </div>
           </div>
 
-          <div className="mb-3 grid grid-cols-[minmax(0,1fr)] gap-2 xl:hidden">
+          <div className="mb-3 grid grid-cols-[minmax(0,1fr)] gap-2 lg:hidden">
             <div className="wk lg:hidden">
               <TimelineDayStrip
                 weekStart={weekAgenda.weekStart}
                 selectedDate={selectedDate}
                 todayDate={todayIso}
                 onSelectDate={onSelectDate}
-              />
-            </div>
-            <div className="rooms-m">
-              <RoomSelector
-                spaces={spaces}
-                selectedSpaceId={selectedSpaceId}
-                onSelectSpace={onSelectSpace}
-                variant="chips"
               />
             </div>
           </div>
