@@ -26,7 +26,9 @@ const columns = {
  * aula (`lesson_id`), lote, espaço, dia da semana e horário de início/fim, com `starts_at >= fromLocal`
  * (o corte é o instante atual em hora de parede: aulas que já começaram não entram, exceto a própria
  * âncora, que sempre entra). `onlyResponsible` (não-admin): só linhas cujo responsável é exatamente
- * esse usuário (`NULL` nunca casa); `null` = admin, a série inteira.
+ * esse usuário (`NULL` nunca casa); `null` = admin, a série inteira. Âncora de série recorrente
+ * avulsa (`series_id`): as ativas da mesma série com início igual ou posterior ao da âncora ("esta e
+ * as próximas"); na avulsa o responsável é quem criou.
  */
 function seriesCondition(
   anchor: OccupationRecord,
@@ -37,17 +39,25 @@ function seriesCondition(
   const endTime = anchor.endsAt.slice(11, 16);
   const weekday = weekdaySqlite(anchor.startsAt.slice(0, 10));
   const sameSeries =
-    anchor.batchId === null || anchor.lessonId === null
-      ? sql`0`
-      : and(
-          eq(occupations.batchId, anchor.batchId),
-          eq(occupations.lessonId, anchor.lessonId),
-          gte(occupations.startsAt, fromLocal),
-          sql`substr(${occupations.startsAt}, 12, 5) = ${startTime}`,
-          sql`substr(${occupations.endsAt}, 12, 5) = ${endTime}`,
-          sql`CAST(strftime('%w', substr(${occupations.startsAt}, 1, 10)) AS INTEGER) = ${weekday}`,
+    anchor.seriesId !== null
+      ? and(
+          eq(occupations.seriesId, anchor.seriesId),
+          gte(occupations.startsAt, anchor.startsAt),
           onlyResponsible === null ? undefined : eq(occupations.responsibleUserId, onlyResponsible),
-        );
+        )
+      : anchor.batchId === null || anchor.lessonId === null
+        ? sql`0`
+        : and(
+            eq(occupations.batchId, anchor.batchId),
+            eq(occupations.lessonId, anchor.lessonId),
+            gte(occupations.startsAt, fromLocal),
+            sql`substr(${occupations.startsAt}, 12, 5) = ${startTime}`,
+            sql`substr(${occupations.endsAt}, 12, 5) = ${endTime}`,
+            sql`CAST(strftime('%w', substr(${occupations.startsAt}, 1, 10)) AS INTEGER) = ${weekday}`,
+            onlyResponsible === null
+              ? undefined
+              : eq(occupations.responsibleUserId, onlyResponsible),
+          );
   return and(
     eq(occupations.status, "ativa"),
     eq(occupations.spaceId, anchor.spaceId),

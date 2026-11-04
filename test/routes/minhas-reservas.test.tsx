@@ -35,6 +35,7 @@ const MOCK_BOOKING_MANUAL: MyBooking = {
   canCancel: true,
   mine: true,
   person: null,
+  inSeries: false,
 };
 
 const MOCK_BOOKING_IMPORTED: MyBooking = {
@@ -50,6 +51,7 @@ const MOCK_BOOKING_IMPORTED: MyBooking = {
   canCancel: true,
   mine: true,
   person: null,
+  inSeries: false,
 };
 
 const MOCK_BOOKING_UNCANCELLABLE: MyBooking = {
@@ -65,6 +67,7 @@ const MOCK_BOOKING_UNCANCELLABLE: MyBooking = {
   canCancel: false,
   mine: true,
   person: null,
+  inSeries: false,
 };
 
 async function renderWithRouter(ui: React.ReactElement) {

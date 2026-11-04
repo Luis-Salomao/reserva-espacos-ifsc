@@ -236,6 +236,81 @@ describe("createRecurring", () => {
     expect(manualRows(db)).toEqual([]);
   });
 
+  test("série em 'Minhas reservas': marca inSeries; cancelar 'esta e as próximas' poupa as anteriores", async () => {
+    const { db, s, svc } = await setup();
+    const confirmed = ["2026-11-10", "2026-11-17", "2026-11-24", "2026-12-01"];
+    await svc.createRecurring(s.docA, { ...input(s), confirmed });
+    await svc.createBooking(s.docA, {
+      spaceId: s.sala2.id,
+      date: "2026-11-11",
+      start: "10:00",
+      end: "11:00",
+      purpose: "Avulsa",
+    });
+    const mine = await svc.myBookings(s.docA, {});
+    const items = mine.ok ? mine.value.items : [];
+    expect(items.map((item) => [item.date, item.inSeries])).toEqual([
+      ["2026-11-10", true],
+      ["2026-11-11", false],
+      ["2026-11-17", true],
+      ["2026-11-24", true],
+      ["2026-12-01", true],
+    ]);
+    const second = items.find((item) => item.date === "2026-11-17");
+    const lone = items.find((item) => item.date === "2026-11-11");
+    if (second === undefined || lone === undefined) throw new Error("sem reservas");
+
+    expect(await svc.previewSeries(s.docA, second.id)).toEqual({
+      ok: true,
+      value: { dates: ["2026-11-17", "2026-11-24", "2026-12-01"] },
+    });
+    expect(await svc.previewSeries(s.docB, second.id)).toMatchObject({
+      ok: false,
+      kind: "forbidden",
+    });
+    expect(await svc.previewSeries(s.docA, lone.id)).toMatchObject({
+      ok: false,
+      kind: "validation",
+    });
+    expect(
+      await svc.cancelOccupation(s.docA, {
+        occupationId: second.id,
+        scope: "serie",
+        expectedCount: 2,
+      }),
+    ).toMatchObject({ ok: false, kind: "conflict" });
+    expect(
+      await svc.cancelOccupation(s.docA, {
+        occupationId: second.id,
+        scope: "serie",
+        expectedCount: 3,
+      }),
+    ).toEqual({ ok: true, value: { cancelled: 3 } });
+    const left = await svc.myBookings(s.docA, {});
+    expect(left.ok && left.value.items.map((item) => item.date)).toEqual([
+      "2026-11-10",
+      "2026-11-11",
+    ]);
+    expect(manualRows(db)).toHaveLength(5);
+  });
+
+  test("admin cancela 'esta e as próximas' da série de outra pessoa", async () => {
+    const { s, svc } = await setup();
+    await svc.createRecurring(s.docA, {
+      ...input(s),
+      confirmed: ["2026-11-10", "2026-11-17", "2026-11-24", "2026-12-01"],
+    });
+    const mine = await svc.myBookings(s.docA, {});
+    const first = mine.ok ? mine.value.items[0] : undefined;
+    if (first === undefined) throw new Error("sem reservas");
+    expect(await svc.cancelOccupation(s.admin, { occupationId: first.id, scope: "serie" })).toEqual(
+      {
+        ok: true,
+        value: { cancelled: 4 },
+      },
+    );
+  });
+
   test("validação também na confirmação", async () => {
     const { db, s, svc } = await setup();
     expect(
