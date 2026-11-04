@@ -382,11 +382,12 @@ T14 → T15 → T16
 **Depends on**: T15
 **Reuses**: diálogos atuais de conta
 **Requirement**: DOC-10, DOC-11
+**Desvio**: "Ativar" e "Fundir" abrem formulários dentro do cartão da conta, como "Editar" e "Redefinir senha" (os "diálogos atuais de conta" são formulários embutidos, não modais).
 
 **Done when**:
 
-- [ ] Testes: selo, filtro, envio dos dois diálogos
-- [ ] Gate check passes: `bun test src/components`
+- [x] Testes: selo, filtro, envio dos dois diálogos
+- [x] Gate check passes: `bun test src/components`
 
 **Tests**: unit
 **Gate**: quick

@@ -137,10 +137,10 @@ Das 2945 ocupações importadas, só 80 têm responsável, porque só 2 dos 45 d
 | DOC-07 | P1: Avatar (AC 5) | 3 | Done |
 | DOC-08 | P1: Atualizar responsáveis (AC 1, 2, 3, 6) | 3 | Done |
 | DOC-09 | P1: Atualizar responsáveis (AC 4, 5) | 3 | Done |
-| DOC-10 | P2: Ativar ou fundir (AC 1, 2, 3, 6) | 1, 4 | In Progress |
-| DOC-11 | P2: Ativar ou fundir (AC 4, 5) | 4 | In Progress |
+| DOC-10 | P2: Ativar ou fundir (AC 1, 2, 3, 6) | 1, 4 | Done |
+| DOC-11 | P2: Ativar ou fundir (AC 4, 5) | 4 | Done |
 
-**Coverage:** 11 total, 0 mapped to tasks, 11 unmapped ⚠️
+**Coverage:** 11 total, 11 mapped to tasks, 0 unmapped
 
 ---
 
