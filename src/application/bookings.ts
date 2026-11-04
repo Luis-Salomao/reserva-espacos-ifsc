@@ -79,7 +79,7 @@ export type WeekAgenda = {
 };
 
 /** Agenda de um dia de uma sala, com o nome e a capacidade (`null` = não cadastrada). */
-type RoomDay = DayAgenda & { space: { id: string; name: string; capacity: number | null } };
+export type RoomDay = DayAgenda & { space: { id: string; name: string; capacity: number | null } };
 
 export type RoomsDay = { date: string; now: string; rooms: RoomDay[] };
 
