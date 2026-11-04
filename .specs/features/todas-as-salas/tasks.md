@@ -148,8 +148,10 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Testes: data inválida vira hoje; capacidade fora de 1–999 ignorada; bloco inexistente ignorado
-- [ ] Gate check passes: `bun test test/routes`
+- [x] Testes: data inválida vira hoje; capacidade fora de 1–999 ignorada; bloco inexistente ignorado
+- [x] Gate check passes: `bun test test/routes`
+
+**Desvio**: a carga do dia ficou em `loadSalas(data, session, fetchDay)`, exportada da rota, para testar "data inválida vira hoje" e a falha do servidor sem subir o servidor. A rota valida só o formato do bloco (letra ou "Outros"); o bloco sem nenhuma sala é ignorado por `filterRooms` (T4).
 
 **Tests**: unit
 **Gate**: quick
