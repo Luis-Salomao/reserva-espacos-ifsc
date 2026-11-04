@@ -1,0 +1,190 @@
+{
+  "schema": 1,
+  "promote_threshold": 2,
+  "window_days": 45,
+  "quarantine_threshold": 2,
+  "next_id": 11,
+  "lessons": [
+    {
+      "id": "L-001",
+      "key": "surviving_mutant::teste o loaderdeps da rota para que parametros de url so de cliente nao disparem nova carga no servidor",
+      "text": "Teste o loaderDeps da rota para que parâmetros de URL só de cliente não disparem nova carga no servidor",
+      "signal": "surviving_mutant",
+      "scope": "routes",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M13 src/routes/salas.tsx:119 (routes)"
+      ],
+      "created": "2026-11-04T17:07:01Z",
+      "last_seen": "2026-11-04T17:07:01Z"
+    },
+    {
+      "id": "L-002",
+      "key": "ac_gap::todo ac que proibe chamada ao servidor precisa de um teste que conte as chamadas na rota real",
+      "text": "Todo AC que proíbe chamada ao servidor precisa de um teste que conte as chamadas na rota real",
+      "signal": "ac_gap",
+      "scope": "routes",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "SALAS-09 Livres AC2 (routes)"
+      ],
+      "created": "2026-11-04T17:07:01Z",
+      "last_seen": "2026-11-04T17:07:01Z"
+    },
+    {
+      "id": "L-003",
+      "key": "surviving_mutant::quando a spec exige elementos fixos numa grade rolavel afirme as classes sticky e o deslocamento de cada um",
+      "text": "Quando a spec exige elementos fixos numa grade rolável, afirme as classes sticky e o deslocamento de cada um",
+      "signal": "surviving_mutant",
+      "scope": "components",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "M26 M27 src/components/rooms/rooms-columns.tsx:59 (components)"
+      ],
+      "created": "2026-11-04T17:07:01Z",
+      "last_seen": "2026-11-04T17:07:01Z"
+    },
+    {
+      "id": "L-004",
+      "key": "spec_precision_gap::contadores na spec usam o total dinamico n nunca um numero fixo do cadastro atual",
+      "text": "Contadores na spec usam o total dinâmico N, nunca um número fixo do cadastro atual",
+      "signal": "spec_precision_gap",
+      "scope": "specs",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "spec.md Filtros AC6 (specs)"
+      ],
+      "created": "2026-11-04T17:07:01Z",
+      "last_seen": "2026-11-04T17:07:01Z"
+    },
+    {
+      "id": "L-005",
+      "key": "spec_precision_gap::ac de layout responsivo deve dizer como sera verificado porque o happy dom nao mede rolagem",
+      "text": "AC de layout responsivo deve dizer como será verificado, porque o happy-dom não mede rolagem",
+      "signal": "spec_precision_gap",
+      "scope": "specs",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "spec.md Colunas AC4 (specs)",
+        "spec.md Colunas AC4 (rodada 2) (specs)"
+      ],
+      "created": "2026-11-04T17:07:02Z",
+      "last_seen": "2026-11-04T17:24:57Z"
+    },
+    {
+      "id": "L-006",
+      "key": "surviving_mutant::teste que o loader da rota repassa as deps a busca de dados nao so o retorno de loaderdeps",
+      "text": "Teste que o loader da rota repassa as deps à busca de dados, não só o retorno de loaderDeps",
+      "signal": "surviving_mutant",
+      "scope": "routes",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "N1 src/routes/salas.tsx:121 (routes)"
+      ],
+      "created": "2026-11-04T17:24:56Z",
+      "last_seen": "2026-11-04T17:24:56Z"
+    },
+    {
+      "id": "L-007",
+      "key": "surviving_mutant::quando a spec define o que um contador conta em cada visao afirme o contador em cada visao",
+      "text": "Quando a spec define o que um contador conta em cada visão, afirme o contador em cada visão",
+      "signal": "surviving_mutant",
+      "scope": "components",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "N5 src/components/rooms/rooms-view.tsx:146 (components)"
+      ],
+      "created": "2026-11-04T17:24:56Z",
+      "last_seen": "2026-11-04T17:24:56Z"
+    },
+    {
+      "id": "L-008",
+      "key": "ac_gap::elemento sticky numa grade rolavel so fica fixo se a grade tiver a largura do conteudo confira no navegador rolando ate o fim porque a classe sticky nao prova o efeito",
+      "text": "Elemento sticky numa grade rolável só fica fixo se a grade tiver a largura do conteúdo; confira no navegador rolando até o fim, porque a classe sticky não prova o efeito",
+      "signal": "ac_gap",
+      "scope": "components",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "SALAS-03 Colunas AC4 src/components/rooms/rooms-columns.tsx:47 (components)"
+      ],
+      "created": "2026-11-04T17:24:57Z",
+      "last_seen": "2026-11-04T17:24:57Z"
+    },
+    {
+      "id": "L-009",
+      "key": "spec_precision_gap::regras de horario na spec devem dizer o que acontece perto da meia noite",
+      "text": "Regras de horário na spec devem dizer o que acontece perto da meia-noite",
+      "signal": "spec_precision_gap",
+      "scope": "specs",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "spec.md:31 janela padrão; src/domain/room-filter.test.ts:200 (specs)"
+      ],
+      "created": "2026-11-04T17:24:57Z",
+      "last_seen": "2026-11-04T17:24:57Z"
+    },
+    {
+      "id": "L-010",
+      "key": "surviving_mutant::ao testar um loader substitua a busca de dados e afirme o argumento que ela recebe o valor derivado no retorno nao prova o que foi pedido ao servidor",
+      "text": "Ao testar um loader, substitua a busca de dados e afirme o argumento que ela recebe; o valor derivado no retorno não prova o que foi pedido ao servidor",
+      "signal": "surviving_mutant",
+      "scope": "routes",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "V1 V1b src/routes/salas.tsx:121 (routes)"
+      ],
+      "created": "2026-11-04T17:43:22Z",
+      "last_seen": "2026-11-04T17:43:22Z"
+    }
+  ]
+}

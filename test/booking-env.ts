@@ -2,7 +2,7 @@ import type { Database } from "bun:sqlite";
 import { Database as SqliteDatabase } from "bun:sqlite";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
-import { createBookingsService } from "#/application/bookings";
+import { type BookingsDeps, createBookingsService } from "#/application/bookings";
 import type { Role } from "#/domain/user";
 import type { AppDb } from "#/infra/db/client";
 import { createOccupationRepository } from "#/infra/db/repos/occupation-repository";
@@ -33,8 +33,8 @@ export function connect(path: string): AppDb {
   return drizzle(sqlite, { schema });
 }
 
-export function makeService(db: AppDb, now: Date = NOW) {
-  return createBookingsService({
+export function bookingDeps(db: AppDb, now: Date = NOW): BookingsDeps {
+  return {
     occupations: createOccupationRepository(db),
     spaces: createSpaceRepository(db),
     semesters: createSemesterRepository(db),
@@ -42,7 +42,11 @@ export function makeService(db: AppDb, now: Date = NOW) {
     clock: { now: () => now },
     timeZone: "America/Sao_Paulo",
     hours: { opens: "06:00", closes: "23:00" },
-  });
+  };
+}
+
+export function makeService(db: AppDb, now: Date = NOW) {
+  return createBookingsService(bookingDeps(db, now));
 }
 
 export async function seed(db: AppDb) {

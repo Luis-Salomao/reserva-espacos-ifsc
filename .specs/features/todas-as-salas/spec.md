@@ -28,7 +28,7 @@ A agenda mostra uma sala por vez. Para achar uma sala livre, quem reserva precis
 | Onde fica a tela | Nova rota `/salas`, com item "Salas" na navegação e opção "Ver todas as salas" no seletor de sala da agenda | Não pesa a agenda de uma sala, que é o uso mais comum, e a URL pode ser compartilhada | n |
 | Bloco da sala | Letra extraída do nome (`A-202` → Bloco A); nomes sem código vão para "Outros espaços" | O cadastro não tem campo de bloco; é a mesma regra do seletor em andamento em `room-selector.tsx` | n |
 | Capacidade | Com capacidade mínima definida, salas sem capacidade cadastrada somem do resultado, e a tela avisa quantas foram escondidas por isso | Hoje nenhuma das 21 salas tem capacidade; esconder sem avisar pareceria erro | n |
-| Janela de horário padrão | Próximo intervalo de 1 h a partir de agora, arredondado para 30 min, no dia escolhido | Pergunta mais comum: "o que está livre agora?" | n |
+| Janela de horário padrão | Começa na próxima meia hora cheia depois de agora (13:07 → 13:30–14:30; 13:30 → 14:00–15:00), dura 1 h e vale para o dia escolhido | Pergunta mais comum: "o que está livre agora?" | n |
 | Celular | Abaixo de 768 px a tela abre na visão "Livres"; a visão "Colunas" rola na horizontal dentro da grade, com o eixo de horas fixo | 21 colunas não cabem em 360 px; a lista é a forma útil no celular | n |
 | Estado dos filtros | Todos os filtros e a visão ficam na URL | Voltar, recarregar e compartilhar mantêm o resultado | y |
 | Visitante | Vê a tela e os filtros, sem nomes de pessoas e sem rascunho | Mesma regra da agenda atual | y |
@@ -68,10 +68,10 @@ A agenda mostra uma sala por vez. Para achar uma sala livre, quem reserva precis
 
 1. WHEN o usuário escolhe um ou mais blocos THEN o sistema SHALL mostrar só as salas desses blocos.
 2. WHEN o usuário define capacidade mínima N THEN o sistema SHALL mostrar só as salas com capacidade cadastrada maior ou igual a N.
-3. WHEN a capacidade mínima esconde salas sem capacidade cadastrada THEN o sistema SHALL mostrar o aviso "X salas sem capacidade cadastrada ficaram de fora".
+3. WHEN a capacidade mínima esconde salas sem capacidade cadastrada THEN o sistema SHALL mostrar o aviso "X salas sem capacidade cadastrada ficaram de fora" (com X = 1: "1 sala sem capacidade cadastrada ficou de fora").
 4. WHEN o usuário digita na busca THEN o sistema SHALL mostrar só as salas cujo nome contém o texto, sem diferenciar maiúsculas nem acentos.
 5. WHEN o usuário liga "Só livres" THEN o sistema SHALL mostrar só as salas sem nenhuma ocupação que cruze a janela de horário escolhida.
-6. WHEN qualquer filtro muda THEN o sistema SHALL refletir o filtro na URL e mostrar "X de 21 salas".
+6. WHEN qualquer filtro muda THEN o sistema SHALL refletir o filtro na URL e mostrar "X de N salas", com N = total de salas cadastradas e X = salas exibidas na visão atual depois dos filtros (na visão "Livres", só as livres na janela).
 7. IF nenhuma sala passar nos filtros THEN o sistema SHALL mostrar "Nenhuma sala com esses filtros" e um botão "Limpar filtros".
 8. WHILE a largura da tela for menor que 768 px the sistema SHALL agrupar os filtros num botão "Filtros" com contador dos filtros ativos.
 
@@ -130,18 +130,18 @@ A agenda mostra uma sala por vez. Para achar uma sala livre, quem reserva precis
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| SALAS-01 | P1: Colunas por sala (AC 1, 2) | - | Pending |
-| SALAS-02 | P1: Colunas por sala (AC 3) | - | Pending |
-| SALAS-03 | P1: Colunas por sala (AC 4, 5, 6) | - | Pending |
-| SALAS-04 | P1: Filtros (AC 1, 6) | - | Pending |
-| SALAS-05 | P1: Filtros (AC 2, 3) | - | Pending |
-| SALAS-06 | P1: Filtros (AC 4) | - | Pending |
-| SALAS-07 | P1: Filtros (AC 5, 7) | - | Pending |
-| SALAS-08 | P1: Filtros (AC 8) | - | Pending |
-| SALAS-09 | P1: Livres (AC 1, 2, 3, 4) | - | Pending |
-| SALAS-10 | P1: Livres (AC 5) | - | Pending |
-| SALAS-11 | P2: Reservar (AC 1, 2, 6) | - | Pending |
-| SALAS-12 | P2: Reservar (AC 3, 4, 5) | - | Pending |
+| SALAS-01 | P1: Colunas por sala (AC 1, 2) | - | Fixed (teste do loader afirma o dia pedido ao servidor; V1 e V1b morrem; sem nova rodada independente) |
+| SALAS-02 | P1: Colunas por sala (AC 3) | - | Verified |
+| SALAS-03 | P1: Colunas por sala (AC 4, 5, 6) | - | Verified |
+| SALAS-04 | P1: Filtros (AC 1, 6) | - | Verified |
+| SALAS-05 | P1: Filtros (AC 2, 3) | - | Verified |
+| SALAS-06 | P1: Filtros (AC 4) | - | Verified |
+| SALAS-07 | P1: Filtros (AC 5, 7) | - | Verified |
+| SALAS-08 | P1: Filtros (AC 8) | - | Verified |
+| SALAS-09 | P1: Livres (AC 1, 2, 3, 4) | - | Verified |
+| SALAS-10 | P1: Livres (AC 5) | - | Verified |
+| SALAS-11 | P2: Reservar (AC 1, 2, 6) | - | Verified |
+| SALAS-12 | P2: Reservar (AC 3, 4, 5) | - | Verified |
 
 **Coverage:** 12 total, 0 mapped to tasks, 12 unmapped ⚠️
 

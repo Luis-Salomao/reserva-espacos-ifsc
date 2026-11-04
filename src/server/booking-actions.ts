@@ -3,6 +3,7 @@ import type {
   BookingView,
   DayAgenda,
   MyBooking,
+  RoomsDay,
   WeekAgenda,
 } from "#/application/bookings";
 import type { User } from "#/domain/user";
@@ -85,6 +86,16 @@ export function getWeekAgenda(deps: BookingDeps, request: RequestLike, data: unk
     const weekStart = body && text(body, "weekStart");
     if (spaceId == null || weekStart == null) return reject(400, BAD_REQUEST);
     return fromResult(await deps.bookings.weekAgenda(viewer, { spaceId, weekStart }));
+  });
+}
+
+/** Um dia de todas as salas (`{ date }`); pública conforme `PUBLIC_READ`. */
+export function getRoomsDay(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asReader<RoomsDay>(deps, request, async (viewer) => {
+    const body = record(data);
+    const date = body && text(body, "date");
+    if (date == null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.bookings.roomsDay(viewer, { date }));
   });
 }
 

@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
+import { createBookingsService } from "#/application/bookings";
 import type { Role, User } from "#/domain/user";
 import {
+  bookingDeps,
   insertBatch,
   insertImported,
   makeService,
@@ -653,6 +655,176 @@ describe("agenda", () => {
     expect(await svc.weekAgenda(null, { spaceId: "nada", weekStart: "2026-11-09" })).toMatchObject({
       ok: false,
       kind: "not_found",
+    });
+  });
+});
+
+describe("roomsDay", () => {
+  async function withRooms() {
+    const ctx = await setup();
+    const { spaces } = bookingDeps(ctx.db);
+    const a1000 = await spaces.create({ name: "A-1000", capacity: null });
+    const a202 = await spaces.create({ name: "A-202", capacity: 40 });
+    const b104 = await spaces.create({ name: "B-104", capacity: 25 });
+    return { ...ctx, a1000, a202, b104 };
+  }
+
+  test("um dia por sala, em ordem natural de nome, com nome e capacidade", async () => {
+    const { s, svc } = await withRooms();
+    const result = await svc.roomsDay(s.docA, { date: "2026-11-10" });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.value.rooms.map((room) => room.space.name)).toEqual([
+      "A-202",
+      "A-1000",
+      "ADM 2",
+      "B-104",
+      "LAB 1",
+    ]);
+    expect(result.value.rooms.find((room) => room.space.name === "A-202")?.space.capacity).toBe(40);
+    expect(result.value.rooms.find((room) => room.space.name === "A-1000")?.space.capacity).toBe(
+      null,
+    );
+    expect(result.value.date).toBe("2026-11-10");
+    expect(result.value.now).toBe("2026-11-03T09:00");
+    for (const room of result.value.rooms) {
+      expect(room.spaceId).toBe(room.space.id);
+      expect(room.date).toBe("2026-11-10");
+    }
+  });
+
+  test("cada sala recebe só as próprias ocupações; sala sem ocupação vem com o dia todo livre", async () => {
+    const { db, s, svc, b104 } = await withRooms();
+    insertImported(db, {
+      id: "b1",
+      spaceId: b104.id,
+      date: "2026-11-10",
+      start: "08:00",
+      end: "09:50",
+      title: "MAT1",
+      responsibleUserId: s.docA.id,
+    });
+    insertImported(db, {
+      id: "s1",
+      spaceId: s.sala1.id,
+      date: "2026-11-10",
+      start: "14:00",
+      end: "15:00",
+      title: "FIS1",
+      responsibleUserId: null,
+    });
+    insertImported(db, {
+      id: "outro-dia",
+      spaceId: s.sala2.id,
+      date: "2026-11-11",
+      start: "08:00",
+      end: "09:00",
+      title: "QUI1",
+      responsibleUserId: null,
+    });
+    const result = await svc.roomsDay(s.docA, { date: "2026-11-10" });
+    if (!result.ok) throw new Error(result.message);
+    const room = (name: string) => result.value.rooms.find((item) => item.space.name === name);
+    expect(room("B-104")?.occupations.map((item) => [item.title, item.start, item.end])).toEqual([
+      ["MAT1", "08:00", "09:50"],
+    ]);
+    expect(room("B-104")?.free).toEqual([
+      { start: "06:00", end: "08:00" },
+      { start: "09:50", end: "23:00" },
+    ]);
+    expect(room("ADM 2")?.occupations.map((item) => item.title)).toEqual(["FIS1"]);
+    expect(room("LAB 1")?.occupations).toEqual([]);
+    expect(room("LAB 1")?.free).toEqual([{ start: "06:00", end: "23:00" }]);
+    expect(room("LAB 1")?.blocks.map((block) => block.short)).toEqual(["N1", "N2"]);
+  });
+
+  test("logado vê o responsável; visitante nunca recebe nomes nem ids de pessoas", async () => {
+    const { db, s, svc, a202 } = await withRooms();
+    insertImported(db, {
+      id: "a",
+      spaceId: a202.id,
+      date: "2026-11-10",
+      start: "08:00",
+      end: "09:00",
+      title: "MAT1",
+      responsibleUserId: s.docA.id,
+    });
+    await svc.createBooking(s.docB, book(s, { purpose: "Minha" }));
+    const logged = await svc.roomsDay(s.horarios, { date: "2026-11-10" });
+    if (!logged.ok) throw new Error(logged.message);
+    expect(
+      logged.value.rooms.flatMap((room) => room.occupations.map((item) => item.person)),
+    ).toEqual([
+      { name: "Pessoa doca", code: "DOCA" },
+      { name: "Pessoa docb", code: "DOCB" },
+    ]);
+
+    const visitor = await svc.roomsDay(null, { date: "2026-11-10" });
+    if (!visitor.ok) throw new Error(visitor.message);
+    expect(
+      visitor.value.rooms.flatMap((room) => room.occupations.map((item) => item.person)),
+    ).toEqual([null, null]);
+    const json = JSON.stringify(visitor);
+    for (const needle of [s.docA.id, s.docB.id, "Pessoa", "DOCA", "DOCB", "doca@"]) {
+      expect(json).not.toContain(needle);
+    }
+  });
+
+  test("busca as ocupações de todas as salas numa única consulta", async () => {
+    const { db, s } = await withRooms();
+    const deps = bookingDeps(db);
+    const repo = deps.occupations;
+    const calls = { all: 0, one: 0 };
+    const svc = createBookingsService({
+      ...deps,
+      occupations: {
+        ...repo,
+        listActiveInRangeAll: (from, to) => {
+          calls.all++;
+          return repo.listActiveInRangeAll(from, to);
+        },
+        listActiveInRange: (spaceId, from, to) => {
+          calls.one++;
+          return repo.listActiveInRange(spaceId, from, to);
+        },
+      },
+    });
+    const result = await svc.roomsDay(s.docA, { date: "2026-11-10" });
+    expect(result.ok && result.value.rooms).toHaveLength(5);
+    expect(calls).toEqual({ all: 1, one: 0 });
+  });
+
+  test("dia fora de qualquer semestre vem sem grade de blocos, com as reservas avulsas", async () => {
+    const { s, svc } = await withRooms();
+    const outside = "2027-01-11";
+    const booked = await svc.createBooking(
+      s.docA,
+      book(s, { date: outside, start: "10:00", end: "11:00", purpose: "Recesso" }),
+    );
+    expect(booked.ok).toBe(true);
+    const result = await svc.roomsDay(s.docA, { date: outside });
+    if (!result.ok) throw new Error(result.message);
+    for (const room of result.value.rooms) expect(room.blocks).toEqual([]);
+    expect(
+      result.value.rooms.flatMap((room) => room.occupations.map((item) => item.title)),
+    ).toEqual(["Recesso"]);
+  });
+
+  test("data inválida falha com o campo; sem salas, lista vazia", async () => {
+    const { s, svc } = await setup();
+    expect(await svc.roomsDay(s.docA, { date: "2026-02-30" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "date",
+    });
+    expect(await svc.roomsDay(null, { date: "10/11/2026" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "date",
+    });
+    const empty = await makeService(openDb().db).roomsDay(null, { date: "2026-11-10" });
+    expect(empty).toEqual({
+      ok: true,
+      value: { date: "2026-11-10", now: "2026-11-03T09:00", rooms: [] },
     });
   });
 });
