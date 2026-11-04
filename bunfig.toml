@@ -31,6 +31,8 @@ coveragePathIgnorePatterns = [
   "cli/index.ts",
   "cli/init.ts",
   "cli/create-admin.ts",
+  "cli/backup.ts",
+  "cli/restore.ts",
   "cli/import-preview.ts",
   "cli/db-migrate.ts",
   "cli/check-wrangler.ts",

@@ -3,7 +3,7 @@ import { AlertCircle, Calendar, Check, Clock, DoorClosed, X } from "lucide-react
 import { Dialog as DialogPrimitive } from "radix-ui";
 import { type FormEvent, useEffect, useId, useState } from "react";
 import type { BookingView } from "#/application/bookings";
-import { type AdminResponse, runAdminAction } from "#/components/admin/use-admin-action";
+import { runAdminAction } from "#/components/admin/use-admin-action";
 import { Field } from "#/components/ds";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
@@ -11,6 +11,7 @@ import { Input } from "#/components/ui/input";
 import { DEFAULT_HOURS, localNow, validateBookingWhen } from "#/domain/availability";
 import type { Space } from "#/domain/space";
 import { cn } from "#/lib/utils";
+import type { AdminResponse } from "#/server/admin-actions";
 import { createBookingFn } from "#/server/booking-fns";
 
 export type BookingSlotInit = {
@@ -109,7 +110,7 @@ export function BookingSheet({
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
-  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string | undefined>>({});
   const [submittedBooking, setSubmittedBooking] = useState<BookingView | null>(null);
 
   // Sincroniza formulário na abertura ou mudança do slot inicial
@@ -272,10 +273,7 @@ export function BookingSheet({
                   Fechar
                 </Button>
                 <Button asChild>
-                  <Link
-                    to={"/minhas-reservas" as unknown as "/"}
-                    search={{ newId: submittedBooking.id }}
-                  >
+                  <Link to="/minhas-reservas" search={{ newId: submittedBooking.id }}>
                     Ver reserva
                   </Link>
                 </Button>

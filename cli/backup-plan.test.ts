@@ -106,4 +106,9 @@ describe("cli/backup-plan", () => {
   test("defaultIsCreatableDir reconhece diretórios existentes", () => {
     expect(defaultIsCreatableDir(process.cwd())).toBe(true);
   });
+
+  test("defaultIsCreatableDir aceita pasta inexistente sob pasta existente e recusa sob arquivo", () => {
+    expect(defaultIsCreatableDir(resolve(process.cwd(), "nao-existe", "nem-esta"))).toBe(true);
+    expect(defaultIsCreatableDir(resolve(process.cwd(), "package.json", "sub"))).toBe(false);
+  });
 });
