@@ -57,7 +57,24 @@ describe("AppShell", () => {
     expect(screen.getByRole("link", { name: "Agenda" }).getAttribute("href")).toBe("/");
     expect(screen.getByRole("link", { name: "Importar" }).getAttribute("href")).toBe("/importar");
     expect(screen.getByRole("link", { name: "Semestres" }).getAttribute("href")).toBe("/semestres");
-    expect(nav.querySelectorAll("a")).toHaveLength(3);
+    expect(screen.getByRole("link", { name: "Salas" }).getAttribute("href")).toBe("/salas");
+    expect(nav.querySelectorAll("a")).toHaveLength(4);
+  });
+
+  test("Salas para todo papel logado, logo depois da Agenda; visitante não tem o item", async () => {
+    for (const role of ["admin", "horarios", "docente"] as const) {
+      await renderShell("x", {
+        user: { ...ana, roles: [role] },
+        publicRead: true,
+        timeZone: "America/Sao_Paulo",
+      });
+      const nav = screen.getByRole("navigation", { name: "Principal" });
+      const labels = [...nav.querySelectorAll("a")].map((link) => link.textContent);
+      expect(labels.slice(0, 2)).toEqual(["Agenda", "Salas"]);
+      cleanup();
+    }
+    await renderShell("x", anonymous);
+    expect(screen.queryByRole("link", { name: "Salas" })).toBeNull();
   });
 
   test("visitante vê Entrar e não vê Importar nem Sair", async () => {
@@ -195,7 +212,8 @@ describe("AppShell, estilo agenda", () => {
     expect(trigger.getAttribute("aria-expanded")).toBe("true");
     const panel = document.getElementById(trigger.getAttribute("aria-controls") ?? "");
     expect(panel).not.toBeNull();
-    expect(panel?.querySelectorAll("a")).toHaveLength(3);
+    expect(panel?.querySelectorAll("a")).toHaveLength(4);
+    expect(panel?.querySelector("a[href='/salas']")?.textContent).toBe("Salas");
     expect(panel?.querySelector("form[action='/api/sair']")).toBeNull();
   });
 

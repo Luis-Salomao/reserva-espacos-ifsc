@@ -1,4 +1,5 @@
-import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
+import { Link } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight, LayoutGrid, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
 import { Button } from "#/components/ui/button";
@@ -175,6 +176,14 @@ export function AgendaView({
             <span className="rounded-md border px-2 py-0.5 text-[12px] font-medium text-muted-foreground">
               {currentSpace?.name ?? ""}
             </span>
+            <Link
+              to="/salas"
+              search={{ data: selectedDate }}
+              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] font-medium text-primary hover:underline"
+            >
+              <LayoutGrid className="size-3.5" aria-hidden="true" />
+              Todas as salas
+            </Link>
             <div className="flex-1" />
             <div className="toolbar hidden items-center gap-1 lg:flex">
               <Button variant="outline" size="sm" onClick={() => onSelectDate(todayIso)}>

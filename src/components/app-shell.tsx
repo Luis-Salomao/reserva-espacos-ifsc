@@ -4,6 +4,7 @@ import {
   CalendarRange,
   ChevronsUpDown,
   FileUp,
+  LayoutGrid,
   ListChecks,
   LogOut,
   type LucideIcon,
@@ -23,13 +24,14 @@ import { ADMIN_ROLES, IMPORT_ROLES, SEMESTER_ROLES, type SessionInfo } from "#/s
 type Props = { children: ReactNode; wide?: boolean };
 
 type NavItem = {
-  to: "/" | "/minhas-reservas" | "/importar" | "/semestres" | "/admin/contas";
+  to: "/" | "/salas" | "/minhas-reservas" | "/importar" | "/semestres" | "/admin/contas";
   label: string;
   exact?: true;
 };
 
 const NAV_ICONS: Record<NavItem["to"], LucideIcon> = {
   "/": CalendarDays,
+  "/salas": LayoutGrid,
   "/minhas-reservas": ListChecks,
   "/importar": FileUp,
   "/semestres": CalendarRange,
@@ -56,6 +58,7 @@ export function navItems(user: SessionInfo["user"]): NavItem[] {
   const has = (roles: readonly string[]) =>
     user?.roles.some((role) => roles.includes(role)) ?? false;
   const items: NavItem[] = [{ to: "/", label: "Agenda", exact: true }];
+  if (user !== null) items.push({ to: "/salas", label: "Salas" });
   if (has(MY_BOOKINGS_ROLES)) items.push({ to: "/minhas-reservas", label: "Minhas reservas" });
   if (has(IMPORT_ROLES)) items.push({ to: "/importar", label: "Importar" });
   if (has(SEMESTER_ROLES)) items.push({ to: "/semestres", label: "Semestres" });
