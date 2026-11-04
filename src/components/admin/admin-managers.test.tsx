@@ -8,6 +8,7 @@ import {
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { Semester } from "#/domain/semester";
+import type { Space } from "#/domain/space";
 import type { User } from "#/domain/user";
 import type { AdminResponse } from "#/server/admin-actions";
 
@@ -21,6 +22,17 @@ const semesterCalls: Array<Record<string, unknown>> = [];
 let activateResponse: AdminResponse<User> = { ok: true, data: {} as User };
 let mergeResponse: AdminResponse<null> = { ok: true, data: null };
 const ghostCalls: Array<Record<string, unknown>> = [];
+const CAPACITY_ERROR: AdminResponse<unknown> = {
+  ok: false,
+  status: 400,
+  message: "A capacidade deve ser um número inteiro de 1 a 2000.",
+  field: "capacity",
+};
+let createSpaceResponse: AdminResponse<unknown> = CAPACITY_ERROR;
+let updateSpaceResponse: AdminResponse<unknown> = { ok: true, data: {} };
+let deleteSpaceResponse: AdminResponse<null> = { ok: true, data: null };
+let spaceGate: Promise<void> = Promise.resolve();
+const spaceCalls: Array<Record<string, unknown>> = [];
 
 mock.module("#/server/admin", () => ({
   createAccountFn: async (_: Call) => createResponse,
@@ -41,13 +53,21 @@ mock.module("#/server/admin", () => ({
     ghostCalls.push({ action: "merge", ...arg.data });
     return mergeResponse;
   },
-  createSpaceFn: async () => ({
-    ok: false,
-    status: 400,
-    message: "A capacidade deve ser um número inteiro de 1 a 2000.",
-    field: "capacity",
-  }),
-  updateSpaceFn: async () => ({ ok: true, data: {} }),
+  createSpaceFn: async (arg: Call) => {
+    spaceCalls.push({ action: "create", ...arg.data });
+    await spaceGate;
+    return createSpaceResponse;
+  },
+  updateSpaceFn: async (arg: Call) => {
+    spaceCalls.push({ action: "update", ...arg.data });
+    await spaceGate;
+    return updateSpaceResponse;
+  },
+  deleteSpaceFn: async (arg: Call) => {
+    spaceCalls.push({ action: "delete", ...arg.data });
+    await spaceGate;
+    return deleteSpaceResponse;
+  },
   createSemesterFn: async (arg: Call) => {
     semesterCalls.push(arg.data);
     return semesterResponse;
@@ -60,6 +80,7 @@ mock.module("#/server/admin", () => ({
 
 const { AccountsManager } = await import("./accounts-manager");
 const { SpacesManager } = await import("./spaces-manager");
+const { SpaceCard } = await import("./space-card");
 const { SemesterForm } = await import("#/components/semesters/semester-form");
 
 const me: User = {
@@ -113,7 +134,21 @@ beforeEach(() => {
   activateResponse = { ok: true, data: { ...ghost, placeholder: false } };
   mergeResponse = { ok: true, data: null };
   ghostCalls.length = 0;
+  createSpaceResponse = CAPACITY_ERROR;
+  updateSpaceResponse = { ok: true, data: {} };
+  deleteSpaceResponse = { ok: true, data: null };
+  spaceGate = Promise.resolve();
+  spaceCalls.length = 0;
 });
+
+/** Segura as respostas de espaço até `release()`, para ver estados de andamento. */
+function holdSpaceResponses() {
+  let release = () => {};
+  spaceGate = new Promise((resolve) => {
+    release = resolve;
+  });
+  return () => release();
+}
 
 describe("erros de campo acessíveis", () => {
   test("erro de campo é anunciado, ligado ao campo, e o foco vai ao primeiro campo inválido", async () => {
@@ -297,6 +332,104 @@ describe("SpacesManager", () => {
     await waitFor(() => expect(document.activeElement === capacity).toBe(true));
     expect(capacity.getAttribute("aria-invalid")).toBe("true");
     expect(capacity.getAttribute("aria-describedby")).toBe(alert.id);
+  });
+});
+
+describe("SpaceCard", () => {
+  const informed: Space = {
+    id: "a202",
+    name: "A-202",
+    capacity: 40,
+    equipment: { items: { projetor: 1, computadores: 1, som: 0 }, notes: "Lousa digital\nTV" },
+  };
+
+  function renderCard(space: Space) {
+    const edits: string[] = [];
+    const deleted: string[] = [];
+    render(
+      <ul>
+        <SpaceCard
+          space={space}
+          onEdit={() => edits.push(space.id)}
+          onDeleted={() => deleted.push(space.id)}
+        />
+      </ul>,
+    );
+    return { edits, deleted };
+  }
+
+  test("mostra capacidade, um rótulo por equipamento e as observações", () => {
+    renderCard(informed);
+    expect(screen.getByText("40 lugares")).toBeTruthy();
+    const tags = within(screen.getByRole("list", { name: "Equipamentos" }))
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
+    expect(tags).toEqual(["Projetor", "1 computador", "Sem aparelho de som"]);
+    expect(screen.getByText(/Lousa digital/).textContent).toBe("Observações: Lousa digital\nTV");
+  });
+
+  test("sem dados mostra capacidade e equipamentos não informados e nenhuma observação", () => {
+    renderCard({ id: "b1", name: "Auditório", capacity: null });
+    expect(screen.getByText("Capacidade não informada")).toBeTruthy();
+    const tags = within(screen.getByRole("list", { name: "Equipamentos" }))
+      .getAllByRole("listitem")
+      .map((item) => item.textContent);
+    expect(tags).toEqual([
+      "Projetor não informado",
+      "Computadores não informados",
+      "Aparelho de som não informado",
+    ]);
+    expect(screen.queryByText(/Observações/) === null).toBe(true);
+  });
+
+  test("Editar avisa o gerenciador", () => {
+    const { edits } = renderCard(informed);
+    fireEvent.click(screen.getByRole("button", { name: "Editar A-202" }));
+    expect(edits).toEqual(["a202"]);
+  });
+
+  test("Excluir só abre a confirmação; Cancelar fecha sem chamar o servidor", async () => {
+    renderCard(informed);
+    fireEvent.click(screen.getByRole("button", { name: "Excluir A-202" }));
+    const dialog = await screen.findByRole("alertdialog");
+    expect(within(dialog).getByText("Excluir A-202?")).toBeTruthy();
+    expect(within(dialog).getByRole("button", { name: "Excluir espaço" })).toBeTruthy();
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog") === null).toBe(true));
+    expect(spaceCalls).toEqual([]);
+  });
+
+  test("confirmar envia o id, mostra 'Excluindo…' e avisa ao concluir", async () => {
+    const release = holdSpaceResponses();
+    const { deleted } = renderCard(informed);
+    fireEvent.click(screen.getByRole("button", { name: "Excluir A-202" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir espaço" }));
+    const pending = await screen.findByRole("button", { name: "Excluindo…" });
+    expect((pending as HTMLButtonElement).disabled).toBe(true);
+    expect(spaceCalls).toEqual([{ action: "delete", id: "a202" }]);
+    release();
+    await waitFor(() => expect(deleted).toEqual(["a202"]));
+    await waitFor(() => expect(screen.queryByRole("alertdialog") === null).toBe(true));
+  });
+
+  test("recusa aparece dentro da confirmação, que continua aberta", async () => {
+    deleteSpaceResponse = {
+      ok: false,
+      status: 409,
+      message: "Este espaço tem reservas, aulas ou vínculo com o XML e não pode ser excluído.",
+    };
+    const { deleted } = renderCard(informed);
+    fireEvent.click(screen.getByRole("button", { name: "Excluir A-202" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir espaço" }));
+    const dialog = screen.getByRole("alertdialog");
+    const alert = await within(dialog).findByRole("alert");
+    expect(alert.textContent).toMatch(/não pode ser excluído/);
+    expect(deleted).toEqual([]);
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("alertdialog") === null).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Excluir A-202" }));
+    await screen.findByRole("alertdialog");
+    expect(screen.queryByRole("alert") === null).toBe(true);
   });
 });
 
