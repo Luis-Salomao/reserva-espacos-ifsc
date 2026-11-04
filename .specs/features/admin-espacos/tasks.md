@@ -137,9 +137,11 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Testes: `list()` mantém o formato; `listWithEquipment` traz itens e observações e ignora tipo fora do catálogo; `update` com equipamentos substitui o conjunto; sem equipamentos mantém; nome duplicado desfaz equipamentos e observações; inexistente devolve `null`
-- [ ] Teste D1 (`RUN_D1_TESTS=1`) rodado uma vez à mão
-- [ ] Gate check passes: `bun test`
+- [x] Testes: `list()` mantém o formato; `listWithEquipment` traz itens e observações e ignora tipo fora do catálogo; `update` com equipamentos substitui o conjunto; sem equipamentos mantém; nome duplicado desfaz equipamentos e observações; inexistente devolve `null`
+- [x] Teste D1 (`RUN_D1_TESTS=1`) rodado uma vez à mão: `src/infra/db/flow/space-d1.test.ts` passou (migração com espaço antigo, gravação atômica, corrida de nome desfeita)
+- [x] Gate check passes: `bun test` (1291 testes, 3 pulados: os dois D1 e um que já existia)
+
+**Desvio**: os repositórios falsos de `src/application/spaces.test.ts` ganharam `listWithEquipment` para compilar com a porta nova (nenhuma asserção mudou).
 
 **Tests**: integration
 **Gate**: full

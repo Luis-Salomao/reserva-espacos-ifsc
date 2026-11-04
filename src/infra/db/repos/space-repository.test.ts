@@ -48,6 +48,94 @@ describe("SpaceRepository", () => {
   });
 });
 
+describe("SpaceRepository com equipamentos", () => {
+  let db: ReturnType<typeof drizzle<typeof schema>>;
+  let repo: SpaceRepository;
+  const equipped = {
+    items: { projetor: 1, computadores: 20 },
+    notes: "Lousa digital\nCaixa de som portátil",
+  };
+
+  beforeEach(() => {
+    db = drizzle(new Database(":memory:"), { schema });
+    migrate(db, { migrationsFolder: "drizzle" });
+    repo = createSpaceRepository(db);
+  });
+
+  const countEquipment = async () => (await db.select().from(schema.spaceEquipment)).length;
+
+  test("cria com equipamentos e lê; espaço sem equipamentos vem com tudo não informado", async () => {
+    const lab = await repo.create({ name: "Lab 1", capacity: 30, equipment: equipped });
+    expect(lab).toEqual({ id: lab.id, name: "Lab 1", capacity: 30, equipment: equipped });
+    const plain = await repo.create({ name: "Auditório", capacity: null });
+    expect(await repo.listWithEquipment()).toEqual([
+      { id: plain.id, name: "Auditório", capacity: null, equipment: { items: {}, notes: null } },
+      { id: lab.id, name: "Lab 1", capacity: 30, equipment: equipped },
+    ]);
+  });
+
+  test("list() continua só com id, nome e capacidade", async () => {
+    await repo.create({ name: "Lab 1", capacity: 30, equipment: equipped });
+    const [first] = await repo.list();
+    expect(Object.keys(first ?? {})).toEqual(["id", "name", "capacity"]);
+  });
+
+  test("tipo fora do catálogo gravado no banco é ignorado na leitura", async () => {
+    const lab = await repo.create({ name: "Lab 1", capacity: null, equipment: equipped });
+    await db.insert(schema.spaceEquipment).values({ spaceId: lab.id, kind: "lousa", quantity: 1 });
+    const [read] = await repo.listWithEquipment();
+    expect(read?.equipment?.items).toEqual({ projetor: 1, computadores: 20 });
+  });
+
+  test("editar com equipamentos substitui o conjunto inteiro e as observações", async () => {
+    const lab = await repo.create({ name: "Lab 1", capacity: 30, equipment: equipped });
+    const next = { items: { som: 0 }, notes: null };
+    expect(await repo.update(lab.id, { name: "Lab Um", capacity: 25, equipment: next })).toEqual({
+      id: lab.id,
+      name: "Lab Um",
+      capacity: 25,
+      equipment: next,
+    });
+    expect(await repo.listWithEquipment()).toEqual([
+      { id: lab.id, name: "Lab Um", capacity: 25, equipment: next },
+    ]);
+    expect(await countEquipment()).toBe(1);
+  });
+
+  test("editar sem equipamentos mantém equipamentos e observações", async () => {
+    const lab = await repo.create({ name: "Lab 1", capacity: 30, equipment: equipped });
+    await repo.update(lab.id, { name: "Lab Um", capacity: null });
+    expect(await repo.listWithEquipment()).toEqual([
+      { id: lab.id, name: "Lab Um", capacity: null, equipment: equipped },
+    ]);
+  });
+
+  test("nome duplicado ao editar desfaz também equipamentos e observações", async () => {
+    const lab = await repo.create({ name: "Lab 1", capacity: 30, equipment: equipped });
+    await repo.create({ name: "Lab 2", capacity: null });
+    await expect(
+      repo.update(lab.id, { name: "Lab 2", capacity: 1, equipment: { items: {}, notes: "x" } }),
+    ).rejects.toThrow();
+    const read = (await repo.listWithEquipment()).find((space) => space.id === lab.id);
+    expect(read).toEqual({ id: lab.id, name: "Lab 1", capacity: 30, equipment: equipped });
+  });
+
+  test("nome duplicado ao criar não deixa equipamentos órfãos", async () => {
+    await repo.create({ name: "Lab 1", capacity: null });
+    await expect(
+      repo.create({ name: "Lab 1", capacity: 1, equipment: equipped }),
+    ).rejects.toThrow();
+    expect(await countEquipment()).toBe(0);
+  });
+
+  test("editar espaço inexistente com equipamentos devolve null e não grava nada", async () => {
+    expect(await repo.update("nao-existe", { name: "X", capacity: 1, equipment: equipped })).toBe(
+      null,
+    );
+    expect(await countEquipment()).toBe(0);
+  });
+});
+
 describe("migração dos equipamentos", () => {
   type Journal = { entries: { idx: number; tag: string }[] };
 

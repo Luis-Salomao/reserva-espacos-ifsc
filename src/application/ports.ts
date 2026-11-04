@@ -1,4 +1,5 @@
 import type { ExistingOccupation } from "#/application/import-plan";
+import type { SpaceEquipment } from "#/domain/equipment";
 import type {
   ImportBatch,
   ImportBatchStatus,
@@ -14,11 +15,21 @@ import type { Semester } from "#/domain/semester";
 import type { Space } from "#/domain/space";
 import type { Role, User } from "#/domain/user";
 
+/** Dados gravados de um espaço. Sem `equipment`, equipamentos e observações ficam como estão. */
+export type SpaceWrite = { name: string; capacity: number | null; equipment?: SpaceEquipment };
+
 export interface SpaceRepository {
+  /** Só `id`, `name` e `capacity`, por nome. */
   list(): Promise<Space[]>;
-  create(input: { name: string; capacity: number | null }): Promise<Space>;
-  /** Atualiza nome e capacidade; `null` se o espaço não existe. */
-  update(id: string, input: { name: string; capacity: number | null }): Promise<Space | null>;
+  /** Como `list`, com `equipment` em cada espaço; tipos fora do catálogo ficam de fora. */
+  listWithEquipment(): Promise<Space[]>;
+  /** Com `equipment`, grava espaço, observações e equipamentos numa unidade atômica. */
+  create(input: SpaceWrite): Promise<Space>;
+  /**
+   * Atualiza nome e capacidade; com `equipment`, substitui observações e o conjunto inteiro de
+   * equipamentos na mesma unidade atômica. `null` se o espaço não existe.
+   */
+  update(id: string, input: SpaceWrite): Promise<Space | null>;
 }
 
 export interface PasswordHasher {
