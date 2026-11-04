@@ -16,6 +16,7 @@ function setup() {
   let counter = 0;
   const strip = ({ passwordHash: _hash, ...user }: UserRecord): User => user;
   const revoked: string[] = [];
+  const merged: Array<[string, string]> = [];
   let failNextCreate = false;
   let failNextUpdate = false;
   const isActiveAdmin = (r: UserRecord) => r.active && r.roles.includes("admin");
@@ -47,6 +48,7 @@ function setup() {
         code: input.code,
         roles: input.roles,
         active: true,
+        placeholder: false,
         passwordHash: input.passwordHash,
       };
       records.set(record.id, record);
@@ -79,6 +81,26 @@ function setup() {
       const found = records.get(id);
       if (found) found.passwordHash = passwordHash;
     },
+    activatePlaceholder: async (id, email, passwordHash) => {
+      const found = records.get(id);
+      if (!found?.placeholder) return false;
+      const normalized = normalizeEmail(email);
+      if ([...records.values()].some((r) => r.id !== id && r.email === normalized)) {
+        throw new Error("UNIQUE constraint failed: users.email");
+      }
+      Object.assign(found, { email: normalized, passwordHash, placeholder: false });
+      return true;
+    },
+    mergeInto: async (fromId, toId) => {
+      const from = records.get(fromId);
+      const to = records.get(toId);
+      if (!from?.placeholder || !to || to.placeholder || !to.active || fromId === toId) {
+        return false;
+      }
+      records.delete(fromId);
+      merged.push([fromId, toId]);
+      return true;
+    },
   };
   const sessions: SessionRepository = {
     create: async () => {},
@@ -106,6 +128,7 @@ function setup() {
     service,
     records,
     revoked,
+    merged,
     valid,
     failNextCreate: () => {
       failNextCreate = true;
@@ -221,6 +244,7 @@ describe("corrida na criação", () => {
             code: input.code,
             roles: input.roles,
             active: true,
+            placeholder: false,
             passwordHash: input.passwordHash,
           });
           hide = false;
@@ -228,6 +252,8 @@ describe("corrida na criação", () => {
         },
         update: async () => null,
         setActive: async () => true,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
         updatePasswordHash: async () => {},
       },
       sessions: {
@@ -254,7 +280,15 @@ describe("corrida na criação", () => {
         findById: async () => null,
         findByCode: async () =>
           created
-            ? { id: "y", email: "z@x.br", name: "Z", code: "ANA", roles: [], active: true }
+            ? {
+                id: "y",
+                email: "z@x.br",
+                name: "Z",
+                code: "ANA",
+                roles: [],
+                active: true,
+                placeholder: false,
+              }
             : null,
         list: async () => [],
         create: async () => {
@@ -263,6 +297,8 @@ describe("corrida na criação", () => {
         },
         update: async () => null,
         setActive: async () => true,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
         updatePasswordHash: async () => {},
       },
       sessions: {
@@ -405,9 +441,12 @@ describe("editar conta", () => {
           code: null,
           roles: ["admin"],
           active: true,
+          placeholder: false,
         }),
         update: async () => null,
         setActive: async () => false,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
         updatePasswordHash: async () => {},
       },
       sessions: {
@@ -442,11 +481,21 @@ describe("editar conta", () => {
         findById: async () => {
           calls += 1;
           return calls === 1
-            ? { id: "a", email: "a@x.br", name: "A", code: null, roles: ["docente"], active: true }
+            ? {
+                id: "a",
+                email: "a@x.br",
+                name: "A",
+                code: null,
+                roles: ["docente"],
+                active: true,
+                placeholder: false,
+              }
             : null;
         },
         update: async () => null,
         setActive: async () => false,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
         updatePasswordHash: async () => {},
       },
       sessions: {
@@ -554,6 +603,122 @@ describe("redefinir senha", () => {
       ok: false,
       kind: "not_found",
     });
+  });
+});
+
+describe("conta fantasma: ativar e fundir", () => {
+  let ctx: ReturnType<typeof setup>;
+  const ghost = (id: string, over: Partial<UserRecord> = {}) => {
+    ctx.records.set(id, {
+      id,
+      email: `${id}@ifsc.edu.br`,
+      name: "Zeca Quintal",
+      code: null,
+      roles: ["docente"],
+      active: true,
+      placeholder: true,
+      passwordHash: "descartada",
+      ...over,
+    });
+  };
+  let realId = "";
+  beforeEach(async () => {
+    ctx = setup();
+    ghost("g1");
+    const created = await ctx.service.create(ctx.valid);
+    if (!created.ok) throw new Error("setup");
+    realId = created.value.id;
+  });
+
+  test("ativar grava e-mail normalizado e hash da senha e tira a marca", async () => {
+    const result = await ctx.service.activatePlaceholder("g1", {
+      email: " Zeca@IFSC.edu.br ",
+      password: OTHER_PASSWORD,
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      value: { id: "g1", email: "zeca@ifsc.edu.br", placeholder: false },
+    });
+    expect(ctx.records.get("g1")).toMatchObject({
+      email: "zeca@ifsc.edu.br",
+      passwordHash: `hash:${OTHER_PASSWORD}`,
+      placeholder: false,
+    });
+  });
+
+  test("ativar mantendo o e-mail presumido da própria fantasma é permitido", async () => {
+    const result = await ctx.service.activatePlaceholder("g1", {
+      email: "g1@ifsc.edu.br",
+      password: OTHER_PASSWORD,
+    });
+    expect(result.ok).toBe(true);
+  });
+
+  test("e-mail de outra conta: conflito 'Este e-mail já está em uso'", async () => {
+    expect(
+      await ctx.service.activatePlaceholder("g1", {
+        email: "ana@ifsc.edu.br",
+        password: OTHER_PASSWORD,
+      }),
+    ).toEqual({
+      ok: false,
+      kind: "conflict",
+      message: "Este e-mail já está em uso.",
+      field: "email",
+    });
+    expect(ctx.records.get("g1")?.placeholder).toBe(true);
+  });
+
+  test("e-mail inválido, senha curta, conta inexistente ou já ativada são recusados", async () => {
+    const valid = { email: "zeca@ifsc.edu.br", password: OTHER_PASSWORD };
+    expect(await ctx.service.activatePlaceholder("g1", { ...valid, email: "x" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "email",
+    });
+    expect(
+      await ctx.service.activatePlaceholder("g1", { ...valid, password: "curta" }), // betterleaks:allow
+    ).toMatchObject({ ok: false, kind: "validation", field: "password" });
+    expect(await ctx.service.activatePlaceholder("nao-existe", valid)).toMatchObject({
+      ok: false,
+      kind: "not_found",
+    });
+    expect(await ctx.service.activatePlaceholder(realId, valid)).toMatchObject({
+      ok: false,
+      kind: "validation",
+    });
+    expect(ctx.records.get("g1")?.placeholder).toBe(true);
+  });
+
+  test("fundir numa conta ativada e ativa apaga a fantasma", async () => {
+    expect(await ctx.service.mergePlaceholder("g1", realId)).toEqual({ ok: true, value: null });
+    expect(ctx.merged).toEqual([["g1", realId]]);
+    expect(ctx.records.has("g1")).toBe(false);
+  });
+
+  test("fundir em outra fantasma, em conta inativa ou inexistente é recusado", async () => {
+    ghost("g2");
+    ghost("off", { placeholder: false, active: false });
+    for (const target of ["g2", "off", "nao-existe", "g1"]) {
+      expect(await ctx.service.mergePlaceholder("g1", target)).toMatchObject({
+        ok: false,
+        kind: "validation",
+        field: "targetId",
+      });
+    }
+    expect(ctx.merged).toEqual([]);
+  });
+
+  test("só uma fantasma pode ser fundida; origem inexistente é not_found", async () => {
+    expect(await ctx.service.mergePlaceholder(realId, "g1")).toMatchObject({
+      ok: false,
+      kind: "validation",
+    });
+    expect(await ctx.service.mergePlaceholder("nao-existe", realId)).toMatchObject({
+      ok: false,
+      kind: "not_found",
+    });
+    expect(ctx.merged).toEqual([]);
   });
 });
 

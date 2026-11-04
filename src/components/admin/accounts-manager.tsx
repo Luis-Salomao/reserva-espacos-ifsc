@@ -7,7 +7,9 @@ import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
 import type { Role, User } from "#/domain/user";
 import {
+  activatePlaceholderAccountFn,
   createAccountFn,
+  mergePlaceholderAccountFn,
   resetAccountPasswordFn,
   setAccountActiveFn,
   updateAccountFn,
@@ -325,9 +327,160 @@ function ResetPasswordForm({
   );
 }
 
-type Mode = "view" | "edit" | "password";
+/** Ativa uma conta fantasma: e-mail real (vem o presumido) e senha inicial. */
+function ActivateAccountForm({ user, onDone }: { user: User; onDone: () => void }) {
+  const router = useRouter();
+  const uid = useId();
+  const [email, setEmail] = useState(user.email);
+  const [password, setPassword] = useState("");
+  const [pending, setPending] = useState(false);
+  const [result, setResult] = useState<AdminResponse<User> | null>(null);
+  useFocusInvalidField(result, uid);
 
-function AccountItem({ user, isSelf }: { user: User; isSelf: boolean }) {
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    setPending(true);
+    const response = await runAdminAction(() =>
+      activatePlaceholderAccountFn({ data: { id: user.id, email, password } }),
+    );
+    setPending(false);
+    setResult(response);
+    if (response.ok) {
+      await router.invalidate();
+      onDone();
+    }
+  }
+
+  const emailError = fieldError(result, "email");
+  const passwordError = fieldError(result, "password");
+  return (
+    <form onSubmit={onSubmit} className="mt-3 grid gap-3 border-t pt-3">
+      <GeneralError message={generalError(result)} />
+      <div className="grid gap-2">
+        <Label htmlFor={`${uid}-email`}>E-mail da pessoa</Label>
+        <Input
+          id={`${uid}-email`}
+          type="email"
+          autoComplete="off"
+          autoCapitalize="none"
+          spellCheck={false}
+          required
+          maxLength={254}
+          value={email}
+          onChange={(event) => setEmail(event.target.value)}
+          aria-invalid={emailError === undefined ? undefined : true}
+          aria-describedby={emailError === undefined ? undefined : `${uid}-email-error`}
+        />
+        <FieldError id={`${uid}-email-error`} message={emailError} />
+      </div>
+      <div className="grid gap-2">
+        <Label htmlFor={`${uid}-password`}>Senha inicial (mínimo 10 caracteres)</Label>
+        <Input
+          id={`${uid}-password`}
+          type="password"
+          autoComplete="new-password"
+          required
+          minLength={10}
+          maxLength={1024}
+          value={password}
+          onChange={(event) => setPassword(event.target.value)}
+          aria-invalid={passwordError === undefined ? undefined : true}
+          aria-describedby={passwordError === undefined ? undefined : `${uid}-password-error`}
+        />
+        <FieldError id={`${uid}-password-error`} message={passwordError} />
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "Ativando…" : "Ativar conta"}
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={onDone}>
+          Cancelar
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+/** Funde a fantasma numa conta ativada: as aulas e os vínculos do XML vão para ela. */
+function MergeAccountForm({
+  user,
+  targets,
+  onDone,
+}: {
+  user: User;
+  targets: readonly User[];
+  onDone: () => void;
+}) {
+  const router = useRouter();
+  const uid = useId();
+  const [targetId, setTargetId] = useState("");
+  const [pending, setPending] = useState(false);
+  const [result, setResult] = useState<AdminResponse<null> | null>(null);
+  useFocusInvalidField(result, uid);
+
+  async function onSubmit(event: FormEvent) {
+    event.preventDefault();
+    setPending(true);
+    const response = await runAdminAction(() =>
+      mergePlaceholderAccountFn({ data: { id: user.id, targetId } }),
+    );
+    setPending(false);
+    setResult(response);
+    if (response.ok) await router.invalidate();
+  }
+
+  const targetError = fieldError(result, "targetId");
+  return (
+    <form onSubmit={onSubmit} className="mt-3 grid gap-3 border-t pt-3">
+      <GeneralError message={generalError(result)} />
+      <div className="grid gap-2">
+        <Label htmlFor={`${uid}-targetId`}>Conta que recebe as aulas</Label>
+        <select
+          id={`${uid}-targetId`}
+          required
+          value={targetId}
+          onChange={(event) => setTargetId(event.target.value)}
+          aria-invalid={targetError === undefined ? undefined : true}
+          aria-describedby={`${uid}-targetId-hint${targetError === undefined ? "" : ` ${uid}-targetId-error`}`}
+          className="h-10 w-full min-w-0 rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring"
+        >
+          <option value="">Escolha uma conta</option>
+          {targets.map((target) => (
+            <option key={target.id} value={target.id}>
+              {target.name} ({target.email})
+            </option>
+          ))}
+        </select>
+        <FieldError id={`${uid}-targetId-error`} message={targetError} />
+        <p id={`${uid}-targetId-hint`} className="text-sm text-muted-foreground">
+          As aulas e os vínculos do XML desta conta passam para a conta escolhida, e esta conta é
+          apagada.
+        </p>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        <Button type="submit" size="sm" disabled={pending}>
+          {pending ? "Fundindo…" : "Fundir"}
+        </Button>
+        <Button type="button" size="sm" variant="outline" onClick={onDone}>
+          Cancelar
+        </Button>
+      </div>
+    </form>
+  );
+}
+
+type Mode = "view" | "edit" | "password" | "activate" | "merge";
+
+function AccountItem({
+  user,
+  isSelf,
+  mergeTargets,
+}: {
+  user: User;
+  isSelf: boolean;
+  /** Contas ativadas e ativas que podem receber as aulas de uma fantasma. */
+  mergeTargets: readonly User[];
+}) {
   const router = useRouter();
   const [mode, setMode] = useState<Mode>("view");
   const [pending, setPending] = useState(false);
@@ -359,9 +512,33 @@ function AccountItem({ user, isSelf }: { user: User; isSelf: boolean }) {
               {user.code !== null && ` · Sigla ${user.code}`}
             </p>
           </div>
-          <Tag tone={user.active ? "free" : "conflict"}>{user.active ? "Ativa" : "Inativa"}</Tag>
+          <div className="flex flex-wrap gap-1.5">
+            {user.placeholder && <Tag tone="neutral">Não ativada</Tag>}
+            <Tag tone={user.active ? "free" : "conflict"}>{user.active ? "Ativa" : "Inativa"}</Tag>
+          </div>
         </div>
         <div className="mt-3 flex flex-wrap gap-2">
+          {user.placeholder && (
+            <>
+              <Button
+                type="button"
+                size="sm"
+                aria-expanded={mode === "activate"}
+                onClick={() => setMode(mode === "activate" ? "view" : "activate")}
+              >
+                Ativar
+              </Button>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                aria-expanded={mode === "merge"}
+                onClick={() => setMode(mode === "merge" ? "view" : "merge")}
+              >
+                Fundir
+              </Button>
+            </>
+          )}
           <Button
             type="button"
             size="sm"
@@ -397,6 +574,10 @@ function AccountItem({ user, isSelf }: { user: User; isSelf: boolean }) {
         )}
         {mode === "edit" && <EditAccountForm user={user} onDone={toView} />}
         {mode === "password" && <ResetPasswordForm user={user} isSelf={isSelf} onDone={toView} />}
+        {mode === "activate" && <ActivateAccountForm user={user} onDone={toView} />}
+        {mode === "merge" && (
+          <MergeAccountForm user={user} targets={mergeTargets} onDone={toView} />
+        )}
       </Card>
     </li>
   );
@@ -409,16 +590,33 @@ export function AccountsManager({
   users: User[];
   currentUserId: string;
 }) {
+  const [onlyPlaceholders, setOnlyPlaceholders] = useState(false);
+  const visible = onlyPlaceholders ? users.filter((user) => user.placeholder) : users;
+  const mergeTargets = users.filter((user) => !user.placeholder && user.active);
   return (
     <div className="grid gap-6">
       <CreateAccountForm />
       <section aria-labelledby="accounts-title" className="grid gap-3">
         <h2 id="accounts-title" className="text-lg font-semibold tracking-tight">
-          Contas ({users.length})
+          Contas ({visible.length})
         </h2>
+        <label className="flex w-fit items-center gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={onlyPlaceholders}
+            onChange={(event) => setOnlyPlaceholders(event.target.checked)}
+            className="size-4 accent-primary"
+          />
+          Só não ativadas
+        </label>
         <ul className="grid gap-3">
-          {users.map((user) => (
-            <AccountItem key={user.id} user={user} isSelf={user.id === currentUserId} />
+          {visible.map((user) => (
+            <AccountItem
+              key={user.id}
+              user={user}
+              isSelf={user.id === currentUserId}
+              mergeTargets={mergeTargets}
+            />
           ))}
         </ul>
       </section>

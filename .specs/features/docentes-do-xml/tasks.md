@@ -79,9 +79,9 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] `bun run db:generate` gera a migração; aplica em bun:sqlite e D1 local
-- [ ] Contas existentes leem `placeholder = false`
-- [ ] Gate check passes: `bun test`
+- [x] `bun run db:generate` gera a migração; aplica em bun:sqlite e D1 local
+- [x] Contas existentes leem `placeholder = false`
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full
@@ -100,8 +100,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Teste: fantasma com senha "correta" recebe a mesma falha de credencial inválida
-- [ ] Gate check passes: `bun test src/application`
+- [x] Teste: fantasma com senha "correta" recebe a mesma falha de credencial inválida
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick
@@ -120,9 +120,9 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Teste: XML sintético com nome, e-mail, celular, gênero e cor gera DTO só com `id`, `short` e `name`
-- [ ] Teste: fallback `firstname lastname` e sigla
-- [ ] Gate check passes: `bun test src/import-asc src/server`
+- [x] Teste: XML sintético com nome, e-mail, celular, gênero e cor gera DTO só com `id`, `short` e `name`
+- [x] Teste: fallback `firstname lastname` e sigla
+- [x] Gate check passes: `bun test src/import-asc src/server`
 
 **Tests**: unit
 **Gate**: quick
@@ -141,8 +141,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: acentos, nome de uma palavra, nome vazio (`docente.ID@`), colisão `2` e `3`, resultado sempre válido
-- [ ] Gate check passes: `bun test src/domain`
+- [x] Testes: acentos, nome de uma palavra, nome vazio (`docente.ID@`), colisão `2` e `3`, resultado sempre válido
+- [x] Gate check passes: `bun test src/domain`
 
 **Tests**: unit
 **Gate**: quick
@@ -161,9 +161,9 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Teste: contas e vínculos gravados juntos
-- [ ] Teste: e-mail duplicado no meio do lote não deixa nenhuma conta nem vínculo
-- [ ] Gate check passes: `bun test`
+- [x] Teste: contas e vínculos gravados juntos
+- [x] Teste: e-mail duplicado no meio do lote não deixa nenhuma conta nem vínculo
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full
@@ -182,8 +182,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: criação, colisão de e-mail, código ocupado vira `null`, reaproveita fantasma, `userId` + `createPlaceholder` juntos é erro
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: criação, colisão de e-mail, código ocupado vira `null`, reaproveita fantasma, `userId` + `createPlaceholder` juntos é erro
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick
@@ -202,9 +202,9 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: sem vínculo e sem sugestão → `fantasma`; com sugestão → `sugestao`; salvo → `salvo`
-- [ ] Teste de ação: entrada inválida recusada
-- [ ] Gate check passes: `bun test src/application src/server`
+- [x] Testes: sem vínculo e sem sugestão → `fantasma`; com sugestão → `sugestao`; salvo → `salvo`
+- [x] Teste de ação: entrada inválida recusada
+- [x] Gate check passes: `bun test src/application src/server`
 
 **Tests**: unit
 **Gate**: quick
@@ -223,8 +223,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Teste: `teacherMappingsToSave` gera `createPlaceholder` com o nome
-- [ ] Gate check passes: `bun test src/components test/components`
+- [x] Teste: `teacherMappingsToSave` gera `createPlaceholder` com o nome
+- [x] Gate check passes: `bun test src/components test/components`
 
 **Tests**: unit
 **Gate**: quick
@@ -243,8 +243,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: avulsa e cancelada intocadas; fora do semestre intocada; repetir não muda nada
-- [ ] Gate check passes: `bun test`
+- [x] Testes: avulsa e cancelada intocadas; fora do semestre intocada; repetir não muda nada
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full
@@ -260,11 +260,12 @@ T14 → T15 → T16
 **Depends on**: T9
 **Reuses**: `responsibleOf`, `loadMaps`, `latestAppliedBatchId`
 **Requirement**: DOC-08, DOC-09
+**Desvio**: os testes ficam em `src/infra/db/flow/import-version.test.ts` (com repositórios reais), porque o depcruise proíbe teste de `src/application` importar infra; `refreshResponsibles` não recebe `actorId`, que não seria usado.
 
 **Done when**:
 
-- [ ] Testes: hash diferente recusa sem escrita; resultado com `changed` e `withoutResponsible`; idempotente
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: hash diferente recusa sem escrita; resultado com `changed` e `withoutResponsible`; idempotente
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick
@@ -280,11 +281,12 @@ T14 → T15 → T16
 **Depends on**: T10
 **Reuses**: leitura de XML do fluxo de importação
 **Requirement**: DOC-08, DOC-09
+**Desvio**: o XML vai numa rota de API (`/api/import-responsibles`, em `src/server/import-prepare.ts`), como o preparo, e não numa server fn; o corpo é limitado a 10 MB e o papel é checado antes da leitura. O botão fica em `batch-detail.tsx`, o componente da página do lote.
 
 **Done when**:
 
-- [ ] Teste de ação: 403 para docente; caminho feliz
-- [ ] Gate check passes: `bun test src/server src/routes`
+- [x] Teste de ação: 403 para docente; caminho feliz
+- [x] Gate check passes: `bun test src/server src/routes`
 
 **Tests**: unit
 **Gate**: quick
@@ -303,8 +305,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: logado recebe `placeholder`; visitante recebe `person: null`
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: logado recebe `placeholder`; visitante recebe `person: null`
+- [x] Gate check passes: `bun test src/application`
 
 **Tests**: unit
 **Gate**: quick
@@ -323,8 +325,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: avatar com pessoa; nenhum avatar com `person: null`; cartão baixo com rótulo acessível; selo em fantasma
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: avatar com pessoa; nenhum avatar com `person: null`; cartão baixo com rótulo acessível; selo em fantasma
+- [x] Gate check passes: `bun test test/components`
 
 **Tests**: unit
 **Gate**: quick
@@ -343,8 +345,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: fusão move responsável e `created_by` e vínculos e apaga a fantasma; ativação remove a marca
-- [ ] Gate check passes: `bun test`
+- [x] Testes: fusão move responsável e `created_by` e vínculos e apaga a fantasma; ativação remove a marca
+- [x] Gate check passes: `bun test`
 
 **Tests**: integration
 **Gate**: full
@@ -363,8 +365,8 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Testes: e-mail em uso, alvo fantasma, alvo inativo, não admin (403), caminhos felizes
-- [ ] Gate check passes: `bun test src/application src/server`
+- [x] Testes: e-mail em uso, alvo fantasma, alvo inativo, não admin (403), caminhos felizes
+- [x] Gate check passes: `bun test src/application src/server`
 
 **Tests**: unit
 **Gate**: quick
@@ -380,11 +382,12 @@ T14 → T15 → T16
 **Depends on**: T15
 **Reuses**: diálogos atuais de conta
 **Requirement**: DOC-10, DOC-11
+**Desvio**: "Ativar" e "Fundir" abrem formulários dentro do cartão da conta, como "Editar" e "Redefinir senha" (os "diálogos atuais de conta" são formulários embutidos, não modais).
 
 **Done when**:
 
-- [ ] Testes: selo, filtro, envio dos dois diálogos
-- [ ] Gate check passes: `bun test src/components`
+- [x] Testes: selo, filtro, envio dos dois diálogos
+- [x] Gate check passes: `bun test src/components`
 
 **Tests**: unit
 **Gate**: quick

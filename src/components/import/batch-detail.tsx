@@ -5,6 +5,7 @@ import { BatchCounts } from "./batch-counts";
 import { BatchRows, type LoadRows } from "./batch-rows";
 import { DiscardBatchButton } from "./discard-button";
 import { BATCH_STATUS_LABELS, formatInstant, type VersionView } from "./flow-helpers";
+import { RefreshResponsibles } from "./refresh-responsibles";
 import { VersionOverview, VersionResult } from "./version-overview";
 
 /** Lote reaberto: cabeçalho, contagens e a mesma tabela por linha do fim da importação. */
@@ -46,6 +47,7 @@ export function BatchDetail({
         )}
       </div>
       <DiscardBatchButton batch={batch} onDiscarded={onDiscarded} />
+      <RefreshResponsibles batch={batch} />
       {version !== undefined && (
         <VersionOverview
           version={version}

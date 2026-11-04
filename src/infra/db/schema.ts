@@ -22,6 +22,8 @@ export const users = sqliteTable("users", {
   roles: text("roles").notNull(),
   passwordHash: text("password_hash").notNull(),
   active: integer("active", { mode: "boolean" }).notNull().default(true),
+  /** Conta fantasma: criada para um docente do XML sem conta; não entra até ser ativada. */
+  placeholder: integer("placeholder", { mode: "boolean" }).notNull().default(false),
   createdAt: text("created_at").notNull(),
   updatedAt: text("updated_at").notNull(),
 });

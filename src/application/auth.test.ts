@@ -46,6 +46,7 @@ function setup(hasherOverride?: PasswordHasher) {
     code: "ANA",
     roles: ["admin"],
     active: true,
+    placeholder: false,
     passwordHash: `fake:${SECRET}`,
   };
   const userMap = new Map<string, UserRecord>([[record.email, record]]);
@@ -67,6 +68,8 @@ function setup(hasherOverride?: PasswordHasher) {
     findByCode: async () => null,
     update: async () => null,
     setActive: async () => true,
+    activatePlaceholder: async () => false,
+    mergeInto: async () => false,
   };
   const sessionMap = new Map<string, Session>();
   const sessions: SessionRepository = {
@@ -151,6 +154,7 @@ describe("login", () => {
       code: "ANA",
       roles: ["admin"],
       active: true,
+      placeholder: false,
     });
     expect(result.token).toMatch(/^[A-Za-z0-9_-]{43}$/);
   });
@@ -182,6 +186,19 @@ describe("login", () => {
       ok: false,
       reason: "invalid",
     });
+  });
+
+  test("conta fantasma não entra: mesma falha e mesmo custo da senha errada", async () => {
+    ctx.record.placeholder = true;
+    const ghost = await ctx.service.login("ana@ifsc.edu.br", SECRET);
+    const wrong = await ctx.service.login("outra@ifsc.edu.br", WRONG);
+    expect(ghost).toEqual({ ok: false, reason: "invalid" });
+    expect(ghost).toEqual(wrong);
+    expect(ctx.hasher.calls).toHaveLength(2);
+    expect(ctx.sessionMap.size).toBe(0);
+    expect(ctx.attemptList.filter((a) => a.email === "ana@ifsc.edu.br")).toEqual([
+      expect.objectContaining({ success: false }),
+    ]);
   });
 
   test("bloqueia após 5 falhas em 15 minutos, mesmo com a senha certa", async () => {
@@ -295,6 +312,8 @@ describe("login: entradas, expurgo e hash fictício", () => {
         findByCode: async () => null,
         update: async () => null,
         setActive: async () => true,
+        activatePlaceholder: async () => false,
+        mergeInto: async () => false,
       },
       sessions: {
         create: async () => {},

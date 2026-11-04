@@ -5,7 +5,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { cleanup, fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { EMPTY_COUNTS, type ImportBatch } from "#/domain/import-batch";
 import type { PreviewView } from "#/server/import-preview-view";
 
@@ -35,6 +35,7 @@ const batch = (status: ImportBatch["status"]): ImportBatch => ({
 
 const applyCalls: string[] = [];
 const discardCalls: string[] = [];
+const teacherSaves: unknown[] = [];
 let inProgress: unknown[] = [];
 let rowsResponse: unknown = { ok: false, status: 404, message: "sem linhas no teste" };
 
@@ -45,7 +46,10 @@ mock.module("#/server/import-fns", () => ({
   }),
   suggestMappingsFn: async () => ({ ok: true, data: { rooms: [], teachers: [] } }),
   saveRoomMappingsFn: async () => ({ ok: true, data: null }),
-  saveTeacherMappingsFn: async () => ({ ok: true, data: null }),
+  saveTeacherMappingsFn: async ({ data }: { data: unknown }) => {
+    teacherSaves.push(data);
+    return { ok: true, data: null };
+  },
   createImportSpaceFn: async () => ({ ok: true, data: { id: "x", name: "x" } }),
   applyImportBatchFn: async () => {
     applyCalls.push("apply");
@@ -61,6 +65,7 @@ mock.module("#/server/import-fns", () => ({
 }));
 
 const { ImportFlow } = await import("./import-flow");
+const { TeacherMappingStep } = await import("./mapping-steps");
 
 const view = {
   rooms: [],
@@ -349,5 +354,65 @@ describe("ImportFlow: nova versão da grade", () => {
     const discard = await screen.findByRole("button", { name: "Descartar lote" });
     expect((discard as HTMLButtonElement).disabled).toBe(true);
     expect(screen.getByText(/retome a aplicação/)).toBeTruthy();
+  });
+});
+
+describe("TeacherMappingStep: conta fantasma", () => {
+  test("docente sem vínculo nem sugestão vem com 'Criar conta fantasma' e salva com o nome", async () => {
+    teacherSaves.length = 0;
+    render(
+      <TeacherMappingStep
+        teachers={[
+          { id: "P1", short: "ZQ", name: "Zeca Quintal" },
+          { id: "P2", short: "RE", name: "Conta Real" },
+        ]}
+        suggestions={[
+          {
+            sourceId: "P1",
+            short: "ZQ",
+            name: "Zeca Quintal",
+            saved: null,
+            suggestion: null,
+            defaultAction: "fantasma",
+          },
+          {
+            sourceId: "P2",
+            short: "RE",
+            name: "Conta Real",
+            saved: null,
+            suggestion: { userId: "u1", origin: "codigo" },
+            defaultAction: "sugestao",
+          },
+        ]}
+        accounts={[{ id: "u1", name: "Conta Real", code: "RE" }]}
+        onSaved={() => {}}
+        onDirtyChange={() => {}}
+      />,
+    );
+    const ghost = screen.getByLabelText("Zeca Quintal (ZQ)");
+    expect(within(ghost).getByRole("option", { name: "Criar conta fantasma" })).toHaveProperty(
+      "selected",
+      true,
+    );
+    const suggested = screen.getByLabelText("Conta Real (RE)");
+    expect(within(suggested).getByRole("option", { name: "Conta Real (RE)" })).toHaveProperty(
+      "selected",
+      true,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Salvar vínculos de docentes" }));
+    await screen.findByText("Vínculos de docentes salvos.");
+    expect(teacherSaves).toEqual([
+      {
+        items: [
+          {
+            sourceTeacherId: "P1",
+            sourceShort: "ZQ",
+            userId: null,
+            createPlaceholder: { name: "Zeca Quintal" },
+          },
+          { sourceTeacherId: "P2", sourceShort: "RE", userId: "u1" },
+        ],
+      },
+    ]);
   });
 });

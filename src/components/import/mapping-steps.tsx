@@ -11,6 +11,7 @@ import {
 import {
   CREATE_VALUE,
   IGNORE_VALUE,
+  PLACEHOLDER_VALUE,
   roomChoiceOf,
   roomMappingsToSave,
   roomsToCreate,
@@ -181,14 +182,17 @@ export function RoomMappingStep({
 }
 
 type TeacherProps = {
-  teachers: ReadonlyArray<{ id: string; short: string }>;
+  teachers: ReadonlyArray<{ id: string; short: string; name: string }>;
   suggestions: readonly TeacherSuggestion[];
   accounts: readonly Account[];
   onSaved: () => void;
   onDirtyChange: (dirty: boolean) => void;
 };
 
-/** Passo 3: de-para de docentes (sugestão pela sigla = código da conta; escolha manual; sem vínculo). */
+/**
+ * Passo 3: de-para de docentes (sugestão pela sigla = código da conta; escolha manual; sem vínculo;
+ * criar conta fantasma, que vem marcado para o docente sem vínculo salvo e sem sugestão).
+ */
 export function TeacherMappingStep({
   teachers,
   suggestions,
@@ -245,7 +249,9 @@ export function TeacherMappingStep({
                 className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] sm:items-center shadow-none"
               >
                 <label htmlFor={id} className="break-words font-medium">
-                  {teacher.short}
+                  {teacher.name && teacher.name !== teacher.short
+                    ? `${teacher.name} (${teacher.short})`
+                    : teacher.short}
                 </label>
                 <select
                   id={id}
@@ -253,6 +259,7 @@ export function TeacherMappingStep({
                   onChange={(event) => setChoices({ ...choices, [teacher.id]: event.target.value })}
                   className={SELECT_CLASS}
                 >
+                  <option value={PLACEHOLDER_VALUE}>Criar conta fantasma</option>
                   <option value="">Sem vínculo (aula sem responsável)</option>
                   {accounts.map((account) => (
                     <option key={account.id} value={userValue(account.id)}>

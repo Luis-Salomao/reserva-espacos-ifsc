@@ -18,7 +18,7 @@ import { createSessionRepository } from "#/infra/db/repos/session-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 import { createUserRepository } from "#/infra/db/repos/user-repository";
 import * as schema from "#/infra/db/schema";
-import { systemClock } from "#/infra/runtime";
+import { cryptoRandom, systemClock } from "#/infra/runtime";
 import { prepareImport } from "./import-actions.ts";
 import {
   createImportSpace,
@@ -83,6 +83,12 @@ async function setup() {
       spaces,
       users,
       clock: systemClock,
+      hasher: {
+        hash: async (p: string) => `hash:${p}`,
+        verify: async () => false,
+        needsRehash: () => false,
+      },
+      random: cryptoRandom,
     }),
     report: createImportReportService({ imports, spaces, users, semesters }),
     spaces: createSpacesService({ spaces }),

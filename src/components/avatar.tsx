@@ -38,6 +38,7 @@ export function Avatar({ name, size = "md", className }: Props) {
   return (
     <span
       aria-hidden="true"
+      data-slot="avatar"
       className={cn(
         "inline-grid shrink-0 place-items-center rounded-full font-semibold tracking-tight select-none",
         SIZES[size],

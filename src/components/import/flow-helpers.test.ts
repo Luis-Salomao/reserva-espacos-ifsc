@@ -10,6 +10,7 @@ import {
   formatInstant,
   groupAlterations,
   IGNORE_VALUE,
+  PLACEHOLDER_VALUE,
   pairBeforeAfter,
   resultCards,
   roomChoiceOf,
@@ -106,29 +107,47 @@ describe("escolhas de docente", () => {
   const teacher = (over: Partial<TeacherSuggestion>): TeacherSuggestion => ({
     sourceId: "P1",
     short: "FT",
+    name: "Docente Um",
     saved: null,
     suggestion: null,
+    defaultAction: "fantasma",
     ...over,
   });
-  test("salvo, sugerido ou sem vínculo", () => {
-    expect(teacherChoiceOf(teacher({}))).toBe("");
-    expect(teacherChoiceOf(teacher({ suggestion: { userId: "u1", origin: "codigo" } }))).toBe(
-      userValue("u1"),
-    );
+  test("salvo, sugerido ou, sem nenhum dos dois, criar conta fantasma", () => {
+    expect(teacherChoiceOf(teacher({ defaultAction: "fantasma" }))).toBe(PLACEHOLDER_VALUE);
     expect(
       teacherChoiceOf(
-        teacher({ saved: { userId: null }, suggestion: { userId: "u1", origin: "codigo" } }),
+        teacher({ suggestion: { userId: "u1", origin: "codigo" }, defaultAction: "sugestao" }),
+      ),
+    ).toBe(userValue("u1"));
+    expect(
+      teacherChoiceOf(
+        teacher({
+          saved: { userId: null },
+          suggestion: { userId: "u1", origin: "codigo" },
+          defaultAction: "salvo",
+        }),
       ),
     ).toBe("");
+    expect(teacherChoiceOf(teacher({ saved: { userId: "u2" }, defaultAction: "salvo" }))).toBe(
+      userValue("u2"),
+    );
   });
-  test("grava todos, com null explícito quando sem vínculo", () => {
+  test("grava todos, com null explícito quando sem vínculo e o nome ao criar fantasma", () => {
     const list = [
-      { id: "P1", short: "FT" },
-      { id: "P2", short: "BE" },
+      { id: "P1", short: "FT", name: "Fulano Testador" },
+      { id: "P2", short: "BE", name: "Beltrana Exemplo" },
+      { id: "P3", short: "ZQ", name: "Zeca Quintal" },
     ];
-    expect(teacherMappingsToSave(list, { P1: userValue("u1") })).toEqual([
+    expect(teacherMappingsToSave(list, { P1: userValue("u1"), P3: PLACEHOLDER_VALUE })).toEqual([
       { sourceTeacherId: "P1", sourceShort: "FT", userId: "u1" },
       { sourceTeacherId: "P2", sourceShort: "BE", userId: null },
+      {
+        sourceTeacherId: "P3",
+        sourceShort: "ZQ",
+        userId: null,
+        createPlaceholder: { name: "Zeca Quintal" },
+      },
     ]);
   });
 });

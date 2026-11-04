@@ -35,8 +35,11 @@ const ALREADY_CANCELLED = "Esta ocupação já foi cancelada.";
 const SERIES_CHANGED = "A série mudou desde a confirmação. Revise as datas e confirme de novo.";
 const RACE_LOST = "O horário foi ocupado por outra reserva. Atualize a agenda e escolha outro.";
 
-/** Pessoa ligada à ocupação: responsável (importada) ou quem reservou (avulsa). */
-export type AgendaPerson = { name: string; code: string | null };
+/**
+ * Pessoa ligada à ocupação: responsável (importada) ou quem reservou (avulsa). `placeholder`:
+ * conta fantasma, criada pela importação e ainda não ativada.
+ */
+export type AgendaPerson = { name: string; code: string | null; placeholder: boolean };
 
 /**
  * Item da agenda, sem ids de pessoas. `person` só vem para quem está logado (visitante recebe
@@ -217,7 +220,12 @@ export function createBookingsService(deps: BookingsDeps) {
   async function peopleFor(viewer: User | null): Promise<People> {
     if (viewer === null) return NO_PEOPLE;
     const all = await users.list();
-    return new Map(all.map((user) => [user.id, { name: user.name, code: user.code }]));
+    return new Map(
+      all.map((user) => [
+        user.id,
+        { name: user.name, code: user.code, placeholder: user.placeholder },
+      ]),
+    );
   }
 
   async function spaceName(spaceId: string): Promise<string | null> {
