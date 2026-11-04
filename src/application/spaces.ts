@@ -104,6 +104,8 @@ function parseEquipment(input: EquipmentInput): Result<SpaceEquipment> {
 }
 
 const DUPLICATE = "Já existe um espaço com este nome.";
+const NOT_FOUND = "Espaço não encontrado.";
+const IN_USE = "Este espaço tem reservas, aulas ou vínculo com o XML e não pode ser excluído.";
 
 export function createSpacesService(deps: { spaces: SpaceRepository }) {
   const { spaces } = deps;
@@ -155,11 +157,19 @@ export function createSpacesService(deps: { spaces: SpaceRepository }) {
       if (await nameTaken(parsed.value.name, id)) return fail("conflict", DUPLICATE, "name");
       try {
         const updated = await spaces.update(id, parsed.value);
-        return updated === null ? fail("not_found", "Espaço não encontrado.") : ok(updated);
+        return updated === null ? fail("not_found", NOT_FOUND) : ok(updated);
       } catch (error) {
         if (await nameTaken(parsed.value.name, id)) return fail("conflict", DUPLICATE, "name");
         throw error;
       }
+    },
+
+    /** Só exclui espaço sem ocupações (mesmo canceladas), vínculo de sala ou linha de importação. */
+    async remove(id: string): Promise<Result<null>> {
+      const outcome = await spaces.remove(id);
+      if (outcome === "in_use") return fail("conflict", IN_USE);
+      if (outcome === "not_found") return fail("not_found", NOT_FOUND);
+      return ok(null);
     },
   };
 }
