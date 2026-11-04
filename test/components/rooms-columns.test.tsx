@@ -158,4 +158,21 @@ describe("RoomsColumns", () => {
     const template = (grid.firstElementChild as HTMLElement).style.gridTemplateColumns;
     expect(template).toBe("52px repeat(3, minmax(140px, 1fr))");
   });
+
+  test("nomes das salas ficam fixos no topo e o eixo de horas fixo à esquerda ao rolar a grade", async () => {
+    await renderColumns();
+    const grid = screen.getByTestId("rooms-columns");
+    const headers = within(grid)
+      .getAllByRole("link")
+      .map((link) => (link.parentElement as HTMLElement).className.split(" "));
+    expect(headers).toHaveLength(3);
+    for (const classes of headers)
+      expect(classes).toEqual(expect.arrayContaining(["sticky", "top-0"]));
+    const cells = Array.from((grid.firstElementChild as HTMLElement).children) as HTMLElement[];
+    const axis = cells[headers.length + 1];
+    expect(axis?.className.split(" ")).toEqual(expect.arrayContaining(["sticky", "left-0"]));
+    expect(cells[0]?.className.split(" ")).toEqual(
+      expect.arrayContaining(["sticky", "top-0", "left-0"]),
+    );
+  });
 });

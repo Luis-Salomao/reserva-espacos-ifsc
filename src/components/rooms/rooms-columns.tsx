@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import type { AgendaItem, RoomDay } from "#/application/bookings";
+import type { RoomDay } from "#/application/bookings";
 import { HourAxis, makeScale } from "#/components/agenda/agenda-blocks";
 import { DayColumn } from "#/components/agenda/day-column";
 import type { Draft } from "#/components/agenda/draft-booking";
@@ -18,7 +18,6 @@ type Props = {
   canDraft: boolean;
   onDraftChange: (draft: RoomDraft | null) => void;
   onSelectSlot: (slot: Slot) => void;
-  onOpenOccupation?: ((occupation: AgendaItem, room: RoomDay) => void) | undefined;
 };
 
 const AXIS_WIDTH = 52;
@@ -36,7 +35,6 @@ export function RoomsColumns({
   canDraft,
   onDraftChange,
   onSelectSlot,
-  onOpenOccupation,
 }: Props) {
   const hours = rooms[0]?.hours ?? { opens: "06:00", closes: "23:00" };
   const scale = makeScale(hours.opens, hours.closes, 0.9);
@@ -82,9 +80,6 @@ export function RoomsColumns({
               scale={scale}
               now={nowTime}
               onSelectSlot={onSelectSlot}
-              onOpenOccupation={
-                onOpenOccupation && ((occupation) => onOpenOccupation(occupation, room))
-              }
               draft={draft?.spaceId === room.spaceId ? draft : null}
               canDraft={canDraft}
               onDraftChange={(next) =>

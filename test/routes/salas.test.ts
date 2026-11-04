@@ -153,6 +153,28 @@ describe("loadSalas", () => {
   });
 });
 
+describe("Route.loaderDeps", () => {
+  test("só a data dispara nova carga: janela, filtros e visão mudam sem ir ao servidor", () => {
+    type DepsArgs = Parameters<NonNullable<typeof Route.options.loaderDeps>>[0];
+    const deps = (search: Record<string, unknown>) =>
+      Route.options.loaderDeps?.({ search } as unknown as DepsArgs);
+    const base = { data: "2026-11-10" };
+    const changed = {
+      ...base,
+      visao: "livres",
+      ini: "14:00",
+      fim: "16:00",
+      bloco: ["A"],
+      cap: 30,
+      q: "lab",
+      livres: true,
+    };
+    expect(deps(changed)).toEqual({ data: "2026-11-10" });
+    expect(deps(changed)).toEqual(deps(base));
+    expect(deps({ data: "2026-11-11" })).not.toEqual(deps(base));
+  });
+});
+
 describe("Route.beforeLoad", () => {
   type GuardArgs = Parameters<NonNullable<typeof Route.options.beforeLoad>>[0];
   const beforeLoad = (context: { session: SessionInfo }) =>
