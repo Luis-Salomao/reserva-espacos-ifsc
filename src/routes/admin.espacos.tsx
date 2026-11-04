@@ -1,6 +1,6 @@
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, useRouter } from "@tanstack/react-router";
 import { AdminNav } from "#/components/admin/admin-nav";
-import { SpacesManager } from "#/components/admin/spaces-manager";
+import { SpacesLoadError, SpacesManager } from "#/components/admin/spaces-manager";
 import { AppShell } from "#/components/app-shell";
 import { Notice, PageHeader } from "#/components/page";
 import { listAdminSpacesFn } from "#/server/admin";
@@ -14,7 +14,8 @@ export const Route = createFileRoute("/admin/espacos")({
     return result.data;
   },
   component: SpacesPage,
-  errorComponent: AdminError,
+  pendingComponent: SpacesPending,
+  errorComponent: SpacesError,
 });
 
 function SpacesPage() {
@@ -28,12 +29,23 @@ function SpacesPage() {
   );
 }
 
-function AdminError() {
+function SpacesPending() {
   return (
     <AppShell>
-      <Notice tone="error" role="alert">
-        Não foi possível carregar os espaços. Tente novamente em instantes.
-      </Notice>
+      <PageHeader title="Administração" description="Espaços reserváveis." />
+      <AdminNav />
+      <Notice role="status">Carregando espaços…</Notice>
+    </AppShell>
+  );
+}
+
+function SpacesError() {
+  const router = useRouter();
+  return (
+    <AppShell>
+      <PageHeader title="Administração" description="Espaços reserváveis." />
+      <AdminNav />
+      <SpacesLoadError onRetry={() => void router.invalidate()} />
     </AppShell>
   );
 }

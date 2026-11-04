@@ -1,7 +1,7 @@
 {
   "version": "6",
   "dialect": "sqlite",
-  "id": "7482bf3a-6c56-4835-9954-8ea8e363753a",
+  "id": "7e510186-0b4e-4279-9cfb-6ee8ae29a637",
   "prevId": "958f341b-5aa6-4ddb-9d3d-87edcc49c759",
   "tables": {
     "import_batches": {
@@ -413,13 +413,6 @@
           "primaryKey": false,
           "notNull": false,
           "autoincrement": false
-        },
-        "series_id": {
-          "name": "series_id",
-          "type": "text",
-          "primaryKey": false,
-          "notNull": false,
-          "autoincrement": false
         }
       },
       "indexes": {
@@ -427,14 +420,6 @@
           "name": "occupations_space_starts_idx",
           "columns": [
             "space_id",
-            "starts_at"
-          ],
-          "isUnique": false
-        },
-        "occupations_series_idx": {
-          "name": "occupations_series_idx",
-          "columns": [
-            "series_id",
             "starts_at"
           ],
           "isUnique": false
@@ -860,6 +845,59 @@
       "uniqueConstraints": {},
       "checkConstraints": {}
     },
+    "space_equipment": {
+      "name": "space_equipment",
+      "columns": {
+        "space_id": {
+          "name": "space_id",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "kind": {
+          "name": "kind",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        },
+        "quantity": {
+          "name": "quantity",
+          "type": "integer",
+          "primaryKey": false,
+          "notNull": true,
+          "autoincrement": false
+        }
+      },
+      "indexes": {},
+      "foreignKeys": {
+        "space_equipment_space_id_spaces_id_fk": {
+          "name": "space_equipment_space_id_spaces_id_fk",
+          "tableFrom": "space_equipment",
+          "tableTo": "spaces",
+          "columnsFrom": [
+            "space_id"
+          ],
+          "columnsTo": [
+            "id"
+          ],
+          "onDelete": "cascade",
+          "onUpdate": "no action"
+        }
+      },
+      "compositePrimaryKeys": {
+        "space_equipment_space_id_kind_pk": {
+          "columns": [
+            "space_id",
+            "kind"
+          ],
+          "name": "space_equipment_space_id_kind_pk"
+        }
+      },
+      "uniqueConstraints": {},
+      "checkConstraints": {}
+    },
     "spaces": {
       "name": "spaces",
       "columns": {
@@ -889,6 +927,13 @@
           "type": "text",
           "primaryKey": false,
           "notNull": true,
+          "autoincrement": false
+        },
+        "equipment_notes": {
+          "name": "equipment_notes",
+          "type": "text",
+          "primaryKey": false,
+          "notNull": false,
           "autoincrement": false
         }
       },

@@ -21,6 +21,7 @@ import {
   createAccount,
   createSemester,
   createSpace,
+  deleteSpace,
   getSemester,
   listAccounts,
   listAdminSpaces,
@@ -165,17 +166,20 @@ describe("controle de acesso no servidor", () => {
       async (c, t) =>
         (await updateSpace(c.deps, c.req(t), { id: "x", name: "Sala", capacity: null })).response,
     ],
+    ["deleteSpace", async (c, t) => (await deleteSpace(c.deps, c.req(t), { id: "x" })).response],
   ];
 
   for (const [name, call] of calls) {
     test(`${name}: sem sessão responde 401`, async () => {
-      expect(await call(ctx, null)).toMatchObject({ ok: false, status: 401 });
-      expect(await call(ctx, "token-que-nao-existe")).toMatchObject({ ok: false, status: 401 });
+      const unauthenticated = { ok: false, status: 401, message: "É preciso entrar." };
+      expect(await call(ctx, null)).toEqual(unauthenticated);
+      expect(await call(ctx, "token-que-nao-existe")).toEqual(unauthenticated);
     });
 
     test(`${name}: horários e docente recebem 403 e nada é alterado`, async () => {
-      expect(await call(ctx, ctx.horarios.token)).toMatchObject({ ok: false, status: 403 });
-      expect(await call(ctx, ctx.docente.token)).toMatchObject({ ok: false, status: 403 });
+      const forbidden = { ok: false, status: 403, message: "Sem permissão para esta ação." };
+      expect(await call(ctx, ctx.horarios.token)).toEqual(forbidden);
+      expect(await call(ctx, ctx.docente.token)).toEqual(forbidden);
       expect((await ctx.deps.users.list()).length).toBe(3);
       expect((await ctx.deps.spaces.list()).length).toBe(0);
       expect((await ctx.deps.users.list()).find((u) => u.id === ctx.docente.id)?.active).toBe(true);
@@ -462,6 +466,189 @@ describe("espaços (administrador)", () => {
       (await updateSpace(ctx.deps, admin, { id: "nao-existe", name: "Y", capacity: null }))
         .response,
     ).toMatchObject({ ok: false, status: 404 });
+  });
+
+  test("grava, edita e lista equipamentos e observações", async () => {
+    const ctx = await setup();
+    const admin = ctx.req(ctx.admin.token);
+    const created = await createSpace(ctx.deps, admin, {
+      name: "Lab 2",
+      capacity: null,
+      equipment: { projetor: 1, computadores: " 20 ", som: null },
+      notes: " Lousa digital ",
+    });
+    if (!created.response.ok) throw new Error("esperava ok");
+    expect(created.response.data.equipment).toEqual({
+      items: { projetor: 1, computadores: 20 },
+      notes: "Lousa digital",
+    });
+    const id = created.response.data.id;
+    expect(
+      (await updateSpace(ctx.deps, admin, { id, name: "Lab 2", capacity: 10, notes: null }))
+        .response,
+    ).toMatchObject({
+      ok: true,
+      data: { equipment: { items: { projetor: 1, computadores: 20 }, notes: null } },
+    });
+    expect(
+      (
+        await updateSpace(ctx.deps, admin, {
+          id,
+          name: "Lab 2",
+          capacity: 10,
+          equipment: { som: 0 },
+          notes: "Caixa",
+        })
+      ).response,
+    ).toMatchObject({ ok: true });
+    await createSpace(ctx.deps, admin, { name: "Sala 1", capacity: null });
+    expect((await listAdminSpaces(ctx.deps, admin)).response).toEqual({
+      ok: true,
+      data: [
+        { id, name: "Lab 2", capacity: 10, equipment: { items: { som: 0 }, notes: "Caixa" } },
+        {
+          id: expect.any(String),
+          name: "Sala 1",
+          capacity: null,
+          equipment: { items: {}, notes: null },
+        },
+      ],
+    });
+    expect(
+      (
+        await updateSpace(ctx.deps, admin, {
+          id,
+          name: "Lab 2",
+          capacity: 10,
+          equipment: { computadores: "1000" },
+        })
+      ).response,
+    ).toMatchObject({ ok: false, status: 400, field: "computadores" });
+    expect(
+      (await createSpace(ctx.deps, admin, { name: "X", capacity: null, equipment: { tv: 1 } }))
+        .response,
+    ).toEqual({ ok: false, status: 400, message: "Tipo de equipamento desconhecido." });
+  });
+
+  test("na edição, equipamentos e observações ausentes mantêm o gravado, cada um por si", async () => {
+    const ctx = await setup();
+    const admin = ctx.req(ctx.admin.token);
+    const created = await createSpace(ctx.deps, admin, {
+      name: "Lab 3",
+      capacity: 20,
+      equipment: { projetor: 1, computadores: "15" },
+      notes: "Lousa digital",
+    });
+    if (!created.response.ok) throw new Error("esperava ok");
+    const id = created.response.data.id;
+    const stored = async () => {
+      const listed = (await listAdminSpaces(ctx.deps, admin)).response;
+      if (!listed.ok) throw new Error("esperava ok");
+      return listed.data.find((space) => space.id === id)?.equipment;
+    };
+
+    expect(
+      (await updateSpace(ctx.deps, admin, { id, name: "Lab 3", capacity: 25 })).response,
+    ).toMatchObject({ ok: true, data: { capacity: 25 } });
+    expect(await stored()).toEqual({
+      items: { projetor: 1, computadores: 15 },
+      notes: "Lousa digital",
+    });
+
+    const onlyNotes = await updateSpace(ctx.deps, admin, {
+      id,
+      name: "Lab 3",
+      capacity: 25,
+      notes: "TV",
+    });
+    expect(onlyNotes.response).toEqual({
+      ok: true,
+      data: {
+        id,
+        name: "Lab 3",
+        capacity: 25,
+        equipment: { items: { projetor: 1, computadores: 15 }, notes: "TV" },
+      },
+    });
+    expect(await stored()).toEqual({ items: { projetor: 1, computadores: 15 }, notes: "TV" });
+
+    const onlyEquipment = await updateSpace(ctx.deps, admin, {
+      id,
+      name: "Lab 3",
+      capacity: 25,
+      equipment: { som: 0 },
+    });
+    expect(onlyEquipment.response).toMatchObject({
+      ok: true,
+      data: { equipment: { items: { som: 0 }, notes: "TV" } },
+    });
+    expect(await stored()).toEqual({ items: { som: 0 }, notes: "TV" });
+  });
+
+  test("formato inválido de equipamentos, observações ou exclusão é 400 sem gravar", async () => {
+    const ctx = await setup();
+    const admin = ctx.req(ctx.admin.token);
+    const bodies: unknown[] = [
+      { name: "A", capacity: null, equipment: "projetor" },
+      { name: "A", capacity: null, equipment: [1] },
+      { name: "A", capacity: null, equipment: null },
+      { name: "A", capacity: null, equipment: { projetor: true } },
+      { name: "A", capacity: null, equipment: { projetor: {} } },
+      { name: "A", capacity: null, notes: 5 },
+      { name: "A", capacity: null, equipment: {}, notes: ["x"] },
+    ];
+    for (const body of bodies) {
+      expect((await createSpace(ctx.deps, admin, body)).response).toEqual({
+        ok: false,
+        status: 400,
+        message: "Requisição inválida.",
+      });
+      expect(
+        (await updateSpace(ctx.deps, admin, { ...(body as object), id: "x" })).response,
+      ).toMatchObject({ status: 400, message: "Requisição inválida." });
+    }
+    expect((await ctx.deps.spaces.list()).length).toBe(0);
+    for (const body of [{}, { id: 1 }, null, "x"]) {
+      expect((await deleteSpace(ctx.deps, admin, body)).response).toEqual({
+        ok: false,
+        status: 400,
+        message: "Requisição inválida.",
+      });
+    }
+  });
+
+  test("exclui espaço sem uso; em uso é 409; inexistente é 404", async () => {
+    const ctx = await setup();
+    const admin = ctx.req(ctx.admin.token);
+    const free = await createSpace(ctx.deps, admin, {
+      name: "Livre",
+      capacity: null,
+      equipment: { projetor: 1 },
+      notes: null,
+    });
+    const used = await createSpace(ctx.deps, admin, { name: "Usado", capacity: null });
+    if (!free.response.ok || !used.response.ok) throw new Error("esperava ok");
+    await ctx.db.insert(schema.roomMappings).values({
+      sourceRoomId: "r1",
+      sourceShort: "USADO",
+      spaceId: used.response.data.id,
+      updatedAt: "t",
+    });
+    expect((await deleteSpace(ctx.deps, admin, { id: free.response.data.id })).response).toEqual({
+      ok: true,
+      data: null,
+    });
+    expect((await deleteSpace(ctx.deps, admin, { id: used.response.data.id })).response).toEqual({
+      ok: false,
+      status: 409,
+      message: "Este espaço tem reservas, aulas ou vínculo com o XML e não pode ser excluído.",
+    });
+    expect((await deleteSpace(ctx.deps, admin, { id: free.response.data.id })).response).toEqual({
+      ok: false,
+      status: 404,
+      message: "Espaço não encontrado.",
+    });
+    expect((await ctx.deps.spaces.list()).map((space) => space.name)).toEqual(["Usado"]);
   });
 });
 

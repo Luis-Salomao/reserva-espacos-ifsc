@@ -1,4 +1,5 @@
 import type { ExistingOccupation } from "#/application/import-plan";
+import type { SpaceEquipment } from "#/domain/equipment";
 import type {
   ImportBatch,
   ImportBatchStatus,
@@ -14,11 +15,33 @@ import type { Semester } from "#/domain/semester";
 import type { Space } from "#/domain/space";
 import type { Role, User } from "#/domain/user";
 
+/**
+ * Equipamentos e observações a gravar, independentes: na edição, sem `items` os equipamentos
+ * gravados ficam como estão e sem `notes` as observações também; na criação, ausente = não informado.
+ */
+export type EquipmentWrite = { items?: SpaceEquipment["items"]; notes?: string | null };
+
+/** Dados gravados de um espaço. Sem `equipment`, equipamentos e observações ficam como estão. */
+export type SpaceWrite = { name: string; capacity: number | null; equipment?: EquipmentWrite };
+
 export interface SpaceRepository {
+  /** Só `id`, `name` e `capacity`, por nome. */
   list(): Promise<Space[]>;
-  create(input: { name: string; capacity: number | null }): Promise<Space>;
-  /** Atualiza nome e capacidade; `null` se o espaço não existe. */
-  update(id: string, input: { name: string; capacity: number | null }): Promise<Space | null>;
+  /** Como `list`, com `equipment` em cada espaço; tipos fora do catálogo ficam de fora. */
+  listWithEquipment(): Promise<Space[]>;
+  /** Com `equipment`, grava espaço, observações e equipamentos numa unidade atômica. */
+  create(input: SpaceWrite): Promise<Space>;
+  /**
+   * Atualiza nome e capacidade; com `equipment.notes`, substitui as observações e, com
+   * `equipment.items`, o conjunto inteiro de equipamentos, na mesma unidade atômica. `null` se o
+   * espaço não existe.
+   */
+  update(id: string, input: SpaceWrite): Promise<Space | null>;
+  /**
+   * Apaga o espaço e seus equipamentos numa unidade atômica, só se nenhuma ocupação (ativa ou
+   * cancelada), vínculo de sala do XML ou linha de importação o cita (condição na própria instrução).
+   */
+  remove(id: string): Promise<"removed" | "in_use" | "not_found">;
 }
 
 export interface PasswordHasher {

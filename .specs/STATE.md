@@ -17,6 +17,14 @@
 - **Decisão**: docente do XML sem conta vinculada ganha uma conta fantasma (nome do XML, sigla, e-mail presumido, papel `docente`) que não consegue entrar. O admin depois ativa a fantasma (define e-mail e senha reais) ou a funde numa conta existente.
 - **Motivo**: o usuário prefere ter todas as aulas com responsável desde a importação e resolver as contas reais na administração. O sistema ainda não está em produção real, então o e-mail presumido é aceitável.
 
+### AD-003: equipamentos como linhas (recurso, tipo, quantidade) com catálogo no domínio
+
+- **Status**: active
+- **Data**: 2026-11-04
+- **Decisão**: equipamentos de um espaço ficam na tabela `space_equipment` (uma linha por espaço e tipo, com quantidade). Equipamento não informado não tem linha; "não tem" é quantidade 0; presença (projetor, som) usa 1. Os tipos e rótulos vivem em `src/domain/equipment.ts`. Tipo novo entra no catálogo sem migração.
+- **Motivo**: o usuário pediu modelo extensível e o RF-09 exige distinguir dado desconhecido de informado. A mesma forma serve depois a outros recursos agendáveis (veículos, computadores da biblioteca).
+- **Limite**: o cadastro registra existência, nunca funcionamento atual.
+
 ## Handoff
 
 - **Data**: 2026-11-04

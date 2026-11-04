@@ -16,6 +16,7 @@ import {
   createAccount,
   createSemester,
   createSpace,
+  deleteSpace,
   getSemester,
   listAccounts,
   listAdminSpaces,
@@ -101,6 +102,10 @@ export const createSpaceFn = createServerFn({ method: "POST" })
 export const updateSpaceFn = createServerFn({ method: "POST" })
   .validator(passthrough)
   .handler(async ({ data }) => finish(await updateSpace(getAdminDeps(), getRequest(), data)));
+
+export const deleteSpaceFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await deleteSpace(getAdminDeps(), getRequest(), data)));
 
 export const listSemestersFn = createServerFn({ method: "GET" }).handler(async () =>
   finish(await listSemesters(getAdminDeps(), getRequest())),
