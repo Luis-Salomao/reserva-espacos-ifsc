@@ -250,7 +250,7 @@ export function RoomsView({
             total={rooms.length}
             shown={shown}
             hiddenNoCapacity={result.hiddenNoCapacity}
-            compact={compact}
+            view={view}
             onChange={(next) => onSearchChange((prev) => withFilter(prev, next, requested), true)}
           />
           {view === "livres" ? (

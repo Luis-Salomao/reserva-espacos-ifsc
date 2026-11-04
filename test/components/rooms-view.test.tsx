@@ -167,17 +167,19 @@ describe("RoomsView", () => {
 
   test("filtros mudam a URL e o resultado", async () => {
     const { router } = await setup();
-    fireEvent.click(screen.getByRole("button", { name: "Bloco B" }));
+    fireEvent.click(screen.getByRole("button", { name: "Filtros" }));
+    const panel = await screen.findByRole("dialog", { name: "Filtros" });
+    fireEvent.click(within(panel).getByRole("button", { name: "Bloco B" }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ bloco: ["B"] }));
     expect(screen.getByText("1 de 3 salas")).toBeDefined();
     expect(columnOf("a202")).toBeNull();
     expect(columnOf("b104")).not.toBeNull();
 
-    fireEvent.click(screen.getByRole("switch", { name: "Só livres" }));
+    fireEvent.click(within(panel).getByRole("switch", { name: "Só livres" }));
     await waitFor(() =>
       expect(router.state.location.search).toMatchObject({ bloco: ["B"], livres: true }),
     );
-    fireEvent.change(screen.getByLabelText("Início"), { target: { value: "14:00" } });
+    fireEvent.change(within(panel).getByLabelText("Início"), { target: { value: "14:00" } });
     await waitFor(() =>
       expect(router.state.location.search).toMatchObject({ ini: "14:00", fim: "10:30" }),
     );

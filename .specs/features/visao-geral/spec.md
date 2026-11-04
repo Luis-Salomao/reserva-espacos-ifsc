@@ -208,7 +208,7 @@ Hoje dá para ver uma sala na semana ou todas as salas num dia, mas não a seman
 | GERAL-05 | P1: Cor (AC 3, 4) | T7 | Pending |
 | GERAL-06 | P1: Detalhe (AC 1, 4, 5) | T6, T8 | Pending |
 | GERAL-07 | P1: Detalhe (AC 2, 3) | T2, T8 | In Progress (T2) |
-| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | Pending |
+| GERAL-08 | P2: Filtros recolhidos (AC 1–4) | T5, T9 | In Progress (T5) |
 | GERAL-09 | P2: Celular (AC 1–3) | T9 | Pending |
 | GERAL-10 | P1: Reservar pelo quadradinho (AC 1–5) | T10 | Pending |
 | GERAL-11 | P1: Página única (AC 1–6) | T13, T14, T15 | Pending |
