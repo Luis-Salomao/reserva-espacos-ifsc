@@ -1,10 +1,14 @@
 import { describe, expect, test } from "bun:test";
 import type { TimeRange } from "./availability";
 import {
+  availabilityIn,
   blockOf,
   blocksOf,
+  busyReasonText,
   defaultWindow,
   filterRooms,
+  floorOf,
+  floorsOf,
   isFreeIn,
   OTHER_BLOCK,
   type RoomFilter,
@@ -37,6 +41,7 @@ const ROOMS = [
 
 const NONE: RoomFilter = {
   blocks: [],
+  floors: [],
   minCapacity: null,
   query: "",
   onlyFree: false,
@@ -66,7 +71,47 @@ describe("blocksOf", () => {
   });
 });
 
+describe("floorOf", () => {
+  test("primeiro dígito do código (letra + três dígitos); sem código, nenhum andar", () => {
+    expect(floorOf("A-202")).toBe(2);
+    expect(floorOf("Lab. A102")).toBe(1);
+    expect(floorOf("b-104")).toBe(1);
+    expect(floorOf("C 301")).toBe(3);
+    expect(floorOf("Auditório")).toBeNull();
+    expect(floorOf("ADM 2")).toBeNull();
+    expect(floorOf("A-1000")).toBeNull();
+  });
+});
+
+describe("floorsOf", () => {
+  test("andares com pelo menos uma sala, em ordem crescente, sem repetição", () => {
+    expect(floorsOf(ROOMS)).toEqual([1, 2]);
+    expect(floorsOf([room("Auditório", null, ALL_DAY)])).toEqual([]);
+  });
+});
+
 describe("filterRooms", () => {
+  test("um andar: só as salas desse andar; salas sem andar ficam de fora", () => {
+    expect(names(filterRooms(ROOMS, { ...NONE, floors: [2] }, BEFORE))).toEqual(["A-202"]);
+  });
+
+  test("vários andares: as salas de qualquer um deles, na ordem recebida", () => {
+    expect(names(filterRooms(ROOMS, { ...NONE, floors: [2, 1] }, BEFORE))).toEqual([
+      "A-202",
+      "Lab. A102",
+      "B-104",
+    ]);
+  });
+
+  test("andar sem nenhuma sala é ignorado; andar combina com bloco", () => {
+    expect(names(filterRooms(ROOMS, { ...NONE, floors: [7] }, BEFORE))).toEqual(
+      names({ rooms: ROOMS }),
+    );
+    expect(names(filterRooms(ROOMS, { ...NONE, floors: [1], blocks: ["B"] }, BEFORE))).toEqual([
+      "B-104",
+    ]);
+  });
+
   test("sem filtros, todas as salas na ordem recebida", () => {
     expect(filterRooms(ROOMS, NONE, BEFORE)).toEqual({ rooms: ROOMS, hiddenNoCapacity: 0 });
   });
@@ -199,5 +244,87 @@ describe("defaultWindow", () => {
   test("no fim do dia a janela não passa de 23:59", () => {
     expect(defaultWindow("2026-11-03T22:40")).toEqual({ start: "23:00", end: "23:59" });
     expect(defaultWindow("2026-11-03T23:45")).toEqual({ start: "23:00", end: "23:59" });
+  });
+});
+
+describe("availabilityIn", () => {
+  type Occ = { title: string; start: string; end: string; person: { name: string } | null };
+  const occ = (title: string, start: string, end: string): Occ => ({
+    title,
+    start,
+    end,
+    person: { name: "Ana Souza" },
+  });
+  const withOccupations = (name: string, free: TimeRange[], occupations: Occ[]) => ({
+    ...room(name, 30, free),
+    occupations,
+  });
+  const WINDOW = { start: "14:00", end: "16:00" };
+  const AVAIL = [
+    withOccupations("A-202", BUSY_AFTERNOON, [occ("Cálculo I — 1A", "14:00", "15:00")]),
+    withOccupations("B-104", ALL_DAY, []),
+    withOccupations(
+      "C-301",
+      [
+        { start: "06:00", end: "13:30" },
+        { start: "16:30", end: "23:00" },
+      ],
+      [
+        occ("Física — 2B", "13:30", "14:30"),
+        occ("Química — 3C", "15:00", "16:30"),
+        occ("Manhã", "08:00", "09:00"),
+      ],
+    ),
+    withOccupations("Auditório", ALL_DAY, []),
+  ];
+
+  test("livres primeiro (na ordem recebida) e depois as ocupadas", () => {
+    const result = availabilityIn(AVAIL, WINDOW, BEFORE);
+    expect(result.free.map((item) => item.space.name)).toEqual(["B-104", "Auditório"]);
+    expect(result.busy.map((item) => item.room.space.name)).toEqual(["A-202", "C-301"]);
+  });
+
+  test("o motivo traz título e horário de cada ocupação que cruza a janela, sem pessoas", () => {
+    const result = availabilityIn(AVAIL, WINDOW, BEFORE);
+    expect(result.busy[0]?.reasons).toEqual([
+      { kind: "occupation", title: "Cálculo I — 1A", start: "14:00", end: "15:00" },
+    ]);
+    expect(result.busy[1]?.reasons).toEqual([
+      { kind: "occupation", title: "Física — 2B", start: "13:30", end: "14:30" },
+      { kind: "occupation", title: "Química — 3C", start: "15:00", end: "16:30" },
+    ]);
+    const reasons = JSON.stringify(result.busy.map((item) => item.reasons));
+    expect(reasons.includes("Ana Souza")).toBe(false);
+    expect(reasons.includes("person")).toBe(false);
+  });
+
+  test("janela que já começou vira 'Horário já passou', junto das ocupações que cruzam", () => {
+    const now = `${DATE}T14:30`;
+    const result = availabilityIn(AVAIL, WINDOW, now);
+    expect(result.free).toEqual([]);
+    expect(result.busy.find((item) => item.room.space.name === "B-104")?.reasons).toEqual([
+      { kind: "past" },
+    ]);
+    expect(result.busy.find((item) => item.room.space.name === "A-202")?.reasons).toEqual([
+      { kind: "past" },
+      { kind: "occupation", title: "Cálculo I — 1A", start: "14:00", end: "15:00" },
+    ]);
+  });
+
+  test("sala sem ocupação na janela mas fora do expediente vira 'closed'", () => {
+    const late = [withOccupations("Lab", [{ start: "06:00", end: "22:00" }], [])];
+    const result = availabilityIn(late, { start: "21:30", end: "22:30" }, BEFORE);
+    expect(result.free).toEqual([]);
+    expect(result.busy[0]?.reasons).toEqual([{ kind: "closed" }]);
+  });
+});
+
+describe("busyReasonText", () => {
+  test("ocupação vira título e horário; passado e fora do expediente têm frase própria", () => {
+    expect(
+      busyReasonText({ kind: "occupation", title: "Cálculo I", start: "14:00", end: "15:40" }),
+    ).toBe("Cálculo I, 14:00–15:40");
+    expect(busyReasonText({ kind: "past" })).toBe("Horário já passou");
+    expect(busyReasonText({ kind: "closed" })).toBe("Fora do horário de funcionamento");
   });
 });

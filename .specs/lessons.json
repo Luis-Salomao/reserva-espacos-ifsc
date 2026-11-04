@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 22,
+  "next_id": 27,
   "lessons": [
     {
       "id": "L-001",
@@ -388,6 +388,96 @@
       ],
       "created": "2026-11-04T21:54:25Z",
       "last_seen": "2026-11-04T21:54:25Z"
+    },
+    {
+      "id": "L-022",
+      "key": "surviving_mutant::afirme o resultado logo depois da interacao testada uma acao extra antes da assercao pode refazer o estado e esconder a falha",
+      "text": "Afirme o resultado logo depois da interação testada; uma ação extra antes da asserção pode refazer o estado e esconder a falha",
+      "signal": "surviving_mutant",
+      "scope": "components",
+      "status": "candidate",
+      "features": [
+        "visao-geral"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M20 test/components/rooms-overview.test.tsx:341 (components) (components)"
+      ],
+      "created": "2026-11-04T22:02:13Z",
+      "last_seen": "2026-11-04T22:02:13Z"
+    },
+    {
+      "id": "L-023",
+      "key": "surviving_mutant::quando a spec define a ordem entre secoes da tela afirme a posicao delas no dom nao so o conteudo de cada uma",
+      "text": "Quando a spec define a ordem entre seções da tela, afirme a posição delas no DOM, não só o conteúdo de cada uma",
+      "signal": "surviving_mutant",
+      "scope": "components",
+      "status": "candidate",
+      "features": [
+        "visao-geral"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M30 test/components/rooms-overview.test.tsx:352 (components) (components)"
+      ],
+      "created": "2026-11-04T22:02:14Z",
+      "last_seen": "2026-11-04T22:02:14Z"
+    },
+    {
+      "id": "L-024",
+      "key": "surviving_mutant::atalho de teclado oferecido pela tela precisa de ac na spec e de um teste que pressione a tecla e afirme o efeito",
+      "text": "Atalho de teclado oferecido pela tela precisa de AC na spec e de um teste que pressione a tecla e afirme o efeito",
+      "signal": "surviving_mutant",
+      "scope": "components",
+      "status": "candidate",
+      "features": [
+        "visao-geral"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M21 M22 src/components/rooms/rooms-overview.tsx:96 (components) (components)"
+      ],
+      "created": "2026-11-04T22:02:14Z",
+      "last_seen": "2026-11-04T22:02:14Z"
+    },
+    {
+      "id": "L-025",
+      "key": "spec_precision_gap::regras de horario passado devem dizer o que acontece com o trecho em andamento nao so com o ja terminado",
+      "text": "Regras de horário passado devem dizer o que acontece com o trecho em andamento, não só com o já terminado",
+      "signal": "spec_precision_gap",
+      "scope": "specs",
+      "status": "candidate",
+      "features": [
+        "visao-geral"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "validation.md M27 GERAL-13 AC6 src/components/rooms/overview-selection.tsx:78 (specs) (specs)"
+      ],
+      "created": "2026-11-04T22:02:14Z",
+      "last_seen": "2026-11-04T22:02:14Z"
+    },
+    {
+      "id": "L-026",
+      "key": "spec_precision_gap::quando uma tarefa muda um comportamento ja especificado reescreva o ac antigo na spec na mesma tarefa",
+      "text": "Quando uma tarefa muda um comportamento já especificado, reescreva o AC antigo na spec na mesma tarefa",
+      "signal": "spec_precision_gap",
+      "scope": "specs",
+      "status": "candidate",
+      "features": [
+        "visao-geral"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "spec.md:146 GERAL-10 AC1 AC3 x GERAL-13 AC2; spec.md:114 GERAL-08 AC2 (specs) (specs)"
+      ],
+      "created": "2026-11-04T22:02:14Z",
+      "last_seen": "2026-11-04T22:02:14Z"
     }
   ]
 }

@@ -138,6 +138,36 @@ Seen once or not yet corroborated. Tracked, not trusted.
 - evidence: validation.md N18 src/routes/admin.espacos.tsx:48 (routes)
 - last seen: 2026-11-04T21:54:25Z
 
+### L-022 - Afirme o resultado logo depois da interação testada; uma ação extra antes da asserção pode refazer o estado e esconder a falha
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: visao-geral
+- evidence: validation.md M20 test/components/rooms-overview.test.tsx:341 (components) (components)
+- last seen: 2026-11-04T22:02:13Z
+
+### L-023 - Quando a spec define a ordem entre seções da tela, afirme a posição delas no DOM, não só o conteúdo de cada uma
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: visao-geral
+- evidence: validation.md M30 test/components/rooms-overview.test.tsx:352 (components) (components)
+- last seen: 2026-11-04T22:02:14Z
+
+### L-024 - Atalho de teclado oferecido pela tela precisa de AC na spec e de um teste que pressione a tecla e afirme o efeito
+- signal: `surviving_mutant` · recurrence: 1 feature(s) · scope: `components` · harmful: 0
+- features: visao-geral
+- evidence: validation.md M21 M22 src/components/rooms/rooms-overview.tsx:96 (components) (components)
+- last seen: 2026-11-04T22:02:14Z
+
+### L-025 - Regras de horário passado devem dizer o que acontece com o trecho em andamento, não só com o já terminado
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
+- features: visao-geral
+- evidence: validation.md M27 GERAL-13 AC6 src/components/rooms/overview-selection.tsx:78 (specs) (specs)
+- last seen: 2026-11-04T22:02:14Z
+
+### L-026 - Quando uma tarefa muda um comportamento já especificado, reescreva o AC antigo na spec na mesma tarefa
+- signal: `spec_precision_gap` · recurrence: 1 feature(s) · scope: `specs` · harmful: 0
+- features: visao-geral
+- evidence: spec.md:146 GERAL-10 AC1 AC3 x GERAL-13 AC2; spec.md:114 GERAL-08 AC2 (specs) (specs)
+- last seen: 2026-11-04T22:02:14Z
+
 ## Quarantined (failed when applied - ignore)
 
 A confirmed lesson that recurred alongside failure. Kept for the maintainer to review.

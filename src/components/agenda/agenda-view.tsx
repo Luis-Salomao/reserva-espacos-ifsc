@@ -1,8 +1,9 @@
-import { Link, useNavigate } from "@tanstack/react-router";
-import { ChevronLeft, ChevronRight, LayoutGrid, Plus } from "lucide-react";
+import { useNavigate } from "@tanstack/react-router";
+import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
 import { Button } from "#/components/ui/button";
+import { type PageView, ViewSwitcher } from "#/components/view-switcher";
 import { addDays } from "#/domain/calendar";
 import type { Space } from "#/domain/space";
 import { cn } from "#/lib/utils";
@@ -53,7 +54,13 @@ export function AgendaView({
   onOpenOccupation,
 }: AgendaViewProps) {
   const navigate = useNavigate();
-  const seeAllRooms = () => void navigate({ to: "/salas", search: { data: selectedDate } });
+  // Outra visualização na mesma página, com o dia e a sala desta.
+  const selectView = (visao: PageView) =>
+    void navigate({
+      to: "/",
+      search: (prev) => ({ ...prev, data: selectedDate, espaco: selectedSpaceId, visao }),
+    });
+  const seeAllRooms = () => selectView("colunas");
   const [mode, setMode] = useState<"week" | "day">("week");
   const [gateOpen, setGateOpen] = useState(false);
   const [draft, setDraft] = useState<Draft | null>(null);
@@ -188,14 +195,6 @@ export function AgendaView({
                 onSeeAllRooms={seeAllRooms}
               />
             </div>
-            <Link
-              to="/salas"
-              search={{ data: selectedDate }}
-              className="inline-flex items-center gap-1 rounded-md px-1.5 py-0.5 text-[12px] font-medium text-primary hover:underline"
-            >
-              <LayoutGrid className="size-3.5" aria-hidden="true" />
-              Todas as salas
-            </Link>
             <div className="flex-1" />
             <div className="toolbar hidden items-center gap-1 lg:flex">
               <Button variant="outline" size="sm" onClick={() => onSelectDate(todayIso)}>
@@ -236,6 +235,7 @@ export function AgendaView({
                 ))}
               </div>
             </div>
+            <ViewSwitcher value="sala" onChange={selectView} />
           </div>
 
           <div className="mb-3 grid grid-cols-[minmax(0,1fr)] gap-2 lg:hidden">
