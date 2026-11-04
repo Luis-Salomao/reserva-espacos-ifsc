@@ -97,7 +97,7 @@ export function FreeSlot({ gap, scale, onSelect }: FreeSlotProps) {
       className={cn(
         "group absolute inset-x-1 my-px flex items-start gap-1 overflow-hidden rounded-md px-2 pt-1 text-left text-[11px] text-foreground transition-opacity",
         "opacity-0 hover:opacity-100 focus-visible:opacity-100",
-        "bg-occ-free ring-1 ring-line-free/40 ring-inset",
+        "bg-occ-free/45 ring-1 ring-line-free/30 ring-inset",
         "[@media(hover:none)]:bg-transparent [@media(hover:none)]:text-muted-foreground [@media(hover:none)]:opacity-100 [@media(hover:none)]:ring-0",
       )}
       style={{ top, height }}

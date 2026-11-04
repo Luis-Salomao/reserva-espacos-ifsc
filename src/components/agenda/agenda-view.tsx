@@ -142,10 +142,16 @@ export function AgendaView({
 
         <div id="agenda-main" className="main min-w-0">
           <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="text-lg font-semibold tracking-tight text-foreground first-letter:uppercase">
-              {mode === "week"
-                ? formatWeekHeader(weekAgenda.weekStart)
-                : formatDayHeader(selectedDate)}
+            <h1 className="text-lg font-semibold tracking-tight text-foreground">
+              {/* Abaixo de lg só existe a linha do tempo de um dia. */}
+              <span className="block first-letter:uppercase lg:hidden">
+                {formatDayHeader(selectedDate)}
+              </span>
+              <span className="hidden first-letter:uppercase lg:block">
+                {mode === "week"
+                  ? formatWeekHeader(weekAgenda.weekStart)
+                  : formatDayHeader(selectedDate)}
+              </span>
             </h1>
             <span className="rounded-md border px-2 py-0.5 text-[12px] font-medium text-muted-foreground">
               {currentSpace?.name ?? ""}
@@ -192,7 +198,7 @@ export function AgendaView({
             </div>
           </div>
 
-          <div className="mb-3 grid gap-2 xl:hidden">
+          <div className="mb-3 grid grid-cols-[minmax(0,1fr)] gap-2 xl:hidden">
             <div className="wk lg:hidden">
               <TimelineDayStrip
                 weekStart={weekAgenda.weekStart}
