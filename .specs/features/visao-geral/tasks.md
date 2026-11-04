@@ -48,7 +48,13 @@ T1 → T2 → T3 → T4
 ### Phase 2: Tela
 
 ```
-T5 → T6 → T7 → T8 → T9
+T5 → T6 → T7 → T8 → T9 → T10 → T11 → T12
+```
+
+### Phase 3: Página única
+
+```
+T13 → T14 → T15
 ```
 
 ---
@@ -240,11 +246,134 @@ T5 → T6 → T7 → T8 → T9
 
 ---
 
+### T10: Reservar pelo quadradinho
+
+**What**: Quadradinho livre de bloco não terminado abre a `BookingSheet` com sala, dia e horário do bloco (sala editável); visitante vê o `GateDialog`; bloco terminado não reage; reserva confirmada recarrega a semana.
+**Where**: `src/components/rooms/overview-cell.tsx` (+ `rooms-overview.tsx`, `rooms-view.tsx`)
+**Depends on**: T9
+**Reuses**: `BookingSheet`, `GateDialog`, `book()` de `RoomsView`
+**Requirement**: GERAL-10
+
+**Done when**:
+
+- [ ] Testes: clique em livre futuro chama a reserva com `{ spaceId, date, start, end }` do bloco; visitante abre o convite; bloco passado não chama nada; ocupado não abre reserva
+- [ ] Gate check passes: `bun test test/components`
+
+**Tests**: unit
+**Gate**: quick
+
+**Commit**: `feat(salas): reservar pelo quadradinho da visão geral`
+
+---
+
+### T11: Livres primeiro na visão "Livres"
+
+**What**: Função pura que ordena as salas em livres e ocupadas na janela, com o motivo (título e horário de cada ocupação que cruza a janela; "Horário já passou" quando for o caso); `RoomsFreeList` mostra as livres e, abaixo do título "Ocupadas", as ocupadas com o motivo.
+**Where**: `src/domain/room-filter.ts` (+ `src/components/rooms/rooms-free-list.tsx`)
+**Depends on**: T10
+**Reuses**: `isFreeIn`, `DayAgenda.occupations`
+**Requirement**: GERAL-12
+
+**Done when**:
+
+- [ ] Testes de domínio: ordem livres → ocupadas; motivo com título e horário de cada ocupação que cruza; trecho passado vira "Horário já passou"; motivo nunca leva nome de pessoa
+- [ ] Testes de componente: título "Ocupadas" separa as listas; contador continua "X de N salas" contando só as livres
+- [ ] Gate check passes: `bun test src/domain test/components`
+
+**Tests**: unit
+**Gate**: quick
+
+**Commit**: `feat(salas): livres primeiro e ocupadas com o motivo`
+
+---
+
+### T12: Escolha de sala na reserva por disponibilidade
+
+**What**: `BookingSheet` aceita uma fonte de disponibilidade do dia (`getRoomsDayFn`); a escolha de sala mostra o grupo "Livres" e depois "Ocupadas" (desabilitadas, com o motivo), recalculado ao trocar data ou horário; sem fonte, lista simples como hoje.
+**Where**: `src/components/agenda/booking-sheet.tsx`
+**Depends on**: T11
+**Reuses**: função de T11, `getRoomsDayFn`
+**Requirement**: GERAL-12
+
+**Done when**:
+
+- [ ] Testes: com disponibilidade, livres antes das ocupadas e ocupada desabilitada com o motivo; trocar o horário reordena; sem fonte, lista igual à atual; falha da fonte mantém a lista simples
+- [ ] Gate check passes: `bun run check`
+
+**Tests**: unit
+**Gate**: build
+
+**Commit**: `feat(reserva): escolha de sala com livres primeiro`
+
+---
+
+### T13: Rota `/` com todas as visualizações
+
+**What**: `validateAgendaSearch` aceita `visao` (`sala` padrão, `colunas`, `livres`, `geral`) e os filtros de salas; o loader chama a fonte certa (semana da sala, dia de todas as salas ou semana de todas as salas) numa chamada; `loadSalas` é reaproveitado.
+**Where**: `src/routes/index.tsx`
+**Depends on**: None
+**Reuses**: `loadSalas`, `validateSalasSearch`, `getWeekAgendaFn`, `getRoomsDayFn`, `getRoomsWeekFn`
+**Requirement**: GERAL-11
+
+**Done when**:
+
+- [ ] Testes: sem `visao` vale "Sala"; cada visualização manda o argumento certo à sua server fn (afirmar o argumento, lição L-010); trocar "Colunas"↔"Livres" não muda as deps; filtros inválidos descartados
+- [ ] Gate check passes: `bun test test/routes src/routes`
+
+**Tests**: unit
+**Gate**: quick
+
+**Commit**: `feat(agenda): página única carrega todas as visualizações`
+
+---
+
+### T14: Seletor de visualização na página
+
+**What**: Componente `ViewSwitcher` ("Sala", "Colunas", "Livres", "Visão geral") nos cabeçalhos de `AgendaView` e `RoomsView`; a página `/` mostra a visualização da URL mantendo data e sala; nome da sala e quadradinho ocupado abrem "Sala"; "Ver todas as salas" troca para "Colunas"; sai o item "Salas" do menu e o link "Todas as salas".
+**Where**: `src/components/view-switcher.tsx` (+ `src/routes/index.tsx`, `agenda-view.tsx`, `rooms-view.tsx`, `app-shell.tsx`)
+**Depends on**: T13
+**Reuses**: botões de visão de `RoomsView`
+**Requirement**: GERAL-11
+
+**Done when**:
+
+- [ ] Testes: trocar de visualização atualiza `visao` mantendo `data` e `espaco`; menu sem "Salas"; agenda sem "Todas as salas"; "Ver todas as salas" leva a "Colunas"; nome da sala leva a "Sala" com `espaco` e `data`
+- [ ] Gate check passes: `bun test test/components src/components`
+
+**Tests**: unit
+**Gate**: quick
+
+**Commit**: `feat(agenda): seletor de visualização na página única`
+
+---
+
+### T15: `/salas` redireciona
+
+**What**: A rota `/salas` vira redirecionamento para `/` com os mesmos parâmetros e `visao=colunas` quando ausente.
+**Where**: `src/routes/salas.tsx`
+**Depends on**: T14
+**Reuses**: `redirect`
+**Requirement**: GERAL-11
+
+**Done when**:
+
+- [ ] Testes: `/salas?data=D` redireciona para `/` com `data=D` e `visao=colunas`; `visao` existente é mantida; filtros mantidos
+- [ ] Verificação manual (playwright) da página única em 1280 × 800 e 360 px
+- [ ] Gate check passes: `bun run check`
+
+**Tests**: unit
+**Gate**: build
+
+**Commit**: `feat(agenda): salas redireciona para a página única`
+
+---
+
 ## Phase Execution Map
 
 ```
-Phase 1 → Phase 2
+Phase 1 → Phase 2 → Phase 3
 
 Phase 1:  T1 → T2 → T3 → T4
-Phase 2:  T5 → T6 → T7 → T8 → T9
+Phase 2:  T5 → T6 → T7 → T8 → T9 → T10 → T11 → T12
+Phase 3:  T13 → T14 → T15
 ```
