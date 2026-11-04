@@ -77,7 +77,7 @@ function titleOf(timetable: AscTimetable, lessonId: string): string {
  * Responsável: conta vinculada ao PRIMEIRO docente da aula (na ordem do XML) que tenha vínculo.
  * Sem nenhum vínculo, a ocupação fica sem responsável (só o admin cancela).
  */
-function responsibleOf(
+export function responsibleOf(
   timetable: AscTimetable,
   lessonId: string,
   teacherMap: PlanInput["teacherMap"],

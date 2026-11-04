@@ -1634,3 +1634,99 @@ describe("cenário integrado: critérios de aceitação", () => {
     expect(c3On10).toMatchObject({ status: "ativa", spaceId: env.spaces.R3 });
   });
 });
+
+describe("atualizar responsáveis da versão aplicada", () => {
+  /** L1 (docente T3, ainda sem vínculo) às 8h, L2 (T1) às 9h e L3 (T9, nunca vinculado) às 10h. */
+  const grade = version(
+    "h1",
+    [at("L1", "R1", 8), at("L2", "R1", 9), at("L3", "R1", 10)],
+    [lesson("L1", ["T3"]), lesson("L2", ["T1"]), lesson("L3", ["T9"])],
+  );
+
+  async function remap(env: Env, items: Array<[string, string | null]>) {
+    await createMappingRepositories(env.db).teachers.saveMany(
+      items.map(([sourceTeacherId, userId]) => ({
+        sourceTeacherId,
+        sourceShort: sourceTeacherId,
+        userId,
+      })),
+      "t2",
+    );
+  }
+
+  const responsibleByLesson = async (env: Env) => {
+    const result: Record<string, Array<string | null>> = {};
+    for (const o of (await occupationsOf(env)).filter((o) => o.source === "import")) {
+      const key = `${o.lessonId}:${o.status}`;
+      result[key] = [...(result[key] ?? []), o.responsibleUserId].sort();
+    }
+    return result;
+  };
+
+  test("arquivo diferente da versão aplicada é recusado sem escrita", async () => {
+    const env = await setup();
+    await publish(env, grade);
+    await remap(env, [["T3", "user-t2"]]);
+    const before = await occupationsOf(env);
+
+    const result = await env.service.refreshResponsibles({ ...input(env, grade), fileHash: "h2" });
+
+    expect(result).toMatchObject({ ok: false, kind: "validation" });
+    expect(result.ok ? "" : result.message).toMatch(/Envie o mesmo arquivo da versão aplicada/);
+    expect(await occupationsOf(env)).toEqual(before);
+  });
+
+  test("semestre sem versão aplicada é recusado", async () => {
+    const env = await setup();
+
+    const result = await env.service.refreshResponsibles(input(env, grade));
+
+    expect(result).toMatchObject({ ok: false, kind: "not_found" });
+  });
+
+  test("aplica os vínculos atuais aula por aula e conta mudanças e quem segue sem responsável", async () => {
+    const env = await setup();
+    await publish(env, grade);
+    const [first] = (await occupationsOf(env)).filter((o) => o.lessonId === "L1");
+    await env.db
+      .update(schema.occupations)
+      .set({ status: "cancelada", cancelReason: "outro", cancelledAt: "t" })
+      .where(eq(schema.occupations.id, first?.id ?? ""));
+    await env.db.insert(schema.occupations).values({
+      ...manualBooking(env.spaces.R2),
+      responsibleUserId: "user-t1",
+      createdBy: "user-t1",
+    });
+    await remap(env, [
+      ["T3", "user-t2"],
+      ["T1", null],
+    ]);
+
+    const result = await env.service.refreshResponsibles(input(env, grade));
+
+    // L1: 2 ativas ganham responsável; L2: 3 perdem. Sem responsável: L2 (3) e L3 (3).
+    expect(result).toEqual({ ok: true, value: { changed: 5, withoutResponsible: 6 } });
+    expect(await responsibleByLesson(env)).toEqual({
+      "L1:ativa": ["user-t2", "user-t2"],
+      "L1:cancelada": [null],
+      "L2:ativa": [null, null, null],
+      "L3:ativa": [null, null, null],
+    });
+    const manual = (await occupationsOf(env)).find((o) => o.source === "manual");
+    expect(manual?.responsibleUserId).toBe("user-t1");
+  });
+
+  test("repetir chega ao mesmo resultado, sem mudança extra", async () => {
+    const env = await setup();
+    await publish(env, grade);
+    await remap(env, [["T3", "user-t2"]]);
+
+    const first = await env.service.refreshResponsibles(input(env, grade));
+    const after = await occupationsOf(env);
+    const second = await env.service.refreshResponsibles(input(env, grade));
+
+    expect(first).toEqual({ ok: true, value: { changed: 3, withoutResponsible: 3 } });
+    expect(second).toEqual({ ok: true, value: { changed: 0, withoutResponsible: 3 } });
+    expect(await occupationsOf(env)).toEqual(after);
+  });
+});

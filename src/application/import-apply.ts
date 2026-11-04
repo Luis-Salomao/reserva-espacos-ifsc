@@ -17,7 +17,7 @@ import {
   type VersionSummary,
 } from "#/domain/import-batch";
 import { BUSY_MESSAGE, STALE_MESSAGE } from "#/domain/import-conflicts";
-import { IGNORE_ROOM, type PlanInput, planImport } from "./import-plan";
+import { IGNORE_ROOM, type PlanInput, planImport, responsibleOf } from "./import-plan";
 import { plannedRows } from "./import-rows";
 import { planVersion } from "./version-plan";
 
@@ -49,6 +49,8 @@ const INCOMPLETE_MESSAGE =
 const DISCARD_APPLIED_MESSAGE = "Lote aplicado ou em aplicação não pode ser descartado.";
 const DISCARD_PARTIAL_MESSAGE =
   "Este lote já aplicou parte das mudanças; retome a aplicação para concluir.";
+const NO_VERSION_MESSAGE = "Este semestre não tem versão aplicada.";
+const OTHER_FILE_MESSAGE = "Envie o mesmo arquivo da versão aplicada.";
 
 /** SHA-256 (hexadecimal) dos bytes do arquivo; junto do semestre identifica o lote. */
 export async function hashImportFile(bytes: Uint8Array): Promise<string> {
@@ -75,6 +77,16 @@ export type PrepareInput = {
 
 /** Progresso de um passo: `done` quando não resta nada; `remaining` em linhas. */
 export type StepOutput = { batch: ImportBatch; done: boolean; remaining: number };
+
+type RefreshInput = {
+  semesterId: string;
+  /** SHA-256 do XML enviado; precisa ser o do último lote aplicado do semestre. */
+  fileHash: string;
+  preview: Pick<PlanInput["preview"], "timetable">;
+};
+
+/** `withoutResponsible`: ocupações importadas ativas da versão que seguem sem responsável. */
+type RefreshOutput = { changed: number; withoutResponsible: number };
 
 export type PrepareOutput = StepOutput & {
   /** `true` quando o mesmo arquivo já tinha lote concluído neste semestre (nada novo é criado). */
@@ -393,6 +405,36 @@ export function createImportService(deps: ImportServiceDeps) {
         done: remaining === 0,
         remaining,
       });
+    },
+
+    /**
+     * Reaplica os vínculos de docentes atuais à versão aplicada do semestre: cada ocupação
+     * importada ativa recebe o responsável da sua aula (`responsibleOf`). Exige o mesmo arquivo da
+     * versão aplicada (o lote não guarda os docentes de cada aula); arquivo diferente é recusado
+     * antes de qualquer escrita. Repetir chega ao mesmo resultado.
+     */
+    async refreshResponsibles(input: RefreshInput): Promise<Result<RefreshOutput>> {
+      const semester = await semesters.findById(input.semesterId);
+      if (semester === null) return fail("not_found", "Semestre não encontrado.");
+      const latest = await imports.latestAppliedBatchId(input.semesterId);
+      const batch = latest === null ? null : await imports.findBatch(latest);
+      if (batch === null) return fail("not_found", NO_VERSION_MESSAGE);
+      if (batch.fileHash !== input.fileHash) return fail("validation", OTHER_FILE_MESSAGE);
+
+      const { teacherMap } = await loadMaps();
+      const { timetable } = input.preview;
+      const responsibles = new Map<string, string | null>();
+      for (const lesson of timetable.lessons) {
+        responsibles.set(lesson.id, responsibleOf(timetable, lesson.id, teacherMap));
+      }
+      const from = `${semester.start}T00:00`;
+      const to = `${semester.end}T24:00`;
+      const changed = await imports.setResponsibles(input.semesterId, from, to, responsibles);
+      const current = await imports.listVersionOccupations(input.semesterId, from, to);
+      const withoutResponsible = current.filter(
+        (item) => item.status === "ativa" && item.responsibleUserId === null,
+      ).length;
+      return ok({ changed, withoutResponsible });
     },
   };
 }
