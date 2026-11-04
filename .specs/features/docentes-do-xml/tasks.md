@@ -120,9 +120,9 @@ T14 → T15 → T16
 
 **Done when**:
 
-- [ ] Teste: XML sintético com nome, e-mail, celular, gênero e cor gera DTO só com `id`, `short` e `name`
-- [ ] Teste: fallback `firstname lastname` e sigla
-- [ ] Gate check passes: `bun test src/import-asc src/server`
+- [x] Teste: XML sintético com nome, e-mail, celular, gênero e cor gera DTO só com `id`, `short` e `name`
+- [x] Teste: fallback `firstname lastname` e sigla
+- [x] Gate check passes: `bun test src/import-asc src/server`
 
 **Tests**: unit
 **Gate**: quick

@@ -15,10 +15,9 @@ function viewOf(name: string) {
 describe("toPreviewView", () => {
   const { preview, view } = viewOf("complete.xml");
 
-  test("não carrega o modelo bruto nem dados pessoais", () => {
+  test("não carrega o modelo bruto nem dados pessoais além do nome do docente", () => {
     expect(Object.keys(view)).not.toContain("timetable");
     const json = JSON.stringify(view);
-    expect(json).not.toContain("Fulano");
     expect(json).not.toContain("exemplo.invalid");
     expect(json).not.toContain("ALUNO-SECRETO");
   });
@@ -139,12 +138,19 @@ describe("sobreposições na visão", () => {
 });
 
 describe("docentes da visão", () => {
-  test("expõe só id e sigla, para o de-para com as contas", () => {
+  test("expõe id, sigla e nome, para o de-para com as contas (AD-001)", () => {
     const { view } = viewOf("complete.xml");
     expect(view.teachers).toEqual([
-      { id: "P1", short: "FT" },
-      { id: "P2", short: "BE" },
+      { id: "P1", short: "FT", name: "Fulano Testador" },
+      { id: "P2", short: "BE", name: "Beltrana Exemplo" },
     ]);
-    expect(JSON.stringify(view)).not.toContain("Fulano");
+    expect(JSON.stringify(view.teachers)).not.toMatch(/exemplo\.invalid|4899999|#FF0000/);
+  });
+
+  test("docente sem sigla nem nome: a sigla vira o id e o nome fica vazio", () => {
+    const xml = `<timetable><teachers><teacher id="P7"/></teachers></timetable>`;
+    const result = previewAscXml(new TextEncoder().encode(xml));
+    if (!result.ok) throw new Error("prévia rejeitada");
+    expect(toPreviewView(result.preview).teachers).toEqual([{ id: "P7", short: "P7", name: "" }]);
   });
 });

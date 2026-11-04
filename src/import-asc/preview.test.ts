@@ -34,10 +34,10 @@ describe("previewAscXml com complete.xml", () => {
     );
   });
 
-  test("não expõe campos pessoais de docentes", () => {
+  test("de docentes expõe só id, sigla e nome (AD-001)", () => {
     expect(JSON.stringify(preview)).not.toMatch(/firstname|lastname|email|mobile|gender/i);
     for (const teacher of preview.timetable.teachers) {
-      expect(Object.keys(teacher).sort()).toEqual(["id", "short"]);
+      expect(Object.keys(teacher).sort()).toEqual(["id", "name", "short"]);
     }
   });
 

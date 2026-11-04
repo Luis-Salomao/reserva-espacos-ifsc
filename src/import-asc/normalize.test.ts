@@ -36,20 +36,19 @@ describe("normalizeAsc com complete.xml", () => {
     expect(timetable.cards).toHaveLength(2);
   });
 
-  test("docente tem somente id e short", async () => {
+  test("docente tem somente id, short e nome (AD-001)", async () => {
     const { timetable } = await load("complete.xml");
     for (const teacher of timetable.teachers) {
-      expect(Object.keys(teacher).sort()).toEqual(["id", "short"]);
+      expect(Object.keys(teacher).sort()).toEqual(["id", "name", "short"]);
     }
+    expect(timetable.teachers[0]).toEqual({ id: "P1", short: "FT", name: "Fulano Testador" });
   });
 
-  test("nenhum dado pessoal aparece na saída serializada", async () => {
+  // O nome do docente entra pela AD-001; o resto continua fora.
+  test("nenhum outro dado pessoal aparece na saída serializada", async () => {
     const { timetable, warnings } = await load("complete.xml");
     const json = JSON.stringify({ timetable, warnings });
     for (const secret of [
-      "Fulano",
-      "Testador",
-      "Beltrana",
       "exemplo.invalid",
       "48999990000",
       "48988880000",
@@ -217,6 +216,31 @@ describe("normalizeAsc com messy-attrs.xml", () => {
     );
     expect(timetable.classrooms[0]?.capacity).toBeNull();
     expect(codes(warnings)).toContain("invalid_number:classrooms");
+  });
+});
+
+describe("nome do docente (AD-001)", () => {
+  const teachersOf = (items: string) =>
+    inline(`<timetable><teachers>${items}</teachers></timetable>`).timetable.teachers;
+
+  test("lê id, sigla e nome; descarta e-mail, celular, gênero e cor", () => {
+    const [teacher] = teachersOf(
+      '<teacher id="P9" short="ZQ" name="Zeca Quintal" firstname="Zeca" lastname="Quintal" email="zeca@exemplo.invalid" mobile="48911112222" gender="M" color="#123456"/>',
+    );
+    expect(teacher).toEqual({ id: "P9", short: "ZQ", name: "Zeca Quintal" });
+    expect(JSON.stringify(teacher)).not.toMatch(/exemplo\.invalid|48911112222|#123456|gender/);
+  });
+
+  test("sem name, usa firstname e lastname; sem os dois, usa a sigla", () => {
+    expect(
+      teachersOf(
+        '<teacher id="A" short="ZQ" firstname="Zeca" lastname="Quintal"/>' +
+          '<teacher id="B" short="LU" firstname="Lua"/>' +
+          '<teacher id="C" short="SO" lastname="Sol"/>' +
+          '<teacher id="D" short="XY"/>' +
+          '<teacher id="E"/>',
+      ).map((teacher) => teacher.name),
+    ).toEqual(["Zeca Quintal", "Lua", "Sol", "XY", ""]);
   });
 });
 
