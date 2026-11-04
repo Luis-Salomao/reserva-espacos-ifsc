@@ -244,7 +244,7 @@ T1 → T2 → T3 → T4 → T5
 
 **Done when**:
 
-- [ ] Gate check passes: `bun run check` (log em `C:\Users\luiss\tcc\tmp\admin-check.log`)
+- [x] Gate check passes: `bun run check` (log em `C:\Users\luiss\tcc\tmp\admin-check.log`; 1328 testes, 3 pulados)
 
 **Tests**: none
 **Gate**: build
