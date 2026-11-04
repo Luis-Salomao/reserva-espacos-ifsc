@@ -70,7 +70,12 @@ const WEEK: RoomsWeek = {
   ],
 };
 
-type RenderOptions = { isVisitor?: boolean; canReserve?: boolean; now?: string };
+type RenderOptions = {
+  isVisitor?: boolean;
+  canReserve?: boolean;
+  now?: string;
+  compact?: boolean;
+};
 
 async function renderOverview(options: RenderOptions = {}) {
   const onBook = mock();
@@ -81,7 +86,7 @@ async function renderOverview(options: RenderOptions = {}) {
         week={week}
         rooms={week.rooms}
         isVisitor={options.isVisitor ?? false}
-        compact={false}
+        compact={options.compact ?? false}
         selectedDate={MON}
         canReserve={options.canReserve ?? true}
         onBook={onBook}
@@ -101,6 +106,33 @@ const cellAt = (room: string, date: string, block: string) =>
   document.querySelector(
     `[data-cell][data-room='${room}'][data-date='${date}'][data-block='${block}']`,
   ) as HTMLElement;
+
+const selectionPanel = () => screen.getByRole("region", { name: "Horário selecionado" });
+
+const panelTitle = () => within(selectionPanel()).getByRole("heading", { level: 2 }).textContent;
+
+/** Quadradinhos destacados pela seleção, na ordem da grade: [sala, dia, bloco]. */
+const selectedCells = () =>
+  Array.from(document.querySelectorAll<HTMLElement>("[data-cell][data-selected]")).map((cell) => [
+    cell.dataset.room,
+    cell.dataset.date,
+    cell.dataset.block,
+  ]);
+
+const listOf = (name: string) => screen.getByRole("list", { name });
+const maybeList = (name: string) => screen.queryByRole("list", { name });
+
+const namesIn = (name: string) =>
+  within(listOf(name))
+    .getAllByRole("listitem")
+    .map((item) => within(item).getByRole("heading").textContent);
+
+/** Arrasto com o mouse de um quadradinho a outro. */
+function sweep(from: HTMLElement, to: HTMLElement) {
+  fireEvent.pointerDown(from, { pointerType: "mouse", button: 0 });
+  fireEvent.pointerEnter(to, { pointerType: "mouse" });
+  fireEvent.pointerUp(to, { pointerType: "mouse" });
+}
 
 const stripesOf = (cell: HTMLElement) =>
   Array.from(cell.querySelectorAll<HTMLElement>("[data-stripe]")).map((stripe) => ({
@@ -265,53 +297,178 @@ describe("RoomsOverview", () => {
     expect(classes()).toEqual(expect.arrayContaining(["scale-160", "motion-reduce:scale-100"]));
   });
 
-  test("clicar num quadradinho livre de bloco futuro pede a reserva com sala, dia e horário do bloco", async () => {
+  test("clicar num quadradinho livre seleciona o bloco, sugere a sala da linha e não abre a reserva", async () => {
     const { onBook } = await renderOverview();
     const free = cellAt("b104", TUE, "M34");
     expect(free.tagName).toBe("BUTTON");
     expect(free.getAttribute("aria-label")).toBe(
-      "Reservar B-104, terça 10/11, Manhã 34 10:10–12:00",
+      "Selecionar B-104, terça 10/11, Manhã 34 10:10–12:00",
     );
     fireEvent.click(free);
+    expect(onBook).toHaveBeenCalledTimes(0);
+    expect(panelTitle()).toBe("terça 10/11 · 10:10–12:00");
+    expect(selectedCells()).toEqual([
+      ["a202", TUE, "M34"],
+      ["b104", TUE, "M34"],
+      ["lab", TUE, "M34"],
+    ]);
+    const first = within(listOf("Salas livres no horário")).getAllByRole("listitem")[0];
+    expect(within(first as HTMLElement).getByRole("heading").textContent).toBe("B-104");
+    expect(within(first as HTMLElement).getByText("Sugerida")).toBeDefined();
+  });
+
+  test("arrastar de um bloco a outro no mesmo dia seleciona do início do primeiro ao fim do último, em todas as salas", async () => {
+    const { onBook } = await renderOverview();
+    sweep(cellAt("b104", TUE, "M12"), cellAt("a202", TUE, "M34"));
+    expect(onBook).toHaveBeenCalledTimes(0);
+    expect(panelTitle()).toBe("terça 10/11 · 08:00–12:00");
+    expect(selectedCells()).toEqual([
+      ["a202", TUE, "M12"],
+      ["a202", TUE, "M34"],
+      ["b104", TUE, "M12"],
+      ["b104", TUE, "M34"],
+      ["lab", TUE, "M12"],
+      ["lab", TUE, "M34"],
+    ]);
+  });
+
+  test("arrastar para trás e começar num ocupado também seleciona o trecho", async () => {
+    await renderOverview();
+    sweep(cellAt("a202", TUE, "M34"), cellAt("lab", TUE, "M12"));
+    expect(panelTitle()).toBe("terça 10/11 · 08:00–12:00");
+  });
+
+  test("o arrasto não passa para outro dia", async () => {
+    await renderOverview();
+    const start = cellAt("b104", TUE, "M12");
+    fireEvent.pointerDown(start, { pointerType: "mouse", button: 0 });
+    fireEvent.pointerEnter(cellAt("b104", WED, "M34"), { pointerType: "mouse" });
+    fireEvent.pointerUp(cellAt("b104", WED, "M34"), { pointerType: "mouse" });
+    fireEvent.click(start);
+    expect(panelTitle()).toBe("terça 10/11 · 08:00–09:50");
+    expect(selectedCells().every(([, date]) => date === TUE)).toBe(true);
+  });
+
+  test("o painel lista as livres antes das ocupadas, com o motivo da ocupação", async () => {
+    await renderOverview();
+    fireEvent.click(cellAt("b104", TUE, "M12"));
+    expect(namesIn("Salas livres no horário")).toEqual(["B-104", "LAB 1"]);
+    expect(namesIn("Salas ocupadas no horário")).toEqual(["A-202"]);
+    const busy = listOf("Salas ocupadas no horário");
+    expect(within(busy).getByText("Física — 2B, 08:30–09:50")).toBeDefined();
+  });
+
+  test("visitante não vê nome nem iniciais de pessoas no painel", async () => {
+    await renderOverview({ isVisitor: true });
+    fireEvent.click(cellAt("b104", TUE, "M12"));
+    const panel = selectionPanel();
+    expect(within(panel).getByText("Física — 2B, 08:30–09:50")).toBeDefined();
+    expect(panel.textContent?.includes("Ana Souza")).toBe(false);
+    expect(panel.querySelector("[data-slot='avatar']") === null).toBe(true);
+  });
+
+  test("o painel filtra por bloco e por andar", async () => {
+    await renderOverview();
+    fireEvent.click(cellAt("b104", TUE, "M34"));
+    const panel = selectionPanel();
+    fireEvent.click(within(panel).getByRole("button", { name: "Bloco B" }));
+    expect(namesIn("Salas livres no horário")).toEqual(["B-104"]);
+    expect(maybeList("Salas ocupadas no horário") === null).toBe(true);
+    fireEvent.click(within(panel).getByRole("button", { name: "Bloco B" }));
+    fireEvent.click(within(panel).getByRole("button", { name: "Andar 2" }));
+    expect(namesIn("Salas livres no horário")).toEqual(["A-202"]);
+    expect(maybeList("Salas ocupadas no horário") === null).toBe(true);
+  });
+
+  test("início e fim ajustáveis no painel mudam o trecho, o destaque e as livres", async () => {
+    await renderOverview();
+    fireEvent.click(cellAt("b104", TUE, "M34"));
+    const panel = selectionPanel();
+    fireEvent.change(within(panel).getByLabelText("Início"), { target: { value: "09:00" } });
+    expect(panelTitle()).toBe("terça 10/11 · 09:00–12:00");
+    expect(selectedCells().filter(([room]) => room === "a202")).toEqual([
+      ["a202", TUE, "M12"],
+      ["a202", TUE, "M34"],
+    ]);
+    expect(namesIn("Salas ocupadas no horário")).toEqual(["A-202"]);
+    fireEvent.change(within(panel).getByLabelText("Fim"), { target: { value: "08:30" } });
+    expect(within(panel).getByRole("alert").textContent).toBe("O fim precisa ser depois do início");
+    expect(maybeList("Salas livres no horário") === null).toBe(true);
+  });
+
+  test("escolher uma sala livre no painel pede a reserva com sala, dia e horário do trecho", async () => {
+    const { onBook } = await renderOverview();
+    sweep(cellAt("b104", TUE, "M12"), cellAt("b104", TUE, "M34"));
+    fireEvent.click(
+      screen.getByRole("button", { name: "Reservar LAB 1, terça 10/11, 08:00–12:00" }),
+    );
     expect(onBook).toHaveBeenCalledTimes(1);
     expect(onBook).toHaveBeenCalledWith({
-      spaceId: "b104",
+      spaceId: "lab",
       date: TUE,
-      start: "10:10",
+      start: "08:00",
       end: "12:00",
     });
   });
 
-  test("quadradinho livre de bloco que já terminou não pede reserva", async () => {
-    const { onBook } = await renderOverview({ now: `${TUE}T10:00` });
-    const ended = cellAt("b104", TUE, "M12");
-    expect(ended.tagName).not.toBe("BUTTON");
-    fireEvent.click(ended);
-    fireEvent.click(cellAt("b104", MON, "M34"));
-    expect(onBook).toHaveBeenCalledTimes(0);
-    const running = cellAt("b104", TUE, "M34");
-    expect(running.tagName).toBe("BUTTON");
-    fireEvent.click(running);
-    expect(onBook).toHaveBeenCalledWith({
-      spaceId: "b104",
-      date: TUE,
-      start: "10:10",
-      end: "12:00",
+  test("sala ocupada no painel não tem botão de reservar", async () => {
+    await renderOverview();
+    fireEvent.click(cellAt("b104", TUE, "M12"));
+    const busy = listOf("Salas ocupadas no horário");
+    expect(within(busy).queryByRole("button", { name: /^Reservar/ }) === null).toBe(true);
+  });
+
+  test("trecho que já terminou não oferece reserva no painel", async () => {
+    await renderOverview({ now: `${TUE}T10:00` });
+    fireEvent.click(cellAt("b104", TUE, "M12"));
+    const panel = selectionPanel();
+    expect(within(panel).getByText("Esse horário já terminou")).toBeDefined();
+    expect(within(panel).queryByRole("button", { name: /^Reservar/ }) === null).toBe(true);
+    fireEvent.click(cellAt("b104", TUE, "M34"));
+    expect(
+      screen.getByRole("button", { name: "Reservar B-104, terça 10/11, 10:10–12:00" }),
+    ).toBeDefined();
+  });
+
+  test("quem não pode reservar nem é visitante vê as livres sem botão de reservar", async () => {
+    await renderOverview({ canReserve: false });
+    fireEvent.click(cellAt("b104", TUE, "M34"));
+    expect(namesIn("Salas livres no horário")).toEqual(["B-104", "A-202", "LAB 1"]);
+    expect(within(selectionPanel()).queryByRole("button", { name: /^Reservar/ }) === null).toBe(
+      true,
+    );
+  });
+
+  test("Espaço num quadradinho ocupado seleciona o bloco sem sair da página", async () => {
+    const { router } = await renderOverview();
+    fireEvent.keyDown(cellAt("a202", TUE, "M12"), { key: " " });
+    expect(panelTitle()).toBe("terça 10/11 · 08:00–09:50");
+    expect(router.state.location.pathname).toBe("/salas");
+  });
+
+  test("fechar o painel tira a seleção e volta a legenda", async () => {
+    await renderOverview();
+    fireEvent.click(cellAt("b104", TUE, "M12"));
+    expect(screen.queryByRole("group", { name: "Legenda" }) === null).toBe(true);
+    fireEvent.click(within(selectionPanel()).getByRole("button", { name: "Fechar seleção" }));
+    expect(screen.queryByRole("region", { name: "Horário selecionado" }) === null).toBe(true);
+    expect(selectedCells()).toEqual([]);
+    expect(screen.getByRole("group", { name: "Legenda" })).toBeDefined();
+  });
+
+  test("no celular, o toque seleciona um bloco por vez, sem arrasto", async () => {
+    await renderOverview({ compact: true });
+    const start = cellAt("b104", MON, "M12");
+    fireEvent.pointerDown(start, { pointerType: "touch", button: 0 });
+    fireEvent.pointerEnter(cellAt("b104", MON, "M34"), { pointerType: "touch" });
+    fireEvent.pointerUp(cellAt("b104", MON, "M34"), { pointerType: "touch" });
+    expect(screen.queryByRole("region", { name: "Horário selecionado" }) === null).toBe(true);
+    fireEvent.click(start);
+    expect(panelTitle()).toBe("segunda 09/11 · 08:00–09:50");
+    fireEvent.change(within(selectionPanel()).getByLabelText("Fim"), {
+      target: { value: "12:00" },
     });
-  });
-
-  test("quadradinho ocupado não pede reserva", async () => {
-    const { onBook } = await renderOverview();
-    fireEvent.click(cellAt("a202", MON, "M12"));
-    expect(onBook).toHaveBeenCalledTimes(0);
-  });
-
-  test("quem não pode reservar nem é visitante não recebe quadradinho clicável", async () => {
-    const { onBook } = await renderOverview({ canReserve: false });
-    const free = cellAt("b104", TUE, "M34");
-    expect(free.tagName).not.toBe("BUTTON");
-    fireEvent.click(free);
-    expect(onBook).toHaveBeenCalledTimes(0);
+    expect(panelTitle()).toBe("segunda 09/11 · 08:00–12:00");
   });
 
   test("ocupação fora de todos os blocos aparece no aviso da linha da sala", async () => {

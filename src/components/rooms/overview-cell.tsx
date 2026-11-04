@@ -1,5 +1,5 @@
 import { Link } from "@tanstack/react-router";
-import { type CSSProperties, type KeyboardEvent, useId, useState } from "react";
+import { type CSSProperties, type KeyboardEvent, type PointerEvent, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
@@ -55,8 +55,13 @@ type Props = {
   isVisitor: boolean;
   /** Celular: quadradinho de 32 px, e o toque abre o cartão em vez de navegar. */
   compact: boolean;
-  /** Reserva do bloco livre; `null` quando o bloco já terminou ou quem vê não pode reservar. */
-  onBook: (() => void) | null;
+  /** Dentro do trecho selecionado (ou sendo arrastado). */
+  selected: boolean;
+  /** Seleciona só este bloco: clique no livre, Enter/Espaço no livre, Espaço no ocupado, toque. */
+  onSelect: () => void;
+  /** Começo e passagem do arrasto com o mouse. */
+  onPointerDown: (event: PointerEvent) => void;
+  onPointerEnter: () => void;
 };
 
 const SQUARE = "relative shrink-0 rounded-[3px]";
@@ -137,24 +142,46 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProp
 /**
  * Um bloco de uma sala num dia: vazio com contorno; ocupado com a cor da matéria, uma faixa por
  * ocupação e canto recortado quando alguma não cobre o bloco inteiro. Mouse ou foco num ocupado
- * aumenta o quadradinho e abre o cartão de detalhes; o livre, quando há `onBook`, pede a reserva.
+ * aumenta o quadradinho e abre o cartão de detalhes; o livre seleciona o bloco.
  */
-export function OverviewCell({ cell, room, date, highlight, isVisitor, compact, onBook }: Props) {
+export function OverviewCell({
+  cell,
+  room,
+  date,
+  highlight,
+  isVisitor,
+  compact,
+  selected,
+  onSelect,
+  onPointerDown,
+  onPointerEnter,
+}: Props) {
   const cardId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const size = compact ? "size-8" : "size-4";
-  const where = { "data-room": room.id, "data-date": date, "data-block": cell.block.short };
+  const where = {
+    "data-room": room.id,
+    "data-date": date,
+    "data-block": cell.block.short,
+    "data-selected": selected ? "" : undefined,
+    onPointerDown,
+    onPointerEnter,
+  };
   if (cell.items.length === 0) {
-    const look = cn(SQUARE, size, "block border border-border");
-    if (onBook === null) return <span {...where} data-cell="livre" className={look} />;
     return (
       <button
         type="button"
         {...where}
         data-cell="livre"
-        aria-label={`Reservar ${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}`}
-        onClick={onBook}
-        className={cn(look, "outline-offset-2 hover:border-primary hover:bg-primary/15")}
+        aria-label={`Selecionar ${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}`}
+        aria-pressed={selected}
+        onClick={onSelect}
+        className={cn(
+          SQUARE,
+          size,
+          "block border border-border outline-offset-2 hover:border-primary hover:bg-primary/15",
+          selected && "border-primary bg-primary/30 hover:bg-primary/30",
+        )}
       />
     );
   }
@@ -170,12 +197,19 @@ export function OverviewCell({ cell, room, date, highlight, isVisitor, compact, 
     "aria-label": `${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}: ${titles}`,
     "aria-describedby": anchor === null ? undefined : cardId,
     onBlur: hide,
-    onKeyDown: (event: KeyboardEvent) => event.key === "Escape" && hide(),
+    onKeyDown: (event: KeyboardEvent) => {
+      if (event.key === "Escape") hide();
+      if (event.key === " ") {
+        event.preventDefault();
+        onSelect();
+      }
+    },
     className: cn(
       SQUARE,
       size,
       "flex overflow-hidden outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
       anchor !== null && "z-10 scale-160 motion-reduce:scale-100",
+      selected && "ring-2 ring-primary",
     ),
   };
   const content = (
@@ -219,7 +253,11 @@ export function OverviewCell({ cell, room, date, highlight, isVisitor, compact, 
       <button
         type="button"
         {...common}
-        onClick={(event) => (anchor === null ? show(event) : hide())}
+        onClick={(event) => {
+          if (anchor === null) show(event);
+          else hide();
+          onSelect();
+        }}
       >
         {content}
       </button>
@@ -229,6 +267,7 @@ export function OverviewCell({ cell, room, date, highlight, isVisitor, compact, 
     <Link
       to="/"
       search={{ espaco: room.id, data: date }}
+      draggable={false}
       {...common}
       onMouseEnter={show}
       onMouseLeave={hide}

@@ -3,11 +3,14 @@ import {
   cellsFor,
   contrastRatio,
   RESERVA_TONE,
+  roomsOnDay,
   SUBJECT_PALETTE,
+  spanOf,
   subjectOf,
   subjectTone,
   weekOf,
 } from "./overview";
+import { availabilityIn } from "./room-filter";
 
 /** Fundos reais de `src/styles/tokens.css`. */
 const LIGHT_BG = "#ffffff";
@@ -217,6 +220,73 @@ describe("weekOf", () => {
       "2026-12-30",
       "2026-12-31",
       "2027-01-01",
+    ]);
+  });
+});
+
+describe("spanOf", () => {
+  test("vai do início do primeiro bloco ao fim do último, com o intervalo entre eles", () => {
+    expect(spanOf(BLOCKS, 0, 2)).toEqual({ start: "07:30", end: "10:20" });
+  });
+
+  test("arrastar para trás dá o mesmo trecho", () => {
+    expect(spanOf(BLOCKS, 2, 1)).toEqual({ start: "08:20", end: "10:20" });
+  });
+
+  test("um bloco só é o próprio bloco", () => {
+    expect(spanOf(BLOCKS, 1, 1)).toEqual({ start: "08:20", end: "09:10" });
+  });
+
+  test("bloco inexistente não forma trecho", () => {
+    expect(spanOf(BLOCKS, 0, 3)).toBeNull();
+    expect(spanOf([], 0, 0)).toBeNull();
+  });
+});
+
+describe("roomsOnDay", () => {
+  const MON = "2026-11-09";
+  const TUE = "2026-11-10";
+  const lesson = (date: string, start: string, end: string, title = "Cálculo I") => ({
+    id: `${date}-${start}`,
+    date,
+    start,
+    end,
+    title,
+  });
+  const ROOMS = [
+    {
+      space: { id: "a202", name: "A-202", capacity: 40 },
+      occupations: [lesson(MON, "08:00", "09:50"), lesson(TUE, "13:30", "15:20", "Física")],
+    },
+    { space: { id: "b104", name: "B-104", capacity: 25 }, occupations: [] },
+  ];
+
+  test("cada sala fica só com as ocupações do dia, a data e o id", () => {
+    const [a202, b104] = roomsOnDay(ROOMS, TUE);
+    expect(a202?.date).toBe(TUE);
+    expect(a202?.spaceId).toBe("a202");
+    expect(a202?.occupations.map((item) => item.title)).toEqual(["Física"]);
+    expect(b104?.occupations).toEqual([]);
+  });
+
+  test("os trechos livres são o dia inteiro menos as ocupações do dia", () => {
+    const [a202, b104] = roomsOnDay(ROOMS, TUE);
+    expect(a202?.free).toEqual([
+      { start: "00:00", end: "13:30" },
+      { start: "15:20", end: "23:59" },
+    ]);
+    expect(b104?.free).toEqual([{ start: "00:00", end: "23:59" }]);
+  });
+
+  test("com availabilityIn, a sala ocupada na tarde sai com o motivo e a outra fica livre", () => {
+    const { free, busy } = availabilityIn(
+      roomsOnDay(ROOMS, TUE),
+      { start: "13:30", end: "17:10" },
+      `${MON}T09:00`,
+    );
+    expect(free.map((room) => room.spaceId)).toEqual(["b104"]);
+    expect(busy.map(({ room, reasons }) => [room.spaceId, reasons])).toEqual([
+      ["a202", [{ kind: "occupation", title: "Física", start: "13:30", end: "15:20" }]],
     ]);
   });
 });
