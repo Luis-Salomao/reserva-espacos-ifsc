@@ -4,6 +4,7 @@ import {
   cancelOccupationAction,
   createBookingAction,
   getDayAgenda,
+  getRoomsDay,
   getWeekAgenda,
   myBookingsAction,
   previewSeriesAction,
@@ -19,6 +20,10 @@ export const getDayAgendaFn = createServerFn({ method: "POST" })
 export const getWeekAgendaFn = createServerFn({ method: "POST" })
   .validator(passthrough)
   .handler(async ({ data }) => finish(await getWeekAgenda(getBookingDeps(), getRequest(), data)));
+
+export const getRoomsDayFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await getRoomsDay(getBookingDeps(), getRequest(), data)));
 
 export const createBookingFn = createServerFn({ method: "POST" })
   .validator(passthrough)

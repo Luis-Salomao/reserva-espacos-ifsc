@@ -106,8 +106,8 @@ T5 → T6 → T7 → T8 → T9 → T10
 
 **Done when**:
 
-- [ ] Teste de ação: entrada inválida e caminho feliz
-- [ ] Gate check passes: `bun test src/server`
+- [x] Teste de ação: entrada inválida e caminho feliz
+- [x] Gate check passes: `bun test src/server`
 
 **Tests**: unit
 **Gate**: quick
