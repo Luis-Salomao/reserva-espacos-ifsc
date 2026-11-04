@@ -60,6 +60,41 @@ export function isFreeIn(
   return day.free.some((range) => range.start <= window.start && window.end <= range.end);
 }
 
+/**
+ * Por que a sala não está livre na janela: cada ocupação que a cruza (só título e horário),
+ * `past` quando a janela já começou e `closed` quando nada a ocupa mas ela sai do expediente.
+ */
+export type BusyReason =
+  | { kind: "occupation"; title: string; start: string; end: string }
+  | { kind: "past" }
+  | { kind: "closed" };
+
+type Occupied = Pick<FilterableRoom, "date" | "free"> & {
+  occupations: readonly { title: string; start: string; end: string }[];
+};
+
+/** Salas livres na janela (ordem recebida) e, depois, as ocupadas com o motivo. */
+export function availabilityIn<R extends Occupied>(
+  rooms: readonly R[],
+  window: TimeRange,
+  now: string,
+): { free: R[]; busy: Array<{ room: R; reasons: BusyReason[] }> } {
+  const free: R[] = [];
+  const busy: Array<{ room: R; reasons: BusyReason[] }> = [];
+  for (const room of rooms) {
+    if (isFreeIn(room, window, now)) {
+      free.push(room);
+      continue;
+    }
+    const reasons: BusyReason[] = room.occupations
+      .filter((item) => item.start < window.end && item.end > window.start)
+      .map((item) => ({ kind: "occupation", title: item.title, start: item.start, end: item.end }));
+    if (`${room.date}T${window.start}` <= now) reasons.unshift({ kind: "past" });
+    busy.push({ room, reasons: reasons.length > 0 ? reasons : [{ kind: "closed" }] });
+  }
+  return { free, busy };
+}
+
 /** Mensagem da tela para janela com fim antes do início (ou igual); `null` se a janela vale. */
 export function windowIssue(window: TimeRange): string | null {
   return window.end <= window.start ? WINDOW_ISSUE : null;

@@ -290,9 +290,11 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes de domínio: ordem livres → ocupadas; motivo com título e horário de cada ocupação que cruza; trecho passado vira "Horário já passou"; motivo nunca leva nome de pessoa
-- [ ] Testes de componente: título "Ocupadas" separa as listas; contador continua "X de N salas" contando só as livres
-- [ ] Gate check passes: `bun test src/domain test/components`
+- [x] Testes de domínio: ordem livres → ocupadas; motivo com título e horário de cada ocupação que cruza; trecho passado vira "Horário já passou"; motivo nunca leva nome de pessoa
+- [x] Testes de componente: título "Ocupadas" separa as listas; contador continua "X de N salas" contando só as livres
+- [x] Gate check passes: `bun test src/domain test/components`
+
+**Desvio**: `availabilityIn` devolve motivos com `kind` (`occupation`, `past`, `closed`). O `closed` ("Fora do horário de funcionamento") cobre a sala que não está livre, sem ocupação na janela e sem a janela ter começado, porque a janela sai do expediente; o design só previa título/horário e `past`. Com salas nos filtros e nenhuma livre, a lista mostra "Nenhuma sala livre nessa janela" e ainda as ocupadas; "Nenhuma sala com esses filtros" e "Limpar filtros" ficam para quando os filtros escondem todas as salas. O teste existente "sem sala livre" de `RoomsFreeList` foi reescrito para essas duas situações, e o helper `freeNames` dos testes de `RoomsView` passou a olhar só a lista "Salas livres".
 
 **Tests**: unit
 **Gate**: quick

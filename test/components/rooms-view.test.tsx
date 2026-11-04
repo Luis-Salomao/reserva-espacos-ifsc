@@ -173,8 +173,15 @@ function drag(column: HTMLElement, from: string, to: string) {
   fireEvent.pointerUp(column, at(to));
 }
 
-const freeNames = () =>
-  screen.queryAllByRole("listitem").map((item) => within(item).getByRole("heading").textContent);
+const namesIn = (list: string) => {
+  const element = screen.queryByRole("list", { name: list });
+  return element === null
+    ? []
+    : within(element)
+        .getAllByRole("listitem")
+        .map((item) => within(item).getByRole("heading").textContent);
+};
+const freeNames = () => namesIn("Salas livres");
 
 beforeEach(() => setCompact(false));
 
@@ -213,6 +220,8 @@ describe("RoomsView", () => {
     await setup({ url: "/?visao=livres&ini=14:00&fim=16:00" });
     expect(screen.getByText("2 de 3 salas")).toBeDefined();
     expect(freeNames()).toEqual(["B-104", "LAB 1"]);
+    expect(namesIn("Salas ocupadas")).toEqual(["A-202"]);
+    expect(screen.getByText("Cálculo I, 14:00–15:00")).toBeDefined();
   });
 
   test("trocar de visão vai para a URL", async () => {
