@@ -80,7 +80,7 @@ mock.module("#/server/admin", () => ({
 }));
 
 const { AccountsManager } = await import("./accounts-manager");
-const { SpacesManager } = await import("./spaces-manager");
+const { SpacesLoadError, SpacesManager } = await import("./spaces-manager");
 const { SpaceCard } = await import("./space-card");
 const { SpaceFormDialog } = await import("./space-form-dialog");
 const { SemesterForm } = await import("#/components/semesters/semester-form");
@@ -319,13 +319,110 @@ describe("contas fantasmas", () => {
 });
 
 describe("SpacesManager", () => {
-  test("erro de capacidade é anunciado, ligado ao campo e recebe o foco", async () => {
-    const root = createRootRoute({ component: () => <SpacesManager spaces={[]} /> });
+  const spaces: Space[] = [
+    { id: "b101", name: "B-101", capacity: null },
+    { id: "aud", name: "Auditório", capacity: 200 },
+    { id: "a202", name: "A-202", capacity: 40 },
+    { id: "a105", name: "A-105", capacity: null },
+    { id: "a110", name: "A-110", capacity: null },
+  ];
+
+  async function renderSpaces(list: Space[]) {
+    const root = createRootRoute({ component: () => <SpacesManager spaces={list} /> });
     const router = createRouter({
       routeTree: root,
       history: createMemoryHistory({ initialEntries: ["/"] }),
     });
     render(<RouterProvider router={router} />);
+    await screen.findByRole("button", { name: "Novo espaço" });
+  }
+
+  const names = () =>
+    screen
+      .getAllByRole("listitem")
+      .filter((item) => item.querySelector("[aria-label='Equipamentos']") !== null)
+      .map((item) => item.querySelector("p")?.textContent);
+
+  test("agrupa por bloco e andar, com 'Outros espaços' por último", async () => {
+    await renderSpaces(spaces);
+    expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
+      "Bloco A",
+      "Bloco B",
+      "Outros espaços",
+    ]);
+    const blockA = screen.getByRole("region", { name: "Bloco A" });
+    expect(
+      within(blockA)
+        .getAllByRole("heading", { level: 3 })
+        .map((h) => h.textContent),
+    ).toEqual(["Andar 1", "Andar 2"]);
+    expect(names()).toEqual(["A-105", "A-110", "A-202", "B-101", "Auditório"]);
+    expect(
+      within(screen.getByRole("region", { name: "Outros espaços" })).getByRole("heading", {
+        level: 3,
+      }).textContent,
+    ).toBe("Sem andar identificado");
+    expect(screen.getByText("5 de 5 espaços")).toBeTruthy();
+  });
+
+  test("busca filtra e conta; sem resultado oferece 'Limpar busca'", async () => {
+    await renderSpaces(spaces);
+    const search = screen.getByRole("searchbox", { name: "Buscar espaço" });
+    fireEvent.change(search, { target: { value: "a202" } });
+    expect(screen.getByText("1 de 5 espaços")).toBeTruthy();
+    expect(names()).toEqual(["A-202"]);
+    fireEvent.change(search, { target: { value: "zzz" } });
+    expect(screen.getByText("Nenhum espaço encontrado.")).toBeTruthy();
+    expect(screen.getByText("0 de 5 espaços")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Limpar busca" }));
+    expect((search as HTMLInputElement).value).toBe("");
+    expect(names()).toHaveLength(5);
+  });
+
+  test("sem espaços, 'Cadastrar espaço' abre o diálogo de novo espaço", async () => {
+    await renderSpaces([]);
+    expect(screen.getByText("Nenhum espaço cadastrado.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Cadastrar espaço" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("heading", { name: "Novo espaço" })).toBeTruthy();
+  });
+
+  test("Editar abre o diálogo com o espaço; salvar fecha e anuncia 'Espaço salvo.'", async () => {
+    await renderSpaces(spaces);
+    fireEvent.click(screen.getByRole("button", { name: "Editar A-202" }));
+    const dialog = await screen.findByRole("dialog");
+    expect((within(dialog).getByLabelText("Nome") as HTMLInputElement).value).toBe("A-202");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Salvar" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Espaço salvo."));
+    expect(screen.queryByRole("dialog") === null).toBe(true);
+    expect(spaceCalls).toMatchObject([{ action: "update", id: "a202" }]);
+  });
+
+  test("excluir anuncia 'Espaço excluído.'", async () => {
+    await renderSpaces(spaces);
+    fireEvent.click(screen.getByRole("button", { name: "Excluir B-101" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Excluir espaço" }));
+    await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Espaço excluído."));
+    expect(spaceCalls).toEqual([{ action: "delete", id: "b101" }]);
+  });
+
+  test("erro de carga oferece 'Tentar de novo'", () => {
+    let retries = 0;
+    render(
+      <SpacesLoadError
+        onRetry={() => {
+          retries += 1;
+        }}
+      />,
+    );
+    expect(screen.getByRole("alert").textContent).toMatch(/Não foi possível carregar os espaços\./);
+    fireEvent.click(screen.getByRole("button", { name: "Tentar de novo" }));
+    expect(retries).toBe(1);
+  });
+
+  test("erro de capacidade é anunciado, ligado ao campo e recebe o foco", async () => {
+    await renderSpaces([]);
+    fireEvent.click(screen.getByRole("button", { name: "Novo espaço" }));
     const name = (await screen.findByLabelText("Nome")) as HTMLInputElement;
     fireEvent.change(name, { target: { value: "Lab" } });
     fireEvent.submit(name.closest("form") as HTMLFormElement);
