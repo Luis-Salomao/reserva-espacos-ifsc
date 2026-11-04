@@ -3,7 +3,7 @@
   "promote_threshold": 2,
   "window_days": 45,
   "quarantine_threshold": 2,
-  "next_id": 10,
+  "next_id": 11,
   "lessons": [
     {
       "id": "L-001",
@@ -167,6 +167,24 @@
       ],
       "created": "2026-11-04T17:24:57Z",
       "last_seen": "2026-11-04T17:24:57Z"
+    },
+    {
+      "id": "L-010",
+      "key": "surviving_mutant::ao testar um loader substitua a busca de dados e afirme o argumento que ela recebe o valor derivado no retorno nao prova o que foi pedido ao servidor",
+      "text": "Ao testar um loader, substitua a busca de dados e afirme o argumento que ela recebe; o valor derivado no retorno não prova o que foi pedido ao servidor",
+      "signal": "surviving_mutant",
+      "scope": "routes",
+      "status": "candidate",
+      "features": [
+        "todas-as-salas"
+      ],
+      "recurrence": 1,
+      "harmful": 0,
+      "evidence": [
+        "V1 V1b src/routes/salas.tsx:121 (routes)"
+      ],
+      "created": "2026-11-04T17:43:22Z",
+      "last_seen": "2026-11-04T17:43:22Z"
     }
   ]
 }

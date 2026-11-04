@@ -2,23 +2,22 @@
 
 ## Validation: todas-as-salas - FAIL ❌
 
-**Result**: FAIL ❌ (rodada 2 de 3: 1 defeito de produção em Colunas AC4 achado no navegador; 2 mutantes novos sobreviveram)
+**Result**: FAIL ❌ (rodada 3 de 3: os três gaps da rodada 2 fecharam e o eixo fica fixo no navegador; um mutante novo do `loader` sobreviveu à suíte inteira. Só falta teste, o código de produção está certo. Escalar ao usuário.)
 
 **Date**: 2026-11-04
 **Spec**: `.specs/features/todas-as-salas/spec.md`
-**Diff range**: `6181b01..ec25b7a` (branch `feat/todas-as-salas`, 12 commits; correção da rodada 1 em `ec25b7a`)
-**Verifier**: subagente independente (autor ≠ verificador); cobertura re-derivada do zero, sem confiar no relatório da rodada 1.
+**Diff range**: `6181b01..a26bec0` (branch `feat/todas-as-salas`, 14 commits; correção da rodada 2 em `a26bec0`)
+**Verifier**: subagente independente (autor ≠ verificador); evidência re-derivada do zero, medidas novas no navegador e sensor próprio.
 
 ---
 
-## Lacunas da rodada 1
+## Lacunas da rodada 2
 
 | # | Lacuna | Situação | Evidência |
 | - | ------ | -------- | --------- |
-| 1 | Livres AC2 sem teste; M13 sobreviveu | ✅ Fechada | `test/routes/salas.test.ts:156-176` - `expect(deps(changed)).toEqual({ data: "2026-11-10" })`, `toEqual(deps(base))`, `deps({ data: "2026-11-11" })).not.toEqual(deps(base))`. M13 e a variante N2 (só `ini` nas deps) morreram. O teste prova "sem nova chamada" porque, no TanStack Router 1.171.39, uma navegação que só muda a busca recarrega apenas se o id da rota (que inclui o hash das deps) mudar: `node_modules/@tanstack/router-core/src/load-client.ts:816-827` (`match.cause === 'enter'` ou candidato com outro `id`) e `:2014` (`forceStaleReload = sameHref`, falso quando a busca muda) |
-| 2 | Colunas AC4: nomes e eixo fixos sem asserção; M26, M27 sobreviveram | ⚠️ Parcial | `test/components/rooms-columns.test.tsx:162-177` afirma `sticky top-0` nos cabeçalhos, `sticky left-0` no eixo e no canto; M26 e M27 morreram. Mas no navegador o eixo não fica fixo (ver Colunas 4) |
-| 3 | Imprecisões da spec | ✅ Fechada | `spec.md:31` janela padrão com exemplos (13:07 → 13:30–14:30; 13:30 → 14:00–15:00); `spec.md:71` singular; `spec.md:74` "X de N salas" e o que X conta na visão "Livres" |
-| 4 | `onOpenOccupation` sem uso | ✅ Fechada | removido de `src/components/rooms/rooms-columns.tsx` (nenhuma ocorrência em `src/components/rooms`) |
+| 1 | MAJOR: em 360 px, o eixo de horas e o canto saíam da tela ao rolar a grade na horizontal | ✅ Fechada | `src/components/rooms/rooms-columns.tsx:48` - `className="grid w-max min-w-full"`; teste `test/components/rooms-columns.test.tsx:161-163` - `className.split(" ")` contém `["w-max", "min-w-full"]` (mutante W morreu). Navegador: tabela em "Medidas no navegador" (eixo, canto e nomes a 1 px da borda em qualquer rolagem, nas duas larguras) |
+| 2 | N1: `loader` com `loadSalas(undefined, …)` sobrevivia | ✅ Fechada (N1) / ⚠️ fix incompleto | `test/routes/salas.test.ts:178-189` - `loader({ deps: { data: "2030-01-15" }, … })` → `expect(data.selectedDate).toBe("2030-01-15")`; N1 morreu. A rodada 2 pediu também afirmar o argumento enviado a `getRoomsDayFn`, o que não entrou: V1 e V1b sobreviveram (ver Sensor) |
+| 3 | N5: contador da visão "Livres" contava as salas filtradas | ✅ Fechada | `test/components/rooms-view.test.tsx:186-190` - `/?visao=livres&ini=14:00&fim=16:00` → `getByText("2 de 3 salas")` e `freeNames()` `["B-104","LAB 1"]`; N5 morreu |
 
 ---
 
@@ -26,16 +25,29 @@
 
 | Task | Status | Notes |
 | ---- | ------ | ----- |
-| T1 `listActiveInRangeAll` | ✅ Done | N7 (sem filtro de status) morreu em `src/infra/db/flow/occupation-repository.test.ts` |
-| T2 `bookings.roomsDay` | ✅ Done | N8 (intervalo de 2 dias) morreu |
+| T1 `listActiveInRangeAll` | ✅ Done | - |
+| T2 `bookings.roomsDay` | ✅ Done | - |
 | T3 `getRoomsDayFn` | ✅ Done | - |
-| T4 `room-filter` | ✅ Done | N3, N6 morreram |
-| T5 Rota `/salas` | ⚠️ Partial | `loaderDeps` coberto; o `loader` pode ignorar `deps.data` sem teste falhar (N1 sobreviveu) |
-| T6 Navegação | ⚠️ Partial | opção "Ver todas as salas" no seletor de sala segue adiada (desvio registrado) |
-| T7 `RoomsFilters` | ✅ Done | N4, N9 morreram |
-| T8 `RoomsColumns` | ❌ Defeito | eixo de horas sai da tela após ~274 px de rolagem horizontal em 360 px |
+| T4 `room-filter` | ✅ Done | V4, V6 morreram |
+| T5 Rota `/salas` | ⚠️ Partial | `loader` coberto só pelo valor devolvido (`selectedDate`); o argumento enviado ao servidor não é afirmado (V1, V1b sobreviveram) |
+| T6 Navegação | ✅ Done | opção "Ver todas as salas" no seletor de sala adiada para o merge (desvio registrado; não é AC) |
+| T7 `RoomsFilters` | ✅ Done | - |
+| T8 `RoomsColumns` | ✅ Done | eixo e nomes fixos medidos no navegador; W e V5 morreram |
 | T9 `RoomsFreeList` | ✅ Done | - |
-| T10 `RoomsView` | ⚠️ Partial | contador da visão "Livres" sem teste (N5 sobreviveu) |
+| T10 `RoomsView` | ✅ Done | N5, V2, V3 morreram |
+
+---
+
+## Medidas no navegador (Colunas AC4)
+
+Dev server da worktree (porta 3200, código de `a26bec0`), `playwright-cli -s=verif3`, `http://localhost:3200/salas?visao=colunas` sem `data` (carregou as 21 salas de hoje). Para cada `scrollLeft`, `scrollTop = 300` e duas animações de quadro antes de medir. Distâncias em px até a borda da caixa `[data-testid=rooms-columns]` (1 px = borda da caixa).
+
+| Viewport | Caixa (cliente / conteúdo) | Grade interna | `scrollLeft` medidos | Eixo → esquerda da caixa | Canto → esquerda / topo | Nomes → topo da caixa | `documentElement.scrollWidth` |
+| -------- | -------------------------- | ------------- | -------------------- | ------------------------ | ----------------------- | --------------------- | ----------------------------- |
+| 360×760 | 326 / 3772 | 3772 | 0, 300, 958, 1723, 3446 (máx.) | 1 em todos | 1 / 1 em todos | 1 em todos | 360 em todos |
+| 1280×800 | 1230 / 3772 | 3772 | 0, 300, 958, 1271, 2542 (máx.) | 1 em todos | 1 / 1 em todos | 1 em todos | 1280 em todos |
+
+Na rodada 2 a grade interna media 326 px e o eixo ia a −2315 px em `scrollLeft` 2590. Agora a grade interna tem a largura do conteúdo. Em 360 px, com rolagem máxima e `scrollTop` 300, `document.elementFromPoint` 20 px à direita da borda cai dentro do eixo de horas e 150 px à direita, na altura do cabeçalho, cai no nome da última sala ("Lab. A107"), ou seja, os dois ficam por cima das colunas. Sessão fechada; prints e pastas `.playwright-cli` criadas foram apagadas.
 
 ---
 
@@ -45,75 +57,72 @@
 
 | Criterion | Spec-defined outcome | `file:line` + assertion | Result |
 | --------- | -------------------- | ----------------------- | ------ |
-| Colunas 1: abrir `/salas?data=` → uma coluna por sala, ordem natural, ocupações daquele dia | `A-202` antes de `A-1000`; ocupações do dia da URL | `src/application/bookings.test.ts:676-682` - nomes em ordem natural com `"A-1000"` depois de `"A-202"`; `:728` - `["MAT1","08:00","09:50"]` só na sala certa; `test/components/rooms-columns.test.tsx:100-109` - links `["A-202","B-104","LAB 1"]`, `Cálculo I` só em `a202`; `test/routes/salas.test.ts:110-117` - `loadSalas("2026-11-10", …)` → `selectedDate toBe("2026-11-10")`. Nenhum teste liga o `loader` da rota (`src/routes/salas.tsx:120-121`) a `loadSalas`: N1 (`loadSalas(undefined, …)`, sempre hoje) sobreviveu | ⚠️ PASS com teste fraco (N1) |
-| Colunas 2: trocar o dia → uma única chamada | 1 chamada, 1 consulta | `src/application/bookings.test.ts:793` - `expect(calls).toEqual({ all: 1, one: 0 })`; `test/routes/salas.test.ts:102` - `calls toEqual(["2026-11-03"])`; `test/routes/salas.test.ts:174` - outra data muda as deps; `test/components/rooms-view.test.tsx:193-196` - "Próximo dia" → `search toMatchObject({ data: "2030-11-13" })`. A mesma lacuna de N1 vale aqui: a data nova pode não chegar ao servidor | ⚠️ PASS com teste fraco (N1) |
-| Colunas 3: nome da coluna → agenda da sala no mesmo dia | `/?espaco=ID&data=AAAA-MM-DD` | `test/components/rooms-columns.test.tsx:111-116` - `href toBe(\`/?espaco=b104&data=${DATE}\`)` | ✅ PASS |
-| Colunas 4: < 768 px, "Colunas" rola dentro da grade, eixo de horas e nomes fixos, sem rolagem da página | grade rola; eixo e nomes ficam visíveis em qualquer rolagem; página sem rolagem horizontal | Teste: `test/components/rooms-columns.test.tsx:154-160` (`overflow-auto`, colunas de 140 px) e `:162-177` (classes `sticky`). Navegador (dev server de `ec25b7a`, 360×740, `/salas?visao=colunas`, 21 salas): `document.documentElement.scrollWidth` = 360 (página não rola, ✅); cabeçalho a 0,8 px do topo da grade após `scrollTop = 300` (✅); eixo de horas e canto a 1 px da borda até `scrollLeft` 251, mas a −25 px em 300, −683 px em 958 e −2315 px em 2590 (❌). Causa: a grade interna `div.grid` (`src/components/rooms/rooms-columns.tsx:47-52`) mede 326 px para 2992 px de conteúdo, e o `sticky left-0` (`:69`) não sai do bloco que o contém | ❌ GAP (defeito de produção; o teste de classes não detecta) |
-| Colunas 5: responsável só para logado | visitante: `person: null`, sem nome/iniciais/id | `src/application/bookings.test.ts:765` - `toEqual([null, null])`; `src/server/booking-actions.test.ts:149-150` - `not.toContain(s.docA.id)`, `not.toContain("Pessoa")`; logado `src/application/bookings.test.ts:757` e `src/server/booking-actions.test.ts:156` - `{ name: "Pessoa doca", code: "DOCA" }` | ✅ PASS |
-| Colunas 6: data inválida → hoje | data descartada; hoje no fuso | `test/routes/salas.test.ts:55-56` - `"2026-02-30"`, `"10/11/2026"`, `""`, número, `null` → `toEqual({})`; `:102-103` - sem data, `selectedDate toBe("2026-11-03")` | ✅ PASS |
+| Colunas 1: abrir `/salas?data=` → uma coluna por sala, ordem natural, ocupações daquele dia | `A-202` antes de `A-1000`; ocupações do dia da URL | `src/application/bookings.test.ts:676-682` - nomes `["A-202","A-1000","ADM 2","B-104","LAB 1"]`; `:691` - `room.date toBe("2026-11-10")`; `:727-729` - `["MAT1","08:00","09:50"]` só em B-104 (QUI1 de outro dia fora); `test/components/rooms-columns.test.tsx:102-108` - links `["A-202","B-104","LAB 1"]`, `Cálculo I` só em `a202`; `test/routes/salas.test.ts:187` - `loader` com `deps.data` → `selectedDate toBe("2030-01-15")`. O dia que o `loader` pede ao servidor não é afirmado: V1 (data fixa) e V1b (`deps.data` no lugar de `date`) sobreviveram a `bun test` inteiro. Produção correta: `src/routes/salas.tsx:121` repassa `date`, e o navegador carregou as 21 salas sem `data` na URL | ⚠️ PASS com teste fraco (V1, V1b) |
+| Colunas 2: trocar o dia → uma única chamada | 1 chamada, 1 consulta | `src/application/bookings.test.ts:793` - `calls toEqual({ all: 1, one: 0 })`; `test/routes/salas.test.ts:102` - `calls toEqual(["2026-11-03"])`; `:174` - outra data muda as deps; `test/components/rooms-view.test.tsx:202` - "Próximo dia" → `search toMatchObject({ data: "2030-11-13" })`. Mesma lacuna de V1: nada prova que a data nova chega ao servidor | ⚠️ PASS com teste fraco (V1, V1b) |
+| Colunas 3: nome da coluna → agenda da sala no mesmo dia | `/?espaco=ID&data=AAAA-MM-DD` | `test/components/rooms-columns.test.tsx:113-115` - `href toBe(\`/?espaco=b104&data=${DATE}\`)`; V5 morreu | ✅ PASS |
+| Colunas 4: < 768 px, "Colunas" rola dentro da grade, eixo de horas e nomes fixos, sem rolagem da página | grade rola; eixo e nomes visíveis em qualquer rolagem; página sem rolagem horizontal | `test/components/rooms-columns.test.tsx:157-163` - `overflow-auto`, `"52px repeat(3, minmax(140px, 1fr))"`, grade interna com `w-max` e `min-w-full`; `:166-181` - `sticky top-0` nos nomes, `sticky left-0` no eixo, `sticky top-0 left-0` no canto. Navegador: tabela acima (eixo, canto e nomes a 1 px; `scrollWidth` = largura da viewport); `test/components/rooms-view.test.tsx:216-220` - no celular `visao=colunas` mostra as colunas | ✅ PASS (layout provado no navegador; o teste automatizado é um proxy por classes) |
+| Colunas 5: responsável só para logado | visitante: `person: null`, sem nome/iniciais/id | `src/application/bookings.test.ts:765` - `toEqual([null, null])`; `src/server/booking-actions.test.ts:149-150` - `not.toContain(s.docA.id)`, `not.toContain("Pessoa")`; logado `src/application/bookings.test.ts:757` e `src/server/booking-actions.test.ts:156` - `"Pessoa doca"` | ✅ PASS |
+| Colunas 6: data inválida → hoje | data descartada; hoje no fuso | `test/routes/salas.test.ts:55-57` - `"2026-02-30"`, `"10/11/2026"`, `""`, número, `null` → `toEqual({})`; `:102-103` - sem data, `selectedDate toBe("2026-11-03")` | ✅ PASS |
 
 ### P1: Filtrar salas
 
 | Criterion | Spec-defined outcome | `file:line` + assertion | Result |
 | --------- | -------------------- | ----------------------- | ------ |
-| Filtros 1: um ou mais blocos | só salas desses blocos | `src/domain/room-filter.test.ts:75`, `:80`; `test/components/rooms-view.test.tsx:170-174` - `bloco: ["B"]`, só `b104` | ✅ PASS |
-| Filtros 2: capacidade mínima N | capacidade ≥ N | `src/domain/room-filter.test.ts:96` (limite 25 incluído) | ✅ PASS |
-| Filtros 3: aviso das salas sem capacidade (plural e singular) | "X salas … ficaram de fora"; X = 1: "1 sala … ficou de fora" | `test/components/rooms-filters.test.tsx:96` - `"18 salas sem capacidade cadastrada ficaram de fora"`; `test/components/rooms-view.test.tsx:305` - `"1 sala sem capacidade cadastrada ficou de fora"`; `src/domain/room-filter.test.ts:97`, `:107`. N4 morreu | ✅ PASS |
+| Filtros 1: um ou mais blocos | só salas desses blocos | `src/domain/room-filter.test.ts:75`, `:80` (B + Outros); `test/components/rooms-view.test.tsx:170-174` - `bloco: ["B"]`, só `b104`; V4 morreu | ✅ PASS |
+| Filtros 2: capacidade mínima N | capacidade ≥ N | `src/domain/room-filter.test.ts:96` | ✅ PASS |
+| Filtros 3: aviso das salas sem capacidade | plural e singular | `test/components/rooms-filters.test.tsx:96`; `test/components/rooms-view.test.tsx:311` - `"1 sala sem capacidade cadastrada ficou de fora"` | ✅ PASS |
 | Filtros 4: busca sem caixa nem acento | nome contém o texto | `src/domain/room-filter.test.ts:111-116` | ✅ PASS |
-| Filtros 5: "Só livres" | sem ocupação que cruze a janela | `src/domain/room-filter.test.ts:120`, `:131`, `:135`. N3 morreu | ✅ PASS |
-| Filtros 6: filtro na URL + "X de N salas"; na visão "Livres", X = só as livres na janela | URL reflete; X e N certos em cada visão | Colunas: `test/components/rooms-view.test.tsx:165` - `"3 de 3 salas"`, `:172` - `"1 de 3 salas"`, `:304`; `test/components/rooms-filters.test.tsx:95` - `"3 de 21 salas"`; URL `test/components/rooms-view.test.tsx:171`, `:177-182`. Visão "Livres": nenhum teste afirma o contador; N5 (contar as filtradas em vez das livres, `src/components/rooms/rooms-view.tsx:144-147`) sobreviveu | ❌ GAP (parte "Livres" sem evidência) |
-| Filtros 7: nenhuma sala passa | "Nenhuma sala com esses filtros" + "Limpar filtros" | `test/components/rooms-view.test.tsx:294-299` - texto, clique, `search toEqual({})` | ✅ PASS |
-| Filtros 8: < 768 px, botão "Filtros" com contador | "Filtros (n)" | `test/components/rooms-filters.test.tsx:111` - `name: "Filtros (3)"`. N9 morreu | ✅ PASS |
+| Filtros 5: "Só livres" | sem ocupação que cruze a janela | `src/domain/room-filter.test.ts:120`, `:131`, `:135` | ✅ PASS |
+| Filtros 6: filtro na URL + "X de N salas"; na visão "Livres", X = só as livres | URL reflete; X e N certos em cada visão | Colunas: `test/components/rooms-view.test.tsx:165` - `"3 de 3 salas"`, `:172` - `"1 de 3 salas"`, `:310`; Livres: `:188` - `"2 de 3 salas"` com A-202 ocupada 14:00–15:00; `test/components/rooms-filters.test.tsx:95` - `"3 de 21 salas"`; URL `test/components/rooms-view.test.tsx:171`, `:177-182`. N5 e V2 morreram | ✅ PASS |
+| Filtros 7: nenhuma sala passa | "Nenhuma sala com esses filtros" + "Limpar filtros" | `test/components/rooms-view.test.tsx:302-304` - texto, clique, `search toEqual({})` | ✅ PASS |
+| Filtros 8: < 768 px, botão "Filtros" com contador | "Filtros (n)" | `test/components/rooms-filters.test.tsx:111` | ✅ PASS |
 
 ### P1: Listar salas livres num horário
 
 | Criterion | Spec-defined outcome | `file:line` + assertion | Result |
 | --------- | -------------------- | ----------------------- | ------ |
-| Livres 1: salas livres com nome, bloco e capacidade | só inteiramente livres | `test/components/rooms-free-list.test.tsx:60-68`; `test/components/rooms-view.test.tsx:205` - `["B-104","LAB 1"]` | ✅ PASS |
-| Livres 2: janela muda → recalcula sem nova chamada, no mesmo dia | 0 chamadas novas | `test/routes/salas.test.ts:156-176` (deps só com `data`) + semântica do roteador citada acima; a lista é derivada da URL a cada render (`src/components/rooms/rooms-view.tsx:130-147`), coberta por `test/components/rooms-view.test.tsx:201-205`, `:285-291`. M13 e N2 morreram | ✅ PASS |
-| Livres 3: trecho passado de hoje indisponível | início ≤ agora conta como ocupado | `src/domain/room-filter.test.ts:169-172` | ✅ PASS |
-| Livres 4: fim ≤ início | mensagem e lista anterior | `test/components/rooms-view.test.tsx:290-291` | ✅ PASS |
-| Livres 5: < 768 px abre em "Livres" | visão "Livres" | `test/components/rooms-view.test.tsx:202-205`, `:213` | ✅ PASS |
+| Livres 1: salas livres com nome, bloco e capacidade | só inteiramente livres | `test/components/rooms-free-list.test.tsx:60-68`; `test/components/rooms-view.test.tsx:189`, `:211` | ✅ PASS |
+| Livres 2: janela muda → recalcula sem nova chamada | 0 chamadas novas | `test/routes/salas.test.ts:172-174` (deps só com `data`) | ✅ PASS |
+| Livres 3: trecho passado de hoje indisponível | início ≤ agora conta como ocupado | `src/domain/room-filter.test.ts:169-170` (início igual a agora = ocupado); V6 morreu | ✅ PASS |
+| Livres 4: fim ≤ início | mensagem e lista anterior | `test/components/rooms-view.test.tsx:296-297` | ✅ PASS |
+| Livres 5: < 768 px abre em "Livres" | visão "Livres" | `test/components/rooms-view.test.tsx:208-213`; V3 morreu | ✅ PASS |
 
 ### P2: Reservar a partir de todas as salas
 
 | Criterion | Spec-defined outcome | `file:line` + assertion | Result |
 | --------- | -------------------- | ----------------------- | ------ |
-| Reservar 1: rascunho na coluna | rascunho só naquela sala | `test/components/rooms-columns.test.tsx:118-133`; Esc `test/components/rooms-view.test.tsx:228-234` | ✅ PASS |
-| Reservar 2: clicar no rascunho → "Nova reserva" | sala, data, início, fim | `test/components/rooms-view.test.tsx:222-225` | ✅ PASS |
-| Reservar 3: "Reservar" na lista | sala, data, janela | `test/components/rooms-view.test.tsx:252-254`, `:261-266` | ✅ PASS |
-| Reservar 4: atualiza sem recarregar | dados recarregados pelo roteador | `test/components/rooms-view.test.tsx:267` - `loads.count toBeGreaterThan(before)` | ✅ PASS |
-| Reservar 5: visitante sem rascunho nem "Reservar" | escondidos | `test/components/rooms-view.test.tsx:274`, `:282`; `test/routes/salas.test.ts:119`. N10 morreu | ✅ PASS |
+| Reservar 1: rascunho na coluna | rascunho só naquela sala | `test/components/rooms-columns.test.tsx:120-132`; Esc `test/components/rooms-view.test.tsx:237-239` | ✅ PASS |
+| Reservar 2: clicar no rascunho → "Nova reserva" | sala, data, início, fim | `test/components/rooms-view.test.tsx:228-231` | ✅ PASS |
+| Reservar 3: "Reservar" na lista | sala, data, janela | `test/components/rooms-view.test.tsx:258-260`, `:267-272` | ✅ PASS |
+| Reservar 4: atualiza sem recarregar | dados recarregados pelo roteador | `test/components/rooms-view.test.tsx:273` | ✅ PASS |
+| Reservar 5: visitante sem rascunho nem "Reservar" | escondidos | `test/components/rooms-view.test.tsx:280`, `:288`; `test/routes/salas.test.ts:118-119` | ✅ PASS |
 | Reservar 6: um rascunho por vez | 1 rascunho | `test/components/rooms-columns.test.tsx:130-132` | ✅ PASS |
 
-**Status**: ❌ Gaps present (Colunas 4 defeito; Filtros 6 sem evidência na visão "Livres"); testes fracos em Colunas 1 e 2 (N1).
+**Status**: ⚠️ Todos os ACs com resultado da spec; Colunas 1 e 2 com teste fraco na ligação `loader` → servidor (V1, V1b).
 
 ---
 
 ## Discrimination Sensor
 
-Worktree temporária `C:\Users\luiss\wt-verify-salas2` (`HEAD` destacado em `ec25b7a`, `bun install`), uma mutação por vez, restaurando o arquivo depois de cada uma; só os testes relevantes. Linha de base na temporária: 134 testes, 0 falhas. Logs fora do repositório (`C:\Users\luiss\tcc\tmp\verify-salas2-sensor.log`).
+Worktree temporária `C:\Users\luiss\wt-verify-salas3` (`HEAD` destacado em `a26bec0`, `bun install`), uma mutação por vez, arquivo restaurado com `git checkout` na temporária depois de cada uma. Linha de base: 71 testes relevantes, 0 falhas. Log: `C:\Users\luiss\tcc\tmp\verify-salas3-sensor.log`.
 
 | Mutation | File:line | Description | Killed? |
 | -------- | --------- | ----------- | ------- |
-| M13 | `src/routes/salas.tsx:119` | `loaderDeps` passa a depender de toda a URL | ✅ Killed (`Route.loaderDeps`) |
-| M26 | `src/components/rooms/rooms-columns.tsx:57` | cabeçalho com nomes perde `sticky` | ✅ Killed (nomes e eixo fixos) |
-| M27 | `src/components/rooms/rooms-columns.tsx:69` | eixo de horas perde `sticky` | ✅ Killed (nomes e eixo fixos) |
-| N1 | `src/routes/salas.tsx:121` | `loader` ignora `deps.data` (sempre hoje) | ❌ Survived → Fix 2 |
-| N2 | `src/routes/salas.tsx:119` | deps incluem `ini` (mudar a janela recarrega) | ✅ Killed (`Route.loaderDeps`) |
-| N3 | `src/domain/room-filter.ts:60` | janela que termina no fim do trecho livre deixa de ser livre (`<=` → `<`) | ✅ Killed (2 testes) |
-| N4 | `src/components/rooms/rooms-filters.tsx:221` | singular trocado (`=== 1` → `=== 0`) | ✅ Killed (aviso de capacidade) |
-| N5 | `src/components/rooms/rooms-view.tsx:146` | contador da visão "Livres" conta as filtradas, não as livres | ❌ Survived → Fix 3 |
-| N6 | `src/domain/room-filter.ts:106` | janela padrão com `Math.ceil` (13:30 → 13:30 em vez de 14:00) | ✅ Killed (2 testes) |
-| N7 | `src/infra/db/repos/occupation-repository.ts:80` | consulta de todas as salas sem filtro de status (traz canceladas) | ✅ Killed (repositório) |
-| N8 | `src/application/bookings.ts:313` | intervalo da consulta cobre 2 dias | ✅ Killed (`roomsDay`) |
-| N9 | `src/components/rooms/rooms-filters.tsx:51` | contador "Filtros (n)" ignora "Só livres" | ✅ Killed (celular) |
-| N10 | `src/components/rooms/rooms-view.tsx:279` | `canDraft={true}` (visitante desenha rascunho) | ✅ Killed (visitante) |
+| N1 | `src/routes/salas.tsx:121` | `loadSalas(undefined, …)` (sempre hoje) | ✅ Killed (`Route.loader`) |
+| N5 | `src/components/rooms/rooms-view.tsx:146` | contador de "Livres" conta as filtradas | ✅ Killed (contador em "Livres") |
+| W | `src/components/rooms/rooms-columns.tsx:48` | grade interna sem `w-max min-w-full` | ✅ Killed (rolagem dentro da grade) |
+| V1 | `src/routes/salas.tsx:121` | `loader` pede ao servidor uma data fixa (`"2026-01-01"`) em vez de `date` | ❌ Survived (testes relevantes e `bun test` inteiro: 1163 pass) → Fix 1 |
+| V1b | `src/routes/salas.tsx:121` | `loader` manda `deps.data` em vez de `date`: sem `data` na URL o servidor recebe `undefined`, responde 400 (`src/server/booking-actions.ts:97`) e `/salas` mostra "Não foi possível carregar as salas" | ❌ Survived (`bun test` inteiro: 1163 pass) → Fix 1 |
+| V2 | `src/components/rooms/rooms-view.tsx:147` | contador de "Colunas" conta todas as salas, não as filtradas | ✅ Killed (2 testes) |
+| V3 | `src/components/rooms/rooms-view.tsx:125` | visão padrão invertida (celular "Colunas", computador "Livres") | ✅ Killed (7 testes) |
+| V4 | `src/domain/room-filter.ts:81` | bloco "Outros" deixa de casar (`blockOf ?? ""` no lugar de `groupOf`) | ✅ Killed (blocos) |
+| V5 | `src/components/rooms/rooms-columns.tsx:61` | link do nome sem `data` | ✅ Killed (agenda no mesmo dia) |
+| V6 | `src/domain/room-filter.ts:59` | início igual a agora passa a contar como livre (`<=` → `<`) | ✅ Killed (trecho passado) |
 
-**Sensor depth**: expandido (13 mutantes: os 3 sobreviventes da rodada 1 e 10 novos em rota, domínio, filtros, view, repositório e serviço).
-**Result**: 11/13 killed - FAIL ❌
+**Sensor depth**: expandido (3 reaplicados da rodada 2 + 7 novos em rota, view, colunas e domínio).
+**Result**: 8/10 killed - FAIL ❌
 
-Isolamento: `git -C C:\Users\luiss\wt-todas-as-salas status --porcelain` vazio antes e depois; temporária limpa antes da remoção, removida com `git worktree remove --force` e ausente de `git worktree list`.
+Isolamento: `git -C C:\Users\luiss\wt-todas-as-salas status --porcelain` vazio antes e depois; temporária limpa antes da remoção, saí do diretório, `git worktree remove --force` (a pasta presa foi apagada em seguida), ausente de `git worktree list`.
 
 ---
 
@@ -121,12 +130,12 @@ Isolamento: `git -C C:\Users\luiss\wt-todas-as-salas status --porcelain` vazio a
 
 | Principle | Status |
 | --------- | ------ |
-| Minimum code | ✅ prop sem uso removida |
-| Surgical changes | ✅ `ec25b7a` só mexe em testes, spec, `rooms-columns.tsx` (prop) e `biome.json` (ignora `.specs/lessons.json`, gerado por script) |
+| Minimum code | ✅ `a26bec0` muda uma classe em produção |
+| Surgical changes | ✅ `a26bec0`: `rooms-columns.tsx` (1 linha) e três arquivos de teste |
 | No scope creep | ✅ |
 | Matches patterns | ✅ |
-| Spec-anchored outcome check | ❌ Colunas 4 (defeito), Filtros 6 na visão "Livres" (sem evidência) |
-| Per-layer Coverage Expectation met | ⚠️ rota: `loaderDeps` coberto, ligação `loader` → `loadSalas` não |
+| Spec-anchored outcome check | ⚠️ Colunas 1 e 2: o teste do `loader` afirma o valor devolvido, não o pedido ao servidor |
+| Per-layer Coverage Expectation met | ⚠️ rota: `loader` sem afirmação do argumento de `getRoomsDayFn` |
 | Every test maps to a spec requirement | ✅ |
 | Documented guidelines followed: `package.json` (`check`), `bunfig.toml` (cobertura 90%) | ✅ |
 
@@ -134,30 +143,30 @@ Isolamento: `git -C C:\Users\luiss\wt-todas-as-salas status --porcelain` vazio a
 
 ## Edge Cases
 
-- [x] Sem salas cadastradas - `test/components/rooms-view.test.tsx:322-325`, `:331`
-- [x] Falha do servidor - `test/components/rooms-view.test.tsx:308-318`; `test/routes/salas.test.ts:123-142`
-- [x] Dia fora de semestre - `src/application/bookings.test.ts:806`
-- [x] Bloco inexistente na URL - `test/routes/salas.test.ts:70-76`
+- [x] Sem salas cadastradas - `test/components/rooms-view.test.tsx:328`, `:336`
+- [x] Falha do servidor - `test/components/rooms-view.test.tsx:320-323`; `test/routes/salas.test.ts:130-141`
+- [x] Dia fora de semestre - `src/application/bookings.test.ts:796-806`
+- [x] Bloco inexistente na URL - `test/routes/salas.test.ts:70-76`; `src/domain/room-filter.test.ts:88-91`
 - [x] Capacidade fora de 1–999 - `test/routes/salas.test.ts:61-66`
 
 ---
 
-## Spec-precision gaps
+## Observações (não bloqueiam)
 
-1. Colunas 4 e Success Criteria 2 ainda não dizem como verificar rolagem e elementos fixos. O happy-dom não mede layout, e foi justamente aí que o defeito do eixo passou pelos testes. Nesta rodada a verificação foi feita no navegador (medidas acima), sem artefato automatizado no repositório.
-2. A janela padrão perto do fim do dia não está na spec: `src/domain/room-filter.test.ts:200-201` fixa 22:40 → 23:00–23:59 e 23:45 → 23:00–23:59, o que contradiz "depois de agora" e "dura 1 h" (`spec.md:31`). Menor.
-3. A premissa "opção 'Ver todas as salas' no seletor de sala" (`spec.md:28`) segue não entregue (desvio de T6) e não confirmada.
+1. Colunas 4 e Success Criteria 2 seguem sem dizer como verificar rolagem e elementos fixos. O happy-dom não mede layout; o teste prova as classes (W morreu) e o efeito foi medido no navegador nesta rodada, sem artefato automatizado no repositório. Em 360 px foi medida só a visão "Colunas", que é a que mudou.
+2. Janela padrão perto da meia-noite fora da spec: `src/domain/room-filter.test.ts:200-201` fixa 22:40 → 23:00–23:59 e 23:45 → 23:00–23:59, o que contradiz "depois de agora" e "dura 1 h" (`spec.md:31`). Imprecisão de spec, menor.
+3. A opção "Ver todas as salas" no seletor de sala (`spec.md:28`) foi adiada para o merge por estar em arquivo editado por outra pessoa; não é AC da spec.
 
 ---
 
 ## Gate Check
 
-- **Gate command**: `bun run check` (lint, typecheck, knip, depcruise, `bun test --coverage`, betterleaks); log em `C:\Users\luiss\tcc\tmp\verify-salas2.log`
-- **Result**: exit 0; 1161 passed, 0 failed, 2 skipped (1163 testes em 92 arquivos); betterleaks sem vazamentos
-- **Feature tests**: 180 passed, 0 failed em 11 arquivos do diff
+- **Gate command**: `bun run check` (lint, typecheck, knip, depcruise, `bun test --coverage`, betterleaks); log em `C:\Users\luiss\tcc\tmp\verify-salas3.log`
+- **Result**: exit 0; 1163 passed, 0 failed, 2 skipped (1165 testes em 92 arquivos); betterleaks sem vazamentos
+- **Feature tests**: 182 passed, 0 failed em 11 arquivos do diff
 - **Test count before feature**: ≈1081
-- **Test count after feature**: 1163
-- **Delta**: +82 (+2 nesta correção)
+- **Test count after feature**: 1165
+- **Delta**: +84 (+2 nesta correção)
 - **Skipped tests**: `arquivo real de data/real > nenhum XML em data/real` e `reservas no D1 local > …`, anteriores à feature e dependentes de dados locais
 - **Failures**: nenhuma
 
@@ -165,23 +174,11 @@ Isolamento: `git -C C:\Users\luiss\wt-todas-as-salas status --porcelain` vazio a
 
 ## Fix Plans
 
-### Fix 1: eixo de horas não fica fixo ao rolar a grade (Colunas 4)
+### Fix 1: teste do `loader` não prova o dia pedido ao servidor (V1, V1b)
 
-- **Root cause**: a grade interna (`src/components/rooms/rooms-columns.tsx:47-52`, `className="grid"`) tem a largura da caixa rolável (326 px em 360 px de tela), não a do conteúdo (2992 px). Um elemento `sticky` não sai do bloco que o contém, então o eixo (`:69`) e o canto (`:53`) acompanham a rolagem depois de ~274 px. Na tela larga acontece o mesmo assim que 21 colunas passam da largura da caixa.
-- **Fix task**: fazer a grade interna ter a largura do conteúdo e pelo menos a da caixa (por exemplo `w-max min-w-full`), sem reintroduzir rolagem da página. Teste: afirmar essa classe na grade interna em `test/components/rooms-columns.test.tsx` e registrar uma verificação no navegador em 360 px e 1280 px: depois de `grid.scrollLeft = grid.scrollWidth`, a borda esquerda do eixo fica a ≤ 1 px da borda da grade e `document.documentElement.scrollWidth === innerWidth`.
-- **Priority**: Major
-
-### Fix 2: `loader` da rota sem teste (N1)
-
-- **Root cause**: `test/routes/salas.test.ts:156-176` chama só `loaderDeps`; o `loader` (`src/routes/salas.tsx:120-121`) pode passar `undefined` a `loadSalas` e mostrar sempre hoje sem que nada falhe.
-- **Fix task**: em `test/routes/salas.test.ts`, substituir `getRoomsDayFn` com `mock.module("#/server/booking-fns", …)` antes de importar a rota, chamar `Route.options.loader({ deps: { data: "2026-11-10" }, context: { session } })` e afirmar que a chamada recebeu `{ data: { date: "2026-11-10" } }` e que `selectedDate` é `"2026-11-10"`.
-- **Priority**: Minor
-
-### Fix 3: contador da visão "Livres" sem teste (N5)
-
-- **Root cause**: nenhum teste olha "X de N salas" com `visao=livres`; a regra entrou na spec em `ec25b7a` (`spec.md:74`).
-- **Fix task**: em `test/components/rooms-view.test.tsx`, com `/?visao=livres&ini=14:00&fim=16:00` (A-202 ocupada 14:00–15:00), afirmar `"2 de 3 salas"`; trocar para "Colunas" e afirmar `"3 de 3 salas"`.
-- **Priority**: Minor
+- **Root cause**: `test/routes/salas.test.ts:178-189` chama o `loader` com o `getRoomsDayFn` real, que falha fora do servidor; `loadSalas` engole o erro e devolve `selectedDate` a partir de `deps.data`. O teste só olha `selectedDate`, então qualquer data enviada ao servidor passa, inclusive `undefined` quando a URL não tem data (a entrada padrão de `/salas`).
+- **Fix task**: em `test/routes/salas.test.ts`, substituir `#/server/booking-fns` com `mock.module` antes de importar a rota (import dinâmico), com um `getRoomsDayFn` que registra a entrada e responde `{ ok: true, data: day(input.data.date) }`. Afirmar: com `deps: { data: "2030-01-15" }`, chamadas `toEqual([{ data: { date: "2030-01-15" } }])` e `roomsDay` não nulo; com `deps: {}`, uma chamada cuja `date` é igual a `selectedDate` e casa `/^\d{4}-\d{2}-\d{2}$/`. Done when: V1 e V1b morrem.
+- **Priority**: Minor (só teste; produção correta em `src/routes/salas.tsx:121`)
 
 ---
 
@@ -189,15 +186,15 @@ Isolamento: `git -C C:\Users\luiss\wt-todas-as-salas status --porcelain` vazio a
 
 | Requirement | Previous Status | New Status |
 | ----------- | --------------- | ---------- |
-| SALAS-01 | Verified | ❌ Needs Fix (AC 1, 2: N1) |
+| SALAS-01 | Needs Fix (AC 1, 2: N1) | ❌ Needs Fix (AC 1, 2: teste do `loader` não afirma o pedido ao servidor; V1, V1b) |
 | SALAS-02 | Verified | ✅ Verified |
-| SALAS-03 | Needs Fix (AC 4) | ❌ Needs Fix (AC 4: eixo não fica fixo) |
-| SALAS-04 | Verified | ❌ Needs Fix (AC 6: contador em "Livres", N5) |
+| SALAS-03 | Needs Fix (AC 4) | ✅ Verified |
+| SALAS-04 | Needs Fix (AC 6) | ✅ Verified |
 | SALAS-05 | Verified | ✅ Verified |
 | SALAS-06 | Verified | ✅ Verified |
 | SALAS-07 | Verified | ✅ Verified |
 | SALAS-08 | Verified | ✅ Verified |
-| SALAS-09 | Needs Fix (AC 2) | ✅ Verified |
+| SALAS-09 | Verified | ✅ Verified |
 | SALAS-10 | Verified | ✅ Verified |
 | SALAS-11 | Verified | ✅ Verified |
 | SALAS-12 | Verified | ✅ Verified |
@@ -206,14 +203,14 @@ Isolamento: `git -C C:\Users\luiss\wt-todas-as-salas status --porcelain` vazio a
 
 ## Summary
 
-**Overall**: ❌ Not Ready
+**Overall**: ❌ Not Ready (falta só teste)
 
-**Spec-anchored check**: 23/25 ACs com o resultado da spec; 2 gaps (Colunas 4, Filtros 6 na visão "Livres"); testes fracos em Colunas 1 e 2; 3 spec-precision gaps
-**Sensor**: 11/13 mutations killed
-**Gate**: 1161 passed, 0 failed, 2 skipped (pré-existentes)
+**Spec-anchored check**: 25/25 ACs com o resultado da spec; Colunas 1 e 2 com teste fraco (V1, V1b); 2 imprecisões de spec como observação
+**Sensor**: 8/10 mutations killed
+**Gate**: 1163 passed, 0 failed, 2 skipped (pré-existentes)
 
-**What works**: lacunas 1, 3 e 4 da rodada 1 fechadas; Livres AC2 agora provado; nomes fixos no topo e página sem rolagem horizontal em 360 px conferidos no navegador; filtros, privacidade, consulta única, reserva e recarga seguem cobertos.
+**What works**: eixo de horas, canto e nomes fixos em 360 px e 1280 px depois de qualquer rolagem, sem rolagem horizontal da página; N1, N5 e W mortos; SALAS-03 e SALAS-04 verificados; filtros, contadores nas duas visões, privacidade, consulta única, reserva e recarga cobertos.
 
-**Issues found**: Fix 1 (eixo fixo, produção), Fix 2 (teste do `loader`), Fix 3 (teste do contador em "Livres").
+**Issues found**: Fix 1 (afirmar o dia que o `loader` pede ao servidor).
 
-**Next steps**: rotear Fix 1–3 para um implementador e re-verificar (iteração 2 de 3 concluída; resta 1 antes de escalar ao usuário).
+**Next steps**: rodada 3 de 3 concluída com um gap Minor só de teste; escalar ao usuário para decidir entre aplicar Fix 1 e re-verificar ou aceitar o risco.
