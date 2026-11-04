@@ -9,7 +9,7 @@ import { ADMIN_ROLES, IMPORT_ROLES, SEMESTER_ROLES, type SessionInfo } from "#/s
 type Props = { children: ReactNode; wide?: boolean };
 
 type NavItem = {
-  to: "/" | "/importar" | "/semestres" | "/admin/contas";
+  to: "/" | "/minhas-reservas" | "/importar" | "/semestres" | "/admin/contas";
   label: string;
   exact?: true;
 };
@@ -20,11 +20,15 @@ function useSessionUser(): SessionInfo["user"] {
   return context.session?.user ?? null;
 }
 
-/** Itens de navegação visíveis conforme os papéis. "Minhas reservas" entra na Tarefa 4, com a rota. */
-function navItems(user: SessionInfo["user"]): NavItem[] {
+/** Papéis que têm página pessoal de Minhas reservas no menu. */
+const MY_BOOKINGS_ROLES = ["admin", "docente"] as const;
+
+/** Itens de navegação visíveis conforme os papéis. */
+export function navItems(user: SessionInfo["user"]): NavItem[] {
   const has = (roles: readonly string[]) =>
     user?.roles.some((role) => roles.includes(role)) ?? false;
   const items: NavItem[] = [{ to: "/", label: "Agenda", exact: true }];
+  if (has(MY_BOOKINGS_ROLES)) items.push({ to: "/minhas-reservas", label: "Minhas reservas" });
   if (has(IMPORT_ROLES)) items.push({ to: "/importar", label: "Importar" });
   if (has(SEMESTER_ROLES)) items.push({ to: "/semestres", label: "Semestres" });
   if (has(ADMIN_ROLES)) items.push({ to: "/admin/contas", label: "Administração" });
