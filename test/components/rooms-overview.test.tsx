@@ -42,7 +42,14 @@ const WEEK: RoomsWeek = {
       space: { id: "a202", name: "A-202", capacity: 40 },
       occupations: [
         item({ id: "c1", date: MON, start: "08:00", end: "09:50" }),
-        item({ id: "f1", date: TUE, start: "08:30", end: "09:50", title: "Física — 2B" }),
+        item({
+          id: "f1",
+          date: TUE,
+          start: "08:30",
+          end: "09:50",
+          title: "Física — 2B",
+          person: { name: "Ana Souza", code: "1234", placeholder: false },
+        }),
         item({ id: "c2", date: WED, start: "08:00", end: "08:50" }),
         item({ id: "q1", date: WED, start: "09:00", end: "09:50", title: "Química — 3C" }),
         item({
@@ -63,9 +70,11 @@ const WEEK: RoomsWeek = {
   ],
 };
 
-async function renderOverview() {
+async function renderOverview(options: { isVisitor?: boolean } = {}) {
   const root = createRootRoute({
-    component: () => <RoomsOverview week={WEEK} rooms={WEEK.rooms} />,
+    component: () => (
+      <RoomsOverview week={WEEK} rooms={WEEK.rooms} isVisitor={options.isVisitor ?? false} />
+    ),
   });
   const router = createRouter({
     routeTree: root,
@@ -186,6 +195,61 @@ describe("RoomsOverview", () => {
     fireEvent.click(within(legend).getByRole("button", { name: "Reserva" }));
     expect(dimmedOf(cellAt("a202", THU, "M34"))).toEqual([false]);
     expect(dimmedOf(cellAt("a202", MON, "M12"))).toEqual([true]);
+  });
+
+  test("foco abre o cartão com matéria, turma, sala, dia e horário real", async () => {
+    await renderOverview();
+    const cell = cellAt("a202", TUE, "M12");
+    fireEvent.focus(cell);
+    const card = screen.getByRole("tooltip");
+    expect(cell.getAttribute("aria-describedby")).toBe(card.id);
+    expect(within(card).getByText("Física")).toBeDefined();
+    expect(within(card).getByText("Turma 2B")).toBeDefined();
+    expect(within(card).getByText("A-202 · terça 10/11 · 08:30–09:50")).toBeDefined();
+    fireEvent.blur(cell);
+    expect(screen.queryByRole("tooltip") === null).toBe(true);
+  });
+
+  test("passar o mouse abre o cartão e sair fecha", async () => {
+    await renderOverview();
+    const cell = cellAt("a202", MON, "M12");
+    fireEvent.mouseEnter(cell);
+    expect(within(screen.getByRole("tooltip")).getByText("Cálculo I")).toBeDefined();
+    fireEvent.mouseLeave(cell);
+    expect(screen.queryByRole("tooltip") === null).toBe(true);
+  });
+
+  test("logado vê o nome e o avatar do responsável no cartão", async () => {
+    await renderOverview();
+    fireEvent.focus(cellAt("a202", TUE, "M12"));
+    const card = screen.getByRole("tooltip");
+    expect(within(card).getByText("Ana Souza")).toBeDefined();
+    expect(card.querySelector("[data-slot='avatar']") === null).toBe(false);
+  });
+
+  test("visitante não vê nome, iniciais nem avatar no cartão", async () => {
+    await renderOverview({ isVisitor: true });
+    fireEvent.focus(cellAt("a202", TUE, "M12"));
+    const card = screen.getByRole("tooltip");
+    expect(within(card).getByText("Física")).toBeDefined();
+    expect(card.textContent?.includes("Ana Souza")).toBe(false);
+    expect(card.textContent?.includes("AS")).toBe(false);
+    expect(card.querySelector("[data-slot='avatar']") === null).toBe(true);
+  });
+
+  test("o quadradinho cresce com transição de até 150 ms, sem escala com movimento reduzido", async () => {
+    await renderOverview();
+    const cell = cellAt("a202", MON, "M12");
+    const classes = () => cell.className.split(" ");
+    const duration = classes()
+      .map((name) => /^duration-(\d+)$/.exec(name)?.[1])
+      .find((value) => value !== undefined);
+    expect(Number(duration)).toBeGreaterThan(0);
+    expect(Number(duration)).toBeLessThanOrEqual(150);
+    expect(classes()).toContain("motion-reduce:transition-none");
+    expect(classes()).not.toContain("scale-160");
+    fireEvent.focus(cell);
+    expect(classes()).toEqual(expect.arrayContaining(["scale-160", "motion-reduce:scale-100"]));
   });
 
   test("ocupação fora de todos os blocos aparece no aviso da linha da sala", async () => {

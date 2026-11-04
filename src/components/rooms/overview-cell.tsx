@@ -1,6 +1,8 @@
 import { Link } from "@tanstack/react-router";
-import type { CSSProperties } from "react";
+import { type CSSProperties, useId, useState } from "react";
+import { createPortal } from "react-dom";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
+import { Avatar } from "#/components/avatar";
 import { weekdayOf } from "#/domain/calendar";
 import {
   type Cell,
@@ -49,19 +51,97 @@ type Props = {
   date: string;
   /** Chave da matéria destacada na legenda; as faixas de outras matérias ficam esmaecidas. */
   highlight: string | null;
+  /** Visitante nunca vê pessoas no cartão. */
+  isVisitor: boolean;
 };
 
 const SQUARE = "relative size-4 shrink-0 rounded-[3px]";
+const CARD_GAP = 8;
+/** Abaixo disso o cartão abre embaixo do quadradinho, para não sair da tela. */
+const CARD_ROOM = 160;
+
+/** Turma do título importado (`MATÉRIA — TURMA`); `null` sem separador. */
+function classOf(title: string): string | null {
+  const cut = title.indexOf(" — ");
+  const rest = cut === -1 ? "" : title.slice(cut + 3).trim();
+  return rest === "" ? null : rest;
+}
+
+type CardProps = {
+  id: string;
+  anchor: DOMRect;
+  items: OverviewCellData["items"];
+  roomName: string;
+  date: string;
+  isVisitor: boolean;
+};
+
+/** Detalhes das ocupações do bloco; pessoa (avatar e nome) só para quem está logado. */
+function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProps) {
+  const below = anchor.top < CARD_ROOM;
+  return createPortal(
+    <div
+      id={id}
+      role="tooltip"
+      style={{
+        left: anchor.left + anchor.width / 2,
+        top: below ? anchor.bottom + CARD_GAP : anchor.top - CARD_GAP,
+      }}
+      className={cn(
+        "pointer-events-none fixed z-50 grid w-64 -translate-x-1/2 gap-2 rounded-lg border border-border bg-popover p-3 text-[13px] text-popover-foreground shadow-md",
+        !below && "-translate-y-full",
+      )}
+    >
+      {items.map(({ item }) => {
+        const entry = legendEntryOf(item);
+        const turma = item.source === "manual" ? null : classOf(item.title);
+        return (
+          <div key={item.id} className="grid gap-0.5">
+            <p className="flex items-center gap-1.5 font-semibold text-foreground">
+              <span
+                aria-hidden="true"
+                style={toneStyle(entry.tone)}
+                className="size-2.5 shrink-0 rounded-[2px] bg-[var(--tone-light)] dark:bg-[var(--tone-dark)]"
+              />
+              {item.source === "manual" ? item.title : entry.label}
+            </p>
+            {item.source === "manual" ? (
+              <p className="text-muted-foreground">Reserva</p>
+            ) : (
+              turma !== null && <p className="text-muted-foreground">{`Turma ${turma}`}</p>
+            )}
+            <p className="text-muted-foreground tabular-nums">
+              {`${roomName} · ${dayLabel(date)} · ${item.start}–${item.end}`}
+            </p>
+            {!isVisitor && item.person !== null && (
+              <p className="flex items-center gap-1.5">
+                <Avatar name={item.person.name} size="sm" />
+                {item.person.name}
+              </p>
+            )}
+          </div>
+        );
+      })}
+    </div>,
+    document.body,
+  );
+}
 
 /**
  * Um bloco de uma sala num dia: vazio com contorno; ocupado com a cor da matéria, uma faixa por
- * ocupação e canto recortado quando alguma não cobre o bloco inteiro.
+ * ocupação e canto recortado quando alguma não cobre o bloco inteiro. Mouse ou foco num ocupado
+ * aumenta o quadradinho e abre o cartão de detalhes.
  */
-export function OverviewCell({ cell, room, date, highlight }: Props) {
+export function OverviewCell({ cell, room, date, highlight, isVisitor }: Props) {
+  const cardId = useId();
+  const [anchor, setAnchor] = useState<DOMRect | null>(null);
   const where = { "data-room": room.id, "data-date": date, "data-block": cell.block.short };
   if (cell.items.length === 0) {
     return <span {...where} data-cell="livre" className={`${SQUARE} block border border-border`} />;
   }
+  const show = (event: { currentTarget: Element }) =>
+    setAnchor(event.currentTarget.getBoundingClientRect());
+  const hide = () => setAnchor(null);
   const partial = cell.items.some((entry) => entry.partial);
   const titles = cell.items.map((entry) => entry.item.title).join(" e ");
   return (
@@ -72,7 +152,17 @@ export function OverviewCell({ cell, room, date, highlight }: Props) {
       data-cell="ocupado"
       data-partial={partial ? "" : undefined}
       aria-label={`${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}: ${titles}`}
-      className={`${SQUARE} flex overflow-hidden outline-offset-2`}
+      aria-describedby={anchor === null ? undefined : cardId}
+      onMouseEnter={show}
+      onMouseLeave={hide}
+      onFocus={show}
+      onBlur={hide}
+      onKeyDown={(event) => event.key === "Escape" && hide()}
+      className={cn(
+        SQUARE,
+        "flex overflow-hidden outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
+        anchor !== null && "z-10 scale-160 motion-reduce:scale-100",
+      )}
     >
       {cell.items.map(({ item }) => {
         const entry = legendEntryOf(item);
@@ -94,6 +184,16 @@ export function OverviewCell({ cell, room, date, highlight }: Props) {
         <span
           aria-hidden="true"
           className="absolute right-0 bottom-0 size-1.5 bg-background [clip-path:polygon(100%_0,100%_100%,0_100%)]"
+        />
+      )}
+      {anchor !== null && (
+        <OverviewCard
+          id={cardId}
+          anchor={anchor}
+          items={cell.items}
+          roomName={room.name}
+          date={date}
+          isVisitor={isVisitor}
         />
       )}
     </Link>

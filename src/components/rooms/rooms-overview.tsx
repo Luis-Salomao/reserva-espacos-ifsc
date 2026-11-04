@@ -8,6 +8,7 @@ type Props = {
   week: RoomsWeek;
   /** Salas que passaram nos filtros, na ordem recebida. */
   rooms: RoomsWeek["rooms"];
+  isVisitor: boolean;
 };
 
 const RESERVA = legendEntryOf({ source: "manual", title: "" });
@@ -34,7 +35,7 @@ function legendOf(rooms: Props["rooms"]): LegendEntry[] {
 }
 
 /** Salas × (segunda a sexta × blocos do semestre), um quadradinho por bloco, com a legenda. */
-export function RoomsOverview({ week, rooms }: Props) {
+export function RoomsOverview({ week, rooms, isVisitor }: Props) {
   const [highlight, setHighlight] = useState<string | null>(null);
   const rows = rooms.map((room) => {
     const days = week.days.map((day) =>
@@ -99,6 +100,7 @@ export function RoomsOverview({ week, rooms }: Props) {
                       room={room.space}
                       date={day.date}
                       highlight={highlight}
+                      isVisitor={isVisitor}
                     />
                   ))}
                 </div>

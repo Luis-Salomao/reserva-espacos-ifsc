@@ -221,8 +221,10 @@ T13 → T14 → T15 → T16 → T17
 
 **Done when**:
 
-- [ ] Testes: foco abre o cartão com matéria, turma, sala, dia e horário; logado vê nome e avatar; visitante não vê nome, iniciais nem nenhum `[data-slot="avatar"]` (asserção booleana, lição L-012); classe de transição com duração ≤ 150 ms e `motion-reduce` sem escala
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: foco abre o cartão com matéria, turma, sala, dia e horário; logado vê nome e avatar; visitante não vê nome, iniciais nem nenhum `[data-slot="avatar"]` (asserção booleana, lição L-012); classe de transição com duração ≤ 150 ms e `motion-reduce` sem escala
+- [x] Gate check passes: `bun test test/components`
+
+**Desvio**: o cartão é desenhado num portal com posição fixa ancorada no quadradinho (abre embaixo nas linhas do topo), porque a rolagem horizontal da grade cortaria um cartão posicionado dentro dela. Além de o servidor não mandar pessoas ao visitante, a grade recebe `isVisitor` e não desenha pessoa no cartão nesse caso. Esc também fecha o cartão.
 
 **Tests**: unit
 **Gate**: quick
