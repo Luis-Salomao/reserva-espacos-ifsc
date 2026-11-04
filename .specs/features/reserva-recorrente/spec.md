@@ -99,7 +99,7 @@ Hoje cada reserva avulsa vale para uma data só. Quem precisa da mesma sala no m
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
 | REC-01..04 | P1: Repetir no formulário | T3 | Pending |
-| REC-05, REC-06 | P1: Gerar as datas | T1 | Pending |
+| REC-05, REC-06 | P1: Gerar as datas | T1 | Done |
 | REC-07..10 | P1: Prévia e confirmação | T2, T3 | Pending |
 | REC-11 | P2: Série em Minhas reservas | T4 | Pending |
 

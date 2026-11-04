@@ -9,7 +9,7 @@ Modo rápido: quatro tarefas, um commit cada. Sem design.md (o desenho cabe nas 
 - **Tests**: `src/domain/recurrence.test.ts` (virada de mês e ano, dia 31, 5ª semana inexistente, data inicial fora da regra, fim por data e por contagem, cada limite)
 - **Gate**: `bun test src/domain/recurrence.test.ts`
 - **Done when**: testes passam; nenhuma dependência fora do domínio.
-- **Status**: [ ]
+- **Status**: [x]
 
 ## T2: Série no servidor
 
