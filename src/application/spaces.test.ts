@@ -331,13 +331,27 @@ describe("equipamentos e observações", () => {
   });
 
   test("observações: 500 caracteres valem; 501 são recusados", async () => {
+    const empty = setup();
+    expect(
+      await empty.service.create({
+        name: "Vazio",
+        capacity: null,
+        equipment: { notes: "y".repeat(501) },
+      }),
+    ).toMatchObject({ ok: false, field: "notes" });
+    expect(empty.rows.size).toBe(0);
+
     expect((await create({}, "x".repeat(500))).ok).toBe(true);
+    expect(ctx.rows.size).toBe(1);
+    expect([...ctx.rows.values()][0]?.equipment?.notes).toBe("x".repeat(500));
     expect(await create({}, ` ${"x".repeat(501)} `)).toEqual({
       ok: false,
       kind: "validation",
       message: "As observações devem ter no máximo 500 caracteres.",
       field: "notes",
     });
+    expect(ctx.rows.size).toBe(1);
+    expect([...ctx.rows.values()][0]?.equipment?.notes).toBe("x".repeat(500));
   });
 
   test.each([

@@ -1,8 +1,12 @@
 import { Database } from "bun:sqlite";
 import { beforeEach, describe, expect, test } from "bun:test";
+import { mkdtempSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
 import type { SpaceRepository } from "#/application/ports";
+import { createSpacesService } from "#/application/spaces";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 import * as schema from "#/infra/db/schema";
 
@@ -225,6 +229,16 @@ describe("SpaceRepository.remove", () => {
   const spacesLeft = () => sqlite.query("SELECT COUNT(*) AS total FROM spaces").get();
   const equipmentLeft = () => sqlite.query("SELECT COUNT(*) AS total FROM space_equipment").get();
 
+  test("falha ao apagar o espaço desfaz a exclusão dos equipamentos", async () => {
+    sqlite.run(
+      `CREATE TRIGGER falha_espaco BEFORE DELETE ON spaces
+       BEGIN SELECT RAISE(ABORT, 'falha forçada'); END`,
+    );
+    await expect(repo.remove(spaceId)).rejects.toThrow("falha forçada");
+    expect(spacesLeft()).toEqual({ total: 1 });
+    expect(equipmentLeft()).toEqual({ total: 1 });
+  });
+
   test("espaço sem uso é apagado com os equipamentos", async () => {
     expect(await repo.remove(spaceId)).toBe("removed");
     expect(spacesLeft()).toEqual({ total: 0 });
@@ -320,5 +334,54 @@ describe("migração dos equipamentos", () => {
     expect(sqlite.query("SELECT COUNT(*) AS total FROM space_equipment").get()).toEqual({
       total: 0,
     });
+  });
+});
+
+describe("edição com o espaço excluído no meio", () => {
+  test("a gravação devolve null e o serviço responde não encontrado", async () => {
+    const dir = mkdtempSync(join(tmpdir(), "espacos-"));
+    const path = join(dir, "db.sqlite");
+    const sqlite = new Database(path);
+    sqlite.run("PRAGMA foreign_keys = ON");
+    const db = drizzle(sqlite, { schema });
+    migrate(db, { migrationsFolder: "drizzle" });
+    const repo = createSpaceRepository(db);
+    const lab = await repo.create({
+      name: "Lab 1",
+      capacity: 10,
+      equipment: { items: { projetor: 1 }, notes: "Lousa" },
+    });
+    const other = new Database(path);
+    other.run("PRAGMA foreign_keys = ON");
+    const original = sqlite.prepare.bind(sqlite);
+    let armed = true;
+    sqlite.prepare = ((sql: string) => {
+      const statement = original(sql);
+      const current = statement.values.bind(statement);
+      statement.values = ((...args: unknown[]) => {
+        const rows = current(...args);
+        if (armed && sql.startsWith("select") && rows.length > 0) {
+          armed = false;
+          other.run("DELETE FROM space_equipment WHERE space_id = ?", [lab.id]);
+          other.run("DELETE FROM spaces WHERE id = ?", [lab.id]);
+        }
+        return rows;
+      }) as typeof statement.values;
+      return statement;
+    }) as typeof sqlite.prepare;
+
+    const input = {
+      name: "Lab 2",
+      capacity: 11,
+      equipment: { items: { som: 1 }, notes: "Outra" },
+    };
+    expect(await repo.update(lab.id, input)).toBe(null);
+    expect(await createSpacesService({ spaces: repo }).update(lab.id, input)).toMatchObject({
+      ok: false,
+      kind: "not_found",
+      message: "Espaço não encontrado.",
+    });
+    other.close();
+    sqlite.close();
   });
 });

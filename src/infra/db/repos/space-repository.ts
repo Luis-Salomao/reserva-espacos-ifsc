@@ -95,22 +95,29 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
       const [existing] = await db.select({ id: spaces.id }).from(spaces).where(eq(spaces.id, id));
       if (existing === undefined) return null;
       const { items, notes } = equipment;
-      await runAtomically(db, (x) => [
-        x
-          .update(spaces)
-          .set({
-            name: input.name,
-            capacity: input.capacity,
-            ...(notes === undefined ? {} : { equipmentNotes: notes }),
-          })
-          .where(eq(spaces.id, id)),
-        ...(items === undefined
-          ? []
-          : [
-              x.delete(spaceEquipment).where(eq(spaceEquipment.spaceId, id)),
-              ...equipmentInserts(x, id, items),
-            ]),
-      ]);
+      try {
+        await runAtomically(db, (x) => [
+          x
+            .update(spaces)
+            .set({
+              name: input.name,
+              capacity: input.capacity,
+              ...(notes === undefined ? {} : { equipmentNotes: notes }),
+            })
+            .where(eq(spaces.id, id)),
+          ...(items === undefined
+            ? []
+            : [
+                x.delete(spaceEquipment).where(eq(spaceEquipment.spaceId, id)),
+                ...equipmentInserts(x, id, items),
+              ]),
+        ]);
+      } catch (error) {
+        // O espaço pode ter sido excluído depois da checagem: a chave estrangeira falha.
+        const [still] = await db.select({ id: spaces.id }).from(spaces).where(eq(spaces.id, id));
+        if (still === undefined) return null;
+        throw error;
+      }
       const [updated] = await readWithEquipment(id);
       return updated ?? null;
     },

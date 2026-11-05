@@ -186,6 +186,33 @@ describe("controle de acesso no servidor", () => {
     });
   }
 
+  test("editar e excluir um espaço existente sem permissão não muda o cadastro", async () => {
+    const created = await createSpace(ctx.deps, ctx.req(ctx.admin.token), {
+      name: "Lab 1",
+      capacity: 20,
+      equipment: { projetor: 1, computadores: 4 },
+      notes: "Lousa digital",
+    });
+    expect(created.response.ok).toBe(true);
+    if (!created.response.ok) return;
+    const id = created.response.data.id;
+    const before = await ctx.deps.spaces.listWithEquipment();
+    const body = { id, name: "Invadida", capacity: 1, notes: "outra observação" };
+    const unauthenticated = { ok: false, status: 401, message: "É preciso entrar." };
+    const forbidden = { ok: false, status: 403, message: "Sem permissão para esta ação." };
+    for (const token of [null, "token-que-nao-existe"] as const) {
+      expect((await updateSpace(ctx.deps, ctx.req(token), body)).response).toEqual(unauthenticated);
+      expect((await deleteSpace(ctx.deps, ctx.req(token), { id })).response).toEqual(
+        unauthenticated,
+      );
+    }
+    for (const token of [ctx.horarios.token, ctx.docente.token]) {
+      expect((await updateSpace(ctx.deps, ctx.req(token), body)).response).toEqual(forbidden);
+      expect((await deleteSpace(ctx.deps, ctx.req(token), { id })).response).toEqual(forbidden);
+    }
+    expect(await ctx.deps.spaces.listWithEquipment()).toEqual(before);
+  });
+
   test("conta desativada perde o acesso administrativo", async () => {
     await ctx.deps.users.update(ctx.horarios.id, {
       name: "H",
