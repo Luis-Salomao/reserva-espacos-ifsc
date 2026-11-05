@@ -31,13 +31,13 @@ export function EquipmentMarks({ equipment, showNotes = false }: Props) {
   const notes = equipment?.notes ?? null;
   return (
     <div className="min-w-0">
-      <div role="group" aria-label="Equipamentos" className="flex flex-wrap gap-1">
+      <ul aria-label="Equipamentos" className="flex list-none flex-wrap gap-1 p-0">
         {EQUIPMENT.map((item) => {
           const quantity = equipment?.items[item.kind];
           const described = describeEquipment(item.kind, quantity);
           const Icon = ICONS[item.kind];
           return (
-            <span
+            <li
               key={item.kind}
               className={cn(
                 "inline-flex size-6 items-center justify-center rounded border border-border text-foreground",
@@ -47,10 +47,10 @@ export function EquipmentMarks({ equipment, showNotes = false }: Props) {
             >
               <Icon className="size-3.5" aria-hidden={true} />
               <span className="sr-only">{described.text}</span>
-            </span>
+            </li>
           );
         })}
-      </div>
+      </ul>
       {showNotes && notes !== null && notes !== "" && (
         <p className="mt-1 text-[12px] wrap-anywhere text-muted-foreground">{notes}</p>
       )}

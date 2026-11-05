@@ -113,7 +113,7 @@ describe("Seletor agrupado de salas", () => {
       />,
     );
     fireEvent.click(screen.getByRole("button", { name: "Escolher sala: A-202" }));
-    expect(screen.getByRole("group", { name: "Equipamentos" })).toBeDefined();
+    expect(screen.getByRole("list", { name: "Equipamentos" })).toBeDefined();
     expect(screen.getByText("Projetor")).toBeDefined();
     expect(screen.queryByText("Lousa digital") === null).toBe(true);
     unmount();
