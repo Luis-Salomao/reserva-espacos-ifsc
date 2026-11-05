@@ -41,7 +41,7 @@
 **Where**: `src/domain/room-filter.ts`, `rooms-filters.tsx`, `rooms-view.tsx`, `src/routes/salas.tsx`
 **Done when**:
 
-- [ ] "Com projetor" e "Mínimo de N computadores" filtram e vão para a URL
-- [ ] Não entram nas `loaderDeps`
+- [x] "Com projetor" e "Mínimo de N computadores" filtram e vão para a URL
+- [x] Não entram nas `loaderDeps`
 
 **Commit**: `feat(salas): filtro por projetor e computadores`

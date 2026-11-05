@@ -63,12 +63,16 @@ export function validateSalasSearch(search: Record<string, unknown>): SalasSearc
   const ini = timeFrom(search.ini);
   const fim = timeFrom(search.fim);
   const livres = search.livres === true || search.livres === "true";
+  const projetor = search.projetor === true || search.projetor === "true";
+  const pcs = capacityFrom(search.pcs);
   return {
     ...(data !== undefined ? { data } : {}),
     ...(visao !== undefined ? { visao } : {}),
     ...(bloco.length > 0 ? { bloco } : {}),
     ...(andar.length > 0 ? { andar } : {}),
     ...(cap !== undefined ? { cap } : {}),
+    ...(projetor ? { projetor: true as const } : {}),
+    ...(pcs !== undefined ? { pcs } : {}),
     ...(q !== undefined ? { q } : {}),
     ...(ini !== undefined ? { ini } : {}),
     ...(fim !== undefined ? { fim } : {}),
