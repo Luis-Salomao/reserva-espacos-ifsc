@@ -475,7 +475,11 @@ describe("minhas reservas", () => {
 describe("matérias", () => {
   test("sem sessão recusa com 401 e não devolve títulos", async () => {
     const { deps, req } = await setup();
-    const unauthenticated = { ok: false, status: 401, message: "É preciso entrar." };
+    const unauthenticated = {
+      ok: false as const,
+      status: 401 as const,
+      message: "É preciso entrar.",
+    };
     for (const token of [null, "token-que-nao-existe"]) {
       const outcome = await getSubjects(deps, req(token), { date: "2026-11-10" });
       expect(outcome.response).toEqual(unauthenticated);

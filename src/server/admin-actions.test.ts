@@ -198,8 +198,16 @@ describe("controle de acesso no servidor", () => {
     const id = created.response.data.id;
     const before = await ctx.deps.spaces.listWithEquipment();
     const body = { id, name: "Invadida", capacity: 1, notes: "outra observação" };
-    const unauthenticated = { ok: false, status: 401, message: "É preciso entrar." };
-    const forbidden = { ok: false, status: 403, message: "Sem permissão para esta ação." };
+    const unauthenticated = {
+      ok: false as const,
+      status: 401 as const,
+      message: "É preciso entrar.",
+    };
+    const forbidden = {
+      ok: false as const,
+      status: 403 as const,
+      message: "Sem permissão para esta ação.",
+    };
     for (const token of [null, "token-que-nao-existe"] as const) {
       expect((await updateSpace(ctx.deps, ctx.req(token), body)).response).toEqual(unauthenticated);
       expect((await deleteSpace(ctx.deps, ctx.req(token), { id })).response).toEqual(

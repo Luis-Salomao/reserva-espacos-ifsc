@@ -358,7 +358,7 @@ describe("edição com o espaço excluído no meio", () => {
     sqlite.prepare = ((sql: string) => {
       const statement = original(sql);
       const current = statement.values.bind(statement);
-      statement.values = ((...args: unknown[]) => {
+      statement.values = ((...args: Parameters<typeof current>) => {
         const rows = current(...args);
         if (armed && sql.startsWith("select") && rows.length > 0) {
           armed = false;
