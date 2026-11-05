@@ -31,13 +31,16 @@ export function EquipmentMarks({ equipment, showNotes = false }: Props) {
   const notes = equipment?.notes ?? null;
   return (
     <div className="min-w-0">
-      <ul aria-label="Equipamentos" className="flex list-none flex-wrap gap-1 p-0">
+      <fieldset
+        aria-label="Equipamentos"
+        className="m-0 flex min-w-0 max-w-full flex-wrap gap-1 border-0 p-0"
+      >
         {EQUIPMENT.map((item) => {
           const quantity = equipment?.items[item.kind];
           const described = describeEquipment(item.kind, quantity);
           const Icon = ICONS[item.kind];
           return (
-            <li
+            <span
               key={item.kind}
               className={cn(
                 "inline-flex size-6 items-center justify-center rounded border border-border text-foreground",
@@ -47,10 +50,10 @@ export function EquipmentMarks({ equipment, showNotes = false }: Props) {
             >
               <Icon className="size-3.5" aria-hidden={true} />
               <span className="sr-only">{described.text}</span>
-            </li>
+            </span>
           );
         })}
-      </ul>
+      </fieldset>
       {showNotes && notes !== null && notes !== "" && (
         <p className="mt-1 text-[12px] wrap-anywhere text-muted-foreground">{notes}</p>
       )}
