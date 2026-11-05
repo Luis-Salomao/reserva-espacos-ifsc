@@ -798,6 +798,27 @@ describe("roomsDay", () => {
     }
   });
 
+  test("traz os equipamentos; visitante não recebe as observações", async () => {
+    const ctx = await setup();
+    const { spaces } = bookingDeps(ctx.db);
+    await spaces.create({
+      name: "A-202",
+      capacity: 40,
+      equipment: { items: { projetor: 1, computadores: 12 }, notes: "Lousa digital" },
+    });
+    const logged = await ctx.svc.roomsDay(ctx.s.docA, { date: "2026-11-10" });
+    const visitor = await ctx.svc.roomsDay(null, { date: "2026-11-10" });
+    if (!logged.ok || !visitor.ok) throw new Error("consulta falhou");
+    const of = (result: typeof logged) =>
+      result.value.rooms.find((room) => room.space.name === "A-202")?.space.equipment;
+    expect(of(logged)).toEqual({
+      items: { projetor: 1, computadores: 12 },
+      notes: "Lousa digital",
+    });
+    expect(of(visitor)?.items).toEqual({ projetor: 1, computadores: 12 });
+    expect(JSON.stringify(visitor)).not.toContain("Lousa digital");
+  });
+
   test("busca as ocupações de todas as salas numa única consulta", async () => {
     const { db, s } = await withRooms();
     const deps = bookingDeps(db);
@@ -970,6 +991,24 @@ describe("roomsWeek", () => {
     for (const needle of [s.docA.id, s.docB.id, "Pessoa", "DOCA", "DOCB", "doca@"]) {
       expect(json).not.toContain(needle);
     }
+  });
+
+  test("a semana traz os equipamentos e omite as observações do visitante", async () => {
+    const ctx = await setup();
+    const { spaces } = bookingDeps(ctx.db);
+    await spaces.create({
+      name: "B-104",
+      capacity: 25,
+      equipment: { items: { som: 1 }, notes: "Caixa no fundo" },
+    });
+    const logged = await ctx.svc.roomsWeek(ctx.s.horarios, { weekStart: MONDAY });
+    const visitor = await ctx.svc.roomsWeek(null, { weekStart: MONDAY });
+    if (!logged.ok || !visitor.ok) throw new Error("consulta falhou");
+    const of = (result: typeof logged) =>
+      result.value.rooms.find((room) => room.space.name === "B-104")?.space.equipment;
+    expect(of(logged)).toEqual({ items: { som: 1 }, notes: "Caixa no fundo" });
+    expect(of(visitor)).toEqual({ items: { som: 1 }, notes: null });
+    expect(JSON.stringify(visitor)).not.toContain("Caixa no fundo");
   });
 
   test("busca as ocupações da semana inteira numa única consulta, de segunda a sábado 00:00", async () => {
