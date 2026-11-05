@@ -178,8 +178,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Testes: reserva com matéria escolhida; com título livre; vazio bloqueia com "Informe a matéria ou o título"; longo mostra "A finalidade deve ter no máximo 120 caracteres."; a série recebe o mesmo título; "Matéria ou título" vem depois de "Repetir"
-- [ ] Gate check passes: `bun run check`
+- [x] Testes: reserva com matéria escolhida; com título livre; vazio bloqueia com "Informe a matéria ou o título"; longo mostra "A finalidade deve ter no máximo 120 caracteres."; a série recebe o mesmo título; "Matéria ou título" vem depois de "Repetir"
+- [x] Gate check passes: `bun test test/components/booking-sheet.test.tsx test/components/booking-sheet-repeat.test.tsx test/components/rooms-view.test.tsx`
 
 **Tests**: unit
 **Gate**: build

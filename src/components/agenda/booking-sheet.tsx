@@ -18,6 +18,7 @@ import {
   ruleOf,
 } from "#/components/agenda/repeat-section";
 import { SeriesPreview } from "#/components/agenda/series-preview";
+import { SubjectCombobox, type SubjectsLoad } from "#/components/agenda/subject-combobox";
 import { Field } from "#/components/ds";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
@@ -72,6 +73,8 @@ export type BookingSheetProps = {
   }) => Promise<AdminResponse<RecurringOutcome>>;
   /** Série gravada (ao menos uma data). */
   onSeriesSuccess?: () => void;
+  /** Carga das matérias do dia; sem ela, o campo busca no servidor. */
+  subjectsFn?: SubjectsLoad;
 };
 
 type SeriesDone = { created: number; skipped: number };
@@ -170,6 +173,7 @@ export function BookingSheet({
   previewRecurring,
   createRecurring,
   onSeriesSuccess,
+  subjectsFn,
 }: BookingSheetProps) {
   const uid = useId();
   const router = useRouter();
@@ -249,7 +253,7 @@ export function BookingSheet({
 
     const trimmedPurpose = purpose.trim();
     if (trimmedPurpose.length === 0) {
-      errors.purpose = "Informe a finalidade da reserva.";
+      errors.purpose = "Informe a matéria ou o título";
     } else if (trimmedPurpose.length > 120) {
       errors.purpose = "A finalidade deve ter no máximo 120 caracteres.";
     }
@@ -363,6 +367,10 @@ export function BookingSheet({
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
+          onEscapeKeyDown={(event) => {
+            const field = document.getElementById(`${uid}-purpose`);
+            if (field?.getAttribute("aria-expanded") === "true") event.preventDefault();
+          }}
           className={cn(
             "fixed z-50 grid w-full gap-4 border bg-background shadow-lg duration-200 outline-none",
             // Mobile: Bottom sheet
@@ -629,25 +637,23 @@ export function BookingSheet({
                 error={fieldErrors.repeat}
               />
 
-              {/* Finalidade */}
               <Field
                 id={`${uid}-purpose`}
-                label="Finalidade"
+                label="Matéria ou título"
                 hint={`${purpose.length}/120`}
                 error={fieldErrors.purpose}
               >
-                <Input
+                <SubjectCombobox
                   id={`${uid}-purpose`}
-                  type="text"
-                  maxLength={120}
-                  placeholder="Ex.: Reunião pedagógica"
                   value={purpose}
-                  onChange={(e) => {
-                    setPurpose(e.target.value);
+                  date={date}
+                  invalid={Boolean(fieldErrors.purpose)}
+                  onChange={(next) => {
+                    setPurpose(next);
                     setFieldErrors((prev) => ({ ...prev, purpose: undefined }));
                     setErrorMessage(null);
                   }}
-                  aria-invalid={Boolean(fieldErrors.purpose)}
+                  {...(subjectsFn !== undefined ? { loadFn: subjectsFn } : {})}
                 />
               </Field>
 

@@ -97,12 +97,12 @@ Na "Nova reserva" o docente digita o título à mão, embora as matérias e turm
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| MAT-01 | P1: Escolher matéria (AC 1, 3) | T1–T3, T5, T6 | Pending |
-| MAT-02 | P1: Escolher matéria (AC 2, 4, 5) | T2, T4, T5 | Pending |
-| MAT-03 | P1: Escolher matéria (AC 6–9, atalhos e largura) | T5, T6 | Pending |
-| MAT-04 | P1: Título livre (AC 1, 2) | T4, T5, T6 | Pending |
-| MAT-05 | P1: Título livre (AC 3, 4) | T6 | Pending |
-| MAT-06 | P1: Escolher matéria (AC 10, série recorrente) | T6 | Pending |
+| MAT-01 | P1: Escolher matéria (AC 1, 3) | T1–T3, T5, T6 | Done |
+| MAT-02 | P1: Escolher matéria (AC 2, 4, 5) | T2, T4, T5 | Done |
+| MAT-03 | P1: Escolher matéria (AC 6–9, atalhos e largura) | T5, T6 | Done |
+| MAT-04 | P1: Título livre (AC 1, 2) | T4, T5, T6 | Done |
+| MAT-05 | P1: Título livre (AC 3, 4) | T6 | Done |
+| MAT-06 | P1: Escolher matéria (AC 10, série recorrente) | T6 | Done |
 
 **Coverage:** 6 total, 6 mapped to tasks, 0 unmapped.
 

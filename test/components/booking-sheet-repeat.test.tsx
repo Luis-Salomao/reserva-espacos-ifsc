@@ -15,6 +15,7 @@ import type {
   RoomsDay,
 } from "#/application/bookings";
 import { BookingSheet, type BookingSheetProps } from "#/components/agenda/booking-sheet";
+import type { SubjectsLoad } from "#/components/agenda/subject-combobox";
 import type { AdminResponse } from "#/server/admin-actions";
 
 const SPACES = [
@@ -56,6 +57,8 @@ const CREATED: AdminResponse<RecurringOutcome> = {
   },
 };
 
+const SUBJECTS: SubjectsLoad = async () => ({ ok: true, data: { mine: [], all: [] } });
+
 async function renderSheet(props: Partial<BookingSheetProps> = {}) {
   const root = createRootRoute({
     component: () => (
@@ -64,6 +67,7 @@ async function renderSheet(props: Partial<BookingSheetProps> = {}) {
         onOpenChange={() => {}}
         spaces={SPACES}
         initialSlot={{ spaceId: "space-adm", date: DATE, start: "10:00", end: "11:00" }}
+        subjectsFn={SUBJECTS}
         {...props}
       />
     ),
@@ -96,7 +100,7 @@ function chooseWeekly() {
 }
 
 function fillPurpose(text = "Monitoria") {
-  fireEvent.change(screen.getByLabelText(/Finalidade/), { target: { value: text } });
+  fireEvent.change(screen.getByLabelText("Matéria ou título"), { target: { value: text } });
 }
 
 describe("BookingSheet: seção Repetir", () => {
@@ -352,6 +356,41 @@ describe("BookingSheet: prévia e confirmação da série", () => {
       "A série pode ter no máximo 120 datas.",
     );
     expect(screen.queryByTestId("series-preview") === null).toBe(true);
+  });
+
+  test("série sem título não pede a prévia", async () => {
+    const preview = previewMock();
+    await renderSheet({ previewRecurring: preview });
+    chooseWeekly();
+    fireEvent.click(screen.getByRole("button", { name: "Ver datas" }));
+    expect(screen.getAllByText("Informe a matéria ou o título").length).toBeGreaterThan(0);
+    expect(preview).not.toHaveBeenCalled();
+  });
+
+  test("a matéria escolhida na lista é o título da série", async () => {
+    const subjectsFn = mock<SubjectsLoad>(async () => ({
+      ok: true,
+      data: { mine: ["Cálculo — 2B"], all: [] },
+    }));
+    const preview = previewMock();
+    await renderSheet({ previewRecurring: preview, subjectsFn });
+    chooseWeekly();
+    const field = screen.getByLabelText("Matéria ou título");
+    fireEvent.focus(field);
+    fireEvent.click(await screen.findByRole("option", { name: "Cálculo — 2B" }));
+    expect((field as HTMLInputElement).value).toBe("Cálculo — 2B");
+    fireEvent.click(screen.getByRole("button", { name: "Ver datas" }));
+    await screen.findByTestId("series-preview");
+    expect(preview).toHaveBeenCalledWith({
+      data: {
+        spaceId: "space-adm",
+        date: DATE,
+        start: "10:00",
+        end: "11:00",
+        purpose: "Cálculo — 2B",
+        rule: { freq: "weekly", interval: 1, weekdays: [1], end: { kind: "count", count: 10 } },
+      },
+    });
   });
 
   test("erro de campo na confirmação também volta ao formulário", async () => {
