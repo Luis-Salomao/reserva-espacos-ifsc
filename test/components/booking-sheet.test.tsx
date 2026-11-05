@@ -13,6 +13,7 @@ import {
   type BookingSheetProps,
   TIMETABLE_SHORTCUTS,
 } from "#/components/agenda/booking-sheet";
+import type { SubjectsLoad } from "#/components/agenda/subject-combobox";
 import type { Space } from "#/domain/space";
 
 const MOCK_SPACES: Space[] = [
@@ -102,6 +103,8 @@ function groupsOf(select: HTMLSelectElement) {
   }));
 }
 
+const SUBJECTS: SubjectsLoad = async () => ({ ok: true, data: { mine: [], all: [] } });
+
 async function renderBookingSheet(props: Partial<BookingSheetProps> = {}) {
   const onOpenChange = props.onOpenChange ?? mock(() => {});
   const root = createRootRoute({
@@ -115,6 +118,7 @@ async function renderBookingSheet(props: Partial<BookingSheetProps> = {}) {
         onSuccess={props.onSuccess}
         createFn={props.createFn}
         availability={props.availability}
+        subjectsFn={props.subjectsFn ?? SUBJECTS}
       />
     ),
   });
@@ -177,12 +181,12 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
       initialSlot: { date: "2026-11-20", start: "08:00", end: "09:50" },
     });
 
-    const purposeInput = screen.getByLabelText(/Finalidade/i) as HTMLInputElement;
+    const purposeInput = screen.getByLabelText(/Matéria ou título/) as HTMLInputElement;
     expect(screen.getByText("0/120")).toBeDefined();
 
     fireEvent.change(purposeInput, { target: { value: "Reunião de departamento" } });
     expect(screen.getByText("23/120")).toBeDefined();
-    expect(purposeInput.maxLength).toBe(120);
+    expect(purposeInput.maxLength).toBe(-1);
   });
 
   test("4. Atalhos de bloco atualizam horários e marcam botão ativo", async () => {
@@ -238,7 +242,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
     fireEvent.click(submitBtn);
 
     expect(screen.getAllByRole("alert").length).toBeGreaterThan(0);
-    expect(screen.getAllByText(/Informe a finalidade da reserva/i).length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Informe a matéria ou o título").length).toBeGreaterThan(0);
     expect(mockCreate).not.toHaveBeenCalled();
   });
 
@@ -250,7 +254,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
       createFn: mockCreate,
     });
 
-    const purposeInput = screen.getByLabelText(/Finalidade/i);
+    const purposeInput = screen.getByLabelText(/Matéria ou título/);
     fireEvent.change(purposeInput, { target: { value: "Reunião" } });
 
     const submitBtn = screen.getByRole("button", { name: "Reservar" });
@@ -269,7 +273,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
       createFn: mockCreate,
     });
 
-    const purposeInput = screen.getByLabelText(/Finalidade/i);
+    const purposeInput = screen.getByLabelText(/Matéria ou título/);
     fireEvent.change(purposeInput, { target: { value: "Reunião" } });
 
     const submitBtn = screen.getByRole("button", { name: "Reservar" });
@@ -288,7 +292,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
       createFn: mockCreate,
     });
 
-    const purposeInput = screen.getByLabelText(/Finalidade/i);
+    const purposeInput = screen.getByLabelText(/Matéria ou título/);
     fireEvent.change(purposeInput, { target: { value: "Passado" } });
 
     const submitBtn = screen.getByRole("button", { name: "Reservar" });
@@ -327,7 +331,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
       onSuccess: mockSuccess,
     });
 
-    const purposeInput = screen.getByLabelText(/Finalidade/i);
+    const purposeInput = screen.getByLabelText(/Matéria ou título/);
     fireEvent.change(purposeInput, { target: { value: "Planejamento Semestral" } });
 
     const submitBtn = screen.getByRole("button", { name: "Reservar" });
@@ -376,7 +380,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
       createFn: mockCreate,
     });
 
-    const purposeInput = screen.getByLabelText(/Finalidade/i);
+    const purposeInput = screen.getByLabelText(/Matéria ou título/);
     fireEvent.change(purposeInput, { target: { value: "Aula extra" } });
 
     const submitBtn = screen.getByRole("button", { name: "Reservar" });
@@ -411,7 +415,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
       createFn: mockCreate,
     });
 
-    fireEvent.change(screen.getByLabelText(/Finalidade/i), { target: { value: "Reunião" } });
+    fireEvent.change(screen.getByLabelText(/Matéria ou título/), { target: { value: "Reunião" } });
     fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
 
     const successView = await screen.findByTestId("booking-success-view");
@@ -441,7 +445,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
       createFn: mockCreate,
     });
 
-    fireEvent.change(screen.getByLabelText(/Finalidade/i), {
+    fireEvent.change(screen.getByLabelText(/Matéria ou título/), {
       target: { value: "Reunião Especial" },
     });
     fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
@@ -595,10 +599,92 @@ describe("BookingSheet — sala por disponibilidade (GERAL-12)", () => {
     await waitFor(() => expect(groupsOf(roomSelect())).toHaveLength(2));
 
     fireEvent.click(screen.getByRole("button", { name: /Manh. .*08:00/i }));
-    fireEvent.change(screen.getByLabelText(/Finalidade/i), { target: { value: "Reunião" } });
+    fireEvent.change(screen.getByLabelText(/Matéria ou título/), { target: { value: "Reunião" } });
     fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
 
     expect(screen.getAllByText("Essa sala está ocupada nesse horário.").length).toBeGreaterThan(0);
     expect(createFn).not.toHaveBeenCalled();
+  });
+});
+
+describe("BookingSheet: matéria ou título", () => {
+  test("texto longo é recusado sem enviar e o campo vem depois de Repetir", async () => {
+    const createFn = mock(async () => ({ ok: true as const, data: {} as BookingView }));
+    await renderBookingSheet({
+      initialSlot: { spaceId: "space-adm", date: "2026-11-20", start: "08:00", end: "09:50" },
+      createFn,
+    });
+    const repeat = screen.getByRole("button", { name: /^Repetir/ });
+    const field = screen.getByLabelText("Matéria ou título");
+    expect(repeat.compareDocumentPosition(field) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+
+    fireEvent.change(field, { target: { value: "a".repeat(121) } });
+    fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
+    expect(
+      screen.getAllByText("A finalidade deve ter no máximo 120 caracteres.").length,
+    ).toBeGreaterThan(0);
+    expect(createFn).not.toHaveBeenCalled();
+  });
+
+  test("a matéria escolhida na lista vai na reserva", async () => {
+    const createFn = mock(async () => ({
+      ok: true as const,
+      data: {
+        id: "b-mat",
+        spaceId: "space-adm",
+        date: "2026-11-20",
+        start: "08:00",
+        end: "09:50",
+        title: "Cálculo — 2B",
+      },
+    }));
+    const subjectsFn = mock<SubjectsLoad>(async () => ({
+      ok: true,
+      data: { mine: ["Cálculo — 2B"], all: ["Química — 3C"] },
+    }));
+    await renderBookingSheet({
+      initialSlot: { spaceId: "space-adm", date: "2026-11-20", start: "08:00", end: "09:50" },
+      createFn,
+      subjectsFn,
+    });
+    await waitFor(() => expect(subjectsFn).toHaveBeenCalledWith({ data: { date: "2026-11-20" } }));
+    const field = screen.getByLabelText("Matéria ou título");
+    fireEvent.focus(field);
+    fireEvent.click(screen.getByRole("option", { name: "Cálculo — 2B" }));
+    expect((field as HTMLInputElement).value).toBe("Cálculo — 2B");
+    fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
+    await waitFor(() => expect(createFn).toHaveBeenCalledTimes(1));
+    expect(createFn.mock.calls[0]?.[0]).toEqual({
+      data: {
+        spaceId: "space-adm",
+        date: "2026-11-20",
+        start: "08:00",
+        end: "09:50",
+        purpose: "Cálculo — 2B",
+      },
+    });
+  });
+
+  test("Esc fecha a lista e mantém a folha aberta", async () => {
+    const onOpenChange = mock(() => {});
+    const subjectsFn = mock<SubjectsLoad>(async () => ({
+      ok: true,
+      data: { mine: ["Cálculo — 2B"], all: [] },
+    }));
+    await renderBookingSheet({
+      onOpenChange,
+      initialSlot: { date: "2026-11-20", start: "08:00", end: "09:50" },
+      subjectsFn,
+    });
+    await waitFor(() => expect(subjectsFn).toHaveBeenCalled());
+    const field = screen.getByLabelText("Matéria ou título");
+    fireEvent.focus(field);
+    expect(screen.getByRole("listbox", { name: "Matérias" })).toBeDefined();
+    fireEvent.keyDown(field, { key: "Escape" });
+    expect(screen.queryByRole("listbox", { name: "Matérias" }) === null).toBe(true);
+    expect(screen.getByRole("dialog")).toBeDefined();
+    expect(onOpenChange).not.toHaveBeenCalled();
   });
 });

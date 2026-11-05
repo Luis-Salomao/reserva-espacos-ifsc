@@ -372,7 +372,7 @@ describe("RoomsView", () => {
     expect((within(dialog).getByLabelText("Sala") as HTMLSelectElement).value).toBe("lab");
     expect((within(dialog).getByLabelText("Início") as HTMLInputElement).value).toBe("14:00");
     expect((within(dialog).getByLabelText("Fim") as HTMLInputElement).value).toBe("16:00");
-    fireEvent.change(within(dialog).getByLabelText(/Finalidade/), {
+    fireEvent.change(within(dialog).getByLabelText(/Matéria ou título/), {
       target: { value: "Reunião" },
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Reservar" }));
@@ -590,7 +590,9 @@ describe("RoomsView", () => {
     expect((within(dialog).getByLabelText("Fim") as HTMLInputElement).value).toBe("12:00");
     expect(sala.disabled).toBe(false);
     fireEvent.change(sala, { target: { value: "lab" } });
-    fireEvent.change(within(dialog).getByLabelText(/Finalidade/), { target: { value: "Reunião" } });
+    fireEvent.change(within(dialog).getByLabelText(/Matéria ou título/), {
+      target: { value: "Reunião" },
+    });
     fireEvent.click(within(dialog).getByRole("button", { name: "Reservar" }));
     await screen.findByTestId("booking-success-view");
     expect(createFn.mock.calls[0]?.[0].data).toMatchObject({
