@@ -7,6 +7,7 @@ import {
   getDayAgenda,
   getRoomsDay,
   getRoomsWeek,
+  getSubjects,
   getWeekAgenda,
   myBookingsAction,
   previewRecurringAction,
@@ -15,6 +16,10 @@ import {
 import { getBookingDeps } from "./booking-deps.ts";
 import { finish } from "./finish.ts";
 import { passthrough } from "./input.ts";
+
+export const getSubjectsFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await getSubjects(getBookingDeps(), getRequest(), data)));
 
 export const getDayAgendaFn = createServerFn({ method: "POST" })
   .validator(passthrough)
