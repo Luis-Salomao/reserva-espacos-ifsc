@@ -21,8 +21,8 @@
 **Where**: `src/application/bookings.ts`, `src/server/spaces.ts`
 **Done when**:
 
-- [ ] `roomsDay` e `roomsWeek` leem `listWithEquipment` e o visitante não recebe as observações
-- [ ] `listSpaces` aplica a mesma regra
+- [x] `roomsDay` e `roomsWeek` leem `listWithEquipment` e o visitante não recebe as observações
+- [x] `listSpaces` aplica a mesma regra
 
 **Commit**: `feat(salas): equipamentos na consulta da agenda`
 
@@ -31,8 +31,8 @@
 **Where**: seletor, agenda, colunas, livres, visão geral, formulário
 **Done when**:
 
-- [ ] Cada tela lista os equipamentos; o formulário acompanha a sala
-- [ ] Visitante não vê o parágrafo de observações
+- [x] Cada tela lista os equipamentos; o formulário acompanha a sala
+- [x] Visitante não vê o parágrafo de observações
 
 **Commit**: `feat(salas): equipamentos nas telas da agenda`
 

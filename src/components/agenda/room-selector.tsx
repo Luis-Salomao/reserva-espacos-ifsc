@@ -1,6 +1,7 @@
 import { Building2, Check, ChevronsUpDown, LayoutGrid, Search, X } from "lucide-react";
 import { Dialog } from "radix-ui";
 import { useId, useState } from "react";
+import { EquipmentMarks } from "#/components/equipment-marks";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { blockOf } from "#/domain/room-filter";
@@ -15,6 +16,8 @@ export type RoomSelectorProps = {
   variant: "vertical" | "chips";
   /** Abre a tela com todas as salas; sem ela, o atalho não aparece. */
   onSeeAllRooms?: () => void;
+  /** Observações livres. Visitante não as vê. */
+  showNotes?: boolean;
 };
 
 export function RoomSelector({
@@ -23,6 +26,7 @@ export function RoomSelector({
   onSelectSpace,
   variant,
   onSeeAllRooms,
+  showNotes = false,
 }: RoomSelectorProps) {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
@@ -146,6 +150,10 @@ export function RoomSelector({
                                   )}
                                 >
                                   <span className="min-w-0 break-words">{space.name}</span>
+                                  <EquipmentMarks
+                                    equipment={space.equipment}
+                                    showNotes={showNotes}
+                                  />
                                   {space.capacity !== null && (
                                     <span className="mt-0.5 text-[10px] text-muted-foreground">
                                       {space.capacity} lugares

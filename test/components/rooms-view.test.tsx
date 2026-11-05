@@ -616,6 +616,47 @@ describe("RoomsView", () => {
     expect(screen.queryByRole("dialog", { name: "Nova reserva" }) === null).toBe(true);
   });
 
+  test("as colunas mostram os equipamentos e as observações de quem está logado", async () => {
+    const equipment = { items: { computadores: 4 }, notes: "Lousa do lab" };
+    const roomsDay: RoomsDay = {
+      ...DAY,
+      rooms: DAY.rooms.map((room) =>
+        room.space.id === "lab" ? { ...room, space: { ...room.space, equipment } } : room,
+      ),
+    };
+    await setup({ roomsDay });
+    expect(screen.getByText("4 computadores")).toBeDefined();
+    expect(screen.getByText("Lousa do lab")).toBeDefined();
+  });
+
+  test("em Livres, o visitante vê os equipamentos e não as observações", async () => {
+    const equipment = { items: { computadores: 4 }, notes: "Lousa do lab" };
+    const roomsDay: RoomsDay = {
+      ...DAY,
+      rooms: DAY.rooms.map((room) =>
+        room.space.id === "lab" ? { ...room, space: { ...room.space, equipment } } : room,
+      ),
+    };
+    await setup({ url: "/?visao=livres&ini=14:00&fim=16:00", roomsDay, isVisitor: true });
+    expect(screen.getByText("4 computadores")).toBeDefined();
+    expect(screen.queryByText("Lousa do lab") === null).toBe(true);
+  });
+
+  test("o cartão da visão geral mostra os equipamentos e as observações", async () => {
+    const equipment = { items: { projetor: 1 }, notes: "Lousa da A-202" };
+    const roomsWeek: RoomsWeek = {
+      ...WEEK,
+      rooms: WEEK.rooms.map((room) =>
+        room.space.id === "a202" ? { ...room, space: { ...room.space, equipment } } : room,
+      ),
+    };
+    await setup({ url: "/?visao=geral", roomsWeek });
+    fireEvent.focus(screen.getByRole("link", { name: /A-202, terça 12\/11, Manhã 12/ }));
+    const card = screen.getByRole("tooltip");
+    expect(within(card).getByText("Projetor")).toBeDefined();
+    expect(within(card).getByText("Lousa da A-202")).toBeDefined();
+  });
+
   test("sem salas cadastradas, quem não é admin não recebe o atalho", async () => {
     await setup({ roomsDay: { date: DATE, now: NOW, rooms: [] } });
     expect(screen.getByText("Nenhuma sala cadastrada")).toBeDefined();

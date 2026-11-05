@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
+import { EquipmentMarks } from "#/components/equipment-marks";
 import { Button } from "#/components/ui/button";
 import { type PageView, ViewSwitcher } from "#/components/view-switcher";
 import { addDays } from "#/domain/calendar";
@@ -166,6 +167,7 @@ export function AgendaView({
               onSelectSpace={onSelectSpace}
               variant="vertical"
               onSeeAllRooms={seeAllRooms}
+              showNotes={!isVisitor}
             />
           </div>
         </aside>
@@ -186,12 +188,16 @@ export function AgendaView({
             <span className="hidden rounded-md border px-2 py-0.5 text-[12px] font-medium text-muted-foreground xl:inline">
               {currentSpace?.name ?? ""}
             </span>
+            {currentSpace !== undefined && (
+              <EquipmentMarks equipment={currentSpace.equipment} showNotes={!isVisitor} />
+            )}
             <div className="min-w-0 max-w-56 xl:hidden">
               <RoomSelector
                 spaces={spaces}
                 selectedSpaceId={selectedSpaceId}
                 onSelectSpace={onSelectSpace}
                 variant="chips"
+                showNotes={!isVisitor}
                 onSeeAllRooms={seeAllRooms}
               />
             </div>

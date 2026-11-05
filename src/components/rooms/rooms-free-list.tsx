@@ -1,6 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { DoorOpen, Plus } from "lucide-react";
 import type { RoomDay } from "#/application/bookings";
+import { EquipmentMarks } from "#/components/equipment-marks";
 import { Button } from "#/components/ui/button";
 import type { TimeRange } from "#/domain/availability";
 import { availabilityIn, blockOf, busyReasonText } from "#/domain/room-filter";
@@ -15,6 +16,8 @@ type Props = {
   canBook: boolean;
   onBook: (slot: Slot) => void;
   onClearFilters: () => void;
+  /** Observações livres. Visitante não as vê. */
+  showNotes?: boolean;
 };
 
 function capacityLabel(capacity: number | null): string {
@@ -22,7 +25,7 @@ function capacityLabel(capacity: number | null): string {
   return capacity === 1 ? "1 lugar" : `${capacity} lugares`;
 }
 
-function RoomHeader({ room }: { room: RoomDay }) {
+function RoomHeader({ room, showNotes }: { room: RoomDay; showNotes: boolean }) {
   const block = blockOf(room.space.name);
   return (
     <>
@@ -40,6 +43,7 @@ function RoomHeader({ room }: { room: RoomDay }) {
         {block === null ? "Outros espaços" : `Bloco ${block}`} ·{" "}
         {capacityLabel(room.space.capacity)}
       </p>
+      <EquipmentMarks equipment={room.space.equipment} showNotes={showNotes} />
     </>
   );
 }
@@ -50,7 +54,15 @@ const ITEM = "flex min-w-0 items-center gap-3 rounded-xl border border-border bg
  * Salas inteiramente livres na janela (trecho passado de hoje conta como ocupado) e, abaixo do
  * título "Ocupadas", as outras com o motivo: o que ocupa e o horário, sem pessoas.
  */
-export function RoomsFreeList({ rooms, window, now, canBook, onBook, onClearFilters }: Props) {
+export function RoomsFreeList({
+  rooms,
+  window,
+  now,
+  canBook,
+  onBook,
+  onClearFilters,
+  showNotes = false,
+}: Props) {
   if (rooms.length === 0) {
     return (
       <div className="grid justify-items-center gap-3 rounded-2xl border border-dashed border-border p-10 text-center">
@@ -74,7 +86,7 @@ export function RoomsFreeList({ rooms, window, now, canBook, onBook, onClearFilt
           {free.map((room) => (
             <li key={room.spaceId} className={ITEM}>
               <div className="grid min-w-0 flex-1 gap-0.5">
-                <RoomHeader room={room} />
+                <RoomHeader room={room} showNotes={showNotes} />
               </div>
               {canBook && (
                 <Button
@@ -107,7 +119,7 @@ export function RoomsFreeList({ rooms, window, now, canBook, onBook, onClearFilt
             {busy.map(({ room, reasons }) => (
               <li key={room.spaceId} className={`${ITEM} opacity-80`}>
                 <div className="grid min-w-0 flex-1 gap-0.5">
-                  <RoomHeader room={room} />
+                  <RoomHeader room={room} showNotes={showNotes} />
                   {reasons.map((reason) => (
                     <p
                       key={busyReasonText(reason)}

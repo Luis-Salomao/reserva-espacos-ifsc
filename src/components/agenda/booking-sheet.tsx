@@ -20,6 +20,7 @@ import {
 import { SeriesPreview } from "#/components/agenda/series-preview";
 import { SubjectCombobox, type SubjectsLoad } from "#/components/agenda/subject-combobox";
 import { Field } from "#/components/ds";
+import { EquipmentMarks } from "#/components/equipment-marks";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -545,6 +546,9 @@ export function BookingSheet({
                   )}
                 </select>
               </Field>
+              {activeSpace !== undefined && (
+                <EquipmentMarks equipment={activeSpace.equipment} showNotes />
+              )}
 
               {/* Data */}
               <Field id={`${uid}-date`} label="Data" error={fieldErrors.date}>
