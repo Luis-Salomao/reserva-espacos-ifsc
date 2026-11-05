@@ -151,7 +151,7 @@ async function setup(options: Options = {}) {
   });
   const router = createRouter({
     routeTree: root,
-    history: createMemoryHistory({ initialEntries: [options.url ?? "/"] }),
+    history: createMemoryHistory({ initialEntries: [options.url ?? "/?visao=colunas"] }),
   });
   await router.load();
   render(<RouterProvider router={router} />);
@@ -193,7 +193,17 @@ const freeNames = () => namesIn("Salas livres");
 beforeEach(() => setCompact(false));
 
 describe("RoomsView", () => {
-  test("no computador abre em 'Colunas' com uma coluna por sala", async () => {
+  test("períodos ficam junto aos filtros, sem uma segunda barra na grade", async () => {
+    await setup({ url: "/?visao=geral" });
+    const filters = screen.getByRole("region", { name: "Filtros das salas" });
+    const periods = within(filters).getByRole("group", { name: "Período" });
+    expect(screen.getAllByRole("group", { name: "Período" })).toHaveLength(1);
+    fireEvent.click(within(periods).getByRole("button", { name: "Noite" }));
+    expect(
+      within(periods).getByRole("button", { name: "Noite" }).getAttribute("aria-pressed"),
+    ).toBe("true");
+  });
+  test("a visao Colunas mostra uma coluna por sala", async () => {
     await setup();
     expect(screen.getByRole("button", { name: "Colunas" }).getAttribute("aria-pressed")).toBe(
       "true",
@@ -307,14 +317,13 @@ describe("RoomsView", () => {
     await waitFor(() => expect(router.state.location.search).toMatchObject({ data: "2030-11-13" }));
   });
 
-  test("no celular, sem visão na URL, abre em 'Livres' com os filtros no botão", async () => {
+  test("no celular, sem visao na URL, abre em Visao geral", async () => {
     setCompact(true);
-    await setup({ url: "/?ini=14:00&fim=16:00" });
-    expect(screen.getByRole("button", { name: "Livres" }).getAttribute("aria-pressed")).toBe(
+    await setup({ url: "/" });
+    expect(screen.getByRole("button", { name: /Vis.o geral/ }).getAttribute("aria-pressed")).toBe(
       "true",
     );
-    expect(freeNames()).toEqual(["B-104", "LAB 1"]);
-    expect(screen.getByRole("button", { name: "Filtros" })).toBeDefined();
+    expect(screen.getByTestId("rooms-overview")).toBeDefined();
     expect(columnOf("a202")).toBeNull();
   });
 
@@ -439,7 +448,7 @@ describe("RoomsView", () => {
     expect(screen.getByText("Nenhuma sala com esses filtros")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
     await waitFor(() => expect(router.state.location.search).toEqual({}));
-    expect(columnOf("a202")).not.toBeNull();
+    expect(screen.getByTestId("rooms-overview")).toBeDefined();
   });
 
   test("capacidade mínima avisa quantas salas sem capacidade ficaram de fora", async () => {
@@ -479,9 +488,7 @@ describe("RoomsView", () => {
 
   test("na visão geral, a grade mostra a semana com o título e o contador", async () => {
     await setup({ url: "/?visao=geral" });
-    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
-      "Semana de 11 a 15 de novembro",
-    );
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Agenda de salas");
     expect(document.querySelectorAll("[data-cell]").length).toBe(3 * 5 * 2);
     expect(screen.getByText("3 de 3 salas")).toBeDefined();
   });
@@ -524,23 +531,13 @@ describe("RoomsView", () => {
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeDefined();
   });
 
-  test("no celular, a visão geral mostra abas de segunda a sexta e um dia por vez", async () => {
+  test("no celular, a visao geral permite percorrer as datas lado a lado", async () => {
     setCompact(true);
     await setup({ url: "/?visao=geral" });
-    const tabs = screen.getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual([
-      "Seg 11",
-      "Ter 12",
-      "Qua 13",
-      "Qui 14",
-      "Sex 15",
-    ]);
-    expect(screen.getByRole("tab", { name: "Ter 12" }).getAttribute("aria-selected")).toBe("true");
+    expect(screen.queryAllByRole("tab")).toHaveLength(0);
     expect(cellsOn(DATE).length).toBe(6);
-    expect(cellsOn("2030-11-13").length).toBe(0);
-    fireEvent.click(screen.getByRole("tab", { name: "Qua 13" }));
     expect(cellsOn("2030-11-13").length).toBe(6);
-    expect(cellsOn(DATE).length).toBe(0);
+    expect(screen.getByRole("button", { name: "Mais datas" })).toBeDefined();
   });
 
   test("no celular, tocar num quadradinho ocupado abre o cartão em vez de navegar", async () => {

@@ -5,7 +5,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { RoomsOverview } from "#/components/rooms/rooms-overview";
 import { RESERVA_TONE, SUBJECT_PALETTE, subjectTone } from "#/domain/overview";
@@ -71,6 +71,7 @@ const WEEK: RoomsWeek = {
 };
 
 type RenderOptions = {
+  loadWeek?: (date: string) => Promise<RoomsWeek>;
   isVisitor?: boolean;
   canReserve?: boolean;
   now?: string;
@@ -84,6 +85,7 @@ async function renderOverview(options: RenderOptions = {}) {
     component: () => (
       <RoomsOverview
         week={week}
+        {...(options.loadWeek ? { loadWeek: options.loadWeek } : {})}
         rooms={week.rooms}
         isVisitor={options.isVisitor ?? false}
         compact={options.compact ?? false}
@@ -151,6 +153,51 @@ const dimmedOf = (cell: HTMLElement) =>
   });
 
 describe("RoomsOverview", () => {
+  test("recolher um bloco oculta só suas salas e expandir restaura a grade", async () => {
+    await renderOverview();
+    fireEvent.click(screen.getByRole("button", { name: "Recolher Bloco A" }));
+    expect(
+      screen.getByRole("button", { name: "Expandir Bloco A" }).getAttribute("aria-expanded"),
+    ).toBe("false");
+    expect(document.querySelectorAll("[data-cell][data-room='a202']").length).toBe(0);
+    expect(document.querySelectorAll("[data-cell][data-room='b104']").length).toBe(10);
+    fireEvent.click(screen.getByRole("button", { name: "Expandir Bloco A" }));
+    expect(document.querySelectorAll("[data-cell][data-room='a202']").length).toBe(10);
+  });
+  test("filtra os periodos e volta a mostrar todos os horarios", async () => {
+    await renderOverview();
+    const periods = screen.getByRole("group", { name: /Per.odo/ });
+    fireEvent.click(within(periods).getByRole("button", { name: "Noite" }));
+    expect(document.querySelectorAll("[data-cell]").length).toBe(0);
+    fireEvent.click(within(periods).getByRole("button", { name: /Manh/ }));
+    expect(document.querySelectorAll("[data-cell]").length).toBe(30);
+    expect(screen.getAllByText("08:00").length).toBeGreaterThan(0);
+    expect(cellAt("a202", WED, "M12").textContent).toContain("2");
+  });
+
+  test("rolar a direita acrescenta a semana e permite reservar nela", async () => {
+    const next: RoomsWeek = {
+      ...WEEK,
+      weekStart: "2026-11-16",
+      days: WEEK.days.map((day, index) => ({ ...day, date: `2026-11-${16 + index}` })),
+      rooms: WEEK.rooms.map((room) => ({ ...room, occupations: [] })),
+    };
+    const loadWeek = mock(async () => next);
+    const { onBook } = await renderOverview({ loadWeek });
+    fireEvent.scroll(screen.getByTestId("rooms-overview"));
+    await waitFor(() => expect(document.querySelectorAll("[data-cell]").length).toBe(60));
+    expect(loadWeek).toHaveBeenCalledWith("2026-11-16");
+    expect(cellAt("a202", MON, "M12")).toBeDefined();
+    fireEvent.click(cellAt("b104", "2026-11-16", "M12"));
+    fireEvent.click(within(selectionPanel()).getByRole("button", { name: /Reservar B-104/ }));
+    expect(onBook).toHaveBeenCalledWith({
+      spaceId: "b104",
+      date: "2026-11-16",
+      start: "08:00",
+      end: "09:50",
+    });
+  });
+
   test("3 salas × 5 dias × 2 blocos geram 30 quadradinhos", async () => {
     await renderOverview();
     expect(document.querySelectorAll("[data-cell]").length).toBe(30);

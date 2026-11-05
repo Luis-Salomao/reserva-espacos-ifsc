@@ -76,6 +76,9 @@ describe("Route.loaderDeps", () => {
   type DepsArgs = Parameters<NonNullable<typeof Route.options.loaderDeps>>[0];
   const deps = (search: Record<string, unknown>) =>
     Route.options.loaderDeps?.({ search } as unknown as DepsArgs);
+  test("entrada sem sala ou visao carrega a semana de todas as salas", () => {
+    expect(deps({})?.fonte).toBe("semana");
+  });
   const base = { data: "2026-11-10", espaco: "a202" };
   const filters = { ini: "14:00", fim: "16:00", bloco: ["A"], cap: 30, q: "lab", livres: true };
 

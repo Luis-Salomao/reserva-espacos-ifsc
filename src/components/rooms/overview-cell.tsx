@@ -55,6 +55,7 @@ type Props = {
   isVisitor: boolean;
   /** Celular: quadradinho de 32 px, e o toque abre o cartão em vez de navegar. */
   compact: boolean;
+  periodBreak?: boolean;
   /** Dentro do trecho selecionado (ou sendo arrastado). */
   selected: boolean;
   /** Seleciona só este bloco: clique no livre, Enter/Espaço no livre, Espaço no ocupado, toque. */
@@ -104,6 +105,11 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProp
         !below && "-translate-y-full",
       )}
     >
+      {items.length > 1 && (
+        <p className="border-b pb-2 text-xs font-medium text-muted-foreground">
+          {items.length} ocupações neste bloco
+        </p>
+      )}
       {items.map(({ item }) => {
         const entry = legendEntryOf(item);
         const turma = item.source === "manual" ? null : classOf(item.title);
@@ -151,6 +157,7 @@ export function OverviewCell({
   highlight,
   isVisitor,
   compact,
+  periodBreak = false,
   selected,
   onSelect,
   onPointerDown,
@@ -158,7 +165,7 @@ export function OverviewCell({
 }: Props) {
   const cardId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
-  const size = compact ? "size-8" : "size-4";
+  const size = cn(compact ? "size-8" : "size-7", periodBreak && "ml-2");
   const where = {
     "data-room": room.id,
     "data-date": date,
@@ -173,6 +180,7 @@ export function OverviewCell({
         type="button"
         {...where}
         data-cell="livre"
+        title={`Livre · ${cell.block.start}–${cell.block.end}`}
         aria-label={`Selecionar ${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}`}
         aria-pressed={selected}
         onClick={onSelect}
@@ -207,13 +215,21 @@ export function OverviewCell({
     className: cn(
       SQUARE,
       size,
-      "flex overflow-hidden outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
+      "flex gap-px overflow-hidden outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
       anchor !== null && "z-10 scale-160 motion-reduce:scale-100",
       selected && "ring-2 ring-primary",
     ),
   };
   const content = (
     <>
+      {cell.items.length > 1 && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 right-0 z-10 grid size-3.5 place-items-center rounded-bl bg-background/90 text-[9px] font-bold text-foreground"
+        >
+          {cell.items.length}
+        </span>
+      )}
       {cell.items.map(({ item }) => {
         const entry = legendEntryOf(item);
         const dimmed = highlight !== null && entry.key !== highlight;

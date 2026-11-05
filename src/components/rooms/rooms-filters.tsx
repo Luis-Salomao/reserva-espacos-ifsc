@@ -1,5 +1,5 @@
 import { SlidersHorizontal } from "lucide-react";
-import { useId, useState } from "react";
+import { type ReactNode, useId, useState } from "react";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
@@ -9,6 +9,7 @@ import { OTHER_BLOCK, type RoomFilter, windowIssue } from "#/domain/room-filter"
 import { cn } from "#/lib/utils";
 
 export type RoomsFiltersProps = {
+  extra?: ReactNode;
   /** Blocos com pelo menos uma sala (`blocksOf`). */
   blocks: readonly string[];
   /** Andares com pelo menos uma sala (`floorsOf`). */
@@ -276,6 +277,7 @@ export function RoomsFilters(props: RoomsFiltersProps) {
             />
           </PopoverContent>
         </Popover>
+        {props.extra}
       </div>
       <div className="grid gap-0.5 text-[13px]" aria-live="polite">
         <p className="text-muted-foreground">{`${shown} de ${total} ${total === 1 ? "sala" : "salas"}`}</p>
