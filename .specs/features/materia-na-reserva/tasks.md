@@ -158,8 +158,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Testes: grupos e ocultação de "Minhas" (elemento ausente), filtro, escolha, título livre, falha de carga (lista ausente), atalhos, ordem dos grupos, `min-h-11` e `w-full`, argumento enviado ao `loadFn`
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: grupos e ocultação de "Minhas" (elemento ausente), filtro, escolha, título livre, falha de carga (lista ausente), atalhos, ordem dos grupos, `min-h-11` e `w-full`, argumento enviado ao `loadFn`
+- [x] Gate check passes: `bun test test/components/subject-combobox.test.tsx`
 
 **Tests**: unit
 **Gate**: quick
