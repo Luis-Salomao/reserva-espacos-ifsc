@@ -138,8 +138,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Testes: acentos, caixa, espaços nas pontas, `exact` só com igualdade após normalizar
-- [ ] Gate check passes: `bun test src/domain`
+- [x] Testes: acentos, caixa, espaços nas pontas, `exact` só com igualdade após normalizar
+- [x] Gate check passes: `bun test src/domain/text-match.test.ts`
 
 **Tests**: unit
 **Gate**: quick
