@@ -18,6 +18,7 @@ import {
 } from "#/domain/availability";
 import { addDays, weekdayOf } from "#/domain/calendar";
 import { CANCEL_REASONS } from "#/domain/cancel-reasons";
+import { equipmentForViewer, type SpaceEquipment } from "#/domain/equipment";
 import { expandRecurrence, type Recurrence, recurrenceSummary } from "#/domain/recurrence";
 import { isValidDate, type Semester } from "#/domain/semester";
 import type { User } from "#/domain/user";
@@ -88,7 +89,9 @@ export type WeekAgenda = {
 };
 
 /** Agenda de um dia de uma sala, com o nome e a capacidade (`null` = não cadastrada). */
-export type RoomDay = DayAgenda & { space: { id: string; name: string; capacity: number | null } };
+export type RoomDay = DayAgenda & {
+  space: { id: string; name: string; capacity: number | null; equipment?: SpaceEquipment };
+};
 
 export type RoomsDay = { date: string; now: string; rooms: RoomDay[] };
 
@@ -98,7 +101,7 @@ export type RoomsWeek = {
   now: string;
   days: Array<{ date: string; blocks: AgendaBlock[] }>;
   rooms: Array<{
-    space: { id: string; name: string; capacity: number | null };
+    space: { id: string; name: string; capacity: number | null; equipment?: SpaceEquipment };
     occupations: AgendaItem[];
   }>;
 };
@@ -432,7 +435,7 @@ export function createBookingsService(deps: BookingsDeps) {
       if (!isValidDate(input.date)) return fail("validation", "Informe uma data válida.", "date");
       const now = nowLocal();
       const [list, found, all, people] = await Promise.all([
-        spaces.list(),
+        spaces.listWithEquipment(),
         occupations.listActiveInRangeAll(`${input.date}T00:00`, `${addDays(input.date, 1)}T00:00`),
         semesters.list(),
         peopleFor(viewer),
@@ -451,7 +454,12 @@ export function createBookingsService(deps: BookingsDeps) {
         .sort((a, b) => byNaturalName.compare(a.name, b.name))
         .map((space) => ({
           ...buildDay(space.id, input.date, now, hours, bySpace.get(space.id) ?? [], covering),
-          space: { id: space.id, name: space.name, capacity: space.capacity },
+          space: {
+            id: space.id,
+            name: space.name,
+            capacity: space.capacity,
+            equipment: equipmentForViewer(space.equipment, viewer !== null),
+          },
         }));
       return ok({ date: input.date, now, rooms });
     },
@@ -470,7 +478,7 @@ export function createBookingsService(deps: BookingsDeps) {
       }
       const now = nowLocal();
       const [list, found, all, people] = await Promise.all([
-        spaces.list(),
+        spaces.listWithEquipment(),
         occupations.listActiveInRangeAll(
           `${input.weekStart}T00:00`,
           `${addDays(input.weekStart, WORKDAYS)}T00:00`,
@@ -493,7 +501,12 @@ export function createBookingsService(deps: BookingsDeps) {
       const rooms = [...list]
         .sort((a, b) => byNaturalName.compare(a.name, b.name))
         .map((space) => ({
-          space: { id: space.id, name: space.name, capacity: space.capacity },
+          space: {
+            id: space.id,
+            name: space.name,
+            capacity: space.capacity,
+            equipment: equipmentForViewer(space.equipment, viewer !== null),
+          },
           occupations: bySpace.get(space.id) ?? [],
         }));
       return ok({ weekStart: input.weekStart, now, days, rooms });
