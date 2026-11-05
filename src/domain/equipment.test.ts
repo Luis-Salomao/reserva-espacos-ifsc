@@ -1,5 +1,10 @@
 import { describe, expect, test } from "bun:test";
-import { describeEquipment, EQUIPMENT, isEquipmentKind } from "#/domain/equipment";
+import {
+  describeEquipment,
+  EQUIPMENT,
+  equipmentForViewer,
+  isEquipmentKind,
+} from "#/domain/equipment";
 
 describe("describeEquipment", () => {
   test.each([
@@ -18,6 +23,26 @@ describe("describeEquipment", () => {
       text,
       known: quantity !== undefined,
     });
+  });
+});
+
+describe("equipmentForViewer", () => {
+  const equipment = {
+    items: { projetor: 1, computadores: 12 },
+    notes: "Lousa digital",
+  };
+
+  test("logado recebe itens e observações; visitante fica sem o texto", () => {
+    expect(equipmentForViewer(equipment, true)).toEqual(equipment);
+    expect(equipmentForViewer(equipment, false)).toEqual({
+      items: equipment.items,
+      notes: null,
+    });
+    expect(JSON.stringify(equipmentForViewer(equipment, false))).not.toContain("Lousa digital");
+  });
+
+  test("sem cadastro, itens vazios e observações ausentes", () => {
+    expect(equipmentForViewer(undefined, true)).toEqual({ items: {}, notes: null });
   });
 });
 
