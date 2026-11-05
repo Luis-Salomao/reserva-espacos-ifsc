@@ -118,8 +118,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Teste de ação: sem sessão recusa; data inválida; caminho feliz
-- [ ] Gate check passes: `bun test src/server`
+- [x] Teste de ação: sem sessão recusa; data inválida; caminho feliz (afirma a data enviada ao serviço)
+- [x] Gate check passes: `bun test src/server/booking-actions.test.ts`
 
 **Tests**: unit
 **Gate**: quick
