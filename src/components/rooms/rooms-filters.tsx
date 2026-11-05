@@ -57,6 +57,8 @@ function hiddenCount(
     filter.blocks.some((block) => blocks.includes(block)),
     filter.floors.some((floor) => floors.includes(floor)),
     filter.minCapacity !== null,
+    filter.withProjector,
+    filter.minComputers !== null,
     view !== "geral" && filter.onlyFree,
   ].filter(Boolean).length;
 }
@@ -227,6 +229,30 @@ function HiddenFields({
             setCapacity(event.target.value);
             onChange({ ...filter, minCapacity: parseCapacity(event.target.value) });
           }}
+        />
+      </div>
+      <div className="flex h-9 items-center gap-2">
+        <Switch
+          id={`${id}-projetor`}
+          checked={filter.withProjector}
+          onCheckedChange={(checked) => onChange({ ...filter, withProjector: checked })}
+        />
+        <Label htmlFor={`${id}-projetor`}>Com projetor</Label>
+      </div>
+      <div className="grid gap-1.5">
+        <Label htmlFor={`${id}-pcs`}>Mínimo de computadores</Label>
+        <Input
+          id={`${id}-pcs`}
+          type="number"
+          inputMode="numeric"
+          min={1}
+          max={999}
+          className="h-9 w-full"
+          placeholder="Quantidade"
+          value={filter.minComputers === null ? "" : String(filter.minComputers)}
+          onChange={(event) =>
+            onChange({ ...filter, minComputers: parseCapacity(event.target.value) })
+          }
         />
       </div>
       {view !== "geral" && (

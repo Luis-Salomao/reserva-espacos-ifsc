@@ -74,6 +74,8 @@ export function OverviewSelection({
   const filter: RoomFilter = {
     ...places,
     minCapacity: null,
+    withProjector: false,
+    minComputers: null,
     query: "",
     onlyFree: false,
     window: range,

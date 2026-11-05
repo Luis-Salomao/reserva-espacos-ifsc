@@ -89,6 +89,11 @@ describe("validateSalasSearch", () => {
     expect(validateSalasSearch({ q: 202 })).toEqual({ q: "202" });
     expect(validateSalasSearch({ livres: "true" })).toEqual({ livres: true });
     expect(validateSalasSearch({ livres: false })).toEqual({});
+    expect(validateSalasSearch({ projetor: "true", pcs: "8" })).toEqual({
+      projetor: true,
+      pcs: 8,
+    });
+    expect(validateSalasSearch({ projetor: "x", pcs: 0 })).toEqual({});
   });
 });
 

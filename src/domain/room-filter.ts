@@ -1,4 +1,5 @@
 import type { TimeRange } from "./availability";
+import type { SpaceEquipment } from "./equipment";
 
 /** Bloco das salas sem código no nome ("Auditório", "ADM 2"). */
 export const OTHER_BLOCK = "Outros";
@@ -11,7 +12,7 @@ const LAST_MINUTE = 23 * 60 + 59;
 type FilterableRoom = {
   date: string;
   free: readonly TimeRange[];
-  space: { name: string; capacity: number | null };
+  space: { name: string; capacity: number | null; equipment?: SpaceEquipment };
 };
 
 export type RoomFilter = {
@@ -20,6 +21,10 @@ export type RoomFilter = {
   /** Vazio = todos; senão só as salas desses andares. Andares sem nenhuma sala são ignorados. */
   floors: readonly number[];
   minCapacity: number | null;
+  /** Só salas com projetor informado e quantidade maior que zero. */
+  withProjector: boolean;
+  /** `null` = qualquer quantidade; senão, computadores informados e pelo menos este número. */
+  minComputers: number | null;
   query: string;
   onlyFree: boolean;
   window: TimeRange;
@@ -143,6 +148,9 @@ export function filterRooms<R extends FilterableRoom>(
     (blocks.size === 0 || blocks.has(groupOf(room.space.name))) &&
     (floors.size === 0 || floors.has(floorOf(room.space.name) ?? -1)) &&
     normalize(room.space.name).includes(query) &&
+    (!filter.withProjector || (room.space.equipment?.items.projetor ?? 0) > 0) &&
+    (filter.minComputers === null ||
+      (room.space.equipment?.items.computadores ?? -1) >= filter.minComputers) &&
     (!filter.onlyFree || isFreeIn(room, filter.window, now));
   const kept: R[] = [];
   let hiddenNoCapacity = 0;

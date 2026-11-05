@@ -213,6 +213,29 @@ describe("RoomsView", () => {
     expect(screen.getByText("3 de 3 salas")).toBeDefined();
   });
 
+  test("projetor e computadores vão para a URL e tiram as salas que não atendem", async () => {
+    const equipment = { items: { projetor: 1, computadores: 12 }, notes: null };
+    const roomsDay: RoomsDay = {
+      ...DAY,
+      rooms: DAY.rooms.map((room) =>
+        room.space.id === "b104" ? { ...room, space: { ...room.space, equipment } } : room,
+      ),
+    };
+    const { router } = await setup({ roomsDay });
+    fireEvent.click(screen.getByRole("button", { name: "Filtros" }));
+    const panel = await screen.findByRole("dialog", { name: "Filtros" });
+    fireEvent.click(within(panel).getByRole("switch", { name: "Com projetor" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ projetor: true }));
+    expect(screen.getByText("1 de 3 salas")).toBeDefined();
+    expect(columnOf("b104")).not.toBeNull();
+    expect(columnOf("a202")).toBeNull();
+    fireEvent.change(within(panel).getByLabelText("Mínimo de computadores"), {
+      target: { value: "20" },
+    });
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ pcs: 20 }));
+    expect(screen.getByText("0 de 3 salas")).toBeDefined();
+  });
+
   test("filtros mudam a URL e o resultado", async () => {
     const { router } = await setup();
     fireEvent.click(screen.getByRole("button", { name: "Filtros" }));
