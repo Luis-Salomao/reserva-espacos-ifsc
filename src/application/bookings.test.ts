@@ -1,6 +1,8 @@
 import { describe, expect, test } from "bun:test";
 import { createBookingsService } from "#/application/bookings";
 import type { Role, User } from "#/domain/user";
+import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
+import { createUserRepository } from "#/infra/db/repos/user-repository";
 import {
   bookingDeps,
   insertBatch,
@@ -1078,6 +1080,131 @@ describe("myBookings", () => {
     expect(await svc.myBookings(s.docA, { offset: -1 })).toMatchObject({
       ok: false,
       field: "offset",
+    });
+  });
+});
+
+describe("subjects", () => {
+  test("separa as do docente, sem repetir, em ordem pt-BR", async () => {
+    const { db, s, svc } = await setup();
+    const at = (id: string, title: string, responsibleUserId: string | null, start = "08:00") =>
+      insertImported(db, {
+        id,
+        spaceId: s.sala1.id,
+        date: "2026-11-10",
+        start,
+        end: "09:00",
+        title,
+        responsibleUserId,
+      });
+    at("z", "Zebra — 2B", s.docA.id, "08:00");
+    at("a", "Álgebra — 1A", s.docA.id, "10:00");
+    at("a-outro", "Álgebra — 1A", s.docB.id, "13:00");
+    at("q", "Química — 3C", s.docB.id, "14:00");
+    at("n10", "aula 10", null, "15:00");
+    at("n2", "aula 2", null, "16:00");
+    insertImported(db, {
+      id: "velha-data",
+      spaceId: s.sala1.id,
+      date: "2025-09-01",
+      start: "08:00",
+      end: "09:00",
+      title: "Fora do semestre",
+      responsibleUserId: s.docA.id,
+    });
+
+    const mine = await svc.subjects(s.docA, { date: "2026-11-10" });
+    expect(mine).toEqual({
+      ok: true,
+      value: {
+        mine: ["Álgebra — 1A", "Zebra — 2B"],
+        all: ["aula 10", "aula 2", "Química — 3C"],
+      },
+    });
+    const other = await svc.subjects(s.docB, { date: "2026-11-10" });
+    expect(other.ok && other.value.mine).toEqual(["Álgebra — 1A", "Química — 3C"]);
+    expect(other.ok && other.value.all).toEqual(["aula 10", "aula 2", "Zebra — 2B"]);
+    const none = await svc.subjects(s.horarios, { date: "2026-11-10" });
+    expect(none.ok && none.value.mine).toEqual([]);
+    expect(none.ok && none.value.all).toEqual([
+      "Álgebra — 1A",
+      "aula 10",
+      "aula 2",
+      "Química — 3C",
+      "Zebra — 2B",
+    ]);
+  });
+
+  test("fora de semestre usa o mais recente; dentro do antigo, só o antigo", async () => {
+    const { db, s, svc } = await setup();
+    await createSemesterRepository(db).create({
+      name: "2025/2",
+      start: "2025-08-01",
+      end: "2025-12-15",
+      terms: [],
+      blocks: [],
+    });
+    insertImported(db, {
+      id: "antiga",
+      spaceId: s.sala1.id,
+      date: "2025-09-01",
+      start: "08:00",
+      end: "09:00",
+      title: "Antiga — 1A",
+      responsibleUserId: s.docA.id,
+    });
+    insertImported(db, {
+      id: "nova",
+      spaceId: s.sala1.id,
+      date: "2026-11-10",
+      start: "08:00",
+      end: "09:00",
+      title: "Nova — 1A",
+      responsibleUserId: s.docA.id,
+    });
+    const insideOld = await svc.subjects(s.docA, { date: "2025-09-10" });
+    expect(insideOld).toEqual({ ok: true, value: { mine: ["Antiga — 1A"], all: [] } });
+    const insideNew = await svc.subjects(s.docA, { date: "2026-11-10" });
+    expect(insideNew).toEqual({ ok: true, value: { mine: ["Nova — 1A"], all: [] } });
+    const outside = await svc.subjects(s.docA, { date: "2027-03-01" });
+    expect(outside).toEqual({ ok: true, value: { mine: ["Nova — 1A"], all: [] } });
+  });
+
+  test("sem semestre e sem aulas, os dois grupos vêm vazios", async () => {
+    const { db } = openDb();
+    const doc = await createUserRepository(db).create({
+      email: "so@x.org",
+      name: "Pessoa so",
+      code: "SO",
+      roles: ["docente"],
+      passwordHash: "x",
+    });
+    const empty = await makeService(db).subjects(doc, { date: "2026-11-10" });
+    expect(empty).toEqual({ ok: true, value: { mine: [], all: [] } });
+
+    const { s, svc } = await setup();
+    expect(await svc.subjects(s.docA, { date: "2026-11-10" })).toEqual({
+      ok: true,
+      value: { mine: [], all: [] },
+    });
+  });
+
+  test("quem não pode reservar é recusado; data inválida também, para quem pode", async () => {
+    const { s, svc } = await setup();
+    expect(await svc.subjects(guest([]), { date: "2026-11-10" })).toMatchObject({
+      ok: false,
+      kind: "forbidden",
+      message: "Sem permissão para reservar.",
+    });
+    expect(await svc.subjects(guest(["docente"], false), { date: "2026-02-30" })).toMatchObject({
+      ok: false,
+      kind: "forbidden",
+    });
+    expect(await svc.subjects(s.docA, { date: "2026-02-30" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "date",
+      message: "Informe uma data válida.",
     });
   });
 });

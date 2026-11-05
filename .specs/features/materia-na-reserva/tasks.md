@@ -78,8 +78,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Teste: exclui avulsas, canceladas e fora do intervalo; sem duplicatas
-- [ ] Gate check passes: `bun test`
+- [x] Teste: exclui avulsas, canceladas e fora do intervalo; sem duplicatas
+- [x] Gate check passes: `bun test src/infra/db/flow/occupation-repository.test.ts`
 
 **Tests**: integration
 **Gate**: full
@@ -98,8 +98,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Testes: `all` sem itens de `mine`; sem aulas → `mine` vazio; data fora de semestre usa o mais recente; visitante `forbidden`
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: `all` sem itens de `mine`; sem aulas → `mine` vazio; data fora de semestre usa o mais recente; visitante `forbidden`
+- [x] Gate check passes: `bun test src/application/bookings.test.ts`
 
 **Tests**: unit
 **Gate**: quick

@@ -224,10 +224,37 @@ function toItem(
   };
 }
 
+const byTitle = new Intl.Collator("pt-BR");
+
+/** Semestre que cobre a data; sem cobertura, o mais recente (a lista já vem do mais novo). */
+function semesterFor(date: string, semesters: readonly Semester[]): Semester | undefined {
+  return (
+    semesters.find((semester) => semester.start <= date && date <= semester.end) ?? semesters[0]
+  );
+}
+
+/**
+ * "Minhas" são os títulos em que `userId` é o responsável. O mesmo título não se repete em "todas".
+ * Os dois grupos ficam em ordem alfabética pt-BR (sem ordem numérica: "aula 10" antes de "aula 2").
+ */
+function splitTitles(
+  pairs: readonly { title: string; responsibleUserId: string | null }[],
+  userId: string,
+): { mine: string[]; all: string[] } {
+  const mine = new Set<string>();
+  const rest = new Set<string>();
+  for (const pair of pairs) {
+    if (pair.responsibleUserId === userId) mine.add(pair.title);
+    else rest.add(pair.title);
+  }
+  for (const title of mine) rest.delete(title);
+  const sort = (values: Set<string>) => [...values].sort((a, b) => byTitle.compare(a, b));
+  return { mine: sort(mine), all: sort(rest) };
+}
+
 /** Blocos do semestre que cobre a data; sem cobertura, os do semestre mais recente; sem semestre, nenhum. */
 function blocksFor(date: string, semesters: readonly Semester[]): AgendaBlock[] {
-  const chosen =
-    semesters.find((semester) => semester.start <= date && date <= semester.end) ?? semesters[0];
+  const chosen = semesterFor(date, semesters);
   return (chosen?.blocks ?? []).map((block) => ({
     label: block.name,
     short: block.short,
@@ -470,6 +497,25 @@ export function createBookingsService(deps: BookingsDeps) {
           occupations: bySpace.get(space.id) ?? [],
         }));
       return ok({ weekStart: input.weekStart, now, days, rooms });
+    },
+
+    /**
+     * Títulos das aulas importadas ativas do semestre da data: as do docente primeiro, sem repetir
+     * em "todas". Fora de qualquer semestre, usa o mais recente. Quem não pode reservar é recusado.
+     */
+    async subjects(
+      user: User,
+      input: { date: string },
+    ): Promise<Result<{ mine: string[]; all: string[] }>> {
+      if (!canBook(user)) return fail("forbidden", FORBIDDEN_BOOK);
+      if (!isValidDate(input.date)) return fail("validation", "Informe uma data válida.", "date");
+      const semester = semesterFor(input.date, await semesters.list());
+      if (semester === undefined) return ok({ mine: [], all: [] });
+      const pairs = await occupations.listImportedTitles(
+        `${semester.start}T00:00`,
+        `${addDays(semester.end, 1)}T00:00`,
+      );
+      return ok(splitTitles(pairs, user.id));
     },
 
     /**
