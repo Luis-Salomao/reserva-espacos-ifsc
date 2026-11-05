@@ -904,11 +904,12 @@ describe("roomsWeek", () => {
       "2026-11-12",
       "2026-11-13",
     ]);
+    const equipment = { items: {}, notes: null };
     expect(result.value.rooms.map((room) => room.space)).toEqual([
-      { id: expect.any(String), name: "A-202", capacity: 40 },
-      { id: expect.any(String), name: "A-1000", capacity: null },
-      { id: s.sala1.id, name: "ADM 2", capacity: 30 },
-      { id: s.sala2.id, name: "LAB 1", capacity: 20 },
+      { id: expect.any(String), name: "A-202", capacity: 40, equipment },
+      { id: expect.any(String), name: "A-1000", capacity: null, equipment },
+      { id: s.sala1.id, name: "ADM 2", capacity: 30, equipment },
+      { id: s.sala2.id, name: "LAB 1", capacity: 20, equipment },
     ]);
   });
 

@@ -5,7 +5,7 @@ import { EquipmentMarks } from "#/components/equipment-marks";
 describe("EquipmentMarks", () => {
   test("sem cadastro, os três tipos dizem que não foi informado", () => {
     render(<EquipmentMarks />);
-    const list = screen.getByRole("list", { name: "Equipamentos" });
+    const list = screen.getByRole("group", { name: "Equipamentos" });
     expect(
       [
         "Projetor não informado",
@@ -26,7 +26,7 @@ describe("EquipmentMarks", () => {
       notes: "Lousa digital",
     };
     const { rerender } = render(<EquipmentMarks equipment={equipment} />);
-    const list = screen.getByRole("list", { name: "Equipamentos" });
+    const list = screen.getByRole("group", { name: "Equipamentos" });
     expect(within(list).getByText("Projetor")).toBeDefined();
     expect(within(list).getByText("Sem computadores")).toBeDefined();
     expect(within(list).getByText("Aparelho de som não informado")).toBeDefined();
