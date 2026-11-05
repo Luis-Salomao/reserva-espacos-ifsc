@@ -29,7 +29,7 @@ A administração já grava equipamentos (`space_equipment`) e observações (`s
 
 ## Critérios
 
-- EQ-01: a lista `Equipamentos` tem um item por tipo, com o texto acessível; sem cadastro, os três dizem "não informado".
+- EQ-01: o grupo `Equipamentos` tem um rótulo por tipo, com o texto acessível; sem cadastro, os três dizem "não informado".
 - EQ-02: observações aparecem para logado e o elemento está ausente para visitante.
 - EQ-03: `roomsDay`, `roomsWeek` e `listSpaces` trazem os itens; o JSON do visitante não contém o texto das observações.
 - EQ-04: trocar a sala no formulário troca as marcas.

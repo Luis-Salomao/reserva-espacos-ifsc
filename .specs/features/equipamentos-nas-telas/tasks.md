@@ -4,7 +4,8 @@
 
 - A skill `tlc-spec-driven` não está neste ambiente. As tarefas seguem o fluxo do repositório: spec, teste, um commit por tarefa.
 - Observações só para logados é premissa não confirmada (spec).
-- Rolagem horizontal em 360 px não é medida pelo happy-dom (L-005); fica para a revisão manual.
+- EQ-01 pedia uma lista. As marcas são um `fieldset` (grupo "Equipamentos"): uma lista aninhada virava item das listas de salas, e um `div` com `role="group"` não passa no lint.
+- Rolagem horizontal em 360 px não é medida pelo happy-dom (L-005). Nesta branch foi conferida no Chrome: a página não rola na horizontal em visão geral, colunas, livres, sala e na folha de reserva.
 
 ### T1: marcas e o que o visitante pode ver
 
