@@ -1,12 +1,12 @@
 import { describe, expect, test } from "bun:test";
 import { createBookingsService } from "#/application/bookings";
 import type { Role, User } from "#/domain/user";
-import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
-import { createUserRepository } from "#/infra/db/repos/user-repository";
 import {
   bookingDeps,
   insertBatch,
   insertImported,
+  insertSemester,
+  insertUser,
   makeService,
   openDb,
   rawAll,
@@ -1176,7 +1176,7 @@ describe("subjects", () => {
 
   test("fora de semestre usa o mais recente; dentro do antigo, só o antigo", async () => {
     const { db, s, svc } = await setup();
-    await createSemesterRepository(db).create({
+    await insertSemester(db, {
       name: "2025/2",
       start: "2025-08-01",
       end: "2025-12-15",
@@ -1211,7 +1211,7 @@ describe("subjects", () => {
 
   test("sem semestre e sem aulas, os dois grupos vêm vazios", async () => {
     const { db } = openDb();
-    const doc = await createUserRepository(db).create({
+    const doc = await insertUser(db, {
       email: "so@x.org",
       name: "Pessoa so",
       code: "SO",
