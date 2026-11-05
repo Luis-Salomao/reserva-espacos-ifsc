@@ -14,7 +14,6 @@ import { DatePicker } from "#/components/ui/date-picker";
 import { type PageView, ViewSwitcher } from "#/components/view-switcher";
 import { localNow, type TimeRange } from "#/domain/availability";
 import { addDays } from "#/domain/calendar";
-import { weekOf } from "#/domain/overview";
 import {
   blocksOf,
   defaultWindow,
@@ -24,7 +23,8 @@ import {
   type RoomFilter,
   windowIssue,
 } from "#/domain/room-filter";
-import { getRoomsDayFn } from "#/server/booking-fns";
+import { getRoomsDayFn, getRoomsWeekFn } from "#/server/booking-fns";
+import { type OverviewPeriod, OverviewPeriods } from "./overview-periods";
 import { type RoomDraft, RoomsColumns } from "./rooms-columns";
 import { RoomsFilters } from "./rooms-filters";
 import { RoomsFreeList } from "./rooms-free-list";
@@ -63,6 +63,12 @@ type Props = {
   /** Disponibilidade do dia usada na escolha de sala da reserva; padrão `getRoomsDayFn`. */
   dayFn?: BookingSheetProps["availability"];
 };
+
+async function loadOverviewWeek(weekStart: string): Promise<RoomsWeek> {
+  const response = await getRoomsWeekFn({ data: { weekStart } });
+  if (!response.ok) throw new Error(response.message);
+  return response.data;
+}
 
 const COMPACT_QUERY = "(max-width: 767px)";
 
@@ -122,20 +128,6 @@ const dayTitle = new Intl.DateTimeFormat("pt-BR", {
   timeZone: "UTC",
 });
 
-const monthName = new Intl.DateTimeFormat("pt-BR", { month: "long", timeZone: "UTC" });
-
-/** "Semana de 11 a 15 de novembro"; entre meses, "Semana de 30 de setembro a 4 de outubro". */
-function weekTitle(date: string): string {
-  const days = weekOf(date);
-  const first = days[0] ?? date;
-  const last = days[4] ?? date;
-  const day = (value: string) => Number(value.slice(8, 10));
-  const month = (value: string) => monthName.format(new Date(`${value}T12:00:00Z`));
-  return month(first) === month(last)
-    ? `Semana de ${day(first)} a ${day(last)} de ${month(last)}`
-    : `Semana de ${day(first)} de ${month(first)} a ${day(last)} de ${month(last)}`;
-}
-
 /** O que a visão geral filtra: só bloco, capacidade e busca (sem janela nem "Só livres"). */
 function asFilterable(week: RoomsWeek | null, date: string) {
   return (week?.rooms ?? []).map((room) => ({ ...room, date, free: [] }));
@@ -161,12 +153,15 @@ export function RoomsView({
   dayFn,
 }: Props) {
   const compact = useCompact();
+  const [period, setPeriod] = useState<OverviewPeriod>("Todos");
   const view: SalasView =
-    search.visao === undefined || search.visao === "sala"
-      ? compact
-        ? "livres"
-        : "colunas"
-      : search.visao;
+    search.visao === undefined
+      ? "geral"
+      : search.visao === "sala"
+        ? compact
+          ? "livres"
+          : "colunas"
+        : search.visao;
   const geral = view === "geral";
   const now = (geral ? roomsWeek?.now : roomsDay?.now) ?? localNow(new Date(), timeZone);
   const today = now.slice(0, 10);
@@ -203,6 +198,7 @@ export function RoomsView({
   const [draft, setDraft] = useState<RoomDraft | null>(null);
   const [slot, setSlot] = useState<BookingSlotInit | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
+  const [overviewAnchor, setOverviewAnchor] = useState(0);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: dados novos descartam o rascunho
   useEffect(() => {
@@ -222,7 +218,10 @@ export function RoomsView({
     else if (canBook) setSlot(next);
   }
 
-  const goTo = (data: string) => onSearchChange((prev) => ({ ...prev, data }), false);
+  const goTo = (data: string) => {
+    setOverviewAnchor((value) => value + 1);
+    onSearchChange((prev) => ({ ...prev, data }), false);
+  };
   const setView = (visao: PageView) => onSearchChange((prev) => ({ ...prev, visao }), true);
   const clearFilters = () => onSearchChange(withoutFilters, true);
   const step = geral ? 7 : 1;
@@ -240,7 +239,7 @@ export function RoomsView({
     <div className="grid w-full max-w-full min-w-0 gap-4" data-testid="rooms-view">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="text-lg font-semibold tracking-tight text-foreground first-letter:uppercase">
-          {geral ? weekTitle(selectedDate) : dayTitle.format(new Date(`${selectedDate}T12:00:00Z`))}
+          {geral ? "Agenda de salas" : dayTitle.format(new Date(`${selectedDate}T12:00:00Z`))}
         </h1>
         <div className="flex-1" />
         <div className="flex flex-wrap items-center gap-1">
@@ -302,6 +301,7 @@ export function RoomsView({
       ) : (
         <>
           <RoomsFilters
+            extra={geral ? <OverviewPeriods value={period} onChange={setPeriod} /> : undefined}
             blocks={blocksOf(geral ? weekRooms : rooms)}
             floors={floorsOf(geral ? weekRooms : rooms)}
             filter={filter}
@@ -326,6 +326,9 @@ export function RoomsView({
             ) : (
               <RoomsOverview
                 week={roomsWeek}
+                selectedPeriod={period}
+                loadWeek={loadOverviewWeek}
+                scrollResetKey={overviewAnchor}
                 rooms={weekResult.rooms}
                 isVisitor={isVisitor}
                 compact={compact}

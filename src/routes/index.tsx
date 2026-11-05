@@ -24,8 +24,9 @@ export type AgendaSearch = SalasSearch & { espaco?: string };
 /** De onde vêm os dados: semana de uma sala, dia de todas as salas ou semana de todas. */
 type Source = "sala" | "dia" | "semana";
 
-function sourceOf(visao: PageView | undefined): Source {
-  if (visao === undefined || visao === "sala") return "sala";
+function sourceOf(visao: PageView | undefined, espaco?: string): Source {
+  if (visao === undefined) return espaco ? "sala" : "semana";
+  if (visao === "sala") return "sala";
   return visao === "geral" ? "semana" : "dia";
 }
 
@@ -154,7 +155,11 @@ export const Route = createFileRoute("/")({
     }
   },
   // Só a fonte vai ao servidor: trocar "Colunas" e "Livres", filtros e janela ficam no cliente.
-  loaderDeps: ({ search: { data, espaco, visao } }) => ({ data, espaco, fonte: sourceOf(visao) }),
+  loaderDeps: ({ search: { data, espaco, visao } }) => ({
+    data,
+    espaco,
+    fonte: sourceOf(visao, espaco),
+  }),
   loader: async ({ deps, context }): Promise<HomeLoaderData> => {
     const { session } = context;
     if (deps.fonte === "sala") return { fonte: "sala", ...(await loadAgenda(deps, session)) };

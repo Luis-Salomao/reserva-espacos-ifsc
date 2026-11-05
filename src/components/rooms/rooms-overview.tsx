@@ -1,13 +1,20 @@
-import { useEffect, useRef, useState } from "react";
+import { ChevronDown, ChevronRight } from "lucide-react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { weekdayOf } from "#/domain/calendar";
 import { cellsFor, spanOf } from "#/domain/overview";
+import { blockOf, floorOf } from "#/domain/room-filter";
 import { cn } from "#/lib/utils";
 import { dayLabel, type LegendEntry, legendEntryOf, OverviewCell } from "./overview-cell";
 import { OverviewLegend } from "./overview-legend";
+import { type OverviewPeriod, OverviewPeriods } from "./overview-periods";
 import { type OverviewPick, OverviewSelection } from "./overview-selection";
+import { type LoadWeek, useContinuousWeeks } from "./use-continuous-weeks";
 
 type Props = {
+  selectedPeriod?: OverviewPeriod;
+  loadWeek?: LoadWeek;
+  scrollResetKey?: number;
   week: RoomsWeek;
   /** Salas que passaram nos filtros, na ordem recebida. */
   rooms: RoomsWeek["rooms"];
@@ -20,6 +27,9 @@ type Props = {
   canReserve: boolean;
   onBook: (slot: { spaceId: string; date: string; start: string; end: string }) => void;
 };
+
+const periodOf = (start: string) =>
+  start < "12:00" ? "Manh\u00e3" : start < "18:00" ? "Tarde" : "Noite";
 
 const TAB_DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex"];
 
@@ -52,23 +62,62 @@ function legendOf(rooms: Props["rooms"]): LegendEntry[] {
 /**
  * Salas × (segunda a sexta × blocos do semestre), um quadradinho por bloco, com a legenda.
  * Arrastar com o mouse num dia ou clicar num bloco seleciona o trecho e abre o painel com as salas
- * livres e ocupadas; na tela larga o painel ocupa o lugar da legenda.
+ * livres e ocupadas. Mais semanas entram pela borda direita, sem trocar a p?gina.
  */
 export function RoomsOverview({
-  week,
-  rooms,
+  week: initialWeek,
+  rooms: initialRooms,
+  loadWeek,
+  scrollResetKey,
+  selectedPeriod,
   isVisitor,
   compact,
   selectedDate,
   canReserve,
   onBook,
 }: Props) {
+  const { week, loading, error, loadMore } = useContinuousWeeks(initialWeek, loadWeek);
+  const allowedRooms = new Set(initialRooms.map((room) => room.space.id));
+  const rooms = week.rooms.filter((room) => allowedRooms.has(room.space.id));
+  const viewport = useRef<HTMLDivElement>(null);
+  const endMarker = useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (!loadWeek || loading || error || typeof IntersectionObserver === "undefined") return;
+    const marker = endMarker.current;
+    if (!marker) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        if (entries.some((entry) => entry.isIntersecting)) void loadMore();
+      },
+      { root: viewport.current, rootMargin: "0px 320px 0px 0px" },
+    );
+    observer.observe(marker);
+    return () => observer.disconnect();
+  }, [loadWeek, loadMore, loading, error]);
+  useEffect(() => {
+    void initialWeek.weekStart;
+    void scrollResetKey;
+    if (viewport.current) viewport.current.scrollLeft = 0;
+  }, [initialWeek.weekStart, scrollResetKey]);
+  const [localPeriod, setLocalPeriod] = useState<OverviewPeriod>("Todos");
+  const period = selectedPeriod ?? localPeriod;
+  const [collapsedBlocks, setCollapsedBlocks] = useState<Set<string>>(new Set());
   const [highlight, setHighlight] = useState<string | null>(null);
   const [tab, setTab] = useState(() => Math.min(weekdayOf(selectedDate), week.days.length - 1));
   const [pick, setPick] = useState<OverviewPick | null>(null);
   const [sweep, setSweep] = useState<Sweep | null>(null);
   const panelRef = useRef<HTMLElement>(null);
-  const shownDays = compact ? week.days.slice(tab, tab + 1) : week.days;
+  const shownDays = (compact && !loadWeek ? week.days.slice(tab, tab + 1) : week.days).map(
+    (day) => ({
+      ...day,
+      blocks: day.blocks.filter((block) => period === "Todos" || periodOf(block.start) === period),
+    }),
+  );
+  useEffect(() => {
+    void period;
+    setPick(null);
+    setSweep(null);
+  }, [period]);
   const active = pick !== null && shownDays.some((day) => day.date === pick.date) ? pick : null;
 
   useEffect(() => {
@@ -76,7 +125,7 @@ export function RoomsOverview({
     function finish() {
       setSweep(null);
       if (sweep === null || sweep.from === sweep.to) return;
-      const blocks = week.days.find((day) => day.date === sweep.date)?.blocks ?? [];
+      const blocks = shownDays.find((day) => day.date === sweep.date)?.blocks ?? [];
       const range = spanOf(blocks, sweep.from, sweep.to);
       if (range !== null) setPick({ date: sweep.date, ...range, suggested: sweep.spaceId });
     }
@@ -87,7 +136,7 @@ export function RoomsOverview({
       document.removeEventListener("pointerup", finish);
       document.removeEventListener("pointercancel", cancel);
     };
-  }, [sweep, week.days]);
+  }, [sweep, shownDays]);
 
   const hasPick = active !== null;
   useEffect(() => {
@@ -133,31 +182,53 @@ export function RoomsOverview({
         ? { ...current, to: index }
         : current,
     );
-  const rows = rooms.map((room) => {
-    const days = shownDays.map((day) =>
-      cellsFor(
-        room.occupations.filter((item) => item.date === day.date),
-        day.blocks,
-      ),
-    );
+  const place = (name: string) => {
+    const block = blockOf(name);
+    const floor = floorOf(name);
+    return block === null
+      ? "Outros espa\u00e7os"
+      : `Bloco ${block}${floor === null ? "" : ` \u00b7 Andar ${floor}`}`;
+  };
+  const orderedRooms = [...rooms].sort((a, b) =>
+    `${place(a.space.name)} ${a.space.name}`.localeCompare(
+      `${place(b.space.name)} ${b.space.name}`,
+      "pt-BR",
+      { numeric: true },
+    ),
+  );
+  const rows = orderedRooms.map((room) => {
+    const days = shownDays.map((day) => {
+      const items = room.occupations.filter((item) => item.date === day.date);
+      return {
+        ...cellsFor(items, day.blocks),
+        outside: cellsFor(
+          items,
+          week.days.find((original) => original.date === day.date)?.blocks ?? [],
+        ).outside,
+      };
+    });
     return { room, days, outside: days.flatMap((day) => day.outside) };
   });
   return (
-    <div className="grid gap-3 xl:grid-cols-[max-content_minmax(12rem,1fr)] xl:items-start">
+    <div className="grid gap-3">
+      {selectedPeriod === undefined && <OverviewPeriods value={period} onChange={setLocalPeriod} />}
+      <p className="text-xs text-muted-foreground">
+        Clique ou arraste nos horários livres para reservar.
+      </p>
       {/* `absolute` na tela larga: legenda e painel rolam dentro da altura da grade, sem esticar a página. */}
-      <div
-        className={cn(
-          "xl:relative xl:self-stretch",
-          active === null ? "xl:order-last" : "order-last",
-        )}
-      >
+      <div className={cn(active === null ? "order-last" : "")}>
         {active === null ? (
-          <OverviewLegend
-            entries={legendOf(rooms)}
-            active={highlight}
-            onToggle={(key) => setHighlight((current) => (current === key ? null : key))}
-            className="max-h-24 overflow-y-auto xl:absolute xl:inset-0 xl:max-h-none"
-          />
+          <details className="rounded-lg border px-3 py-2">
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+              Cores das disciplinas
+            </summary>
+            <OverviewLegend
+              entries={legendOf(rooms)}
+              active={highlight}
+              onToggle={(key) => setHighlight((current) => (current === key ? null : key))}
+              className="mt-3 max-h-40 overflow-y-auto"
+            />
+          </details>
         ) : (
           <OverviewSelection
             ref={panelRef}
@@ -168,11 +239,11 @@ export function RoomsOverview({
             onRangeChange={(range) => setPick({ ...active, ...range })}
             onClose={() => setPick(null)}
             onBook={onBook}
-            className="xl:absolute xl:inset-0 xl:overflow-y-auto"
+            className="max-h-96 overflow-y-auto"
           />
         )}
       </div>
-      {compact && (
+      {compact && !loadWeek && (
         <div
           role="tablist"
           aria-label="Dia da semana"
@@ -195,98 +266,192 @@ export function RoomsOverview({
           ))}
         </div>
       )}
-      <div data-testid="rooms-overview" className="w-full max-w-full overflow-x-auto">
-        <div
-          className="grid w-max min-w-full items-center select-none"
-          style={{
-            gridTemplateColumns: `${compact ? "5rem" : "minmax(5rem, 9rem)"} repeat(${shownDays.length}, max-content)`,
-          }}
-        >
-          <div />
-          {shownDays.map((day) =>
-            compact ? (
-              <div key={day.date} className="flex gap-0.5 border-l border-border px-1 pb-1">
-                {day.blocks.map((block) => (
-                  <span
-                    key={`${block.short}-${block.start}`}
-                    title={block.label}
-                    className="w-8 shrink-0 truncate text-center text-[10px] text-muted-foreground"
-                  >
-                    {block.short}
-                  </span>
-                ))}
-              </div>
-            ) : (
-              <div
-                key={day.date}
-                className="border-l border-border px-1.5 pb-1 text-[12px] font-medium text-muted-foreground first-letter:uppercase"
-              >
-                {dayLabel(day.date)}
-              </div>
-            ),
-          )}
-          {rows.map(({ room, days, outside }) => (
-            <div key={room.space.id} className="contents">
-              <div className="flex min-w-0 items-center gap-1 pr-2">
-                <span
-                  className="truncate text-[13px] font-medium text-foreground"
-                  title={room.space.name}
-                >
-                  {room.space.name}
-                </span>
-                {outside.length > 0 && (
-                  <span
-                    role="img"
-                    data-outside={room.space.id}
-                    aria-label={outsideLabel(outside)}
-                    title={outsideLabel(outside)}
-                    className="size-1.5 shrink-0 rounded-full bg-amber-500"
-                  />
-                )}
-              </div>
-              {shownDays.map((day, index) => (
-                <div
-                  key={day.date}
-                  className={cn(
-                    "flex border-l border-border py-[3px]",
-                    compact ? "gap-0.5 px-1" : "gap-[3px] px-1.5",
-                  )}
-                >
-                  {days[index]?.cells.map((cell, blockIndex) => (
-                    <OverviewCell
-                      key={`${cell.block.short}-${cell.block.start}`}
-                      cell={cell}
-                      room={room.space}
-                      date={day.date}
-                      highlight={highlight}
-                      isVisitor={isVisitor}
-                      compact={compact}
-                      selected={isSelected(day.date, blockIndex, cell.block)}
-                      onSelect={() =>
-                        setPick({
-                          date: day.date,
-                          start: cell.block.start,
-                          end: cell.block.end,
-                          suggested: room.space.id,
-                        })
-                      }
-                      onPointerDown={(event) =>
-                        startSweep(event, {
-                          date: day.date,
-                          from: blockIndex,
-                          to: blockIndex,
-                          spaceId: room.space.id,
-                        })
-                      }
-                      onPointerEnter={() => extendSweep(day.date, blockIndex)}
-                    />
+      <div
+        ref={viewport}
+        data-testid="rooms-overview"
+        className="w-full max-w-full overflow-x-auto"
+        onScroll={(event) => {
+          const el = event.currentTarget;
+          if (!error && el.scrollWidth - el.scrollLeft - el.clientWidth < 320) void loadMore();
+        }}
+      >
+        <div className="relative w-max min-w-full">
+          <div
+            className="grid w-max min-w-full items-center select-none"
+            style={{
+              gridTemplateColumns: `${compact ? "8rem" : "10rem"} repeat(${shownDays.length}, max-content)`,
+            }}
+          >
+            <div className="sticky left-0 z-20 self-stretch border-r bg-surface" />
+            {shownDays.map((day) => (
+              <div key={day.date} className="border-l border-border px-1.5 pb-2">
+                <p className="mb-2 text-center text-xs font-semibold capitalize">
+                  {dayLabel(day.date)}
+                </p>
+                <div className="flex gap-1">
+                  {day.blocks.map((block, index) => (
+                    <div
+                      key={`${block.short}-${block.start}`}
+                      title={`${periodOf(block.start)} ${block.start}–${block.end}`}
+                      className={cn(
+                        "shrink-0 text-center text-[9px] tabular-nums text-muted-foreground",
+                        compact ? "w-8" : "w-7",
+                        index > 0 &&
+                          periodOf(block.start) !== periodOf(day.blocks[index - 1]?.start ?? "") &&
+                          "ml-2 border-l border-dashed border-border",
+                      )}
+                    >
+                      <span className="block h-4 text-[8px] font-semibold">
+                        {index === 0 ||
+                        periodOf(block.start) !== periodOf(day.blocks[index - 1]?.start ?? "")
+                          ? periodOf(block.start)
+                          : ""}
+                      </span>
+                      <span className="block">{block.start}</span>
+                      <span className="block">{block.end}</span>
+                    </div>
                   ))}
                 </div>
-              ))}
-            </div>
-          ))}
+              </div>
+            ))}
+            {rows.map(({ room, days, outside }, rowIndex) => {
+              const block = blockOf(room.space.name) ?? "Outros";
+              const first =
+                rowIndex === 0 ||
+                (blockOf(rows[rowIndex - 1]?.room.space.name ?? "") ?? "Outros") !== block;
+              const collapsed = collapsedBlocks.has(block);
+              if (collapsed && !first) return null;
+              return (
+                <Fragment key={room.space.id}>
+                  {first && (
+                    <div className="col-span-full mt-3 mb-1 bg-surface-2">
+                      <button
+                        type="button"
+                        aria-label={`${collapsed ? "Expandir" : "Recolher"} ${block === "Outros" ? "Outros espa\u00e7os" : `Bloco ${block}`}`}
+                        aria-expanded={!collapsed}
+                        onClick={() =>
+                          setCollapsedBlocks((current) => {
+                            const next = new Set(current);
+                            if (next.has(block)) next.delete(block);
+                            else next.add(block);
+                            return next;
+                          })
+                        }
+                        className="sticky left-0 flex items-center gap-2 px-2 py-2 text-xs font-semibold"
+                      >
+                        {collapsed ? (
+                          <ChevronRight className="size-3.5" aria-hidden="true" />
+                        ) : (
+                          <ChevronDown className="size-3.5" aria-hidden="true" />
+                        )}
+                        {block === "Outros" ? "Outros espa\u00e7os" : `Bloco ${block}`}
+                      </button>
+                    </div>
+                  )}
+                  {!collapsed && (
+                    <>
+                      {(rowIndex === 0 ||
+                        place(rows[rowIndex - 1]?.room.space.name ?? "") !==
+                          place(room.space.name)) && (
+                        <div className="col-span-full pt-2 pb-1 text-[11px] text-muted-foreground">
+                          <span className="sticky left-2">
+                            {floorOf(room.space.name) === null
+                              ? ""
+                              : `Andar ${floorOf(room.space.name)}`}
+                          </span>
+                        </div>
+                      )}
+                      <div className="sticky left-0 z-10 flex min-w-0 self-stretch items-center gap-1 border-r bg-surface py-1 pr-2 shadow-[3px_0_0_var(--surface)]">
+                        <span
+                          className="truncate text-[13px] font-medium text-foreground"
+                          title={room.space.name}
+                        >
+                          {room.space.name}
+                        </span>
+                        {outside.length > 0 && (
+                          <span
+                            role="img"
+                            data-outside={room.space.id}
+                            aria-label={outsideLabel(outside)}
+                            title={outsideLabel(outside)}
+                            className="size-1.5 shrink-0 rounded-full bg-amber-500"
+                          />
+                        )}
+                      </div>
+                      {shownDays.map((day, index) => (
+                        <div
+                          key={day.date}
+                          className={cn("flex border-l border-border py-[3px]", "gap-1 px-1.5")}
+                        >
+                          {days[index]?.cells.map((cell, blockIndex) => (
+                            <OverviewCell
+                              key={`${cell.block.short}-${cell.block.start}`}
+                              cell={cell}
+                              room={room.space}
+                              date={day.date}
+                              highlight={highlight}
+                              isVisitor={isVisitor}
+                              compact={compact}
+                              periodBreak={
+                                blockIndex > 0 &&
+                                periodOf(cell.block.start) !==
+                                  periodOf(day.blocks[blockIndex - 1]?.start ?? "")
+                              }
+                              selected={isSelected(day.date, blockIndex, cell.block)}
+                              onSelect={() =>
+                                setPick({
+                                  date: day.date,
+                                  start: cell.block.start,
+                                  end: cell.block.end,
+                                  suggested: room.space.id,
+                                })
+                              }
+                              onPointerDown={(event) =>
+                                startSweep(event, {
+                                  date: day.date,
+                                  from: blockIndex,
+                                  to: blockIndex,
+                                  spaceId: room.space.id,
+                                })
+                              }
+                              onPointerEnter={() => extendSweep(day.date, blockIndex)}
+                            />
+                          ))}
+                        </div>
+                      ))}
+                    </>
+                  )}
+                </Fragment>
+              );
+            })}
+          </div>
+          {loadWeek && (
+            <div
+              ref={endMarker}
+              aria-hidden="true"
+              className="absolute top-0 right-0 h-full w-px"
+            />
+          )}
         </div>
       </div>
+      {loadWeek && (
+        <div className="flex items-center gap-3 text-xs text-muted-foreground">
+          <span role="status">
+            {loading
+              ? "Carregando pr\u00f3ximas datas..."
+              : (error ?? `At\u00e9 ${dayLabel(week.days.at(-1)?.date ?? week.weekStart)}`)}
+          </span>
+          {!loading && (
+            <button
+              type="button"
+              onClick={() => void loadMore()}
+              className="rounded border px-2 py-1 hover:text-foreground"
+            >
+              {error ? "Tentar novamente" : "Mais datas"}
+            </button>
+          )}
+        </div>
+      )}
     </div>
   );
 }
