@@ -186,7 +186,10 @@ const namesIn = (list: string) => {
     ? []
     : within(element)
         .getAllByRole("listitem")
-        .map((item) => within(item).getByRole("heading").textContent);
+        .flatMap((item) => {
+          const heading = within(item).queryByRole("heading");
+          return heading === null ? [] : [heading.textContent];
+        });
 };
 const freeNames = () => namesIn("Salas livres");
 
