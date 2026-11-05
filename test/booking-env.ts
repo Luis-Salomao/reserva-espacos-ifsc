@@ -81,6 +81,22 @@ export async function seed(db: AppDb) {
 
 export type Seed = Awaited<ReturnType<typeof seed>>;
 
+/** Semestre extra, para o teste escolher qual intervalo cobre a data. */
+export function insertSemester(
+  db: AppDb,
+  input: Parameters<ReturnType<typeof createSemesterRepository>["create"]>[0],
+) {
+  return createSemesterRepository(db).create(input);
+}
+
+/** Usuário avulso, para o catálogo sem o seed completo. */
+export function insertUser(
+  db: AppDb,
+  input: Parameters<ReturnType<typeof createUserRepository>["create"]>[0],
+) {
+  return createUserRepository(db).create(input);
+}
+
 /** Lote de importação mínimo para ocupações importadas (FK). */
 export function insertBatch(db: AppDb, semesterId: string, createdBy: string, id = "batch-1") {
   (
