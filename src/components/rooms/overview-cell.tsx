@@ -3,7 +3,9 @@ import { type CSSProperties, type KeyboardEvent, type PointerEvent, useId, useSt
 import { createPortal } from "react-dom";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
+import { EquipmentMarks } from "#/components/equipment-marks";
 import { weekdayOf } from "#/domain/calendar";
+import type { SpaceEquipment } from "#/domain/equipment";
 import {
   type Cell,
   RESERVA_TONE,
@@ -47,7 +49,7 @@ export function toneStyle(tone: Tone): CSSProperties {
 
 type Props = {
   cell: OverviewCellData;
-  room: { id: string; name: string };
+  room: { id: string; name: string; equipment?: SpaceEquipment };
   date: string;
   /** Chave da matéria destacada na legenda; as faixas de outras matérias ficam esmaecidas. */
   highlight: string | null;
@@ -86,10 +88,11 @@ type CardProps = {
   roomName: string;
   date: string;
   isVisitor: boolean;
+  equipment?: SpaceEquipment | undefined;
 };
 
 /** Detalhes das ocupações do bloco; pessoa (avatar e nome) só para quem está logado. */
-function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProps) {
+function OverviewCard({ id, anchor, items, roomName, date, isVisitor, equipment }: CardProps) {
   const below = anchor.top < CARD_ROOM;
   const center = anchor.left + anchor.width / 2;
   return createPortal(
@@ -140,6 +143,7 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProp
           </div>
         );
       })}
+      <EquipmentMarks equipment={equipment} showNotes={!isVisitor} />
     </div>,
     document.body,
   );
@@ -260,6 +264,7 @@ export function OverviewCell({
           roomName={room.name}
           date={date}
           isVisitor={isVisitor}
+          equipment={room.equipment}
         />
       )}
     </>

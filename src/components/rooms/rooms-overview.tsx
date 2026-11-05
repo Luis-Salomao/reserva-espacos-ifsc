@@ -236,6 +236,7 @@ export function RoomsOverview({
             rooms={rooms}
             now={week.now}
             canReserve={canReserve}
+            showNotes={!isVisitor}
             onRangeChange={(range) => setPick({ ...active, ...range })}
             onClose={() => setPick(null)}
             onBook={onBook}

@@ -667,6 +667,31 @@ describe("BookingSheet: matéria ou título", () => {
     });
   });
 
+  test("trocar a sala troca os equipamentos do formulário", async () => {
+    await renderBookingSheet({
+      spaces: [
+        {
+          id: "space-adm",
+          name: "ADM 2",
+          capacity: 30,
+          equipment: { items: { projetor: 1 }, notes: "Lousa da ADM" },
+        },
+        {
+          id: "space-lab",
+          name: "LAB 1",
+          capacity: 20,
+          equipment: { items: { computadores: 8 }, notes: null },
+        },
+      ],
+      initialSlot: { spaceId: "space-adm", date: "2026-11-20", start: "08:00", end: "09:50" },
+    });
+    expect(screen.getByText("Projetor")).toBeDefined();
+    expect(screen.getByText("Lousa da ADM")).toBeDefined();
+    fireEvent.change(screen.getByLabelText("Sala"), { target: { value: "space-lab" } });
+    expect(screen.getByText("8 computadores")).toBeDefined();
+    expect(screen.queryByText("Lousa da ADM") === null).toBe(true);
+  });
+
   test("Esc fecha a lista e mantém a folha aberta", async () => {
     const onOpenChange = mock(() => {});
     const subjectsFn = mock<SubjectsLoad>(async () => ({

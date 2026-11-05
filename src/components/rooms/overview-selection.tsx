@@ -1,6 +1,7 @@
 import { Plus, X } from "lucide-react";
 import { type Ref, useState } from "react";
 import type { RoomsWeek } from "#/application/bookings";
+import { EquipmentMarks } from "#/components/equipment-marks";
 import { Button } from "#/components/ui/button";
 import type { TimeRange } from "#/domain/availability";
 import { roomsOnDay } from "#/domain/overview";
@@ -29,6 +30,8 @@ type Props = {
   now: string;
   /** Pode reservar ou é visitante (que recebe o convite para entrar). */
   canReserve: boolean;
+  /** Observações livres. Visitante não as vê. */
+  showNotes?: boolean;
   onRangeChange: (range: TimeRange) => void;
   onClose: () => void;
   onBook: (slot: { spaceId: string; date: string; start: string; end: string }) => void;
@@ -54,6 +57,7 @@ export function OverviewSelection({
   rooms,
   now,
   canReserve,
+  showNotes = false,
   onRangeChange,
   onClose,
   onBook,
@@ -144,6 +148,7 @@ export function OverviewSelection({
                         )}
                         {placeLabel(room.space.name)}
                       </p>
+                      <EquipmentMarks equipment={room.space.equipment} showNotes={showNotes} />
                     </div>
                     {canReserve && (
                       <Button
@@ -170,6 +175,7 @@ export function OverviewSelection({
                     <h4 className="truncate text-[13px] font-semibold text-foreground">
                       {room.space.name}
                     </h4>
+                    <EquipmentMarks equipment={room.space.equipment} showNotes={showNotes} />
                     {reasons.map((reason) => (
                       <p
                         key={busyReasonText(reason)}

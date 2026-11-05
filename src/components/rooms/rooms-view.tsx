@@ -319,6 +319,7 @@ export function RoomsView({
               canBook={canBook}
               onBook={book}
               onClearFilters={clearFilters}
+              showNotes={!isVisitor}
             />
           ) : geral ? (
             weekResult.rooms.length === 0 || roomsWeek === null ? (
@@ -348,6 +349,7 @@ export function RoomsView({
               canDraft={canBook}
               onDraftChange={setDraft}
               onSelectSlot={book}
+              showNotes={!isVisitor}
             />
           )}
         </>
