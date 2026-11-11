@@ -6,7 +6,8 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { act, fireEvent, render, screen, within } from "@testing-library/react";
+import { useState } from "react";
 import type {
   AgendaItem,
   BookingView,
@@ -16,6 +17,7 @@ import type {
 } from "#/application/bookings";
 import { BookingSheet, type BookingSheetProps } from "#/components/agenda/booking-sheet";
 import type { AdminResponse } from "#/server/admin-actions";
+import { requireSelect } from "../dom-values";
 
 const SPACES = [
   { id: "space-adm", name: "ADM 2", capacity: 30 },
@@ -38,7 +40,9 @@ const PREVIEW: RecurringPreview = {
 type PreviewFn = NonNullable<BookingSheetProps["previewRecurring"]>;
 type CreateFn = NonNullable<BookingSheetProps["createRecurring"]>;
 
-function previewMock(response: AdminResponse<RecurringPreview> = { ok: true, data: PREVIEW }) {
+function previewMock(
+  response: AdminResponse<RecurringPreview> = { ok: true as const, data: PREVIEW },
+) {
   return mock<PreviewFn>(async () => response);
 }
 
@@ -47,7 +51,7 @@ function createMock(response: AdminResponse<RecurringOutcome>) {
 }
 
 const CREATED: AdminResponse<RecurringOutcome> = {
-  ok: true,
+  ok: true as const,
   data: {
     created: true,
     seriesId: "ser-1",
@@ -56,17 +60,31 @@ const CREATED: AdminResponse<RecurringOutcome> = {
   },
 };
 
-async function renderSheet(props: Partial<BookingSheetProps> = {}) {
+async function renderSheet(props: Partial<BookingSheetProps> = {}, refreshOnSuccess = false) {
   const root = createRootRoute({
-    component: () => (
-      <BookingSheet
-        open
-        onOpenChange={() => {}}
-        spaces={SPACES}
-        initialSlot={{ spaceId: "space-adm", date: DATE, start: "10:00", end: "11:00" }}
-        {...props}
-      />
-    ),
+    component: () => {
+      const [revision, setRevision] = useState(0);
+      const refreshed = () => {
+        if (refreshOnSuccess) setRevision((value) => value + 1);
+      };
+      return (
+        <BookingSheet
+          open
+          onOpenChange={() => {}}
+          initialSlot={{ spaceId: "space-adm", date: DATE, start: "10:00", end: "11:00" }}
+          {...props}
+          spaces={revision > 0 ? SPACES.map((space) => ({ ...space })) : SPACES}
+          onSuccess={(booking) => {
+            props.onSuccess?.(booking);
+            refreshed();
+          }}
+          onSeriesSuccess={() => {
+            props.onSeriesSuccess?.();
+            refreshed();
+          }}
+        />
+      );
+    },
   });
   const page = createRoute({
     getParentRoute: () => root,
@@ -83,7 +101,7 @@ async function renderSheet(props: Partial<BookingSheetProps> = {}) {
 }
 
 const repeatToggle = () => screen.getByRole("button", { name: /^Repetir/ });
-const freqSelect = () => screen.getByRole("combobox", { name: "Repetição" }) as HTMLSelectElement;
+const freqSelect = () => requireSelect(screen.getByRole("combobox", { name: "Repetição" }));
 const summary = () => screen.getByTestId("repeat-summary").textContent;
 
 function openRepeat() {
@@ -168,7 +186,7 @@ describe("BookingSheet: seção Repetir", () => {
 
   test("'Não repete' reserva uma data só pelo fluxo simples", async () => {
     const preview = previewMock();
-    const createFn = mock(async () => ({
+    const createFn = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: {
         id: "b1",
@@ -220,7 +238,7 @@ describe("BookingSheet: seção Repetir", () => {
         space,
       })),
     };
-    await renderSheet({ availability: async () => ({ ok: true, data: day }) });
+    await renderSheet({ availability: async () => ({ ok: true as const, data: day }) });
     const adm = async () =>
       (await screen.findAllByRole("option", { name: /ADM 2/ }))[0] as HTMLOptionElement;
     expect((await adm()).disabled).toBe(true);
@@ -230,9 +248,9 @@ describe("BookingSheet: seção Repetir", () => {
 });
 
 describe("BookingSheet: prévia e confirmação da série", () => {
-  async function toPreview(props: Partial<BookingSheetProps> = {}) {
+  async function toPreview(props: Partial<BookingSheetProps> = {}, refreshOnSuccess = false) {
     const preview = props.previewRecurring ?? previewMock();
-    await renderSheet({ ...props, previewRecurring: preview });
+    await renderSheet({ ...props, previewRecurring: preview }, refreshOnSuccess);
     chooseWeekly();
     fillPurpose();
     fireEvent.click(screen.getByRole("button", { name: "Ver datas" }));
@@ -271,7 +289,7 @@ describe("BookingSheet: prévia e confirmação da série", () => {
 
   test("confirmar envia só as livres e mostra quantas entraram e quantas ficaram de fora", async () => {
     const create = createMock(CREATED);
-    const onSeriesSuccess = mock(() => {});
+    const onSeriesSuccess = mock((..._args: unknown[]) => {});
     await toPreview({ createRecurring: create, onSeriesSuccess });
     fireEvent.click(screen.getByRole("button", { name: "Reservar 3 datas" }));
     const done = await screen.findByTestId("series-success-view");
@@ -286,6 +304,65 @@ describe("BookingSheet: prévia e confirmação da série", () => {
     expect(onSeriesSuccess).toHaveBeenCalledTimes(1);
   });
 
+  test("atualizar referências equivalentes após salvar preserva sucesso da série", async () => {
+    await toPreview({ createRecurring: createMock(CREATED) }, true);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Reservar 3 datas" }));
+    });
+    expect(screen.getByTestId("series-success-view")).toBeDefined();
+  });
+
+  test("atualizar referências equivalentes após salvar preserva sucesso da reserva simples", async () => {
+    await renderSheet(
+      {
+        createFn: async () => ({
+          ok: true as const,
+          data: {
+            id: "b",
+            spaceId: "space-adm",
+            date: DATE,
+            start: "10:00",
+            end: "11:00",
+            title: "Monitoria",
+          },
+        }),
+      },
+      true,
+    );
+    fillPurpose();
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
+    });
+    expect(screen.getByTestId("booking-success-view")).toBeDefined();
+  });
+
+  test("datas livres começam marcadas e desmarcar atualiza a contagem e envia só a seleção", async () => {
+    const create = createMock(CREATED);
+    await toPreview({ createRecurring: create });
+    const boxes = screen.getAllByRole("checkbox") as HTMLInputElement[];
+    expect(boxes).toHaveLength(3);
+    expect(boxes.every((box) => box.checked)).toBe(true);
+    fireEvent.click(screen.getByRole("checkbox", { name: "ter., 24/12" }));
+    expect(screen.getByText("Selecionadas (2 de 3)")).toBeDefined();
+    fireEvent.click(screen.getByRole("button", { name: "Reservar 2 datas" }));
+    await screen.findByTestId("series-success-view");
+    expect(create.mock.calls[0]?.[0].data.confirmed).toEqual(["2030-12-10", "2030-12-31"]);
+  });
+
+  test("desmarcar todas impede confirmação e remarcar uma permite reservar", async () => {
+    const create = createMock(CREATED);
+    await toPreview({ createRecurring: create });
+    for (const box of screen.getAllByRole("checkbox")) fireEvent.click(box);
+    const confirm = screen.getByRole("button", { name: "Reservar 0 datas" }) as HTMLButtonElement;
+    expect(confirm.disabled).toBe(true);
+    fireEvent.click(confirm);
+    expect(create).not.toHaveBeenCalled();
+    fireEvent.click(screen.getByRole("checkbox", { name: "ter., 10/12" }));
+    expect(
+      (screen.getByRole("button", { name: "Reservar 1 data" }) as HTMLButtonElement).disabled,
+    ).toBe(false);
+  });
+
   test("livres mudaram: continua na prévia com o aviso e a prévia atualizada", async () => {
     const updated: RecurringPreview = {
       ...PREVIEW,
@@ -296,14 +373,14 @@ describe("BookingSheet: prévia e confirmação da série", () => {
       ),
     };
     const create = createMock({
-      ok: true,
+      ok: true as const,
       data: {
         created: false,
         message: "As datas livres mudaram desde a prévia.",
         preview: updated,
       },
     });
-    const onSeriesSuccess = mock(() => {});
+    const onSeriesSuccess = mock((..._args: unknown[]) => {});
     await toPreview({ createRecurring: create, onSeriesSuccess });
     fireEvent.click(screen.getByRole("button", { name: "Reservar 3 datas" }));
     expect((await screen.findByRole("alert")).textContent).toContain(
@@ -323,10 +400,43 @@ describe("BookingSheet: prévia e confirmação da série", () => {
         { date: "2030-12-17", free: false, reason: "MAT1, 10:10–12:00" },
       ],
     };
-    await toPreview({ previewRecurring: previewMock({ ok: true, data: allBusy }) });
+    await toPreview({ previewRecurring: previewMock({ ok: true as const, data: allBusy }) });
     expect(screen.getByText("Nenhuma data livre; nada será reservado.")).toBeDefined();
     const confirm = screen.getByRole("button", { name: "Reservar 0 datas" }) as HTMLButtonElement;
     expect(confirm.disabled).toBe(true);
+  });
+
+  test("prévia atualizada mantém a data desmarcada fora da seleção", async () => {
+    const create = createMock({
+      ok: true as const,
+      data: {
+        created: false,
+        message: "As datas livres mudaram desde a prévia.",
+        preview: {
+          ...PREVIEW,
+          dates: [
+            { date: "2030-12-10", free: true },
+            { date: "2030-12-17", free: true },
+            { date: "2030-12-24", free: false, reason: "Feira" },
+            { date: "2030-12-31", free: true },
+          ],
+        },
+      },
+    });
+    await toPreview({ createRecurring: create });
+    fireEvent.click(screen.getByRole("checkbox", { name: "ter., 31/12" }));
+    fireEvent.click(screen.getByRole("button", { name: "Reservar 2 datas" }));
+    await screen.findByRole("alert");
+    expect(
+      (screen.getByRole("checkbox", { name: "ter., 31/12" }) as HTMLInputElement).checked,
+    ).toBe(false);
+    expect(
+      (screen.getByRole("checkbox", { name: "ter., 17/12" }) as HTMLInputElement).checked,
+    ).toBe(false);
+    await act(async () => {
+      fireEvent.click(screen.getByRole("button", { name: "Reservar 1 data" }));
+    });
+    expect(create.mock.calls[1]?.[0].data.confirmed).toEqual(["2030-12-10"]);
   });
 
   test("'Voltar' retorna ao formulário mantendo a repetição", async () => {
@@ -338,8 +448,8 @@ describe("BookingSheet: prévia e confirmação da série", () => {
 
   test("erro de campo do servidor volta ao formulário com a mensagem no campo", async () => {
     const preview = previewMock({
-      ok: false,
-      status: 400,
+      ok: false as const,
+      status: 400 as const,
       message: "A série pode ter no máximo 120 datas.",
       field: "repeat",
     });
@@ -356,8 +466,8 @@ describe("BookingSheet: prévia e confirmação da série", () => {
 
   test("erro de campo na confirmação também volta ao formulário", async () => {
     const create = createMock({
-      ok: false,
-      status: 400,
+      ok: false as const,
+      status: 400 as const,
       message: "Não é possível reservar no passado.",
       field: "date",
     });

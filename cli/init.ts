@@ -9,6 +9,9 @@ Opções:
   --target local|cloudflare   Alvo de instalação
   --database-path CAMINHO     Arquivo SQLite (alvo local)
   --timezone FUSO             Fuso horário (padrão America/Sao_Paulo)
+  --email-provider disabled|resend  Envio opcional (padrão disabled)
+  --email-from REMETENTE      Remetente verificado no Resend (sem segredo)
+  --public-origin ORIGEM      Origem pública HTTPS para links e CSRF
   --yes                       Confirma sem perguntar (no alvo cloudflare, para após o d1 create)
   --force                     Sobrescreve arquivos existentes
   --dry-run                   Mostra o plano e sai sem escrever nem executar
@@ -22,6 +25,9 @@ function parse(argv: string[]) {
       target: { type: "string" },
       "database-path": { type: "string" },
       timezone: { type: "string" },
+      "email-provider": { type: "string" },
+      "email-from": { type: "string" },
+      "public-origin": { type: "string" },
       yes: { type: "boolean", default: false },
       force: { type: "boolean", default: false },
       "dry-run": { type: "boolean", default: false },
@@ -71,6 +77,17 @@ export async function runInit(argv: string[]): Promise<number> {
         values["database-path"] ?? (await ask("Caminho do banco SQLite", "./data/app.sqlite"));
     }
     answers.timezone = values.timezone ?? (await ask("Fuso horário", "America/Sao_Paulo"));
+    const emailProvider =
+      values["email-provider"] ?? (await ask("E-mail (disabled/resend)", "disabled"));
+    if (emailProvider !== "disabled" && emailProvider !== "resend") {
+      console.error("Provedor de e-mail inválido. Use disabled ou resend.");
+      return 1;
+    }
+    answers.emailProvider = emailProvider;
+    if (emailProvider === "resend") {
+      answers.emailFrom = values["email-from"] ?? (await ask("Remetente verificado", ""));
+      answers.publicOrigin = values["public-origin"] ?? (await ask("Origem pública HTTPS", ""));
+    }
 
     const errors = validateAnswers(answers);
     if (errors.length > 0) {

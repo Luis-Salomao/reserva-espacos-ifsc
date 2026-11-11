@@ -8,6 +8,8 @@ import { runRestore } from "./restore.ts";
 const HELP = `reserva-espacos: CLI de instalação
 
 Comandos:
+  email:check  Verifica a configuração sem enviar mensagens nem exibir segredos
+  email:drain  Processa um lote da outbox local (para cron/Agendador de Tarefas)
   init    Configura o alvo local ou Cloudflare (use \`init --help\`)
   create-admin --email EMAIL --name NOME [--code SIGLA] [--target local|cloudflare]
           Cria uma conta admin (senha sem eco ou --password-stdin)
@@ -24,6 +26,15 @@ Opções:
 
 const [command, ...rest] = process.argv.slice(2);
 
+if (command === "email:drain") {
+  const { runEmailDrain } = await import("./email-drain.ts");
+  process.exit(await runEmailDrain(rest));
+}
+
+if (command === "email:check") {
+  const { runEmailCheck } = await import("./email-check.ts");
+  process.exit(runEmailCheck(rest));
+}
 if (command === "init") {
   process.exit(await runInit(rest));
 }

@@ -164,7 +164,7 @@ describe("createRecurring", () => {
     blockSeventeenth(db, s);
     const result = await svc.createRecurring(s.docA, {
       ...input(s, { date: "2026-11-17", rule: { ...tuesdays, end: { kind: "count", count: 1 } } }),
-      confirmed: [],
+      confirmed: ["2026-11-17"],
     });
     expect(result).toMatchObject({
       ok: true,
@@ -197,12 +197,50 @@ describe("createRecurring", () => {
       },
     });
     expect(manualRows(db)).toEqual([]);
-    // confirmação com uma data a menos que as livres também é recusada
+    // O subconjunto escolhido permanece válido mesmo havendo outras datas livres.
     const fewer = await svc.createRecurring(s.docA, {
       ...input(s),
       confirmed: ["2026-11-10", "2026-11-24"],
     });
-    expect(fewer.ok && fewer.value.created).toBe(false);
+    expect(fewer.ok && fewer.value.created).toBe(true);
+    expect(manualRows(db).map((row) => row.date)).toEqual(["2026-11-10", "2026-11-24"]);
+  });
+
+  test("reserva apenas o subconjunto escolhido, mesmo se outra data ficou ocupada", async () => {
+    const { db, s, svc } = await setup();
+    blockSeventeenth(db, s);
+    const result = await svc.createRecurring(s.docA, {
+      ...input(s),
+      confirmed: ["2026-12-01", "2026-11-10"],
+    });
+    expect(result).toMatchObject({
+      ok: true,
+      value: { created: true, dates: ["2026-11-10", "2026-12-01"] },
+    });
+    expect(manualRows(db).map((row) => row.date)).toEqual(["2026-11-10", "2026-12-01"]);
+  });
+
+  test("recusa seleção vazia, repetida e data fora da regra sem gravar", async () => {
+    const { db, s, svc } = await setup();
+    for (const confirmed of [
+      [],
+      ["2026-11-10", "2026-11-17", "2026-11-24", "2026-12-01", "2026-11-10"],
+      ["2026-11-11"],
+    ]) {
+      const result = await svc.createRecurring(s.docA, { ...input(s), confirmed });
+      expect(result).toMatchObject({ ok: false, kind: "validation", field: "confirmed" });
+      expect(manualRows(db)).toEqual([]);
+    }
+  });
+
+  test("conflito na seleção impede todo o subconjunto escolhido", async () => {
+    const { db, s, svc } = await setup();
+    blockSeventeenth(db, s);
+    const result = await svc.createRecurring(s.docA, {
+      ...input(s),
+      confirmed: ["2026-11-10", "2026-11-17"],
+    });
+    expect(result).toMatchObject({ ok: true, value: { created: false } });
     expect(manualRows(db)).toEqual([]);
   });
 
@@ -234,6 +272,28 @@ describe("createRecurring", () => {
       },
     });
     expect(manualRows(db)).toEqual([]);
+  });
+
+  test("corrida numa data desmarcada não impede gravar a seleção", async () => {
+    const { db, s } = await setup();
+    const deps = bookingDeps(db);
+    const real = deps.occupations;
+    const svc = createBookingsService({
+      ...deps,
+      occupations: {
+        ...real,
+        async insertSeriesIfFree(series) {
+          blockSeventeenth(db, s);
+          return real.insertSeriesIfFree(series);
+        },
+      },
+    });
+    const result = await svc.createRecurring(s.docA, {
+      ...input(s),
+      confirmed: ["2026-11-10", "2026-11-24"],
+    });
+    expect(result).toMatchObject({ ok: true, value: { created: true } });
+    expect(manualRows(db).map((row) => row.date)).toEqual(["2026-11-10", "2026-11-24"]);
   });
 
   test("série em 'Minhas reservas': marca inSeries; cancelar 'esta e as próximas' poupa as anteriores", async () => {

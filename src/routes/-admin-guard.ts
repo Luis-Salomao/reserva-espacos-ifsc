@@ -5,6 +5,7 @@ import {
   IMPORT_ROLES,
   SEMESTER_ROLES,
   type SessionInfo,
+  SPACE_INFO_ROLES,
 } from "#/server/session";
 
 /**
@@ -22,6 +23,16 @@ export function guardSemesters(context: { session: SessionInfo }, path: string):
   const access = decideRouteAccess(context.session.user, SEMESTER_ROLES, path);
   if (access.kind === "login") throw redirect({ to: "/entrar", search: { voltar: access.voltar } });
   if (access.kind === "forbidden") throw redirect({ to: "/" });
+}
+
+/**
+ * Guarda da página de manutenção de espaços (`admin` ou `manutencao`): sem sessão vai ao login e
+ * volta para o caminho; com outro papel a navegação segue (a página mostra uma mensagem de
+ * acesso negado, sem redirecionar). A checagem de verdade fica nas funções de servidor.
+ */
+export function guardSpaceInfo(context: { session: SessionInfo }, path: string): void {
+  const access = decideRouteAccess(context.session.user, SPACE_INFO_ROLES, path);
+  if (access.kind === "login") throw redirect({ to: "/entrar", search: { voltar: access.voltar } });
 }
 
 /**

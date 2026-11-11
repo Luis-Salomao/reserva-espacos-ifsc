@@ -1,4 +1,5 @@
 import { describe, expect, mock, test } from "bun:test";
+import { QueryClient } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -20,6 +21,7 @@ const MOCK_USER: User = {
   code: "CSILVA",
   roles: ["docente"],
   active: true,
+  placeholder: false,
 };
 
 const MOCK_BOOKING_MANUAL: MyBooking = {
@@ -98,6 +100,7 @@ describe("Minhas Reservas — Suíte de Testes (Milestone 2 Task 4)", () => {
 
     test("Route.beforeLoad: redireciona usuário deslogado para /entrar?voltar=/minhas-reservas", () => {
       const mockContext = {
+        queryClient: new QueryClient(),
         session: {
           user: null,
           publicRead: true,
@@ -115,6 +118,7 @@ describe("Minhas Reservas — Suíte de Testes (Milestone 2 Task 4)", () => {
 
     test("Route.beforeLoad: permite acesso quando usuário está autenticado", () => {
       const mockContext = {
+        queryClient: new QueryClient(),
         session: {
           user: MOCK_USER,
           publicRead: true,

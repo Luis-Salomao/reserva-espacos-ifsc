@@ -76,7 +76,8 @@ export async function seed(db: AppDb) {
       { number: 2, name: "Noite 2", short: "N2", start: "19:35", end: "20:20" },
     ],
   });
-  return { admin, horarios, docA, docB, sala1, sala2, semester };
+  const manutencao = await account("tec", ["manutencao"]);
+  return { admin, horarios, docA, docB, manutencao, sala1, sala2, semester };
 }
 
 export type Seed = Awaited<ReturnType<typeof seed>>;

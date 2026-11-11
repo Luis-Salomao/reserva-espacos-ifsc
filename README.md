@@ -34,7 +34,7 @@ bun install
 bun run cli init
 ```
 
-Opções para uso não interativo: `--target local|cloudflare`, `--database-path`, `--timezone`, `--yes`, `--force` e `--dry-run` (apenas mostra o plano) e `--help` (lista todas as opções).
+Opções para uso não interativo: `--target local|cloudflare`, `--database-path`, `--timezone`, `--email-provider disabled|resend`, `--email-from`, `--public-origin`, `--yes`, `--force`, `--dry-run` (apenas mostra o plano) e `--help`.
 
 ### Alvo local (Bun + SQLite)
 
@@ -49,7 +49,7 @@ Verifique em `http://localhost:3000/api/health` (com `PUBLIC_READ=false` a respo
 
 ### Alvo Cloudflare (Workers + D1)
 
-`bun run cli init --target cloudflare` cria o `.dev.vars` (apenas `TIMEZONE`) e executa, em sequência:
+`bun run cli init --target cloudflare` cria o `.dev.vars` (`TIMEZONE` e configuração pública de e-mail, desabilitada por padrão) e executa, em sequência:
 
 1. `wrangler d1 create reserva-espacos` (exige `wrangler login` prévio);
 2. pausa para você copiar o `database_id` exibido e colá-lo em `wrangler.jsonc` (`d1_databases[0].database_id`);
@@ -62,7 +62,50 @@ Com `--yes` o CLI encerra após o `d1 create` e imprime os comandos restantes; s
 
 Para publicar de novo depois (sem recriar o banco): `bun run deploy:cf` (verifica o id, compila e publica). Aplique migrações novas com `bun run db:migrate:d1:remote`.
 
-Os scripts `dev:cf` e `preview:cf` definem `CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false` para o wrangler não injetar o `.env` (que tem `DEPLOY_TARGET=local` e, às vezes, `CLOUDFLARE_*`) no Worker; só `.dev.vars` (apenas `TIMEZONE`/`PUBLIC_READ`) é lido.
+Os scripts `dev:cf` e `preview:cf` definem `CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false` para o wrangler não injetar o `.env` (que tem `DEPLOY_TARGET=local` e, às vezes, `CLOUDFLARE_*`) no Worker; só `.dev.vars` é lido para o desenvolvimento. Nunca coloque `DEPLOY_TARGET=local` ou `CLOUDFLARE_*` nele.
+
+## E-mail, recuperação de senha e outbox
+
+O envio é opcional: `EMAIL_PROVIDER=disabled` é o padrão. Para habilitar Resend na instalação, informe apenas dados públicos:
+
+```bash
+bun run cli init --target local --email-provider resend --email-from reservas@seu-dominio.edu.br --public-origin https://reservas.seu-dominio.edu.br --dry-run --yes
+```
+
+Retire `--dry-run` para executar a instalação. Em uma instalação existente, edite a configuração pública em vez de recriar o banco ou sobrescrever `.env`. Use domínio próprio verificado no Resend, aplique os registros DNS exigidos pelo provedor e um remetente autorizado nesse domínio. `PUBLIC_ORIGIN` deve ser a origem pública confiável, sem caminho, credenciais ou parâmetros; HTTPS é obrigatório, com exceção de HTTP em localhost/127.0.0.1 no desenvolvimento. Essa origem também controla links de recuperação e CSRF. Configure `EMAIL_PROVIDER=resend`, `EMAIL_FROM` e `PUBLIC_ORIGIN` antes de iniciar o servidor.
+
+Forneça `RESEND_API_KEY` e `EMAIL_PAYLOAD_KEY` pelo ambiente protegido do processo. A segunda chave deve conter 32 bytes aleatórios criptograficamente seguros codificados em base64url. Crie e guarde a chave em um gerenciador de segredos; não a inclua em argumentos, logs, capturas de tela ou arquivos versionados. O instalador não solicita nem imprime essas chaves. Se usar `.env` local ou `.dev.vars` para desenvolvimento, proteja o arquivo, mantenha-o fora do Git e separe as credenciais de produção. O servidor e o processo agendado precisam das mesmas chaves e do mesmo banco. Preserve a chave da outbox no procedimento protegido de backup; a perda ou troca da chave impede ler mensagens pendentes antigas.
+
+### Processamento local sem depender de tráfego
+
+As regras de domínio e remetente seguem a documentação de [domínios verificados do Resend](https://resend.com/docs/dashboard/domains/introduction).
+
+Agende `bun run cli email:drain` a cada minuto. No Linux, adicione ao crontab do usuário do serviço, adaptando caminhos absolutos (o cron geralmente tem PATH reduzido):
+
+```cron
+* * * * * cd /caminho/reserva-espacos-ifsc && /caminho/bun run cli email:drain
+```
+
+No Windows, crie uma tarefa no Agendador de Tarefas com repetição de um minuto, programa apontando para `bun.exe`, argumentos `run cli email:drain` e “Iniciar em” apontando para a pasta da instalação. Execute com o usuário do serviço e acesso ao mesmo ambiente protegido. Não coloque segredos nos argumentos da tarefa. Em contêiner, agende `bun /app/cli.mjs email:drain` num processo com o mesmo volume e variáveis. Não é necessário manter a página aberta nem gerar requisições HTTP. Nenhuma tarefa do sistema operacional é criada pelo instalador.
+
+### Cloudflare Workers e D1
+
+Em produção, coloque somente `EMAIL_PROVIDER`, `EMAIL_FROM` e `PUBLIC_ORIGIN` em `vars` de `wrangler.jsonc`. `.dev.vars` vale somente no desenvolvimento e não configura produção. Cadastre os segredos interativamente, sem colocar valores na linha de comando:
+
+```bash
+bunx wrangler secret put RESEND_API_KEY
+bunx wrangler secret put EMAIL_PAYLOAD_KEY
+```
+
+Depois de configurar os dados públicos, segredos e migrações, altere `triggers.crons` de `[]` para `["* * * * *"]` em `wrangler.jsonc` e faça o build e deploy pelo procedimento habitual. O repositório mantém esse gatilho desativado por padrão. O entrypoint `src/worker.ts` preserva o `fetch` do TanStack Start e aguarda o mesmo dispatcher usado pela CLI no Scheduled Handler; ele acessa o binding D1 sem precisar de requisição HTTP. `EMAIL_PROVIDER=disabled` não envia mensagens nem faz chamadas ao Resend. Referências: [entrypoints TanStack no Workers](https://developers.cloudflare.com/workers/framework-guides/web-apps/tanstack-start/#custom-entrypoints) e [Scheduled Handler](https://developers.cloudflare.com/workers/runtime-apis/handlers/scheduled/).
+
+### Entrega e diagnóstico
+
+Notificações de criação, edição e cancelamento referem-se às reservas manuais. Aulas importadas do aSc não geram essas notificações.
+
+Reservas e solicitações de recuperação não aguardam disponibilidade do Resend. Mensagens ficam numa outbox persistente com payload criptografado, lease, tentativas limitadas, backoff e chave de idempotência. Mensagens concluídas ou expiradas têm o payload removido. O link de recuperação expira em 20 minutos, funciona uma vez e não autentica automaticamente; a troca encerra sessões anteriores. A tela mantém resposta genérica para não revelar contas existentes.
+
+Se nada chega, confirme o provedor ativo, as quatro configurações exigidas, a origem, o domínio/remetente verificado e a execução do agendador ou Cron Trigger. Verifique limites e recusas do provedor e o horário da última execução. Se a fila cresce, confirme que servidor e dispatcher usam o mesmo banco e chave de payload; examine apenas estado, contagens e horários da fila. Nunca imprima payloads, destinatários, links, tokens ou chaves ao investigar. Após falha transitória, o dispatcher tenta novamente conforme backoff; após expiração, solicite um novo link. Desabilitar o provedor suspende envio, sem prometer entrega de mensagens que já expiraram.
 
 Importante: o build (`build:cf`) grava `.wrangler/deploy/config.json`, que faz o `wrangler deploy` usar o snapshot `dist/server/wrangler.json` gerado a partir do `wrangler.jsonc`. Por isso o `database_id` deve ser colado **antes** do build, e os scripts de migração D1 usam `--config wrangler.jsonc` explicitamente, para que a fonte da verdade seja sempre o `wrangler.jsonc`.
 
@@ -250,6 +293,16 @@ Se o semestre já tem um lote aplicado, enviar um arquivo diferente cria uma **n
 **Limitações conhecidas:** a identidade de uma aula entre versões é o **título (disciplina + turmas) e a data**; os ids do aSc não são usados. Por isso, uma disciplina ou turma renomeada aparece como remoção mais inclusão. Aulas com várias salas continuam "não aplicáveis". Nenhum aviso é enviado aos responsáveis afetados (só a lista); isso vem em fase futura. Se a aula já aplicada passa a ter, na nova versão, horário não aplicável (várias salas, sala sem vínculo, duração sem datas...), as ocupações dela são **seguradas** (não canceladas) e aparecem como alteração bloqueada; só a sala marcada para ignorar continua cancelando. **Voltar a uma versão anterior (rollback) ainda não é suportado:** reenviar o arquivo de uma versão já substituída apenas informa isso; para reaplicá-la, gere uma nova exportação.
 
 O **resultado por linha** (cada aula/ocorrência com estado, motivo, conflito e falha, com filtros, busca e paginação) aparece ao fim e também em **Lotes anteriores** (`/importar/lotes`).
+
+## Reservas: edição, seleção e horários parciais
+
+Em **Minhas reservas**, o botão **Editar** permite alterar sala, data, início, fim e finalidade de uma reserva manual própria que ainda não começou. A edição preserva o identificador e, quando houver, o vínculo com a série; somente a ocorrência escolhida muda. Aulas importadas e reservas de outras pessoas não são editáveis por esse fluxo. Se o horário entrar em conflito, a reserva anterior permanece intacta.
+
+Na confirmação de uma reserva recorrente, as datas livres começam marcadas. Desmarque as datas que não deseja reservar; o botão mostra a quantidade escolhida. Um conflito em qualquer data escolhida impede a gravação de toda a seleção e atualiza a prévia.
+
+Na visão geral, clicar ou arrastar destaca somente a sala em que a seleção começou. O painel lista alternativas para aquele intervalo. A cor de cada célula representa o horário realmente ocupado, do início no topo ao fim na base; os detalhes informam os horários ocupados e livres. Os blocos de aula são referências visuais: uma reserva das 15h às 16h permite outra a partir das 16h se não houver outra ocupação conflitante.
+
+Antes de ativar o processamento da outbox, execute `bun run cli email:check`. O diagnóstico verifica a configuração sem enviar mensagens, consultar o banco ou imprimir chaves. Credenciais aceitas pelo Resend, domínio e entrega precisam ser conferidos no provedor. Na imagem Docker, use `bun /app/cli.mjs email:check`.
 
 ## Licença
 

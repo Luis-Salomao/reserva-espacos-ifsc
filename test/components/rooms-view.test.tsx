@@ -12,6 +12,7 @@ import type { AgendaItem, BookingView, RoomDay, RoomsDay, RoomsWeek } from "#/ap
 import type { BookingSheetProps } from "#/components/agenda/booking-sheet";
 import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
 import { validateAgendaSearch } from "#/routes/index";
+import { requireSelect } from "../dom-values";
 
 const DATE = "2030-11-12";
 const NOW = "2030-11-11T09:00";
@@ -113,7 +114,7 @@ type Options = {
 };
 
 const sameDay: NonNullable<BookingSheetProps["availability"]> = async () => ({
-  ok: true,
+  ok: true as const,
   data: DAY,
 });
 
@@ -339,7 +340,7 @@ describe("RoomsView", () => {
     await new Promise((resolve) => setTimeout(resolve, 0));
     fireEvent.click(screen.getByRole("button", { name: /^Rascunho/ }));
     const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
-    expect((within(dialog).getByLabelText("Sala") as HTMLSelectElement).value).toBe("b104");
+    expect(requireSelect(within(dialog).getByLabelText("Sala")).value).toBe("b104");
     expect((within(dialog).getByLabelText("Data") as HTMLInputElement).value).toBe(DATE);
     expect((within(dialog).getByLabelText("Início") as HTMLInputElement).value).toBe("14:00");
     expect((within(dialog).getByLabelText("Fim") as HTMLInputElement).value).toBe("15:30");
@@ -369,7 +370,7 @@ describe("RoomsView", () => {
     const before = loads.count;
     fireEvent.click(screen.getByRole("button", { name: "Reservar LAB 1, 14:00–16:00" }));
     const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
-    expect((within(dialog).getByLabelText("Sala") as HTMLSelectElement).value).toBe("lab");
+    expect(requireSelect(within(dialog).getByLabelText("Sala")).value).toBe("lab");
     expect((within(dialog).getByLabelText("Início") as HTMLInputElement).value).toBe("14:00");
     expect((within(dialog).getByLabelText("Fim") as HTMLInputElement).value).toBe("16:00");
     fireEvent.change(within(dialog).getByLabelText(/Finalidade/), {
@@ -395,7 +396,7 @@ describe("RoomsView", () => {
     await setup({ url: "/?visao=livres&ini=14:00&fim=16:00", dayFn });
     fireEvent.click(screen.getByRole("button", { name: "Reservar LAB 1, 14:00–16:00" }));
     const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
-    const select = within(dialog).getByLabelText("Sala") as HTMLSelectElement;
+    const select = requireSelect(within(dialog).getByLabelText("Sala"));
     await waitFor(() => expect(select.querySelectorAll("optgroup")).toHaveLength(2));
     expect(dayFn.mock.calls[0]?.[0]).toEqual({ data: { date: DATE } });
     expect(
@@ -420,7 +421,7 @@ describe("RoomsView", () => {
   });
 
   test("visitante não desenha rascunho, não vê 'Reservar' e o horário livre pede login", async () => {
-    await setup({ canBook: false, isVisitor: true });
+    await setup({ canBook: false as const, isVisitor: true });
     const column = columnOf("b104") as HTMLElement;
     drag(column, "14:00", "15:30");
     expect(screen.queryAllByRole("button", { name: /^Rascunho/ })).toHaveLength(0);
@@ -484,6 +485,19 @@ describe("RoomsView", () => {
     expect(screen.getByRole("button", { name: "Visão geral" }).getAttribute("aria-pressed")).toBe(
       "true",
     );
+  });
+
+  test("na visão geral, nova reserva abre o formulário na data selecionada", async () => {
+    await setup({ url: "/?visao=geral" });
+    fireEvent.click(screen.getByRole("button", { name: "Nova reserva" }));
+    const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
+    expect((within(dialog).getByLabelText("Data") as HTMLInputElement).value).toBe(DATE);
+  });
+
+  test("na visão geral, nova reserva convida visitantes a entrar", async () => {
+    await setup({ url: "/?visao=geral", canBook: false, isVisitor: true });
+    fireEvent.click(screen.getByRole("button", { name: "Nova reserva" }));
+    expect(await screen.findByText("Entre para reservar")).toBeDefined();
   });
 
   test("na visão geral, a grade mostra a semana com o título e o contador", async () => {
@@ -583,7 +597,7 @@ describe("RoomsView", () => {
       within(panel).getByRole("button", { name: "Reservar B-104, terça 12/11, 10:10–12:00" }),
     );
     const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
-    const sala = within(dialog).getByLabelText("Sala") as HTMLSelectElement;
+    const sala = requireSelect(within(dialog).getByLabelText("Sala"));
     expect(sala.value).toBe("b104");
     expect((within(dialog).getByLabelText("Data") as HTMLInputElement).value).toBe(DATE);
     expect((within(dialog).getByLabelText("Início") as HTMLInputElement).value).toBe("10:10");
@@ -603,7 +617,7 @@ describe("RoomsView", () => {
   });
 
   test("na visão geral, o visitante que escolhe uma sala livre no painel recebe o convite para entrar", async () => {
-    await setup({ url: "/?visao=geral", canBook: false, isVisitor: true });
+    await setup({ url: "/?visao=geral", canBook: false as const, isVisitor: true });
     fireEvent.click(
       screen.getByRole("button", { name: "Selecionar B-104, terça 12/11, Manhã 34 10:10–12:00" }),
     );

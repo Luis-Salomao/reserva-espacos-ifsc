@@ -197,9 +197,29 @@ describe("Route.loader", () => {
     expect(calls.day).toEqual([{ data: { date: "2026-11-12" } }]);
     expect(calls.week).toEqual([]);
     expect(calls.rooms).toEqual([]);
-    expect(calls.spaces).toBe(0);
+    expect(calls.spaces).toBe(1);
     expect(data).toMatchObject({ fonte: "dia", selectedDate: "2026-11-12", error: null });
     expect(data.roomsDay).toEqual({ date: "2026-11-12", now: "2026-11-03T09:00", rooms: [] });
+    expect(data.spacesIndex).toEqual({
+      a202: SPACES[0],
+      b104: SPACES[1],
+    });
+  });
+
+  test("'Colunas' sem as salas (listSpaces falha) renderiza com índice vazio", async () => {
+    const calls = record();
+    spies.push(
+      spyOn(spacesFns, "listSpaces").mockImplementation((async () => {
+        throw new Error("falhou");
+      }) as unknown as typeof spacesFns.listSpaces),
+    );
+    const data = await loader({
+      deps: { data: "2026-11-12", espaco: "b104", fonte: "dia" },
+      context: { session: session(DOCENTE) },
+    });
+    void calls;
+    expect(data.spacesIndex).toEqual({});
+    expect(data.roomsDay).not.toBeNull();
   });
 
   test("sem data, 'Colunas' pede o dia de hoje no fuso configurado", async () => {
@@ -218,7 +238,7 @@ describe("Route.loader", () => {
     expect(calls.rooms).toEqual([{ data: { weekStart: "2026-11-09" } }]);
     expect(calls.day).toEqual([]);
     expect(calls.week).toEqual([]);
-    expect(calls.spaces).toBe(0);
+    expect(calls.spaces).toBe(1);
     expect(data).toMatchObject({ fonte: "semana", selectedDate: "2026-11-12", error: null });
     expect(data.roomsWeek).toMatchObject({ weekStart: "2026-11-09" });
   });

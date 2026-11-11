@@ -19,6 +19,8 @@
   --line-booked: #c25a08;
   --line-imported: #3f6fae;
   --line-conflict: #c42b27;
+  --warn: #fdf1c6;
+  --warn-text: #7a4a00;
 }
 
 :root[data-theme="dark"] {
@@ -41,6 +43,8 @@
   --line-booked: #f38020;
   --line-imported: #6d98d6;
   --line-conflict: #ef6a66;
+  --warn: #3a2a06;
+  --warn-text: #f5c84a;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -64,5 +68,7 @@
     --line-booked: #f38020;
     --line-imported: #6d98d6;
     --line-conflict: #ef6a66;
+    --warn: #3a2a06;
+    --warn-text: #f5c84a;
   }
 }

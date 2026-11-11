@@ -12,6 +12,7 @@ import {
   PanelLeftOpen,
   Settings,
   Users,
+  Wrench,
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
@@ -20,12 +21,24 @@ import { ThemeToggle } from "#/components/theme-toggle";
 import { Button } from "#/components/ui/button";
 import { Popover, PopoverContent, PopoverTrigger } from "#/components/ui/popover";
 import { cn } from "#/lib/utils";
-import { ADMIN_ROLES, IMPORT_ROLES, SEMESTER_ROLES, type SessionInfo } from "#/server/session";
+import {
+  ADMIN_ROLES,
+  IMPORT_ROLES,
+  SEMESTER_ROLES,
+  type SessionInfo,
+  SPACE_INFO_ROLES,
+} from "#/server/session";
 
 type Props = { children: ReactNode; wide?: boolean };
 
 type NavItem = {
-  to: "/" | "/minhas-reservas" | "/importar" | "/semestres" | "/admin/contas";
+  to:
+    | "/"
+    | "/minhas-reservas"
+    | "/importar"
+    | "/semestres"
+    | "/admin/contas"
+    | "/manutencao/espacos";
   label: string;
   exact?: true;
 };
@@ -36,12 +49,14 @@ const NAV_ICONS: Record<NavItem["to"], LucideIcon> = {
   "/importar": FileUp,
   "/semestres": CalendarRange,
   "/admin/contas": Users,
+  "/manutencao/espacos": Wrench,
 };
 
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administração",
   horarios: "Horários",
   docente: "Docente",
+  manutencao: "Manutenção",
 };
 
 /** Lê o usuário do contexto da raiz (ausente em roteadores de teste sem sessão). */
@@ -62,6 +77,7 @@ export function navItems(user: SessionInfo["user"]): NavItem[] {
   if (has(IMPORT_ROLES)) items.push({ to: "/importar", label: "Importar" });
   if (has(SEMESTER_ROLES)) items.push({ to: "/semestres", label: "Semestres" });
   if (has(ADMIN_ROLES)) items.push({ to: "/admin/contas", label: "Administração" });
+  if (has(SPACE_INFO_ROLES)) items.push({ to: "/manutencao/espacos", label: "Manutenção" });
   return items;
 }
 

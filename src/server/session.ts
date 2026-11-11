@@ -4,13 +4,16 @@ import type { Role, User } from "#/domain/user";
 export const IMPORT_ROLES: readonly Role[] = ["admin", "horarios"];
 
 /** Papéis que podem fazer reservas avulsas. */
-export const BOOKING_ROLES: readonly Role[] = ["admin", "horarios", "docente"];
+export const BOOKING_ROLES: readonly Role[] = ["admin", "horarios", "docente", "manutencao"];
 
 /** Papéis que gerem a configuração dos semestres (o administrador também gere contas e espaços). */
 export const SEMESTER_ROLES: readonly Role[] = ["admin", "horarios"];
 
 /** Papéis que gerem contas e espaços. */
 export const ADMIN_ROLES: readonly Role[] = ["admin"];
+
+/** Papéis que podem atualizar capacidade, equipamentos e observações de espaços existentes. */
+export const SPACE_INFO_ROLES: readonly Role[] = ["admin", "manutencao"];
 
 export const SESSION_COOKIE = "sid";
 export const SESSION_MAX_AGE_SECONDS = 7 * 24 * 60 * 60;

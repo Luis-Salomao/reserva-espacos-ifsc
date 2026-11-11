@@ -23,6 +23,32 @@ const slot = (spaceId: string, start: string, end: string, purpose: string) => (
 });
 
 describe("reservas concorrentes (dois clientes do mesmo arquivo SQLite)", () => {
+  test("edição e criação concorrentes disputam o horário sem perder a reserva anterior", async () => {
+    const path = join(dir, "editar.db");
+    const { db } = openDb(path);
+    const s = await seed(db);
+    const a = makeService(db);
+    const b = makeService(connect(path));
+    const original = await a.createBooking(s.docA, slot(s.sala1.id, "08:00", "09:00", "Original"));
+    if (!original.ok) throw new Error("setup");
+    const results = await Promise.all([
+      a.updateBooking(s.docA, {
+        ...slot(s.sala1.id, "10:00", "11:00", "Editada"),
+        occupationId: original.value.id,
+      }),
+      b.createBooking(s.docB, slot(s.sala1.id, "10:30", "11:30", "Concorrente")),
+    ]);
+    expect(results.filter((r) => r.ok)).toHaveLength(1);
+    expect(
+      rawAll(db, `select count(*) as n from occupations where id = '${original.value.id}'`),
+    ).toEqual([{ n: 1 }]);
+    expect(
+      rawAll(
+        db,
+        `select count(*) as n from occupations a join occupations b on a.space_id = b.space_id and a.id < b.id and a.status = 'ativa' and b.status = 'ativa' and a.starts_at < b.ends_at and b.starts_at < a.ends_at`,
+      ),
+    ).toEqual([{ n: 0 }]);
+  });
   test("sobrepostas em rodada: exatamente uma é confirmada, a outra recebe conflito", async () => {
     const path = join(dir, "corrida.db");
     const { db: first } = openDb(path);

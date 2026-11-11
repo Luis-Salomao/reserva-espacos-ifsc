@@ -650,6 +650,14 @@ describe("SpaceFormDialog", () => {
     ).toBe("Lousa digital");
   });
 
+  test("tem o campo de computadores em manutenção e a dica de observações", async () => {
+    const dialog = await open(null);
+    expect(
+      (within(dialog).getByLabelText("Computadores em manutenção") as HTMLInputElement).value,
+    ).toBe("");
+    expect(within(dialog).getByText("Visível para qualquer pessoa na consulta.")).toBeTruthy();
+  });
+
   test("criar envia o formato do fio e fecha ao salvar", async () => {
     createSpaceResponse = { ok: true, data: {} };
     const dialog = await open(null);
@@ -674,6 +682,7 @@ describe("SpaceFormDialog", () => {
         name: "Lab",
         capacity: "30",
         equipment: { projetor: null, computadores: " 12 ", som: 0 },
+        computersInMaintenance: null,
         notes: "Lousa\nTV",
       },
     ]);
@@ -696,6 +705,7 @@ describe("SpaceFormDialog", () => {
         name: "A-202",
         capacity: "40",
         equipment: { projetor: 0, computadores: "0", som: null },
+        computersInMaintenance: null,
         notes: "Lousa digital",
       },
     ]);

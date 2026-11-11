@@ -1,7 +1,9 @@
 {
   "$schema": "node_modules/wrangler/config-schema.json",
   "name": "reserva-espacos-ifsc",
-  "main": "@tanstack/react-start/server-entry",
+  "main": "./src/worker.ts",
+  // Habilite "* * * * *" somente após configurar e-mail e secrets; veja README.
+  "triggers": { "crons": ["* * * * *"] },
   // Limitada pelo workerd local (wrangler dev): datas além da suportada pelo binário falham.
   "compatibility_date": "2026-10-30",
   "compatibility_flags": ["nodejs_compat"],
@@ -16,6 +18,9 @@
   "vars": {
     "DEPLOY_TARGET": "cloudflare",
     "TIMEZONE": "America/Sao_Paulo",
-    "PUBLIC_READ": "true"
+    "PUBLIC_READ": "true",
+    "EMAIL_PROVIDER": "resend",
+    "EMAIL_FROM": "Reservas IFSC <reservas@mail.luissalomao.dev>",
+    "PUBLIC_ORIGIN": "https://reservas-ifsc.luissalomao.dev"
   }
 }

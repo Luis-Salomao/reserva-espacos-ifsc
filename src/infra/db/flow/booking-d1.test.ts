@@ -10,6 +10,8 @@ import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
 import { createUserRepository } from "#/infra/db/repos/user-repository";
 import * as schema from "#/infra/db/schema";
+import { createBookingEmailFactory } from "#/infra/email/booking-email";
+import { createEmailPayloadCodec } from "#/infra/email/payload-codec";
 
 /**
  * Regressão no D1 (workerd local via getPlatformProxy), só com `RUN_D1_TESTS=1`:
@@ -65,7 +67,14 @@ describe("reservas no D1 local", () => {
         const docB = await account("docb", ["docente"]);
         const space = await createSpaceRepository(db).create({ name: "ADM 2", capacity: 30 });
         const service = createBookingsService({
-          occupations: createOccupationRepository(db),
+          occupations: createOccupationRepository(
+            db,
+            createBookingEmailFactory(db, {
+              codec: createEmailPayloadCodec("A".repeat(43)),
+              publicOrigin: "https://reservas.example.org",
+              clock: { now: () => new Date("2026-11-03T12:00:00Z") },
+            }),
+          ),
           spaces: createSpaceRepository(db),
           semesters: createSemesterRepository(db),
           users,
@@ -87,6 +96,9 @@ describe("reservas no D1 local", () => {
           service.createBooking(admin, slot("09:30", "10:30", "C")),
         ]);
         expect(race.filter((result) => result.ok)).toHaveLength(1);
+        const queued = await db.select().from(schema.mailOutbox);
+        expect(queued).toHaveLength(1);
+        expect(queued[0]?.payload).toStartWith("v1.");
         expect(race.filter((result) => !result.ok && result.kind === "conflict")).toHaveLength(2);
         const winner = race.find((result) => result.ok);
         if (winner === undefined || !winner.ok) throw new Error("sem vencedora");
@@ -99,6 +111,27 @@ describe("reservas no D1 local", () => {
         ).toEqual({ ok: true, value: { cancelled: 1 } });
         const again = await service.createBooking(docB, slot("10:00", "11:00", "Depois"));
         expect(again.ok).toBe(true);
+        if (!again.ok) throw new Error("setup edição");
+        expect(
+          await service.updateBooking(docB, {
+            ...slot("10:00", "11:00", "Editada"),
+            occupationId: again.value.id,
+          }),
+        ).toMatchObject({ ok: true, value: { id: again.value.id, title: "Editada" } });
+        expect(
+          await service.updateBooking(admin, {
+            ...slot("10:00", "11:00", "Outro"),
+            occupationId: again.value.id,
+          }),
+        ).toMatchObject({ ok: false, kind: "forbidden" });
+        const editRace = await Promise.all([
+          service.updateBooking(docB, {
+            ...slot("16:00", "17:00", "Movida"),
+            occupationId: again.value.id,
+          }),
+          service.createBooking(docA, slot("16:30", "17:30", "Concorrente")),
+        ]);
+        expect(editRace.filter((r) => r.ok)).toHaveLength(1);
 
         // Série importada: docA só alcança as próprias datas; o admin, todas.
         const batchId = "b-d1";

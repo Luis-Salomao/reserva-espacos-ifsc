@@ -11,6 +11,7 @@ import {
   getWeekAgenda,
   myBookingsAction,
   previewSeriesAction,
+  updateBookingAction,
 } from "./booking-actions.ts";
 
 async function setup(publicRead = true) {
@@ -51,6 +52,32 @@ const body = (s: Awaited<ReturnType<typeof setup>>["s"], over: Record<string, un
   end: "11:00",
   purpose: "Reunião",
   ...over,
+});
+
+test("edição exige sessão, corpo válido e autoria mesmo para admin", async () => {
+  const { s, deps, req } = await setup();
+  const made = await deps.bookings.createBooking(s.docA, body(s));
+  if (!made.ok) throw new Error("setup");
+  const input = { ...body(s), occupationId: made.value.id, purpose: "Editada" };
+  expect((await updateBookingAction(deps, req(null), input)).response).toMatchObject({
+    ok: false,
+    status: 401,
+  });
+  expect((await updateBookingAction(deps, req("doca"), {})).response).toMatchObject({
+    ok: false,
+    status: 400,
+  });
+  expect((await updateBookingAction(deps, req("adm"), input)).response).toMatchObject({
+    ok: false,
+    status: 403,
+  });
+  expect(
+    (await updateBookingAction(deps, req("doca"), { ...input, start: 123 })).response,
+  ).toMatchObject({ ok: false, status: 400 });
+  expect((await updateBookingAction(deps, req("doca"), input)).response).toMatchObject({
+    ok: true,
+    data: { id: made.value.id, title: "Editada" },
+  });
 });
 
 describe("agenda: leitura", () => {

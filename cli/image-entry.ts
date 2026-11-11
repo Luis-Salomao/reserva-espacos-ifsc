@@ -8,12 +8,24 @@ import { runRestore } from "./restore.ts";
 const HELP = `Uso: bun /app/cli.mjs <comando> [opções]
 
 Comandos:
+  email:check
+  email:drain
   create-admin --email EMAIL --name NOME [--password-stdin]
   backup --out <arquivo> [--overwrite]
   restore --from <arquivo> [--target <banco>] [--yes]
 `;
 
 const [command, ...rest] = process.argv.slice(2);
+
+if (command === "email:check") {
+  const { runEmailCheck } = await import("./email-check.ts");
+  process.exit(runEmailCheck(rest));
+}
+
+if (command === "email:drain") {
+  const { runEmailDrain } = await import("./email-drain.ts");
+  process.exit(await runEmailDrain(rest));
+}
 
 if (command === "create-admin") process.exit(await runCreateAdmin(rest));
 if (command === "backup") process.exit(await runBackup(rest));

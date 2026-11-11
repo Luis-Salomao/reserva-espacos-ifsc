@@ -14,6 +14,7 @@ import {
   TIMETABLE_SHORTCUTS,
 } from "#/components/agenda/booking-sheet";
 import type { Space } from "#/domain/space";
+import { requireSelect } from "../dom-values";
 
 const MOCK_SPACES: Space[] = [
   { id: "space-adm", name: "ADM 2", capacity: 30 },
@@ -89,7 +90,7 @@ function availabilityMock() {
   }));
 }
 
-const roomSelect = () => screen.getByLabelText("Sala") as HTMLSelectElement;
+const roomSelect = () => requireSelect(screen.getByLabelText("Sala"));
 
 /** Rótulos das opções de cada grupo, na ordem da tela. */
 function groupsOf(select: HTMLSelectElement) {
@@ -103,18 +104,18 @@ function groupsOf(select: HTMLSelectElement) {
 }
 
 async function renderBookingSheet(props: Partial<BookingSheetProps> = {}) {
-  const onOpenChange = props.onOpenChange ?? mock(() => {});
+  const onOpenChange = props.onOpenChange ?? mock((..._args: unknown[]) => {});
   const root = createRootRoute({
     component: () => (
       <BookingSheet
         open={props.open ?? true}
         onOpenChange={onOpenChange}
         spaces={props.spaces ?? MOCK_SPACES}
-        initialSlot={props.initialSlot}
+        {...(props.initialSlot === undefined ? {} : { initialSlot: props.initialSlot })}
         timeZone={props.timeZone ?? "America/Sao_Paulo"}
-        onSuccess={props.onSuccess}
-        createFn={props.createFn}
-        availability={props.availability}
+        {...(props.onSuccess === undefined ? {} : { onSuccess: props.onSuccess })}
+        {...(props.createFn === undefined ? {} : { createFn: props.createFn })}
+        {...(props.availability === undefined ? {} : { availability: props.availability })}
       />
     ),
   });
@@ -158,7 +159,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
     expect(screen.getByRole("dialog")).toBeDefined();
     expect(screen.getByRole("heading", { name: "Nova reserva" })).toBeDefined();
 
-    const roomSelect = screen.getByLabelText(/Sala/i) as HTMLSelectElement;
+    const roomSelect = requireSelect(screen.getByLabelText(/Sala/i));
     expect(roomSelect.value).toBe("space-lab");
 
     const dateInput = screen.getByLabelText(/Data/i) as HTMLInputElement;
@@ -227,7 +228,10 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("6. Validação: rejeita finalidade vazia sem disparar ação no servidor", async () => {
-    const mockCreate = mock(async () => ({ ok: true as const, data: {} as BookingView }));
+    const mockCreate = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: {} as BookingView,
+    }));
     await renderBookingSheet({
       open: true,
       initialSlot: { date: "2026-11-20", start: "08:00", end: "09:50" },
@@ -243,7 +247,10 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("7. Validação: rejeita término anterior ou igual ao início", async () => {
-    const mockCreate = mock(async () => ({ ok: true as const, data: {} as BookingView }));
+    const mockCreate = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: {} as BookingView,
+    }));
     await renderBookingSheet({
       open: true,
       initialSlot: { date: "2026-11-20", start: "10:00", end: "09:00" },
@@ -262,7 +269,10 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("8. Validação: rejeita horário fora do expediente (06:00 às 23:00)", async () => {
-    const mockCreate = mock(async () => ({ ok: true as const, data: {} as BookingView }));
+    const mockCreate = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: {} as BookingView,
+    }));
     await renderBookingSheet({
       open: true,
       initialSlot: { date: "2026-11-20", start: "05:00", end: "07:00" },
@@ -281,7 +291,10 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("9. Validação: rejeita reserva no passado", async () => {
-    const mockCreate = mock(async () => ({ ok: true as const, data: {} as BookingView }));
+    const mockCreate = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: {} as BookingView,
+    }));
     await renderBookingSheet({
       open: true,
       initialSlot: { date: "2020-01-01", start: "08:00", end: "10:00" },
@@ -309,11 +322,11 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
       title: "Planejamento Semestral",
     };
 
-    const mockCreate = mock(async () => ({
+    const mockCreate = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: createdBooking,
     }));
-    const mockSuccess = mock(() => {});
+    const mockSuccess = mock((..._args: unknown[]) => {});
 
     await renderBookingSheet({
       open: true,
@@ -359,7 +372,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
 
   test("11. Conflito 409: exibe detalhes da ocupação conflitante em alerta inline", async () => {
     const conflictMessage = "Conflita com Física III — ADM 2, 08:00–09:50.";
-    const mockCreate = mock(async () => ({
+    const mockCreate = mock(async (..._args: unknown[]) => ({
       ok: false as const,
       status: 409 as const,
       message: conflictMessage,
@@ -393,7 +406,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("12. Confirmação: botão 'Fechar' fecha o modal", async () => {
-    const mockCreate = mock(async () => ({
+    const mockCreate = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: {
         id: "b-1",
@@ -423,7 +436,7 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("13. Confirmação: link 'Ver reserva' aponta para /minhas-reservas?newId=b-1", async () => {
-    const mockCreate = mock(async () => ({
+    const mockCreate = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: {
         id: "b-999",
@@ -555,7 +568,10 @@ describe("BookingSheet — sala por disponibilidade (GERAL-12)", () => {
   });
 
   const failures: Array<[string, NonNullable<BookingSheetProps["availability"]>]> = [
-    ["resposta de erro", async () => ({ ok: false, status: 403, message: "Falhou" })],
+    [
+      "resposta de erro",
+      async () => ({ ok: false as const, status: 403 as const, message: "Falhou" }),
+    ],
     [
       "exceção",
       async () => {
@@ -585,7 +601,10 @@ describe("BookingSheet — sala por disponibilidade (GERAL-12)", () => {
   }
 
   test("não envia a reserva quando a sala escolhida ficou ocupada no novo horário", async () => {
-    const createFn = mock(async () => ({ ok: true as const, data: {} as BookingView }));
+    const createFn = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: {} as BookingView,
+    }));
     await renderBookingSheet({
       spaces: ROOM_SPACES,
       initialSlot: { spaceId: "space-adm", date: DAY_DATE, start: "13:30", end: "15:20" },

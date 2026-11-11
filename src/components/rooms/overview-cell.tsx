@@ -1,8 +1,12 @@
 import { Link } from "@tanstack/react-router";
+import { Wrench } from "lucide-react";
 import { type CSSProperties, type KeyboardEvent, type PointerEvent, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
+import { Tag } from "#/components/ds";
+import { freeIntervals, type TimeRange } from "#/domain/availability";
+import { isMaintenanceTitle, MAINTENANCE_PREFIX } from "#/domain/booking-kind";
 import { weekdayOf } from "#/domain/calendar";
 import {
   type Cell,
@@ -86,10 +90,11 @@ type CardProps = {
   roomName: string;
   date: string;
   isVisitor: boolean;
+  free: TimeRange[];
 };
 
 /** Detalhes das ocupações do bloco; pessoa (avatar e nome) só para quem está logado. */
-function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProps) {
+function OverviewCard({ id, anchor, items, roomName, date, isVisitor, free }: CardProps) {
   const below = anchor.top < CARD_ROOM;
   const center = anchor.left + anchor.width / 2;
   return createPortal(
@@ -113,6 +118,8 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProp
       {items.map(({ item }) => {
         const entry = legendEntryOf(item);
         const turma = item.source === "manual" ? null : classOf(item.title);
+        const isMaintenance = item.source === "manual" && isMaintenanceTitle(item.title);
+        const title = isMaintenance ? item.title.slice(MAINTENANCE_PREFIX.length) : item.title;
         return (
           <div key={item.id} className="grid gap-0.5">
             <p className="flex items-center gap-1.5 font-semibold text-foreground">
@@ -121,9 +128,15 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProp
                 style={toneStyle(entry.tone)}
                 className="size-2.5 shrink-0 rounded-[2px] bg-[var(--tone-light)] dark:bg-[var(--tone-dark)]"
               />
-              {item.source === "manual" ? item.title : entry.label}
+              {isMaintenance && <Wrench aria-hidden="true" className="size-3 shrink-0" />}
+              {item.source === "manual" ? title : entry.label}
             </p>
-            {item.source === "manual" ? (
+            {isMaintenance ? (
+              <Tag tone="neutral" className="w-fit bg-warn text-warn-text">
+                <Wrench aria-hidden="true" className="size-3" />
+                Manutenção
+              </Tag>
+            ) : item.source === "manual" ? (
               <p className="text-muted-foreground">Reserva</p>
             ) : (
               turma !== null && <p className="text-muted-foreground">{`Turma ${turma}`}</p>
@@ -140,6 +153,11 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProp
           </div>
         );
       })}
+      {free.length > 0 && (
+        <p className="border-t pt-2 text-muted-foreground tabular-nums">
+          {`Livre: ${free.map((range) => `${range.start}–${range.end}`).join("; ")}`}
+        </p>
+      )}
     </div>,
     document.body,
   );
@@ -147,7 +165,7 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor }: CardProp
 
 /**
  * Um bloco de uma sala num dia: vazio com contorno; ocupado com a cor da matéria, uma faixa por
- * ocupação e canto recortado quando alguma não cobre o bloco inteiro. Mouse ou foco num ocupado
+ * ocupação posicionada do início (topo) ao fim (base) do bloco. Mouse ou foco num ocupado
  * aumenta o quadradinho e abre o cartão de detalhes; o livre seleciona o bloco.
  */
 export function OverviewCell({
@@ -197,12 +215,23 @@ export function OverviewCell({
     setAnchor(event.currentTarget.getBoundingClientRect());
   const hide = () => setAnchor(null);
   const partial = cell.items.some((entry) => entry.partial);
-  const titles = cell.items.map((entry) => entry.item.title).join(" e ");
+  const free = freeIntervals(
+    { opens: cell.block.start, closes: cell.block.end },
+    cell.items.map(({ item }) => item),
+  );
+  const titles = cell.items.map(({ item }) => `${item.title} ${item.start}–${item.end}`).join("; ");
+  const freeText =
+    free.length === 0
+      ? ""
+      : `; Livre: ${free.map((range) => `${range.start}–${range.end}`).join("; ")}`;
+  const minutes = (time: string) => Number(time.slice(0, 2)) * 60 + Number(time.slice(3));
+  const blockStart = minutes(cell.block.start);
+  const duration = minutes(cell.block.end) - blockStart;
   const common = {
     ...where,
     "data-cell": "ocupado",
     "data-partial": partial ? "" : undefined,
-    "aria-label": `${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}: ${titles}`,
+    "aria-label": `${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}: ${titles}${freeText}`,
     "aria-describedby": anchor === null ? undefined : cardId,
     onBlur: hide,
     onKeyDown: (event: KeyboardEvent) => {
@@ -215,7 +244,7 @@ export function OverviewCell({
     className: cn(
       SQUARE,
       size,
-      "flex gap-px overflow-hidden outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
+      "flex gap-px overflow-hidden border border-border bg-background outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
       anchor !== null && "z-10 scale-160 motion-reduce:scale-100",
       selected && "ring-2 ring-primary",
     ),
@@ -233,25 +262,26 @@ export function OverviewCell({
       {cell.items.map(({ item }) => {
         const entry = legendEntryOf(item);
         const dimmed = highlight !== null && entry.key !== highlight;
+        const start = Math.max(blockStart, minutes(item.start));
+        const end = Math.min(minutes(cell.block.end), minutes(item.end));
         return (
-          <span
-            key={item.id}
-            data-stripe=""
-            data-dimmed={dimmed ? "" : undefined}
-            style={toneStyle(entry.tone)}
-            className={cn(
-              "h-full flex-1 bg-[var(--tone-light)] transition-opacity dark:bg-[var(--tone-dark)]",
-              dimmed && "opacity-20",
-            )}
-          />
+          <span key={item.id} aria-hidden="true" className="relative h-full flex-1">
+            <span
+              data-stripe=""
+              data-dimmed={dimmed ? "" : undefined}
+              style={{
+                ...toneStyle(entry.tone),
+                top: `${((start - blockStart) / duration) * 100}%`,
+                height: `${((end - start) / duration) * 100}%`,
+              }}
+              className={cn(
+                "absolute inset-x-0 bg-[var(--tone-light)] transition-opacity dark:bg-[var(--tone-dark)]",
+                dimmed && "opacity-20",
+              )}
+            />
+          </span>
         );
       })}
-      {partial && (
-        <span
-          aria-hidden="true"
-          className="absolute right-0 bottom-0 size-1.5 bg-background [clip-path:polygon(100%_0,100%_100%,0_100%)]"
-        />
-      )}
       {anchor !== null && (
         <OverviewCard
           id={cardId}
@@ -260,6 +290,7 @@ export function OverviewCell({
           roomName={room.name}
           date={date}
           isVisitor={isVisitor}
+          free={free}
         />
       )}
     </>

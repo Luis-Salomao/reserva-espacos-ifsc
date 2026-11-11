@@ -4,9 +4,17 @@ import { createSpacesService } from "#/application/spaces";
 import type { Space } from "#/domain/space";
 
 function toSpace(id: string, { equipment, ...rest }: SpaceWrite): Space {
-  return equipment === undefined
-    ? { id, ...rest }
-    : { id, ...rest, equipment: { items: equipment.items ?? {}, notes: equipment.notes ?? null } };
+  if (equipment === undefined) return { id, ...rest };
+  const maintenance = equipment.computersInMaintenance ?? null;
+  return {
+    id,
+    ...rest,
+    equipment: {
+      items: equipment.items ?? {},
+      notes: equipment.notes ?? null,
+      ...(maintenance === null ? {} : { computersInMaintenance: maintenance }),
+    },
+  };
 }
 
 function setup() {
@@ -361,6 +369,134 @@ describe("equipamentos e observações", () => {
       message: "Tipo de equipamento desconhecido.",
     });
     expect(ctx.rows.size).toBe(0);
+  });
+
+  describe("computadores em manutenção", () => {
+    const createMaintenance = (
+      computersInMaintenance: number | string | null,
+      computadores?: number,
+    ) =>
+      ctx.service.create({
+        name: "Lab",
+        capacity: null,
+        equipment: {
+          items: computadores === undefined ? {} : { computadores },
+          notes: null,
+          computersInMaintenance,
+        },
+      });
+
+    test("vazio ou nulo = não informado; aceita 0 e inteiros válidos", async () => {
+      const result = await createMaintenance(null);
+      expect(result.ok).toBe(true);
+      if (result.ok) expect(result.value.equipment?.computersInMaintenance ?? null).toBeNull();
+      ctx = setup();
+      expect(await createMaintenance(0, 5)).toMatchObject({
+        ok: true,
+        value: { equipment: { computersInMaintenance: 0 } },
+      });
+      ctx = setup();
+      expect(await createMaintenance("3", 5)).toMatchObject({
+        ok: true,
+        value: { equipment: { computersInMaintenance: 3 } },
+      });
+    });
+
+    test("recusa negativo", async () => {
+      expect(await createMaintenance(-1, 5)).toEqual({
+        ok: false,
+        kind: "validation",
+        message: "Os computadores em manutenção devem ser um número inteiro de 0 ou mais.",
+        field: "computersInMaintenance",
+      });
+      expect(ctx.rows.size).toBe(0);
+    });
+
+    test("recusa não inteiro", async () => {
+      expect(await createMaintenance(2.5, 5)).toEqual({
+        ok: false,
+        kind: "validation",
+        message: "Os computadores em manutenção devem ser um número inteiro de 0 ou mais.",
+        field: "computersInMaintenance",
+      });
+      expect(await createMaintenance("doze", 5)).toMatchObject({
+        ok: false,
+        field: "computersInMaintenance",
+      });
+      expect(ctx.rows.size).toBe(0);
+    });
+
+    test("recusa quando maior que o total de computadores informado na mesma gravação", async () => {
+      expect(await createMaintenance(6, 5)).toEqual({
+        ok: false,
+        kind: "validation",
+        message: "Os computadores em manutenção não podem ser mais que o total de computadores.",
+        field: "computersInMaintenance",
+      });
+      expect(ctx.rows.size).toBe(0);
+    });
+
+    test("aceita igual ao total de computadores", async () => {
+      expect(await createMaintenance(5, 5)).toMatchObject({
+        ok: true,
+        value: { equipment: { computersInMaintenance: 5 } },
+      });
+    });
+
+    test("na edição, recusa manutenção maior que o total gravado quando computadores não vem nesta gravação", async () => {
+      const created = await createMaintenance(3, 10);
+      if (!created.ok) throw new Error("setup");
+      const id = created.value.id;
+      // Esta gravação só manda `notes`; computadores (10) e manutenção (3) ficam como estão.
+      expect(
+        await ctx.service.update(id, {
+          name: "Lab",
+          capacity: null,
+          equipment: { notes: "ok", computersInMaintenance: 11 },
+        }),
+      ).toEqual({
+        ok: false,
+        kind: "validation",
+        message: "Os computadores em manutenção não podem ser mais que o total de computadores.",
+        field: "computersInMaintenance",
+      });
+      const stored = ctx.rows.get(id);
+      expect(stored?.equipment).toMatchObject({ computersInMaintenance: 3 });
+    });
+
+    test("na edição, recusa baixar computadores abaixo da manutenção já gravada sem nova manutenção", async () => {
+      const created = await createMaintenance(8, 10);
+      if (!created.ok) throw new Error("setup");
+      const id = created.value.id;
+      // Só `items.computadores` muda, para um valor menor que a manutenção (8) já gravada.
+      expect(
+        await ctx.service.update(id, {
+          name: "Lab",
+          capacity: null,
+          equipment: { items: { computadores: 5 } },
+        }),
+      ).toEqual({
+        ok: false,
+        kind: "validation",
+        message: "Os computadores em manutenção não podem ser mais que o total de computadores.",
+        field: "computersInMaintenance",
+      });
+      const stored = ctx.rows.get(id);
+      expect(stored?.equipment).toMatchObject({ items: { computadores: 10 } });
+    });
+
+    test("na edição, aceita quando a manutenção gravada ainda cabe no novo total de computadores", async () => {
+      const created = await createMaintenance(3, 10);
+      if (!created.ok) throw new Error("setup");
+      const id = created.value.id;
+      expect(
+        await ctx.service.update(id, {
+          name: "Lab",
+          capacity: null,
+          equipment: { items: { computadores: 4 } },
+        }),
+      ).toMatchObject({ ok: true });
+    });
   });
 
   test("sem equipamentos, o repositório não recebe equipamentos ao criar nem ao editar", async () => {

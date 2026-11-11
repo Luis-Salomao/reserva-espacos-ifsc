@@ -5,6 +5,7 @@
     "src/**/*.tsx",
     "cli/**/*.ts",
     "test/**/*.ts",
+    "test/**/*.tsx",
     "vite.config.ts"
   ],
   "compilerOptions": {

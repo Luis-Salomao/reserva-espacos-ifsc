@@ -69,11 +69,14 @@ describe("CancelDialog: reserva de série", () => {
   });
 
   test("'Esta e as próximas' mostra a prévia e cancela com o tamanho visto", async () => {
-    const previewFn = mock(async () => ({
+    const previewFn = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: { dates: ["2030-12-10", "2030-12-17", "2030-12-24"] },
     }));
-    const cancelFn = mock(async () => ({ ok: true as const, data: { cancelled: 3 } }));
+    const cancelFn = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: { cancelled: 3 },
+    }));
     renderDialog({ previewFn, cancelFn });
     fireEvent.click(screen.getByRole("radio", { name: /Esta e as próximas/ }));
     const confirm = await screen.findByRole("button", {

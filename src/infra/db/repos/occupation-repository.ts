@@ -1,10 +1,13 @@
 import { and, asc, eq, gt, gte, lt, or, sql } from "drizzle-orm";
+import type { OutboxWrite } from "#/application/email-ports";
 import type { OccupationRecord, OccupationRepository } from "#/application/ports";
 import { weekdaySqlite } from "#/domain/availability";
-import { runAtomically } from "#/infra/db/atomic";
+import { runAtomically, runAtomicWrites, type Statement } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
 import { occupationSelectList } from "#/infra/db/occupation-insert";
+import { outboxWrite } from "#/infra/db/outbox-write";
 import { occupations, spaces } from "#/infra/db/schema";
+import type { BookingEmailFactory } from "#/infra/email/booking-email";
 
 const columns = {
   id: occupations.id,
@@ -66,8 +69,54 @@ function seriesCondition(
 }
 
 // Sem db.transaction(): cada escrita é uma única instrução ou passa por `runAtomically` (série).
-export function createOccupationRepository(db: AppDb): OccupationRepository {
+export function createOccupationRepository(
+  db: AppDb,
+  email?: BookingEmailFactory,
+): OccupationRepository {
+  async function writeWithMail(build: (x: AppDb) => Statement, job: OutboxWrite | null) {
+    const counts = await runAtomicWrites(db, (x) =>
+      job === null ? [build(x)] : [build(x), outboxWrite(x, job)],
+    );
+    return counts[0] ?? 0;
+  }
   return {
+    async updateManualIfFree(input) {
+      const job =
+        (await email?.prepare({
+          kind: "updated",
+          userId: input.createdBy,
+          spaceId: input.spaceId,
+          title: input.title,
+          slots: [input],
+        })) ?? null;
+      const changed = await writeWithMail(
+        (x) =>
+          x
+            .update(occupations)
+            .set({
+              spaceId: input.spaceId,
+              startsAt: input.startsAt,
+              endsAt: input.endsAt,
+              title: input.title,
+            })
+            .where(
+              and(
+                eq(occupations.id, input.id),
+                eq(occupations.source, "manual"),
+                eq(occupations.createdBy, input.createdBy),
+                eq(occupations.status, "ativa"),
+                gt(occupations.startsAt, input.nowLocal),
+                sql`${input.startsAt} > ${input.nowLocal}`,
+                sql`NOT EXISTS (SELECT 1 FROM occupations o WHERE o.id <> ${input.id}
+            AND o.space_id = ${input.spaceId} AND o.status = 'ativa'
+            AND o.starts_at < ${input.endsAt} AND o.ends_at > ${input.startsAt})`,
+              ),
+            ),
+        job,
+      );
+      return changed > 0;
+    },
+
     async listActiveInRange(spaceId, from, to) {
       return db
         .select(columns)
@@ -103,36 +152,45 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
     },
 
     async insertManualIfFree(input) {
+      const job =
+        (await email?.prepare({
+          kind: "created",
+          userId: input.createdBy,
+          spaceId: input.spaceId,
+          title: input.title,
+          slots: [input],
+        })) ?? null;
       const overlapping = sql`o.space_id = ${input.spaceId} AND o.status = 'ativa'
         AND o.starts_at < ${input.endsAt} AND o.ends_at > ${input.startsAt}`;
       // Uma única instrução: a checagem de sobreposição e a inserção são atômicas, então de duas
       // reservas concorrentes conflitantes só uma é gravada (mesmo padrão da aplicação da importação).
-      const inserted = await db
-        .insert(occupations)
-        .select(
-          sql`SELECT ${occupationSelectList({
-            id: input.id,
-            spaceId: input.spaceId,
-            startsAt: input.startsAt,
-            endsAt: input.endsAt,
-            source: "manual",
-            batchId: null,
-            lessonId: null,
-            // O criador também é o responsável: "Minhas reservas" e o 403 usam o mesmo critério das
-            // importadas (responsável) e a coluna fica preenchida para quem consulta por responsável.
-            responsibleUserId: input.createdBy,
-            title: input.title,
-            status: "ativa",
-            createdAt: input.createdAt,
-            cancelReason: null,
-            cancelledAt: null,
-            createdBy: input.createdBy,
-            seriesId: null,
-          })}
+      const inserted = await writeWithMail(
+        (x) =>
+          x.insert(occupations).select(
+            sql`SELECT ${occupationSelectList({
+              id: input.id,
+              spaceId: input.spaceId,
+              startsAt: input.startsAt,
+              endsAt: input.endsAt,
+              source: "manual",
+              batchId: null,
+              lessonId: null,
+              // O criador também é o responsável: "Minhas reservas" e o 403 usam o mesmo critério das
+              // importadas (responsável) e a coluna fica preenchida para quem consulta por responsável.
+              responsibleUserId: input.createdBy,
+              title: input.title,
+              status: "ativa",
+              createdAt: input.createdAt,
+              cancelReason: null,
+              cancelledAt: null,
+              createdBy: input.createdBy,
+              seriesId: null,
+            })}
             WHERE NOT EXISTS (SELECT 1 FROM occupations o WHERE ${overlapping})`,
-        )
-        .returning({ id: occupations.id });
-      if (inserted.length > 0) return { inserted: true };
+          ),
+        job,
+      );
+      if (inserted > 0) return { inserted: true };
       const [blocking] = await db
         .select({
           title: occupations.title,
@@ -157,6 +215,15 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
       const [first, ...rest] = input.slots;
       if (first === undefined) return false;
       const expected = input.slots.length;
+      const job =
+        (await email?.prepare({
+          kind: "created",
+          userId: input.createdBy,
+          spaceId: input.spaceId,
+          title: input.title,
+          slots: input.slots,
+          series: true,
+        })) ?? null;
       // Cada data é um INSERT condicional (uma instrução por data: o D1 limita 100 parâmetros); a
       // última instrução apaga a série inteira se alguma data não entrou, dentro da mesma unidade.
       const insertSlot = (x: AppDb, slot: typeof first) =>
@@ -192,6 +259,15 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
               sql`(SELECT count(*) FROM occupations s WHERE s.series_id = ${input.seriesId}) <> ${expected}`,
             ),
           ),
+        ...(job === null
+          ? []
+          : [
+              outboxWrite(
+                x,
+                job,
+                sql`(SELECT count(*) FROM occupations s WHERE s.series_id = ${input.seriesId}) = ${expected}`,
+              ),
+            ]),
       ]);
       const [row] = await db
         .select({ total: sql<number>`count(*)` })
@@ -201,12 +277,43 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
     },
 
     async cancelOne(id, reason, at) {
-      const changed = await db
-        .update(occupations)
-        .set({ status: "cancelada", cancelReason: reason, cancelledAt: at })
-        .where(and(eq(occupations.id, id), eq(occupations.status, "ativa")))
-        .returning({ id: occupations.id });
-      return changed.length > 0;
+      const [record] =
+        email === undefined
+          ? []
+          : await db.select(columns).from(occupations).where(eq(occupations.id, id));
+      const job =
+        record?.source === "manual"
+          ? ((await email?.prepare({
+              kind: "cancelled",
+              userId: record.createdBy,
+              spaceId: record.spaceId,
+              title: record.title,
+              slots: [record],
+            })) ?? null)
+          : null;
+      const changed = await writeWithMail(
+        (x) =>
+          x
+            .update(occupations)
+            .set({ status: "cancelada", cancelReason: reason, cancelledAt: at })
+            .where(
+              and(
+                eq(occupations.id, id),
+                eq(occupations.status, "ativa"),
+                record === undefined
+                  ? undefined
+                  : and(
+                      eq(occupations.spaceId, record.spaceId),
+                      eq(occupations.startsAt, record.startsAt),
+                      eq(occupations.endsAt, record.endsAt),
+                      eq(occupations.title, record.title),
+                      sql`${occupations.createdBy} IS ${record.createdBy}`,
+                    ),
+              ),
+            ),
+        job,
+      );
+      return changed > 0;
     },
 
     async seriesDates(anchor, fromLocal, onlyResponsible) {
@@ -219,12 +326,26 @@ export function createOccupationRepository(db: AppDb): OccupationRepository {
     },
 
     async cancelSeries(anchor, fromLocal, onlyResponsible, reason, at) {
-      const changed = await db
-        .update(occupations)
-        .set({ status: "cancelada", cancelReason: reason, cancelledAt: at })
-        .where(seriesCondition(anchor, fromLocal, onlyResponsible))
-        .returning({ id: occupations.id });
-      return changed.length;
+      const job =
+        anchor.source === "manual"
+          ? ((await email?.prepare({
+              kind: "cancelled",
+              userId: anchor.createdBy,
+              spaceId: anchor.spaceId,
+              title: anchor.title,
+              slots: [anchor],
+              series: true,
+            })) ?? null)
+          : null;
+      const changed = await writeWithMail(
+        (x) =>
+          x
+            .update(occupations)
+            .set({ status: "cancelada", cancelReason: reason, cancelledAt: at })
+            .where(seriesCondition(anchor, fromLocal, onlyResponsible)),
+        job,
+      );
+      return changed;
     },
 
     async listMine(userId, fromLocal, limit, offset) {
