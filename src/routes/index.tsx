@@ -163,17 +163,16 @@ export const Route = createFileRoute("/")({
   loader: async ({ deps, context }): Promise<HomeLoaderData> => {
     const { session } = context;
     if (deps.fonte === "sala") return { fonte: "sala", ...(await loadAgenda(deps, session)) };
-    const salas = await loadSalas(
-      deps.data,
-      session,
-      (date) => getRoomsDayFn({ data: { date } }),
-      new Date(),
-      {
+    const [salas, spacesIndex] = await Promise.all([
+      loadSalas(deps.data, session, (date) => getRoomsDayFn({ data: { date } }), new Date(), {
         geral: deps.fonte === "semana",
         fetchWeek: (weekStart) => getRoomsWeekFn({ data: { weekStart } }),
-      },
-    );
-    return { fonte: deps.fonte, ...salas };
+      }),
+      listSpaces()
+        .then((list) => Object.fromEntries(list.map((s) => [s.id, s] as const)))
+        .catch(() => ({})),
+    ]);
+    return { fonte: deps.fonte, ...salas, spacesIndex };
   },
   component: HomePage,
   errorComponent: HomeError,
@@ -199,6 +198,8 @@ function RoomsPage({ data }: { data: SalasLoaderData }) {
         canBook={data.canBook}
         isVisitor={data.isVisitor}
         isAdmin={data.isAdmin}
+        isMaintenance={Boolean(data.session.user?.roles.includes("manutencao"))}
+        spacesIndex={data.spacesIndex}
         timeZone={data.session.timeZone}
         onSearchChange={(update, replace) => void navigate({ search: update, replace })}
         onRetry={() => void router.invalidate()}
@@ -350,6 +351,7 @@ function AgendaPage({ data }: { data: AgendaLoaderData }) {
             initialSlot={selectedSlot}
             timeZone={timeZone}
             onSuccess={refresh}
+            canMaintenance={Boolean(session.user?.roles.includes("manutencao"))}
           />
           <OccupationDetails
             occupation={details}

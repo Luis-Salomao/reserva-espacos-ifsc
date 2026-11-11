@@ -8,7 +8,7 @@ describe("planInit", () => {
       {
         path: ".env",
         content:
-          "DEPLOY_TARGET=local\nDATABASE_PATH=./data/app.sqlite\nTIMEZONE=America/Sao_Paulo\n",
+          "DEPLOY_TARGET=local\nDATABASE_PATH=./data/app.sqlite\nTIMEZONE=America/Sao_Paulo\nEMAIL_PROVIDER=disabled\n",
       },
     ]);
     expect(plan.commands).toEqual([["bun", "run", "db:migrate"]]);
@@ -26,7 +26,9 @@ describe("planInit", () => {
 
   test("alvo cloudflare gera .dev.vars e comandos do wrangler", () => {
     const plan = planInit({ target: "cloudflare" });
-    expect(plan.files).toEqual([{ path: ".dev.vars", content: "TIMEZONE=America/Sao_Paulo\n" }]);
+    expect(plan.files).toEqual([
+      { path: ".dev.vars", content: "TIMEZONE=America/Sao_Paulo\nEMAIL_PROVIDER=disabled\n" },
+    ]);
     expect(plan.commands).toEqual([
       ["bunx", "wrangler", "d1", "create", "reserva-espacos"],
       ["bun", "run", "cf:check"],
@@ -57,6 +59,50 @@ describe("planInit", () => {
 });
 
 describe("validateAnswers", () => {
+  test("Resend exige remetente e origem segura sem revelar entradas inválidas", () => {
+    expect(validateAnswers({ target: "local", emailProvider: "resend" })).not.toEqual([]);
+    expect(
+      validateAnswers({
+        target: "local",
+        emailProvider: "resend",
+        emailFrom: "Reservas <reservas@example.org>",
+        publicOrigin: "https://reservas.example.org",
+      }),
+    ).toEqual([]);
+    expect(
+      validateAnswers({
+        target: "local",
+        emailProvider: "resend",
+        emailFrom: "reserva@example.org",
+        publicOrigin: "http://example.org",
+      }),
+    ).not.toEqual([]);
+    expect(
+      validateAnswers({
+        target: "local",
+        emailProvider: "resend",
+        emailFrom: "reserva@example.org",
+        publicOrigin: "http://localhost:3000",
+      }),
+    ).toEqual([]);
+  });
+
+  test("plano Resend grava somente dados públicos e orienta secrets fora dos argumentos", () => {
+    for (const target of ["local", "cloudflare"] as const) {
+      const plan = planInit({
+        target,
+        emailProvider: "resend",
+        emailFrom: "Reservas <reservas@example.org>",
+        publicOrigin: "https://reservas.example.org",
+      });
+      expect(plan.files[0]?.content).toContain("EMAIL_PROVIDER=resend\n");
+      expect(plan.files[0]?.content).toContain('EMAIL_FROM="Reservas <reservas@example.org>"\n');
+      expect(plan.files[0]?.content).toContain("PUBLIC_ORIGIN=https://reservas.example.org\n");
+      expect(plan.files[0]?.content).not.toMatch(/RESEND_API_KEY|EMAIL_PAYLOAD_KEY/);
+      expect(plan.notes.join("\n")).toContain("EMAIL_PAYLOAD_KEY");
+      expect(plan.commands.flat().join(" ")).not.toMatch(/RESEND_API_KEY|EMAIL_PAYLOAD_KEY/);
+    }
+  });
   const winSpaced = String.raw`C:\meus dados\a.sqlite`;
   const winPlain = String.raw`C:\dados\a.sqlite`;
 

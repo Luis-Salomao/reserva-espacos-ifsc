@@ -48,6 +48,27 @@ describe("createBooking", () => {
     expect(mine.ok && mine.value.items).toHaveLength(1);
   });
 
+  test("manutencao reserva (ex.: manutenção de equipamentos), mas só cancela a própria reserva", async () => {
+    const { s, svc } = await setup();
+    const tech = s.manutencao;
+    const created = await svc.createBooking(
+      tech,
+      book(s, { purpose: "Manutenção: troca de lâmpada" }),
+    );
+    expect(created.ok).toBe(true);
+    if (!created.ok) return;
+    const byOther = await svc.cancelOccupation(s.docA, {
+      occupationId: created.value.id,
+      scope: "data",
+    });
+    expect(byOther).toMatchObject({ ok: false, kind: "forbidden" });
+    const byOwner = await svc.cancelOccupation(tech, {
+      occupationId: created.value.id,
+      scope: "data",
+    });
+    expect(byOwner.ok).toBe(true);
+  });
+
   test("conta sem papel de reserva ou inativa é recusada com 'forbidden'", async () => {
     const { s, svc } = await setup();
     const none = await svc.createBooking(guest([]), book(s));

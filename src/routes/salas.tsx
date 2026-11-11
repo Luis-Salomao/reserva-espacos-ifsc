@@ -4,6 +4,7 @@ import type { SalasSearch } from "#/components/rooms/rooms-view";
 import { localNow } from "#/domain/availability";
 import { weekOf } from "#/domain/overview";
 import { isValidDate, isValidTime } from "#/domain/semester";
+import type { Space } from "#/domain/space";
 import { ADMIN_ROLES, BOOKING_ROLES, type SessionInfo } from "#/server/session";
 
 const LOAD_ERROR = "Não foi possível carregar as salas";
@@ -87,6 +88,8 @@ export type SalasLoaderData = {
   canBook: boolean;
   isAdmin: boolean;
   session: SessionInfo;
+  /** Espaços com capacidade/equipamentos por id; vazio se `listSpaces()` falhar ou não for lido. */
+  spacesIndex: Record<string, Space>;
 };
 
 /** Visão geral: em vez do dia, pede a semana (segunda a sexta) da data. */
@@ -133,6 +136,7 @@ export async function loadSalas(
     canBook: has(BOOKING_ROLES),
     isAdmin: has(ADMIN_ROLES),
     session,
+    spacesIndex: {},
   };
 }
 

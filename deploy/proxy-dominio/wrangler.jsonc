@@ -1,0 +1,13 @@
+{
+  "name": "reservas-ifsc-dominio",
+  "main": "./worker.ts",
+  "compatibility_date": "2026-10-30",
+  "workers_dev": false,
+  "routes": [
+    {
+      "pattern": "reservas-ifsc.luissalomao.dev",
+      "custom_domain": true,
+      "zone_name": "luissalomao.dev"
+    }
+  ]
+}

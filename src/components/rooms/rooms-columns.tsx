@@ -3,6 +3,9 @@ import type { RoomDay } from "#/application/bookings";
 import { HourAxis, makeScale } from "#/components/agenda/agenda-blocks";
 import { DayColumn } from "#/components/agenda/day-column";
 import type { Draft } from "#/components/agenda/draft-booking";
+import { RoomDetailsButton } from "#/components/rooms/room-details-popover";
+import { SpaceDetails } from "#/components/spaces/space-details";
+import type { Space } from "#/domain/space";
 
 /** Rascunho único da tela: além do dia e do horário, a sala onde foi desenhado. */
 export type RoomDraft = Draft & { spaceId: string };
@@ -18,6 +21,8 @@ type Props = {
   canDraft: boolean;
   onDraftChange: (draft: RoomDraft | null) => void;
   onSelectSlot: (slot: Slot) => void;
+  /** Espaços por id (capacidade/equipamentos) para o badge compacto e o botão "Detalhes". */
+  spacesIndex?: Record<string, Space>;
 };
 
 const AXIS_WIDTH = 52;
@@ -35,6 +40,7 @@ export function RoomsColumns({
   canDraft,
   onDraftChange,
   onSelectSlot,
+  spacesIndex = {},
 }: Props) {
   const hours = rooms[0]?.hours ?? { opens: "06:00", closes: "23:00" };
   const scale = makeScale(hours.opens, hours.closes, 0.9);
@@ -51,21 +57,26 @@ export function RoomsColumns({
         }}
       >
         <div className="sticky top-0 left-0 z-40 border-r border-b border-border bg-surface" />
-        {rooms.map((room) => (
-          <div
-            key={room.spaceId}
-            className="sticky top-0 z-30 flex h-10 min-w-0 items-center justify-center border-b border-l border-border bg-surface px-2"
-          >
-            <Link
-              to="/"
-              search={{ espaco: room.spaceId, data: date }}
-              className="truncate rounded-sm text-[13px] font-semibold text-foreground underline-offset-4 hover:underline"
-              title={`Abrir a agenda de ${room.space.name}`}
+        {rooms.map((room) => {
+          const space = spacesIndex[room.spaceId];
+          return (
+            <div
+              key={room.spaceId}
+              className="sticky top-0 z-30 flex h-auto min-h-10 min-w-0 flex-wrap items-center justify-center gap-1.5 border-b border-l border-border bg-surface px-2 py-1"
             >
-              {room.space.name}
-            </Link>
-          </div>
-        ))}
+              <Link
+                to="/"
+                search={{ espaco: room.spaceId, data: date }}
+                className="truncate rounded-sm text-[13px] font-semibold text-foreground underline-offset-4 hover:underline"
+                title={`Abrir a agenda de ${room.space.name}`}
+              >
+                {room.space.name}
+              </Link>
+              {space && <SpaceDetails space={space} compact />}
+              <RoomDetailsButton space={space} roomName={room.space.name} />
+            </div>
+          );
+        })}
         <div className="sticky left-0 z-20 bg-background">
           <HourAxis scale={scale} />
         </div>

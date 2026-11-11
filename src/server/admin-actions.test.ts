@@ -32,6 +32,7 @@ import {
   updateAccount,
   updateSemester,
   updateSpace,
+  updateSpaceInfo,
 } from "./admin-actions.ts";
 
 const ADMIN_PASSWORD = "senha-falsa-admin-1"; // betterleaks:allow
@@ -78,11 +79,12 @@ async function setup() {
   const admin = await account("admin@ifsc.edu.br", ["admin"], ADMIN_PASSWORD, "ADM");
   const horarios = await account("horarios@ifsc.edu.br", ["horarios"], USER_PASSWORD, "HOR");
   const docente = await account("docente@ifsc.edu.br", ["docente"], USER_PASSWORD, null);
+  const manutencao = await account("manutencao@ifsc.edu.br", ["manutencao"], USER_PASSWORD, "MAN");
   const req = (token: string | null) => ({
     url: "https://reservas.ifsc.edu.br/_serverFn/x",
     headers: new Headers(token === null ? {} : { cookie: `sid=${token}` }),
   });
-  return { deps, auth, admin, horarios, docente, req, db };
+  return { deps, auth, admin, horarios, docente, manutencao, req, db };
 }
 
 type Ctx = Awaited<ReturnType<typeof setup>>;
@@ -167,6 +169,11 @@ describe("controle de acesso no servidor", () => {
         (await updateSpace(c.deps, c.req(t), { id: "x", name: "Sala", capacity: null })).response,
     ],
     ["deleteSpace", async (c, t) => (await deleteSpace(c.deps, c.req(t), { id: "x" })).response],
+    [
+      "updateSpaceInfo",
+      async (c, t) =>
+        (await updateSpaceInfo(c.deps, c.req(t), { spaceId: "x", capacity: null })).response,
+    ],
   ];
 
   for (const [name, call] of calls) {
@@ -180,7 +187,7 @@ describe("controle de acesso no servidor", () => {
       const forbidden = { ok: false, status: 403, message: "Sem permissão para esta ação." };
       expect(await call(ctx, ctx.horarios.token)).toEqual(forbidden);
       expect(await call(ctx, ctx.docente.token)).toEqual(forbidden);
-      expect((await ctx.deps.users.list()).length).toBe(3);
+      expect((await ctx.deps.users.list()).length).toBe(4);
       expect((await ctx.deps.spaces.list()).length).toBe(0);
       expect((await ctx.deps.users.list()).find((u) => u.id === ctx.docente.id)?.active).toBe(true);
     });
@@ -211,7 +218,7 @@ describe("contas (administrador)", () => {
     const out = await listAccounts(ctx.deps, ctx.req(ctx.admin.token));
     expect(out.setCookie).toContain("sid=");
     if (!out.response.ok) throw new Error("esperava ok");
-    expect(out.response.data).toHaveLength(3);
+    expect(out.response.data).toHaveLength(4);
     expect(JSON.stringify(out.response.data)).not.toContain("passwordHash");
   });
 
@@ -649,6 +656,93 @@ describe("espaços (administrador)", () => {
       message: "Espaço não encontrado.",
     });
     expect((await ctx.deps.spaces.list()).map((space) => space.name)).toEqual(["Usado"]);
+  });
+});
+
+describe("updateSpaceInfo (manutenção)", () => {
+  test("admin e manutenção alteram capacidade e equipamentos; o nome não muda", async () => {
+    const ctx = await setup();
+    const admin = ctx.req(ctx.admin.token);
+    const manutencao = ctx.req(ctx.manutencao.token);
+    const created = await createSpace(ctx.deps, admin, {
+      name: "Lab 4",
+      capacity: 10,
+      equipment: { projetor: 1 },
+      notes: null,
+    });
+    if (!created.response.ok) throw new Error("esperava ok");
+    const id = created.response.data.id;
+
+    const byManutencao = await updateSpaceInfo(ctx.deps, manutencao, {
+      spaceId: id,
+      capacity: 42,
+      equipment: { projetor: 0, computadores: 5 },
+      notes: "Trocar lâmpada",
+    });
+    expect(byManutencao.response).toMatchObject({
+      ok: true,
+      data: {
+        id,
+        name: "Lab 4",
+        capacity: 42,
+        equipment: { items: { projetor: 0, computadores: 5 }, notes: "Trocar lâmpada" },
+      },
+    });
+    const listedAfterManutencao = (await listAdminSpaces(ctx.deps, admin)).response;
+    if (!listedAfterManutencao.ok) throw new Error("esperava ok");
+    expect(listedAfterManutencao.data.find((s) => s.id === id)?.capacity).toBe(42);
+
+    const byAdmin = await updateSpaceInfo(ctx.deps, admin, { spaceId: id, capacity: 50 });
+    expect(byAdmin.response).toMatchObject({ ok: true, data: { capacity: 50, name: "Lab 4" } });
+  });
+
+  test("campo extra (como name) é recusado com 400 e nada muda", async () => {
+    const ctx = await setup();
+    const admin = ctx.req(ctx.admin.token);
+    const created = await createSpace(ctx.deps, admin, { name: "Lab 5", capacity: 10 });
+    if (!created.response.ok) throw new Error("esperava ok");
+    const id = created.response.data.id;
+
+    expect(
+      (
+        await updateSpaceInfo(ctx.deps, admin, {
+          spaceId: id,
+          capacity: 99,
+          name: "Novo nome",
+        })
+      ).response,
+    ).toEqual({ ok: false, status: 400, message: "Requisição inválida." });
+
+    const listed = (await listAdminSpaces(ctx.deps, admin)).response;
+    if (!listed.ok) throw new Error("esperava ok");
+    expect(listed.data.find((s) => s.id === id)).toMatchObject({ name: "Lab 5", capacity: 10 });
+  });
+
+  test("espaço inexistente é 404", async () => {
+    const ctx = await setup();
+    const admin = ctx.req(ctx.admin.token);
+    expect(
+      (await updateSpaceInfo(ctx.deps, admin, { spaceId: "nao-existe", capacity: 10 })).response,
+    ).toMatchObject({ ok: false, status: 404 });
+  });
+
+  test("manutenção não pode criar, renomear (via updateSpace) nem excluir espaços", async () => {
+    const ctx = await setup();
+    const admin = ctx.req(ctx.admin.token);
+    const manutencao = ctx.req(ctx.manutencao.token);
+    const created = await createSpace(ctx.deps, admin, { name: "Lab 6", capacity: 10 });
+    if (!created.response.ok) throw new Error("esperava ok");
+    const id = created.response.data.id;
+
+    const forbidden = { ok: false, status: 403, message: "Sem permissão para esta ação." } as const;
+    expect(
+      (await createSpace(ctx.deps, manutencao, { name: "Lab 7", capacity: null })).response,
+    ).toEqual(forbidden);
+    expect(
+      (await updateSpace(ctx.deps, manutencao, { id, name: "Renomeado", capacity: 10 })).response,
+    ).toEqual(forbidden);
+    expect((await deleteSpace(ctx.deps, manutencao, { id })).response).toEqual(forbidden);
+    expect((await ctx.deps.spaces.list()).find((s) => s.id === id)?.name).toBe("Lab 6");
   });
 });
 

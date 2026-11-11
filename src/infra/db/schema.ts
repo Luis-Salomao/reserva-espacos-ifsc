@@ -6,6 +6,11 @@ import {
   text,
   uniqueIndex,
 } from "drizzle-orm/sqlite-core";
+import { users } from "./schema-users";
+
+export { mailOutbox } from "./schema-email";
+export { passwordRecoveryRequests, passwordResets } from "./schema-password-reset";
+export { users } from "./schema-users";
 
 export const spaces = sqliteTable("spaces", {
   id: text("id").primaryKey(),
@@ -14,6 +19,8 @@ export const spaces = sqliteTable("spaces", {
   createdAt: text("created_at").notNull(),
   /** Outros equipamentos e observações; `null` = não informado. */
   equipmentNotes: text("equipment_notes"),
+  /** Computadores do espaço fora de uso; `null` = não informado (independente de `computadores`). */
+  computersInMaintenance: integer("computers_in_maintenance"),
 });
 
 /** Equipamento informado de um espaço (AD-003). Sem linha = não informado; 0 = não tem. */
@@ -28,20 +35,6 @@ export const spaceEquipment = sqliteTable(
   },
   (table) => [primaryKey({ columns: [table.spaceId, table.kind] })],
 );
-
-export const users = sqliteTable("users", {
-  id: text("id").primaryKey(),
-  email: text("email").notNull().unique(),
-  name: text("name").notNull(),
-  code: text("code").unique(),
-  roles: text("roles").notNull(),
-  passwordHash: text("password_hash").notNull(),
-  active: integer("active", { mode: "boolean" }).notNull().default(true),
-  /** Conta fantasma: criada para um docente do XML sem conta; não entra até ser ativada. */
-  placeholder: integer("placeholder", { mode: "boolean" }).notNull().default(false),
-  createdAt: text("created_at").notNull(),
-  updatedAt: text("updated_at").notNull(),
-});
 
 export const sessions = sqliteTable("sessions", {
   id: text("id").primaryKey(),

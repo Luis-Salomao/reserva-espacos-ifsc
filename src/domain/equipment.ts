@@ -10,10 +10,16 @@ export const EQUIPMENT = [
 
 export type EquipmentKind = (typeof EQUIPMENT)[number]["kind"];
 
-/** Equipamentos cadastrados. Tipo ausente em `items` = não informado; `notes` null = não informado. */
+/**
+ * Equipamentos cadastrados. Tipo ausente em `items` = não informado; `notes` null = não informado.
+ * `computersInMaintenance` é independente da contagem de `computadores` em `items`: quantos deles
+ * estão fora de uso; `null` = não informado.
+ */
 export type SpaceEquipment = {
   items: Partial<Record<EquipmentKind, number>>;
   notes: string | null;
+  /** Ausente nas leituras antigas (coluna recém-criada); presente e `null` = não informado. */
+  computersInMaintenance?: number | null;
 };
 
 const KINDS: ReadonlySet<string> = new Set(EQUIPMENT.map((item) => item.kind));

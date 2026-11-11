@@ -76,6 +76,8 @@
   --color-line-booked: var(--line-booked);
   --color-line-imported: var(--line-imported);
   --color-line-conflict: var(--line-conflict);
+  --color-warn: var(--warn);
+  --color-warn-text: var(--warn-text);
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);

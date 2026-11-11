@@ -42,3 +42,32 @@ export async function runAtomically(
     }
   });
 }
+
+/** Mesmas garantias de atomicidade, devolvendo a contagem de alterações por instrução. */
+export async function runAtomicWrites(
+  db: AppDb,
+  build: (executor: AppDb) => [Statement, ...Statement[]],
+): Promise<number[]> {
+  const count = (result: unknown): number => {
+    if (typeof result !== "object" || result === null)
+      throw new Error("Resultado de escrita inválido");
+    const item = result as { changes?: number; meta?: { changes?: number } };
+    const changes = item.changes ?? item.meta?.changes;
+    if (typeof changes !== "number") throw new Error("Contagem de escrita indisponível");
+    return changes;
+  };
+  if (hasBatch(db)) {
+    const results = await db.batch(build(db));
+    if (!Array.isArray(results)) throw new Error("Resultado do batch inválido");
+    return results.map(count);
+  }
+  const counts: number[] = [];
+  (db as unknown as Transactional).transaction((tx) => {
+    for (const statement of build(tx)) {
+      if (!isSync(statement))
+        throw new Error("Driver síncrono sem run(): transação não suportada.");
+      counts.push(count(statement.run()));
+    }
+  });
+  return counts;
+}

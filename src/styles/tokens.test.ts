@@ -68,6 +68,8 @@ const REQUIRED = [
   "--line-booked",
   "--line-imported",
   "--line-conflict",
+  "--warn",
+  "--warn-text",
 ];
 const LINES = ["--line-free", "--line-booked", "--line-imported", "--line-conflict"];
 const OCCUPANCY = ["--occ-free", "--occ-booked", "--occ-imported", "--occ-conflict"];
@@ -118,6 +120,10 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
   test.each(LINES)("linha de estado %s sobre o fundo >= 3", (token) => {
     expect(contrast(t[token] as string, t["--bg"] as string)).toBeGreaterThanOrEqual(3);
     expect(contrast(t[token] as string, t["--surface"] as string)).toBeGreaterThanOrEqual(3);
+  });
+
+  test("texto de aviso (manutenção) sobre o fundo de aviso >= 4.5", () => {
+    expect(contrast(t["--warn-text"] as string, t["--warn"] as string)).toBeGreaterThanOrEqual(4.5);
   });
 
   test("estados de ocupação são todos distintos", () => {

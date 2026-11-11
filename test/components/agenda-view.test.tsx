@@ -13,6 +13,7 @@ import type { Space } from "#/domain/space";
 import type { User } from "#/domain/user";
 import { getTodayDate, getWeekStart, Route, validateAgendaSearch } from "#/routes/index";
 import type { SessionInfo } from "#/server/session";
+import { requireElement } from "../dom-values";
 
 // Fixtures
 export const MOCK_DATE_TUESDAY = "2026-11-03";
@@ -31,6 +32,7 @@ export const MOCK_USER_DOCENTE: User = {
   code: "CSILVA",
   roles: ["docente"],
   active: true,
+  placeholder: false,
 };
 
 export function createMockSession(overrides?: Partial<SessionInfo>): SessionInfo {
@@ -179,9 +181,9 @@ function setViewportWidth(width: number) {
   });
   window.matchMedia = (query: string) => {
     const minMatch = query.match(/\(min-width:\s*(\d+)px\)/);
-    const min = minMatch ? Number.parseInt(minMatch[1], 10) : 0;
+    const min = minMatch ? Number.parseInt(minMatch[1] ?? "0", 10) : 0;
     const maxMatch = query.match(/\(max-width:\s*(\d+)px\)/);
-    const max = maxMatch ? Number.parseInt(maxMatch[1], 10) : Infinity;
+    const max = maxMatch ? Number.parseInt(maxMatch[1] ?? "0", 10) : Infinity;
     const matches = width >= min && width <= max;
     return {
       matches,
@@ -564,6 +566,71 @@ describe("AgendaView — Suíte 4: Seletor de Espaços (Desktop e Mobile)", () =
   });
 });
 
+const SPACES_WITH_EQUIPMENT: Space[] = [
+  {
+    ...MOCK_SPACES[0],
+    equipment: { items: { computadores: 10, projetor: 1, som: 0 }, computersInMaintenance: 2 },
+  } as Space,
+  {
+    ...MOCK_SPACES[1],
+    equipment: { items: { computadores: 0, projetor: 0, som: 0 }, computersInMaintenance: null },
+  } as Space,
+];
+
+describe("AgendaView — Suíte 4b: Informações da sala (SpaceDetails)", () => {
+  test("no desktop mostra os dados cadastrados da sala selecionada e atualiza ao trocar de sala", async () => {
+    setViewportWidth(1280);
+    const week = createMockWeekAgenda();
+    const router = await renderAgenda({
+      spaces: SPACES_WITH_EQUIPMENT,
+      selectedSpaceId: "space-adm",
+      selectedDate: MOCK_DATE_TUESDAY,
+      weekAgenda: week,
+      session: createMockSession(),
+      onSelectDate: () => {},
+      onSelectSpace: () => {},
+    });
+    void router;
+
+    const aside = screen.getByLabelText("Filtros da agenda");
+    expect(within(aside).getByText("Informações cadastradas")).toBeTruthy();
+    expect(within(aside).getByText(/2 em manutenção/)).toBeTruthy();
+
+    cleanup();
+    await renderAgenda({
+      spaces: SPACES_WITH_EQUIPMENT,
+      selectedSpaceId: "space-lab",
+      selectedDate: MOCK_DATE_TUESDAY,
+      weekAgenda: week,
+      session: createMockSession(),
+      onSelectDate: () => {},
+      onSelectSpace: () => {},
+    });
+    const asideLab = screen.getByLabelText("Filtros da agenda");
+    expect(within(asideLab).queryByText(/em manutenção/)).toBeNull();
+    expect(within(asideLab).getByText("Informações cadastradas")).toBeTruthy();
+  });
+
+  test("no mobile os detalhes ficam numa disclosure que não empurra a linha do tempo", async () => {
+    setViewportWidth(360);
+    const week = createMockWeekAgenda();
+    await renderAgenda({
+      spaces: SPACES_WITH_EQUIPMENT,
+      selectedSpaceId: "space-adm",
+      selectedDate: MOCK_DATE_TUESDAY,
+      weekAgenda: week,
+      session: createMockSession(),
+      onSelectDate: () => {},
+      onSelectSpace: () => {},
+    });
+
+    const summary = screen.getByText("Informações da sala");
+    const details = summary.closest("details");
+    expect(details).toBeTruthy();
+    expect(details?.hasAttribute("open")).toBe(false);
+  });
+});
+
 describe("AgendaView — Suíte 5: Intervalos Livres Clicáveis", () => {
   test("exibe blocos livres com rótulo 'Livre' e horário correspondente", async () => {
     setViewportWidth(1280);
@@ -603,7 +670,7 @@ describe("AgendaView — Suíte 5: Intervalos Livres Clicáveis", () => {
     const gapBtn = screen.getAllByRole("button", {
       name: /Livre.*09:40.*10:10/i,
     })[0];
-    fireEvent.click(gapBtn);
+    fireEvent.click(requireElement(gapBtn));
 
     expect(onSelectSlot).toHaveBeenCalledWith({
       spaceId: "space-adm",
@@ -746,7 +813,7 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
     const gapBtn = screen.getAllByRole("button", {
       name: /Livre.*09:40.*10:10/i,
     })[0];
-    fireEvent.click(gapBtn);
+    fireEvent.click(requireElement(gapBtn));
 
     expect(onSelectSlot).not.toHaveBeenCalled();
     expect(screen.getByRole("alertdialog")).toBeTruthy();

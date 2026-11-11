@@ -6,7 +6,13 @@ import type { Semester } from "#/domain/semester";
 import type { Space } from "#/domain/space";
 import type { Role, User } from "#/domain/user";
 import { type AuthPort, resolveSession } from "./auth-handlers.ts";
-import { ADMIN_ROLES, authorizeRoles, type CookieSecureMode, SEMESTER_ROLES } from "./session.ts";
+import {
+  ADMIN_ROLES,
+  authorizeRoles,
+  type CookieSecureMode,
+  SEMESTER_ROLES,
+  SPACE_INFO_ROLES,
+} from "./session.ts";
 
 export type AdminDeps = {
   auth: AuthPort;
@@ -107,12 +113,15 @@ function capacity(data: Record<string, unknown>): string | number | null | undef
 type EquipmentBody = NonNullable<SpaceInput["equipment"]>;
 
 /**
- * `equipment` e `notes` são independentes: o campo ausente fica fora do resultado (a edição mantém
- * o gravado). `undefined` = pedido sem nenhum dos dois; `null` = formato inválido.
+ * `equipment`, `notes` e `computersInMaintenance` são independentes: o campo ausente fica fora do
+ * resultado (a edição mantém o gravado). `undefined` = pedido sem nenhum dos três; `null` = formato
+ * inválido.
  */
 function equipmentBody(data: Record<string, unknown>): EquipmentBody | null | undefined {
-  const { equipment, notes } = data;
-  if (equipment === undefined && notes === undefined) return undefined;
+  const { equipment, notes, computersInMaintenance } = data;
+  if (equipment === undefined && notes === undefined && computersInMaintenance === undefined) {
+    return undefined;
+  }
   const body: EquipmentBody = {};
   if (equipment !== undefined) {
     const items = record(equipment);
@@ -127,6 +136,16 @@ function equipmentBody(data: Record<string, unknown>): EquipmentBody | null | un
     if (notes !== null && typeof notes !== "string") return null;
     body.notes = notes;
   }
+  if (computersInMaintenance !== undefined) {
+    if (
+      computersInMaintenance !== null &&
+      typeof computersInMaintenance !== "string" &&
+      typeof computersInMaintenance !== "number"
+    ) {
+      return null;
+    }
+    body.computersInMaintenance = computersInMaintenance;
+  }
   return body;
 }
 
@@ -136,6 +155,32 @@ function spaceInput(data: Record<string, unknown>): SpaceInput | null {
   const equipment = equipmentBody(data);
   if (name === null || cap === undefined || equipment === null) return null;
   return equipment === undefined ? { name, capacity: cap } : { name, capacity: cap, equipment };
+}
+
+/**
+ * Entrada de `updateSpaceInfo`: só `spaceId`, `capacity` e `equipment` (que inclui `notes` e
+ * `computersInMaintenance`). Qualquer outro campo no corpo (como `name`) é recusado, para manter o
+ * papel `manutencao` restrito a esses dados; o nome do espaço não é tocado.
+ */
+const SPACE_INFO_FIELDS = new Set([
+  "spaceId",
+  "capacity",
+  "equipment",
+  "notes",
+  "computersInMaintenance",
+]);
+
+function spaceInfoInput(
+  data: Record<string, unknown>,
+): { id: string; capacity: string | number | null; equipment?: EquipmentBody } | null {
+  for (const key of Object.keys(data)) {
+    if (!SPACE_INFO_FIELDS.has(key)) return null;
+  }
+  const id = text(data, "spaceId");
+  const cap = capacity(data);
+  const equipment = equipmentBody(data);
+  if (id === null || cap === undefined || equipment === null) return null;
+  return equipment === undefined ? { id, capacity: cap } : { id, capacity: cap, equipment };
 }
 
 export function listAccounts(deps: AdminDeps, request: RequestLike) {
@@ -248,6 +293,35 @@ export function updateSpace(deps: AdminDeps, request: RequestLike, data: unknown
   });
 }
 
+/**
+ * Atualiza só capacidade, equipamentos e observações de um espaço existente; `admin` ou
+ * `manutencao`. O nome não muda; qualquer outro campo no corpo (como `name`) é recusado (400).
+ */
+export function updateSpaceInfo(deps: AdminDeps, request: RequestLike, data: unknown) {
+  return asSpaceInfoEditor<Space>(deps, request, async () => {
+    const body = record(data);
+    const parsed = body && spaceInfoInput(body);
+    if (!parsed) return reject(400, BAD_REQUEST);
+    const existing = (await deps.spaces.list()).find((space) => space.id === parsed.id);
+    if (!existing) return reject(404, "Espaço não encontrado.");
+    return fromResult(
+      await deps.spaces.update(parsed.id, {
+        name: existing.name,
+        capacity: parsed.capacity,
+        ...(parsed.equipment === undefined ? {} : { equipment: parsed.equipment }),
+      }),
+    );
+  });
+}
+
+/** Lista espaços com equipamentos para a tela de manutenção; `admin` ou `manutencao`. */
+export function listSpaceInfo(deps: AdminDeps, request: RequestLike) {
+  return asSpaceInfoEditor<Space[]>(deps, request, async () => ({
+    ok: true,
+    data: await deps.spaces.listWithEquipment(),
+  }));
+}
+
 export function deleteSpace(deps: AdminDeps, request: RequestLike, data: unknown) {
   return asAdmin<null>(deps, request, async () => {
     const body = record(data);
@@ -263,6 +337,15 @@ function asAdmin<T>(
   run: (actor: User) => Promise<AdminResponse<T>>,
 ): Promise<AdminOutcome<T>> {
   return asRoles(ADMIN_ROLES, deps, request, run);
+}
+
+/** Edição restrita de espaço (capacidade, equipamentos e observações): `admin` ou `manutencao`. */
+function asSpaceInfoEditor<T>(
+  deps: AdminDeps,
+  request: RequestLike,
+  run: (actor: User) => Promise<AdminResponse<T>>,
+): Promise<AdminOutcome<T>> {
+  return asRoles(SPACE_INFO_ROLES, deps, request, run);
 }
 
 /** Semestres: `admin` ou `horarios`. */

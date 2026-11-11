@@ -1,6 +1,8 @@
-import { Plus } from "lucide-react";
+import { Plus, Wrench } from "lucide-react";
 import type { AgendaPerson } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
+import { Tag } from "#/components/ds";
+import { isMaintenanceTitle, MAINTENANCE_PREFIX } from "#/domain/booking-kind";
 import { cn } from "#/lib/utils";
 import { formatHourAxis, type PositionedEvent, timeToMinutes } from "./layout-helpers";
 
@@ -161,6 +163,8 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
   const height = Math.max(18, (ev.endMinutes - ev.startMinutes) * scale.pxPerMin - 2);
   const width = 100 / ev.lanes;
   const state = stateOf(ev);
+  const isMaintenance = isMaintenanceTitle(ev.title);
+  const displayTitle = isMaintenance ? ev.title.slice(MAINTENANCE_PREFIX.length) : ev.title;
   const tag = `${TAGS[state]}${ev.mine ? " · sua" : ""}`;
   const showPerson = ev.person !== null && height >= 54;
   const showTag = height >= (showPerson ? 76 : 50);
@@ -169,7 +173,9 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
       type="button"
       data-occupation
       onClick={onOpen}
-      title={[ev.title, `${ev.start}–${ev.end}`, ev.person?.name, tag].filter(Boolean).join(" · ")}
+      title={[displayTitle, `${ev.start}–${ev.end}`, ev.person?.name, tag]
+        .filter(Boolean)
+        .join(" · ")}
       className={cn(
         "absolute flex flex-col gap-0.5 overflow-hidden rounded-md py-1 pr-1.5 pl-2.5 text-left leading-tight",
         "ring-1 ring-border/80 ring-inset transition-shadow hover:z-10 hover:shadow-md hover:ring-border",
@@ -188,8 +194,9 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
       />
       <span className="flex min-w-0 items-center gap-1">
         {!showPerson && ev.person !== null && <Avatar name={ev.person.name} size="xs" />}
+        {isMaintenance && <Wrench aria-hidden="true" className="size-3 shrink-0 text-warn-text" />}
         <b className="block min-w-0 truncate text-[12px] font-semibold text-foreground">
-          {ev.title}
+          {displayTitle}
         </b>
       </span>
       <span className="block text-[11px] tabular-nums text-muted-foreground">
@@ -197,6 +204,12 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
       </span>
       {showPerson && ev.person !== null && <PersonLine person={ev.person} />}
       {!showPerson && ev.person !== null && <span className="sr-only">{ev.person.name}</span>}
+      {isMaintenance && (
+        <Tag tone="neutral" className="w-fit bg-warn text-warn-text">
+          <Wrench aria-hidden="true" className="size-3" />
+          Manutenção
+        </Tag>
+      )}
       <span
         className={cn(
           "mt-auto text-[10.5px] font-medium text-muted-foreground",

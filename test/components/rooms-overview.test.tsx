@@ -9,6 +9,7 @@ import { fireEvent, render, screen, waitFor, within } from "@testing-library/rea
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { RoomsOverview } from "#/components/rooms/rooms-overview";
 import { RESERVA_TONE, SUBJECT_PALETTE, subjectTone } from "#/domain/overview";
+import type { Space } from "#/domain/space";
 
 const MON = "2026-11-09";
 const TUE = "2026-11-10";
@@ -71,16 +72,18 @@ const WEEK: RoomsWeek = {
 };
 
 type RenderOptions = {
+  week?: RoomsWeek;
   loadWeek?: (date: string) => Promise<RoomsWeek>;
   isVisitor?: boolean;
   canReserve?: boolean;
   now?: string;
   compact?: boolean;
+  spacesIndex?: Record<string, Space>;
 };
 
 async function renderOverview(options: RenderOptions = {}) {
   const onBook = mock();
-  const week = { ...WEEK, now: options.now ?? WEEK.now };
+  const week = { ...(options.week ?? WEEK), now: options.now ?? WEEK.now };
   const root = createRootRoute({
     component: () => (
       <RoomsOverview
@@ -92,6 +95,7 @@ async function renderOverview(options: RenderOptions = {}) {
         selectedDate={MON}
         canReserve={options.canReserve ?? true}
         onBook={onBook}
+        spacesIndex={options.spacesIndex ?? {}}
       />
     ),
   });
@@ -142,7 +146,7 @@ const stripesOf = (cell: HTMLElement) =>
     dark: stripe.style.getPropertyValue("--tone-dark"),
   }));
 
-const toneOf = (subject: string) => SUBJECT_PALETTE[subjectTone(subject)];
+const toneOf = (subject: string) => SUBJECT_PALETTE[subjectTone(subject)] ?? RESERVA_TONE;
 
 /** Por faixa: esmaecida (atributo e opacidade reduzida) ou em cor cheia. */
 const dimmedOf = (cell: HTMLElement) =>
@@ -182,7 +186,7 @@ describe("RoomsOverview", () => {
       days: WEEK.days.map((day, index) => ({ ...day, date: `2026-11-${16 + index}` })),
       rooms: WEEK.rooms.map((room) => ({ ...room, occupations: [] })),
     };
-    const loadWeek = mock(async () => next);
+    const loadWeek = mock(async (..._args: unknown[]) => next);
     const { onBook } = await renderOverview({ loadWeek });
     fireEvent.scroll(screen.getByTestId("rooms-overview"));
     await waitFor(() => expect(document.querySelectorAll("[data-cell]").length).toBe(60));
@@ -237,6 +241,59 @@ describe("RoomsOverview", () => {
     await renderOverview();
     expect(cellAt("a202", TUE, "M12").hasAttribute("data-partial")).toBe(true);
     expect(cellAt("a202", MON, "M12").hasAttribute("data-partial")).toBe(false);
+  });
+
+  test("ocupações parciais ocupam sua posição temporal e informam os trechos livres", async () => {
+    await renderOverview();
+    const cell = cellAt("a202", WED, "M12");
+    const stripes = cell.querySelectorAll<HTMLElement>("[data-stripe]");
+    expect(stripes[0]?.style.top).toBe("0%");
+    expect(Number.parseFloat(stripes[0]?.style.height ?? "")).toBeCloseTo((50 / 110) * 100);
+    expect(Number.parseFloat(stripes[1]?.style.top ?? "")).toBeCloseTo((60 / 110) * 100);
+    expect(cell.getAttribute("aria-label")).toContain("Livre: 08:50–09:00");
+    expect(cell.getAttribute("aria-label")).toContain("Cálculo I — 1A 08:00–08:50");
+    fireEvent.focus(cell);
+    expect(within(screen.getByRole("tooltip")).getByText("Livre: 08:50–09:00")).toBeDefined();
+    expect(
+      within(screen.getByRole("group", { name: "Legenda" })).getByText(/Ocupação parcial/),
+    ).toBeDefined();
+  });
+
+  test("ocupação que cruza blocos sobrepostos é recortada em cada bloco sem esconder tempo livre", async () => {
+    const week: RoomsWeek = {
+      ...WEEK,
+      days: [
+        {
+          date: MON,
+          blocks: [
+            { label: "Tarde 12", short: "T12", start: "14:00", end: "16:00" },
+            { label: "Tarde 34", short: "T34", start: "15:30", end: "17:30" },
+          ],
+        },
+      ],
+      rooms: [
+        {
+          space: { id: "a202", name: "A-202", capacity: 40 },
+          occupations: [
+            item({ id: "overlap", date: MON, start: "15:00", end: "16:00" }),
+            item({ id: "adjacent", date: MON, start: "16:00", end: "16:30" }),
+          ],
+        },
+      ],
+    };
+    await renderOverview({ week });
+    const first = cellAt("a202", MON, "T12");
+    expect(first.getAttribute("aria-label")).toContain("Livre: 14:00–15:00");
+    expect(first.querySelectorAll("[data-stripe]").length).toBe(1);
+    const second = cellAt("a202", MON, "T34");
+    const stripes = second.querySelectorAll<HTMLElement>("[data-stripe]");
+    expect(stripes.length).toBe(2);
+    expect(stripes[0]?.style.top).toBe("0%");
+    expect(stripes[0]?.style.height).toBe("25%");
+    expect(stripes[1]?.style.top).toBe("25%");
+    expect(stripes[1]?.style.height).toBe("25%");
+    expect(second.getAttribute("aria-label")).toContain("Livre: 16:30–17:30");
+    expect(second.getAttribute("aria-label")).not.toContain("Livre: 16:00");
   });
 
   test("clicar num quadradinho ocupado leva à agenda da sala no dia", async () => {
@@ -354,28 +411,20 @@ describe("RoomsOverview", () => {
     fireEvent.click(free);
     expect(onBook).toHaveBeenCalledTimes(0);
     expect(panelTitle()).toBe("terça 10/11 · 10:10–12:00");
-    expect(selectedCells()).toEqual([
-      ["a202", TUE, "M34"],
-      ["b104", TUE, "M34"],
-      ["lab", TUE, "M34"],
-    ]);
+    expect(selectedCells()).toEqual([["b104", TUE, "M34"]]);
     const first = within(listOf("Salas livres no horário")).getAllByRole("listitem")[0];
     expect(within(first as HTMLElement).getByRole("heading").textContent).toBe("B-104");
     expect(within(first as HTMLElement).getByText("Sugerida")).toBeDefined();
   });
 
-  test("arrastar de um bloco a outro no mesmo dia seleciona do início do primeiro ao fim do último, em todas as salas", async () => {
+  test("arrastar seleciona do início ao fim somente na sala onde começou", async () => {
     const { onBook } = await renderOverview();
     sweep(cellAt("b104", TUE, "M12"), cellAt("a202", TUE, "M34"));
     expect(onBook).toHaveBeenCalledTimes(0);
     expect(panelTitle()).toBe("terça 10/11 · 08:00–12:00");
     expect(selectedCells()).toEqual([
-      ["a202", TUE, "M12"],
-      ["a202", TUE, "M34"],
       ["b104", TUE, "M12"],
       ["b104", TUE, "M34"],
-      ["lab", TUE, "M12"],
-      ["lab", TUE, "M34"],
     ]);
   });
 
@@ -391,12 +440,8 @@ describe("RoomsOverview", () => {
     fireEvent.pointerEnter(cellAt("b104", TUE, "M34"), { pointerType: "mouse" });
     fireEvent.pointerEnter(cellAt("b104", WED, "M12"), { pointerType: "mouse" });
     const tuesday = [
-      ["a202", TUE, "M12"],
-      ["a202", TUE, "M34"],
       ["b104", TUE, "M12"],
       ["b104", TUE, "M34"],
-      ["lab", TUE, "M12"],
-      ["lab", TUE, "M34"],
     ];
     expect(selectedCells()).toEqual(tuesday);
     fireEvent.pointerUp(cellAt("b104", WED, "M12"), { pointerType: "mouse" });
@@ -418,6 +463,9 @@ describe("RoomsOverview", () => {
     fireEvent.click(cellAt("b104", TUE, "M12"));
     expect(namesIn("Salas livres no horário")).toEqual(["B-104", "LAB 1"]);
     expect(namesIn("Salas ocupadas no horário")).toEqual(["A-202"]);
+    expect(
+      within(selectionPanel()).getByText("Alternativas para o horário selecionado"),
+    ).toBeDefined();
     const free = listOf("Salas livres no horário");
     const title = within(selectionPanel()).getByRole("heading", { name: "Ocupadas", level: 3 });
     const busy = listOf("Salas ocupadas no horário");
@@ -454,9 +502,9 @@ describe("RoomsOverview", () => {
     const panel = selectionPanel();
     fireEvent.change(within(panel).getByLabelText("Início"), { target: { value: "09:00" } });
     expect(panelTitle()).toBe("terça 10/11 · 09:00–12:00");
-    expect(selectedCells().filter(([room]) => room === "a202")).toEqual([
-      ["a202", TUE, "M12"],
-      ["a202", TUE, "M34"],
+    expect(selectedCells()).toEqual([
+      ["b104", TUE, "M12"],
+      ["b104", TUE, "M34"],
     ]);
     expect(namesIn("Salas ocupadas no horário")).toEqual(["A-202"]);
     fireEvent.change(within(panel).getByLabelText("Fim"), { target: { value: "08:30" } });
@@ -581,5 +629,37 @@ describe("RoomsOverview", () => {
       "1 ocupação fora dos blocos: Oficina, sexta 13/11, 12:10–13:00",
     );
     expect(document.querySelector("[data-outside='a202']") === null).toBe(true);
+  });
+
+  test("badge de manutenção no cabeçalho da sala e botão Detalhes abre/fecha com foco de volta", async () => {
+    const spacesIndex: Record<string, Space> = {
+      a202: {
+        id: "a202",
+        name: "A-202",
+        capacity: 40,
+        equipment: {
+          items: { computadores: 10, projetor: 1, som: 1 },
+          computersInMaintenance: 3,
+          notes: null,
+        },
+      },
+    };
+    await renderOverview({ spacesIndex });
+
+    expect(screen.getByText(/3 computadores em manutenção/)).toBeTruthy();
+
+    const button = screen.getAllByRole("button", { name: "Detalhes" })[0] as HTMLElement;
+    fireEvent.click(button);
+    const dialog = await screen.findByLabelText("Detalhes de A-202");
+    expect(dialog).toBeTruthy();
+
+    fireEvent.keyDown(dialog, { key: "Escape" });
+    await waitFor(() => expect(screen.queryByLabelText("Detalhes de A-202")).toBeNull());
+    expect(document.activeElement).toBe(button);
+  });
+
+  test("a legenda de informações das salas aparece uma única vez", async () => {
+    await renderOverview();
+    expect(screen.getAllByText("Informações das salas")).toHaveLength(1);
   });
 });

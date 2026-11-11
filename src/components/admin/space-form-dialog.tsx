@@ -1,17 +1,15 @@
 import { X } from "lucide-react";
 import { Dialog } from "radix-ui";
 import { type FormEvent, useId, useState } from "react";
-import { ChoiceCard } from "#/components/ds";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { Label } from "#/components/ui/label";
-import { Textarea } from "#/components/ui/textarea";
-import { EQUIPMENT, type EquipmentKind } from "#/domain/equipment";
 import type { Space } from "#/domain/space";
 import { createSpaceFn, updateSpaceFn } from "#/server/admin";
 import type { AdminResponse } from "#/server/admin-actions";
 import { FieldError } from "./field-error";
+import { initialSpaceInfoValues, SpaceInfoFields, spaceInfoPayload } from "./space-info-fields";
 import { fieldError, generalError, runAdminAction, useFocusInvalidField } from "./use-admin-action";
 
 type Props = {
@@ -20,33 +18,6 @@ type Props = {
   onClose: () => void;
   onSaved: () => void;
 };
-
-/** Valor de presença no formulário: "1" = sim, "0" = não, "" = não informado. */
-const PRESENCE_CHOICES = [
-  { value: "1", title: "Sim" },
-  { value: "0", title: "Não" },
-  { value: "", title: "Não informado" },
-] as const;
-
-type Values = Record<EquipmentKind, string>;
-
-function initialValues(space: Space | null): Values {
-  const items = space?.equipment?.items ?? {};
-  const values = {} as Values;
-  for (const item of EQUIPMENT) values[item.kind] = items[item.kind]?.toString() ?? "";
-  return values;
-}
-
-/** Formato do fio: presença vai como 1, 0 ou `null`; contagem vai como o texto digitado. */
-function equipmentPayload(values: Values): Record<string, number | string | null> {
-  const payload: Record<string, number | string | null> = {};
-  for (const item of EQUIPMENT) {
-    const value = values[item.kind];
-    payload[item.kind] =
-      item.measure === "presence" ? (value === "" ? null : Number(value)) : value;
-  }
-  return payload;
-}
 
 /**
  * Diálogo de criar ou editar espaço. O formulário só existe com o diálogo aberto: fechar descarta o
@@ -89,9 +60,7 @@ type FormProps = { uid: string; space: Space | null; onCancel: () => void; onSav
 
 function SpaceForm({ uid, space, onCancel, onSaved }: FormProps) {
   const [name, setName] = useState(space?.name ?? "");
-  const [capacity, setCapacity] = useState(space?.capacity?.toString() ?? "");
-  const [values, setValues] = useState(() => initialValues(space));
-  const [notes, setNotes] = useState(space?.equipment?.notes ?? "");
+  const [values, setValues] = useState(() => initialSpaceInfoValues(space));
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<AdminResponse<Space> | null>(null);
   useFocusInvalidField(result, uid);
@@ -99,7 +68,7 @@ function SpaceForm({ uid, space, onCancel, onSaved }: FormProps) {
   async function onSubmit(event: FormEvent) {
     event.preventDefault();
     setPending(true);
-    const data = { name, capacity, equipment: equipmentPayload(values), notes };
+    const data = { name, ...spaceInfoPayload(values) };
     const response = await runAdminAction(() =>
       space === null ? createSpaceFn({ data }) : updateSpaceFn({ data: { id: space.id, ...data } }),
     );
@@ -149,80 +118,14 @@ function SpaceForm({ uid, space, onCancel, onSaved }: FormProps) {
           />
           <FieldError id={`${uid}-name-error`} message={fieldError(result, "name")} />
         </div>
-        <div className="grid gap-2">
-          <Label htmlFor={`${uid}-capacity`}>Capacidade (opcional)</Label>
-          <Input
-            id={`${uid}-capacity`}
-            inputMode="numeric"
-            value={capacity}
-            onChange={(event) => setCapacity(event.target.value)}
-            aria-invalid={invalid("capacity")}
-            aria-describedby={describedBy("capacity")}
-          />
-          <FieldError id={`${uid}-capacity-error`} message={fieldError(result, "capacity")} />
-        </div>
-        {EQUIPMENT.map((item) =>
-          item.measure === "presence" ? (
-            <fieldset
-              key={item.kind}
-              className="grid min-w-0 gap-2"
-              aria-describedby={describedBy(item.kind)}
-            >
-              <legend className="mb-2 text-[13px] leading-none font-semibold">{item.label}</legend>
-              <div className="flex flex-wrap gap-2">
-                {PRESENCE_CHOICES.map((choice, index) => (
-                  <ChoiceCard
-                    key={choice.value}
-                    id={index === 0 ? `${uid}-${item.kind}` : undefined}
-                    name={`${uid}-${item.kind}-choice`}
-                    title={choice.title}
-                    value={choice.value}
-                    checked={values[item.kind] === choice.value}
-                    onChange={() => setValues({ ...values, [item.kind]: choice.value })}
-                    className="py-2.5"
-                  />
-                ))}
-              </div>
-              <FieldError
-                id={`${uid}-${item.kind}-error`}
-                message={fieldError(result, item.kind)}
-              />
-            </fieldset>
-          ) : (
-            <div key={item.kind} className="grid gap-2">
-              <Label htmlFor={`${uid}-${item.kind}`}>{item.label} (quantidade)</Label>
-              <Input
-                id={`${uid}-${item.kind}`}
-                inputMode="numeric"
-                value={values[item.kind]}
-                onChange={(event) => setValues({ ...values, [item.kind]: event.target.value })}
-                aria-invalid={invalid(item.kind)}
-                aria-describedby={`${uid}-${item.kind}-hint${
-                  describedBy(item.kind) === undefined ? "" : ` ${uid}-${item.kind}-error`
-                }`}
-              />
-              <p id={`${uid}-${item.kind}-hint`} className="text-[13px] text-muted-foreground">
-                Vazio = não informado; 0 = não tem.
-              </p>
-              <FieldError
-                id={`${uid}-${item.kind}-error`}
-                message={fieldError(result, item.kind)}
-              />
-            </div>
-          ),
-        )}
-        <div className="grid gap-2">
-          <Label htmlFor={`${uid}-notes`}>Observações (opcional)</Label>
-          <Textarea
-            id={`${uid}-notes`}
-            maxLength={500}
-            value={notes}
-            onChange={(event) => setNotes(event.target.value)}
-            aria-invalid={invalid("notes")}
-            aria-describedby={describedBy("notes")}
-          />
-          <FieldError id={`${uid}-notes-error`} message={fieldError(result, "notes")} />
-        </div>
+        <SpaceInfoFields
+          uid={uid}
+          values={values}
+          onChange={setValues}
+          result={result}
+          describedBy={describedBy}
+          invalid={invalid}
+        />
       </div>
       <div className="flex flex-wrap justify-end gap-2 border-t px-4 py-3">
         <Button type="button" variant="outline" onClick={onCancel}>

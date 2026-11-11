@@ -1,9 +1,13 @@
-import { ChevronDown, ChevronRight } from "lucide-react";
+import { ChevronDown, ChevronRight, Plus } from "lucide-react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
+import { RoomDetailsButton } from "#/components/rooms/room-details-popover";
+import { SpaceDetails, SpaceDetailsLegend } from "#/components/spaces/space-details";
+import { Button } from "#/components/ui/button";
 import { weekdayOf } from "#/domain/calendar";
 import { cellsFor, spanOf } from "#/domain/overview";
 import { blockOf, floorOf } from "#/domain/room-filter";
+import type { Space } from "#/domain/space";
 import { cn } from "#/lib/utils";
 import { dayLabel, type LegendEntry, legendEntryOf, OverviewCell } from "./overview-cell";
 import { OverviewLegend } from "./overview-legend";
@@ -26,6 +30,9 @@ type Props = {
   /** Pode reservar ou é visitante (que recebe o convite para entrar): "Reservar" no painel. */
   canReserve: boolean;
   onBook: (slot: { spaceId: string; date: string; start: string; end: string }) => void;
+  onNewBooking?: () => void;
+  /** Espaços por id (capacidade/equipamentos) para o badge compacto e o botão "Detalhes". */
+  spacesIndex?: Record<string, Space>;
 };
 
 const periodOf = (start: string) =>
@@ -75,6 +82,8 @@ export function RoomsOverview({
   selectedDate,
   canReserve,
   onBook,
+  onNewBooking,
+  spacesIndex = {},
 }: Props) {
   const { week, loading, error, loadMore } = useContinuousWeeks(initialWeek, loadWeek);
   const allowedRooms = new Set(initialRooms.map((room) => room.space.id));
@@ -155,10 +164,16 @@ export function RoomsOverview({
     if (compact && pickDate !== undefined) panelRef.current?.scrollIntoView?.({ block: "nearest" });
   }, [compact, pickDate, pickStart]);
 
-  function isSelected(date: string, index: number, block: { start: string; end: string }) {
+  function isSelected(
+    spaceId: string,
+    date: string,
+    index: number,
+    block: { start: string; end: string },
+  ) {
     if (sweep !== null) {
       return (
         sweep.date === date &&
+        sweep.spaceId === spaceId &&
         index >= Math.min(sweep.from, sweep.to) &&
         index <= Math.max(sweep.from, sweep.to)
       );
@@ -166,6 +181,7 @@ export function RoomsOverview({
     return (
       active !== null &&
       active.date === date &&
+      active.suggested === spaceId &&
       block.start < active.end &&
       block.end > active.start
     );
@@ -212,9 +228,16 @@ export function RoomsOverview({
   return (
     <div className="grid gap-3">
       {selectedPeriod === undefined && <OverviewPeriods value={period} onChange={setLocalPeriod} />}
-      <p className="text-xs text-muted-foreground">
-        Clique ou arraste nos horários livres para reservar.
-      </p>
+      <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+        <p className="min-w-0 text-sm font-medium text-foreground">
+          Para reservar, clique ou arraste nos quadradinhos livres da sala desejada.
+        </p>
+        {canReserve && onNewBooking && (
+          <Button type="button" size="lg" onClick={onNewBooking}>
+            <Plus aria-hidden="true" /> Nova reserva
+          </Button>
+        )}
+      </div>
       {/* `absolute` na tela larga: legenda e painel rolam dentro da altura da grade, sem esticar a página. */}
       <div className={cn(active === null ? "order-last" : "")}>
         {active === null ? (
@@ -229,7 +252,16 @@ export function RoomsOverview({
               className="mt-3 max-h-40 overflow-y-auto"
             />
           </details>
-        ) : (
+        ) : null}
+        {active === null && (
+          <details className="mt-3 rounded-lg border px-3 py-2">
+            <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
+              Informações das salas
+            </summary>
+            <SpaceDetailsLegend />
+          </details>
+        )}
+        {active !== null && (
           <OverviewSelection
             ref={panelRef}
             selection={active}
@@ -361,7 +393,7 @@ export function RoomsOverview({
                           </span>
                         </div>
                       )}
-                      <div className="sticky left-0 z-10 flex min-w-0 self-stretch items-center gap-1 border-r bg-surface py-1 pr-2 shadow-[3px_0_0_var(--surface)]">
+                      <div className="sticky left-0 z-10 flex min-w-0 flex-wrap self-stretch items-center gap-1 border-r bg-surface py-1 pr-2 shadow-[3px_0_0_var(--surface)]">
                         <span
                           className="truncate text-[13px] font-medium text-foreground"
                           title={room.space.name}
@@ -377,6 +409,13 @@ export function RoomsOverview({
                             className="size-1.5 shrink-0 rounded-full bg-amber-500"
                           />
                         )}
+                        {spacesIndex[room.space.id] && (
+                          <SpaceDetails space={spacesIndex[room.space.id] as Space} compact />
+                        )}
+                        <RoomDetailsButton
+                          space={spacesIndex[room.space.id]}
+                          roomName={room.space.name}
+                        />
                       </div>
                       {shownDays.map((day, index) => (
                         <div
@@ -397,7 +436,7 @@ export function RoomsOverview({
                                 periodOf(cell.block.start) !==
                                   periodOf(day.blocks[blockIndex - 1]?.start ?? "")
                               }
-                              selected={isSelected(day.date, blockIndex, cell.block)}
+                              selected={isSelected(room.space.id, day.date, blockIndex, cell.block)}
                               onSelect={() =>
                                 setPick({
                                   date: day.date,

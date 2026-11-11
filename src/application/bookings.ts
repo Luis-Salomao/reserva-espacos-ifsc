@@ -23,7 +23,7 @@ import { isValidDate, type Semester } from "#/domain/semester";
 import type { User } from "#/domain/user";
 
 /** Papéis que podem reservar. */
-const BOOKING_ROLES = ["admin", "horarios", "docente"] as const;
+const BOOKING_ROLES = ["admin", "horarios", "docente", "manutencao"] as const;
 
 const MAX_PURPOSE = 120;
 /** Dias da visão geral: segunda a sexta. */
@@ -125,7 +125,12 @@ type BookingFailure = Failure & { conflict?: ConflictInfo };
 export type BookingResult = { ok: true; value: BookingView } | BookingFailure;
 
 /** `inSeries`: faz parte de uma série de reservas recorrentes. */
-export type MyBooking = AgendaItem & { spaceId: string; spaceName: string; inSeries: boolean };
+export type MyBooking = AgendaItem & {
+  spaceId: string;
+  spaceName: string;
+  inSeries: boolean;
+  canEdit?: boolean;
+};
 
 /** Data da série na prévia: livre, ou com o motivo do conflito (título e horário, sem pessoas). */
 export type RecurringDate =
@@ -335,6 +340,58 @@ export function createBookingsService(deps: BookingsDeps) {
   }
 
   return {
+    /** Altera uma ocorrência manual própria sem recriar sua identidade ou alterar a série. */
+    async updateBooking(
+      user: User,
+      input: {
+        occupationId: string;
+        spaceId: string;
+        date: string;
+        start: string;
+        end: string;
+        purpose: string;
+      },
+    ): Promise<BookingResult> {
+      if (!canBook(user)) return fail("forbidden", "Sem permissão para editar esta reserva.");
+      const item = await occupations.findById(input.occupationId);
+      if (item === null) return fail("not_found", "Reserva não encontrada.");
+      if (item.source !== "manual" || item.createdBy !== user.id) {
+        return fail("forbidden", "Sem permissão para editar esta reserva.");
+      }
+      if (item.status !== "ativa") return fail("conflict", ALREADY_CANCELLED);
+      const now = nowLocal();
+      if (item.startsAt <= now)
+        return fail("validation", "Esta reserva já começou e não pode ser editada.");
+      const purpose = parseText(input.purpose, MAX_PURPOSE, "A finalidade", "purpose");
+      if (!purpose.ok) return purpose;
+      const issue = validateBookingWhen(input, hours, now);
+      if (issue !== null) return validationFrom(issue);
+      if ((await spaceName(input.spaceId)) === null)
+        return fail("not_found", "Espaço não encontrado.", "spaceId");
+      const updated = await occupations.updateManualIfFree({
+        id: item.id,
+        createdBy: user.id,
+        nowLocal: nowLocal(),
+        spaceId: input.spaceId,
+        startsAt: `${input.date}T${input.start}`,
+        endsAt: `${input.date}T${input.end}`,
+        title: purpose.value,
+      });
+      if (!updated)
+        return fail(
+          "conflict",
+          "A reserva mudou ou o horário foi ocupado. Atualize a agenda e tente novamente.",
+        );
+      return ok({
+        id: item.id,
+        spaceId: input.spaceId,
+        date: input.date,
+        start: input.start,
+        end: input.end,
+        title: purpose.value,
+      });
+    },
+
     /** Agenda de um dia de um espaço. `viewer` é `null` para visitante. */
     async dayAgenda(
       viewer: User | null,
@@ -534,9 +591,8 @@ export function createBookingsService(deps: BookingsDeps) {
     },
 
     /**
-     * Grava só as datas livres, ligadas por um id de série, numa unidade atômica. `confirmed` são
-     * as datas livres que a pessoa viu na prévia: se o servidor calcula outras (ou a gravação perde
-     * uma corrida), nada é gravado e volta a prévia atualizada.
+     * Grava o subconjunto escolhido de datas da regra numa unidade atômica. Conflito em qualquer
+     * data escolhida (inclusive uma corrida na gravação) impede toda a seleção e atualiza a prévia.
      */
     async createRecurring(
       user: User,
@@ -545,12 +601,26 @@ export function createBookingsService(deps: BookingsDeps) {
       const plan = await planRecurring(user, input);
       if (!plan.ok) return plan;
       const { title, preview } = plan.value;
-      const free = preview.dates.filter((item) => item.free).map((item) => item.date);
-      if (free.length === 0) return ok({ created: false, message: NONE_FREE, preview });
       const confirmed = new Set(input.confirmed);
-      if (free.length !== confirmed.size || free.some((date) => !confirmed.has(date))) {
+      const offered = new Set(preview.dates.map((item) => item.date));
+      if (
+        confirmed.size === 0 ||
+        confirmed.size !== input.confirmed.length ||
+        input.confirmed.some((date) => !offered.has(date))
+      ) {
+        return fail(
+          "validation",
+          "Escolha ao menos uma data da série, sem repetir datas.",
+          "confirmed",
+        );
+      }
+      const selected = preview.dates.filter((item) => confirmed.has(item.date));
+      if (!preview.dates.some((item) => item.free))
+        return ok({ created: false, message: NONE_FREE, preview });
+      if (selected.some((item) => !item.free)) {
         return ok({ created: false, message: PREVIEW_CHANGED, preview });
       }
+      const dates = selected.map((item) => item.date);
       const seriesId = crypto.randomUUID();
       const inserted = await occupations.insertSeriesIfFree({
         seriesId,
@@ -558,7 +628,7 @@ export function createBookingsService(deps: BookingsDeps) {
         title,
         createdBy: user.id,
         createdAt: clock.now().toISOString(),
-        slots: free.map((date) => ({
+        slots: dates.map((date) => ({
           id: crypto.randomUUID(),
           startsAt: `${date}T${input.start}`,
           endsAt: `${date}T${input.end}`,
@@ -575,7 +645,7 @@ export function createBookingsService(deps: BookingsDeps) {
       return ok({
         created: true,
         seriesId,
-        dates: free,
+        dates,
         skipped: preview.dates.filter((item) => !item.free),
       });
     },
@@ -656,6 +726,11 @@ export function createBookingsService(deps: BookingsDeps) {
         spaceId: row.spaceId,
         spaceName: row.spaceName,
         inSeries: row.seriesId !== null,
+        canEdit:
+          canBook(user) &&
+          row.source === "manual" &&
+          row.createdBy === user.id &&
+          row.startsAt > now,
       }));
       return ok({ items, hasMore: rows.length > limit });
     },

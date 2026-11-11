@@ -11,10 +11,17 @@ import {
   myBookingsAction,
   previewRecurringAction,
   previewSeriesAction,
+  updateBookingAction,
 } from "./booking-actions.ts";
 import { getBookingDeps } from "./booking-deps.ts";
 import { finish } from "./finish.ts";
 import { passthrough } from "./input.ts";
+
+export const updateBookingFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await updateBookingAction(getBookingDeps(), getRequest(), data)),
+  );
 
 export const getDayAgendaFn = createServerFn({ method: "POST" })
   .validator(passthrough)

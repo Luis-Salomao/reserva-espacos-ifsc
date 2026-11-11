@@ -1,3 +1,4 @@
+import { Wrench } from "lucide-react";
 import { cn } from "#/lib/utils";
 
 const STATES = [
@@ -33,6 +34,10 @@ export function AgendaLegend({ className }: { className?: string }) {
         />
         <span>Livre</span>
         <span>· arraste num horário vazio para criar um rascunho, ou use o botão direito</span>
+      </span>
+      <span className="flex items-center gap-1.5">
+        <Wrench aria-hidden="true" className="size-3.5 text-warn-text" />
+        <span>Manutenção (reserva da equipe de manutenção)</span>
       </span>
     </section>
   );

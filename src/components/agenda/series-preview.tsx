@@ -1,5 +1,5 @@
 import { AlertCircle } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
 import type { RecurringPreview } from "#/application/bookings";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
@@ -19,7 +19,7 @@ type SeriesPreviewProps = {
   errorMessage: string | null;
   isSubmitting: boolean;
   onBack: () => void;
-  onConfirm: () => void;
+  onConfirm: (dates: string[]) => void;
 };
 
 /** Prévia da série antes de confirmar: datas livres, datas com conflito (com o motivo) e ações. */
@@ -33,8 +33,11 @@ export function SeriesPreview({
 }: SeriesPreviewProps) {
   const uid = useId();
   const free = preview.dates.filter((item) => item.free);
+  const [chosen, setChosen] = useState(() => new Set(free.map((item) => item.date)));
+  const selected = free.filter((item) => chosen.has(item.date)).map((item) => item.date);
   const conflicts = preview.dates.flatMap((item) => (item.free ? [] : [item]));
-  const confirmLabel = free.length === 1 ? "Reservar 1 data" : `Reservar ${free.length} datas`;
+  const confirmLabel =
+    selected.length === 1 ? "Reservar 1 data" : `Reservar ${selected.length} datas`;
 
   return (
     <div className="grid gap-4" data-testid="series-preview">
@@ -53,6 +56,9 @@ export function SeriesPreview({
         <h3 id={`${uid}-free`} className="text-[13px] font-semibold text-foreground">
           Livres ({free.length})
         </h3>
+        <p className="text-xs text-muted-foreground">
+          Selecionadas ({selected.length} de {free.length})
+        </p>
         {free.length > 0 ? (
           <ul className="flex max-h-40 flex-wrap gap-1.5 overflow-y-auto">
             {free.map((item) => (
@@ -60,7 +66,23 @@ export function SeriesPreview({
                 key={item.date}
                 className="rounded-md border border-line-free bg-occ-free px-2 py-1 text-xs font-medium tabular-nums text-foreground"
               >
-                {formatDayShort(item.date)}
+                <label className="flex cursor-pointer items-center gap-1.5">
+                  <input
+                    type="checkbox"
+                    checked={chosen.has(item.date)}
+                    disabled={isSubmitting}
+                    onChange={(event) => {
+                      const checked = event.target.checked;
+                      setChosen((previous) => {
+                        const next = new Set(previous);
+                        if (checked) next.add(item.date);
+                        else next.delete(item.date);
+                        return next;
+                      });
+                    }}
+                  />
+                  {formatDayShort(item.date)}
+                </label>
               </li>
             ))}
           </ul>
@@ -89,7 +111,11 @@ export function SeriesPreview({
         <Button variant="outline" type="button" onClick={onBack} disabled={isSubmitting}>
           Voltar
         </Button>
-        <Button type="button" onClick={onConfirm} disabled={isSubmitting || free.length === 0}>
+        <Button
+          type="button"
+          onClick={() => onConfirm(selected)}
+          disabled={isSubmitting || selected.length === 0}
+        >
           {isSubmitting ? "Reservando..." : confirmLabel}
         </Button>
       </div>

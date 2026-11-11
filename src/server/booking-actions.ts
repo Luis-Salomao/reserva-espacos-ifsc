@@ -140,6 +140,31 @@ export function createBookingAction(deps: BookingDeps, request: RequestLike, dat
 }
 
 const FREQS: readonly RecurrenceFreq[] = ["workdays", "weekly", "monthly-day", "monthly-weekday"];
+/** Edita uma ocorrência manual própria; o serviço também verifica autoria e estado. */
+export function updateBookingAction(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asRoles<BookingView>(BOOKING_ROLES, deps, request, async (user) => {
+    const body = record(data);
+    const occupationId = body && text(body, "occupationId");
+    const spaceId = body && text(body, "spaceId");
+    const date = body && text(body, "date");
+    const start = body && text(body, "start");
+    const end = body && text(body, "end");
+    const purpose = body && text(body, "purpose");
+    if (
+      occupationId == null ||
+      spaceId == null ||
+      date == null ||
+      start == null ||
+      end == null ||
+      purpose == null
+    )
+      return reject(400, BAD_REQUEST);
+    return fromResult(
+      await deps.bookings.updateBooking(user, { occupationId, spaceId, date, start, end, purpose }),
+    );
+  });
+}
+
 /** Teto só de formato; os limites de verdade ficam na regra do domínio (mensagem no campo). */
 const MAX_RULE_INT = 1000;
 

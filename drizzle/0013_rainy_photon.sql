@@ -1,0 +1,1 @@
+ALTER TABLE `spaces` ADD `computers_in_maintenance` integer;

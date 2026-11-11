@@ -150,7 +150,7 @@ describe("RoomsFreeList", () => {
   });
 
   test("quem não pode reservar não vê 'Reservar'", async () => {
-    await renderList({ canBook: false });
+    await renderList({ canBook: false as const });
     expect(freeItems()).toHaveLength(2);
     expect(screen.queryByRole("button", { name: /Reservar/ }) === null).toBe(true);
   });

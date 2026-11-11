@@ -9,6 +9,7 @@ import {
 } from "#/components/agenda/booking-sheet";
 import { GateDialog } from "#/components/agenda/gate-dialog";
 import { Notice } from "#/components/page";
+import { SpaceDetailsLegend } from "#/components/spaces/space-details";
 import { Button } from "#/components/ui/button";
 import { DatePicker } from "#/components/ui/date-picker";
 import { type PageView, ViewSwitcher } from "#/components/view-switcher";
@@ -23,6 +24,7 @@ import {
   type RoomFilter,
   windowIssue,
 } from "#/domain/room-filter";
+import type { Space } from "#/domain/space";
 import { getRoomsDayFn, getRoomsWeekFn } from "#/server/booking-fns";
 import { type OverviewPeriod, OverviewPeriods } from "./overview-periods";
 import { type RoomDraft, RoomsColumns } from "./rooms-columns";
@@ -55,6 +57,10 @@ type Props = {
   canBook: boolean;
   isVisitor: boolean;
   isAdmin: boolean;
+  /** Papel `manutencao`: habilita a escolha de tipo (aula/evento ou manutenção) na reserva. */
+  isMaintenance?: boolean;
+  /** Espaços com capacidade/equipamentos por id, de uma única chamada a `listSpaces()` no loader. */
+  spacesIndex?: Record<string, Space>;
   timeZone: string;
   /** `replace` para filtros e visão; trocar o dia entra no histórico. */
   onSearchChange: (update: (prev: SalasSearch) => SalasSearch, replace: boolean) => void;
@@ -146,6 +152,8 @@ export function RoomsView({
   canBook,
   isVisitor,
   isAdmin,
+  isMaintenance = false,
+  spacesIndex = {},
   timeZone,
   onSearchChange,
   onRetry,
@@ -335,20 +343,26 @@ export function RoomsView({
                 selectedDate={selectedDate}
                 canReserve={canBook || isVisitor}
                 onBook={book}
+                onNewBooking={() => book({ date: selectedDate })}
+                spacesIndex={spacesIndex}
               />
             )
           ) : result.rooms.length === 0 ? (
             noRooms
           ) : (
-            <RoomsColumns
-              rooms={result.rooms}
-              date={roomsDay?.date ?? selectedDate}
-              now={now}
-              draft={draft}
-              canDraft={canBook}
-              onDraftChange={setDraft}
-              onSelectSlot={book}
-            />
+            <>
+              <SpaceDetailsLegend />
+              <RoomsColumns
+                rooms={result.rooms}
+                date={roomsDay?.date ?? selectedDate}
+                now={now}
+                draft={draft}
+                canDraft={canBook}
+                onDraftChange={setDraft}
+                onSelectSlot={book}
+                spacesIndex={spacesIndex}
+              />
+            </>
           )}
         </>
       )}
@@ -363,6 +377,7 @@ export function RoomsView({
         onSeriesSuccess={() => setDraft(null)}
         {...(createFn !== undefined ? { createFn } : {})}
         availability={dayFn ?? getRoomsDayFn}
+        canMaintenance={isMaintenance}
       />
       <GateDialog open={gateOpen} onOpenChange={setGateOpen} />
     </div>

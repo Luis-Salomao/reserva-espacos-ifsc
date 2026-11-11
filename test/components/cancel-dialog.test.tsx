@@ -27,9 +27,9 @@ const MOCK_IMPORTED_TARGET: CancelTarget = {
 };
 
 function renderCancelDialog(props: Partial<CancelDialogProps> = {}) {
-  const onOpenChange = props.onOpenChange ?? mock(() => {});
-  const onSuccess = props.onSuccess ?? mock(() => {});
-  const onCancelled = props.onCancelled ?? mock(() => {});
+  const onOpenChange = props.onOpenChange ?? mock((..._args: unknown[]) => {});
+  const onSuccess = props.onSuccess ?? mock((..._args: unknown[]) => {});
+  const onCancelled = props.onCancelled ?? mock((..._args: unknown[]) => {});
 
   const result = render(
     <CancelDialog
@@ -38,8 +38,8 @@ function renderCancelDialog(props: Partial<CancelDialogProps> = {}) {
       target={props.target ?? MOCK_MANUAL_TARGET}
       onSuccess={onSuccess}
       onCancelled={onCancelled}
-      cancelFn={props.cancelFn}
-      previewFn={props.previewFn}
+      {...(props.cancelFn === undefined ? {} : { cancelFn: props.cancelFn })}
+      {...(props.previewFn === undefined ? {} : { previewFn: props.previewFn })}
     />,
   );
 
@@ -69,7 +69,10 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("3. Reserva manual: confirmação aciona cancelFn avulso (scope='data') sem expectedCount", async () => {
-    const mockCancel = mock(async () => ({ ok: true as const, data: { cancelled: 1 } }));
+    const mockCancel = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: { cancelled: 1 },
+    }));
     const { onOpenChange, onSuccess } = renderCancelDialog({
       target: MOCK_MANUAL_TARGET,
       cancelFn: mockCancel,
@@ -94,7 +97,10 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("4. Reserva manual: botão 'Voltar' fecha o diálogo sem cancelar", () => {
-    const mockCancel = mock(async () => ({ ok: true as const, data: { cancelled: 1 } }));
+    const mockCancel = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: { cancelled: 1 },
+    }));
     const { onOpenChange } = renderCancelDialog({
       target: MOCK_MANUAL_TARGET,
       cancelFn: mockCancel,
@@ -130,7 +136,10 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("7. Aula importada: envio de ocorrência única", async () => {
-    const mockCancel = mock(async () => ({ ok: true as const, data: { cancelled: 1 } }));
+    const mockCancel = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: { cancelled: 1 },
+    }));
     renderCancelDialog({
       target: MOCK_IMPORTED_TARGET,
       cancelFn: mockCancel,
@@ -152,7 +161,7 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("8. Selecionar série dispara busca da prévia via previewFn", async () => {
-    const mockPreview = mock(async () => ({
+    const mockPreview = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: { dates: ["2026-11-10", "2026-11-17"] },
     }));
@@ -197,12 +206,12 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
     expect(submitBtn.hasAttribute("disabled")).toBe(true);
 
     // Resolve a prévia
-    resolvePreview({ ok: true, data: { dates: ["2026-11-10"] } });
+    resolvePreview({ ok: true as const, data: { dates: ["2026-11-10"] } });
     await screen.findByText("1 data será cancelada:");
   });
 
   test("10. Prévia da série renderiza lista com as datas afetadas", async () => {
-    const mockPreview = mock(async () => ({
+    const mockPreview = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: { dates: ["2026-11-10", "2026-11-17", "2026-11-24"] },
     }));
@@ -222,7 +231,7 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("11. Rótulo do botão de confirmação exibe contagem das datas da série", async () => {
-    const mockPreview = mock(async () => ({
+    const mockPreview = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: { dates: ["2026-11-10", "2026-11-17"] },
     }));
@@ -239,7 +248,7 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("12. Falha na prévia da série exibe mensagem de erro e desabilita botão", async () => {
-    const mockPreview = mock(async () => ({
+    const mockPreview = mock(async (..._args: unknown[]) => ({
       ok: false as const,
       status: 400 as const,
       message: "Falha ao carregar datas da série.",
@@ -259,11 +268,14 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("13. Proteção de concorrência: envia expectedCount correspondente ao previewDates.length", async () => {
-    const mockPreview = mock(async () => ({
+    const mockPreview = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: { dates: ["2026-11-10", "2026-11-17"] },
     }));
-    const mockCancel = mock(async () => ({ ok: true as const, data: { cancelled: 2 } }));
+    const mockCancel = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: { cancelled: 2 },
+    }));
 
     renderCancelDialog({
       target: MOCK_IMPORTED_TARGET,
@@ -291,11 +303,11 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("14. Concorrência 409 SERIES_CHANGED: exibe alerta de conflito inline", async () => {
-    const mockPreview = mock(async () => ({
+    const mockPreview = mock(async (..._args: unknown[]) => ({
       ok: true as const,
       data: { dates: ["2026-11-10", "2026-11-17"] },
     }));
-    const mockCancel = mock(async () => ({
+    const mockCancel = mock(async (..._args: unknown[]) => ({
       ok: false as const,
       status: 409 as const,
       message: "A série mudou desde a confirmação. Revise as datas e confirme de novo.",
@@ -319,7 +331,7 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
 
   test("15. Concorrência 409 SERIES_CHANGED: re-dispara previewFn automaticamente", async () => {
     let callCount = 0;
-    const mockPreview = mock(async () => {
+    const mockPreview = mock(async (..._args: unknown[]) => {
       callCount++;
       return {
         ok: true as const,
@@ -327,7 +339,7 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
       };
     });
 
-    const mockCancel = mock(async () => ({
+    const mockCancel = mock(async (..._args: unknown[]) => ({
       ok: false as const,
       status: 409 as const,
       message: "A série mudou desde a confirmação. Revise as datas e confirme de novo.",
@@ -354,7 +366,7 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
   });
 
   test("16. Já cancelada 409 ALREADY_CANCELLED: exibe alerta de erro", async () => {
-    const mockCancel = mock(async () => ({
+    const mockCancel = mock(async (..._args: unknown[]) => ({
       ok: false as const,
       status: 409 as const,
       message: "Esta ocupação já foi cancelada.",
@@ -393,11 +405,11 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
     expect(screen.getByRole("button", { name: "Cancelando..." })).toBeDefined();
     expect(screen.getByRole("button", { name: "Voltar" }).hasAttribute("disabled")).toBe(true);
 
-    resolveCancel({ ok: true, data: { cancelled: 1 } });
+    resolveCancel({ ok: true as const, data: { cancelled: 1 } });
   });
 
   test("18. Trata 403 Forbidden exibindo mensagem de permissão no alerta", async () => {
-    const mockCancel = mock(async () => ({
+    const mockCancel = mock(async (..._args: unknown[]) => ({
       ok: false as const,
       status: 403 as const,
       message: "Sem permissão para cancelar esta ocupação.",

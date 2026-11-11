@@ -3,6 +3,7 @@ import { CalendarDays } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { MyBooking } from "#/application/bookings";
 import { CancelDialog } from "#/components/agenda/cancel-dialog";
+import { EditBookingDialog } from "#/components/agenda/edit-booking-dialog";
 import { AppShell } from "#/components/app-shell";
 import { Notice, PageHeader } from "#/components/page";
 import { Button } from "#/components/ui/button";
@@ -10,6 +11,7 @@ import { localNow } from "#/domain/availability";
 import { weekdayOf } from "#/domain/calendar";
 import { cn } from "#/lib/utils";
 import { myBookingsFn } from "#/server/booking-fns";
+import { listSpaces } from "#/server/spaces";
 
 export type MinhasReservasSearch = {
   newId?: string;
@@ -66,6 +68,7 @@ export const Route = createFileRoute("/minhas-reservas")({
       hasMore: result.data.hasMore,
       today,
       timeZone,
+      spaces: await listSpaces(),
     };
   },
   component: MinhasReservasPage,
@@ -76,9 +79,15 @@ export type MinhasReservasListProps = {
   items: MyBooking[];
   newId?: string | undefined;
   onSelectCancel?: (item: MyBooking) => void;
+  onSelectEdit?: (item: MyBooking) => void;
 };
 
-export function MinhasReservasList({ items, newId, onSelectCancel }: MinhasReservasListProps) {
+export function MinhasReservasList({
+  items,
+  newId,
+  onSelectCancel,
+  onSelectEdit,
+}: MinhasReservasListProps) {
   if (items.length === 0) {
     return (
       <div
@@ -175,7 +184,17 @@ export function MinhasReservasList({ items, newId, onSelectCancel }: MinhasReser
             </div>
 
             {/* Ações */}
-            <div className="col-span-full sm:col-span-1 flex justify-end sm:self-center">
+            <div className="col-span-full sm:col-span-1 flex justify-end gap-2 sm:self-center">
+              {item.canEdit && item.source === "manual" && (
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onSelectEdit?.(item)}
+                >
+                  Editar
+                </Button>
+              )}
               {item.canCancel && (
                 <Button
                   type="button"
@@ -195,10 +214,11 @@ export function MinhasReservasList({ items, newId, onSelectCancel }: MinhasReser
 }
 
 export function MinhasReservasPage() {
-  const { items } = Route.useLoaderData();
+  const { items, spaces } = Route.useLoaderData();
   const search = Route.useSearch();
   const router = useRouter();
   const [cancelTarget, setCancelTarget] = useState<MyBooking | null>(null);
+  const [editTarget, setEditTarget] = useState<MyBooking | null>(null);
 
   useEffect(() => {
     if (search.newId) {
@@ -220,7 +240,23 @@ export function MinhasReservasPage() {
         items={items}
         newId={search.newId}
         onSelectCancel={(item) => setCancelTarget(item)}
+        onSelectEdit={(item) => setEditTarget(item)}
       />
+      {editTarget && (
+        <EditBookingDialog
+          key={editTarget.id}
+          open
+          target={editTarget}
+          spaces={spaces}
+          onOpenChange={(open) => {
+            if (!open) setEditTarget(null);
+          }}
+          onSaved={() => {
+            setEditTarget(null);
+            void router.invalidate();
+          }}
+        />
+      )}
 
       {/* Diálogo de Cancelamento */}
       <CancelDialog

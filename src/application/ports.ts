@@ -17,9 +17,14 @@ import type { Role, User } from "#/domain/user";
 
 /**
  * Equipamentos e observações a gravar, independentes: na edição, sem `items` os equipamentos
- * gravados ficam como estão e sem `notes` as observações também; na criação, ausente = não informado.
+ * gravados ficam como estão, sem `notes` as observações também e sem `computersInMaintenance` o
+ * número de computadores em manutenção também; na criação, ausente = não informado.
  */
-export type EquipmentWrite = { items?: SpaceEquipment["items"]; notes?: string | null };
+export type EquipmentWrite = {
+  items?: SpaceEquipment["items"];
+  notes?: string | null;
+  computersInMaintenance?: number | null;
+};
 
 /** Dados gravados de um espaço. Sem `equipment`, equipamentos e observações ficam como estão. */
 export type SpaceWrite = { name: string; capacity: number | null; equipment?: EquipmentWrite };
@@ -361,6 +366,18 @@ type NewSeries = {
 };
 
 export interface OccupationRepository {
+  /** Atualiza apenas uma reserva manual própria futura e ativa, ignorando o próprio ID no conflito.
+   * Todas as condições são verificadas na mesma instrução UPDATE (SQLite e D1).
+   */
+  updateManualIfFree(input: {
+    id: string;
+    createdBy: string;
+    nowLocal: string;
+    spaceId: string;
+    startsAt: string;
+    endsAt: string;
+    title: string;
+  }): Promise<boolean>;
   /** Ocupações ativas do espaço que tocam `[from, to)`, por início. */
   listActiveInRange(spaceId: string, from: string, to: string): Promise<OccupationRecord[]>;
   /** Ocupações ativas de todos os espaços que tocam `[from, to)`, por espaço, início e id. */

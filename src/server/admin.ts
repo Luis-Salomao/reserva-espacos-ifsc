@@ -21,12 +21,14 @@ import {
   listAccounts,
   listAdminSpaces,
   listSemesters,
+  listSpaceInfo,
   mergePlaceholderAccount,
   resetAccountPassword,
   setAccountActive,
   updateAccount,
   updateSemester,
   updateSpace,
+  updateSpaceInfo,
 } from "./admin-actions.ts";
 import { getAuth } from "./auth-context.ts";
 import { finish } from "./finish.ts";
@@ -102,6 +104,14 @@ export const createSpaceFn = createServerFn({ method: "POST" })
 export const updateSpaceFn = createServerFn({ method: "POST" })
   .validator(passthrough)
   .handler(async ({ data }) => finish(await updateSpace(getAdminDeps(), getRequest(), data)));
+
+export const updateSpaceInfoFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await updateSpaceInfo(getAdminDeps(), getRequest(), data)));
+
+export const listSpaceInfoFn = createServerFn({ method: "GET" }).handler(async () =>
+  finish(await listSpaceInfo(getAdminDeps(), getRequest())),
+);
 
 export const deleteSpaceFn = createServerFn({ method: "POST" })
   .validator(passthrough)

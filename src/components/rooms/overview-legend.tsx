@@ -35,6 +35,11 @@ export function OverviewLegend({ entries, active, onToggle, className }: Props) 
           {entry.label}
         </button>
       ))}
+      <p className="w-full text-xs text-muted-foreground">
+        Ocupação parcial: a cor mostra o horário ocupado do início (topo) ao fim (base) do bloco.
+        Trechos sem cor em todas as faixas ficam livres; faixas lado a lado mostram ocupações
+        distintas. Passe o mouse ou foque para ver os horários exatos; no celular, toque.
+      </p>
     </fieldset>
   );
 }

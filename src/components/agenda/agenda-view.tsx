@@ -2,6 +2,7 @@ import { useNavigate } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import { useEffect, useState } from "react";
 import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
+import { SpaceDetails } from "#/components/spaces/space-details";
 import { Button } from "#/components/ui/button";
 import { type PageView, ViewSwitcher } from "#/components/view-switcher";
 import { addDays } from "#/domain/calendar";
@@ -168,6 +169,12 @@ export function AgendaView({
               onSeeAllRooms={seeAllRooms}
             />
           </div>
+
+          {currentSpace ? (
+            <SpaceDetails space={currentSpace} />
+          ) : (
+            <p className="text-sm text-muted-foreground">Detalhes indisponíveis</p>
+          )}
         </aside>
 
         <div id="agenda-main" className="main min-w-0">
@@ -237,6 +244,19 @@ export function AgendaView({
             </div>
             <ViewSwitcher value="sala" onChange={selectView} />
           </div>
+
+          <details className="mb-3 rounded-md border border-border px-3 py-2 xl:hidden">
+            <summary className="cursor-pointer text-sm font-medium text-foreground">
+              Informações da sala
+            </summary>
+            <div className="mt-2">
+              {currentSpace ? (
+                <SpaceDetails space={currentSpace} />
+              ) : (
+                <p className="text-sm text-muted-foreground">Detalhes indisponíveis</p>
+              )}
+            </div>
+          </details>
 
           <div className="mb-3 grid grid-cols-[minmax(0,1fr)] gap-2 lg:hidden">
             <div className="wk lg:hidden">

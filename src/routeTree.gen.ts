@@ -13,6 +13,8 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as ImportarRouteImport } from './routes/importar'
 import { Route as MinhasReservasRouteImport } from './routes/minhas-reservas'
+import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
+import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
 import { Route as SalasRouteImport } from './routes/salas'
 import { Route as AdminIndexRouteImport } from './routes/admin.index'
 import { Route as AdminContasRouteImport } from './routes/admin.contas'
@@ -24,6 +26,7 @@ import { Route as ApiImportPreviewRouteImport } from './routes/api/import-previe
 import { Route as ApiImportResponsiblesRouteImport } from './routes/api/import-responsibles'
 import { Route as ApiSairRouteImport } from './routes/api/sair'
 import { Route as ImportarIndexRouteImport } from './routes/importar.index'
+import { Route as ManutencaoEspacosRouteImport } from './routes/manutencao.espacos'
 import { Route as SemestresIndexRouteImport } from './routes/semestres.index'
 import { Route as SemestresIdRouteImport } from './routes/semestres.$id'
 import { Route as ImportarLotesIndexRouteImport } from './routes/importar.lotes.index'
@@ -47,6 +50,16 @@ const ImportarRoute = ImportarRouteImport.update({
 const MinhasReservasRoute = MinhasReservasRouteImport.update({
   id: '/minhas-reservas',
   path: '/minhas-reservas',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RecuperarSenhaRoute = RecuperarSenhaRouteImport.update({
+  id: '/recuperar-senha',
+  path: '/recuperar-senha',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const RedefinirSenhaRoute = RedefinirSenhaRouteImport.update({
+  id: '/redefinir-senha',
+  path: '/redefinir-senha',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SalasRoute = SalasRouteImport.update({
@@ -104,6 +117,11 @@ const ImportarIndexRoute = ImportarIndexRouteImport.update({
   path: '/',
   getParentRoute: () => ImportarRoute,
 } as any)
+const ManutencaoEspacosRoute = ManutencaoEspacosRouteImport.update({
+  id: '/manutencao/espacos',
+  path: '/manutencao/espacos',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SemestresIndexRoute = SemestresIndexRouteImport.update({
   id: '/semestres/',
   path: '/semestres/',
@@ -130,6 +148,8 @@ export interface FileRoutesByFullPath {
   '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRouteWithChildren
   '/minhas-reservas': typeof MinhasReservasRoute
+  '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/salas': typeof SalasRoute
   '/admin/contas': typeof AdminContasRoute
   '/admin/espacos': typeof AdminEspacosRoute
@@ -139,6 +159,7 @@ export interface FileRoutesByFullPath {
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/import-responsibles': typeof ApiImportResponsiblesRoute
   '/api/sair': typeof ApiSairRoute
+  '/manutencao/espacos': typeof ManutencaoEspacosRoute
   '/semestres/$id': typeof SemestresIdRoute
   '/admin/': typeof AdminIndexRoute
   '/importar/': typeof ImportarIndexRoute
@@ -150,6 +171,8 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/minhas-reservas': typeof MinhasReservasRoute
+  '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/salas': typeof SalasRoute
   '/admin/contas': typeof AdminContasRoute
   '/admin/espacos': typeof AdminEspacosRoute
@@ -159,6 +182,7 @@ export interface FileRoutesByTo {
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/import-responsibles': typeof ApiImportResponsiblesRoute
   '/api/sair': typeof ApiSairRoute
+  '/manutencao/espacos': typeof ManutencaoEspacosRoute
   '/semestres/$id': typeof SemestresIdRoute
   '/admin': typeof AdminIndexRoute
   '/importar': typeof ImportarIndexRoute
@@ -172,6 +196,8 @@ export interface FileRoutesById {
   '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRouteWithChildren
   '/minhas-reservas': typeof MinhasReservasRoute
+  '/recuperar-senha': typeof RecuperarSenhaRoute
+  '/redefinir-senha': typeof RedefinirSenhaRoute
   '/salas': typeof SalasRoute
   '/admin/contas': typeof AdminContasRoute
   '/admin/espacos': typeof AdminEspacosRoute
@@ -181,6 +207,7 @@ export interface FileRoutesById {
   '/api/import-preview': typeof ApiImportPreviewRoute
   '/api/import-responsibles': typeof ApiImportResponsiblesRoute
   '/api/sair': typeof ApiSairRoute
+  '/manutencao/espacos': typeof ManutencaoEspacosRoute
   '/semestres/$id': typeof SemestresIdRoute
   '/admin/': typeof AdminIndexRoute
   '/importar/': typeof ImportarIndexRoute
@@ -195,6 +222,8 @@ export interface FileRouteTypes {
     | '/entrar'
     | '/importar'
     | '/minhas-reservas'
+    | '/recuperar-senha'
+    | '/redefinir-senha'
     | '/salas'
     | '/admin/contas'
     | '/admin/espacos'
@@ -204,6 +233,7 @@ export interface FileRouteTypes {
     | '/api/import-preview'
     | '/api/import-responsibles'
     | '/api/sair'
+    | '/manutencao/espacos'
     | '/semestres/$id'
     | '/admin/'
     | '/importar/'
@@ -215,6 +245,8 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/minhas-reservas'
+    | '/recuperar-senha'
+    | '/redefinir-senha'
     | '/salas'
     | '/admin/contas'
     | '/admin/espacos'
@@ -224,6 +256,7 @@ export interface FileRouteTypes {
     | '/api/import-preview'
     | '/api/import-responsibles'
     | '/api/sair'
+    | '/manutencao/espacos'
     | '/semestres/$id'
     | '/admin'
     | '/importar'
@@ -236,6 +269,8 @@ export interface FileRouteTypes {
     | '/entrar'
     | '/importar'
     | '/minhas-reservas'
+    | '/recuperar-senha'
+    | '/redefinir-senha'
     | '/salas'
     | '/admin/contas'
     | '/admin/espacos'
@@ -245,6 +280,7 @@ export interface FileRouteTypes {
     | '/api/import-preview'
     | '/api/import-responsibles'
     | '/api/sair'
+    | '/manutencao/espacos'
     | '/semestres/$id'
     | '/admin/'
     | '/importar/'
@@ -258,6 +294,8 @@ export interface RootRouteChildren {
   EntrarRoute: typeof EntrarRoute
   ImportarRoute: typeof ImportarRouteWithChildren
   MinhasReservasRoute: typeof MinhasReservasRoute
+  RecuperarSenhaRoute: typeof RecuperarSenhaRoute
+  RedefinirSenhaRoute: typeof RedefinirSenhaRoute
   SalasRoute: typeof SalasRoute
   AdminContasRoute: typeof AdminContasRoute
   AdminEspacosRoute: typeof AdminEspacosRoute
@@ -267,6 +305,7 @@ export interface RootRouteChildren {
   ApiImportPreviewRoute: typeof ApiImportPreviewRoute
   ApiImportResponsiblesRoute: typeof ApiImportResponsiblesRoute
   ApiSairRoute: typeof ApiSairRoute
+  ManutencaoEspacosRoute: typeof ManutencaoEspacosRoute
   SemestresIdRoute: typeof SemestresIdRoute
   AdminIndexRoute: typeof AdminIndexRoute
   SemestresIndexRoute: typeof SemestresIndexRoute
@@ -300,6 +339,20 @@ declare module '@tanstack/react-router' {
       path: '/minhas-reservas'
       fullPath: '/minhas-reservas'
       preLoaderRoute: typeof MinhasReservasRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/recuperar-senha': {
+      id: '/recuperar-senha'
+      path: '/recuperar-senha'
+      fullPath: '/recuperar-senha'
+      preLoaderRoute: typeof RecuperarSenhaRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/redefinir-senha': {
+      id: '/redefinir-senha'
+      path: '/redefinir-senha'
+      fullPath: '/redefinir-senha'
+      preLoaderRoute: typeof RedefinirSenhaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/salas': {
@@ -379,6 +432,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ImportarIndexRouteImport
       parentRoute: typeof ImportarRoute
     }
+    '/manutencao/espacos': {
+      id: '/manutencao/espacos'
+      path: '/manutencao/espacos'
+      fullPath: '/manutencao/espacos'
+      preLoaderRoute: typeof ManutencaoEspacosRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/semestres/': {
       id: '/semestres/'
       path: '/semestres'
@@ -431,6 +491,8 @@ const rootRouteChildren: RootRouteChildren = {
   EntrarRoute: EntrarRoute,
   ImportarRoute: ImportarRouteWithChildren,
   MinhasReservasRoute: MinhasReservasRoute,
+  RecuperarSenhaRoute: RecuperarSenhaRoute,
+  RedefinirSenhaRoute: RedefinirSenhaRoute,
   SalasRoute: SalasRoute,
   AdminContasRoute: AdminContasRoute,
   AdminEspacosRoute: AdminEspacosRoute,
@@ -440,6 +502,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiImportPreviewRoute: ApiImportPreviewRoute,
   ApiImportResponsiblesRoute: ApiImportResponsiblesRoute,
   ApiSairRoute: ApiSairRoute,
+  ManutencaoEspacosRoute: ManutencaoEspacosRoute,
   SemestresIdRoute: SemestresIdRoute,
   AdminIndexRoute: AdminIndexRoute,
   SemestresIndexRoute: SemestresIndexRoute,

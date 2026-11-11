@@ -18,11 +18,12 @@ import {
   ruleOf,
 } from "#/components/agenda/repeat-section";
 import { SeriesPreview } from "#/components/agenda/series-preview";
-import { Field } from "#/components/ds";
+import { ChoiceCard, Field } from "#/components/ds";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
 import { DEFAULT_HOURS, localNow, validateBookingWhen } from "#/domain/availability";
+import { type BookingKind, buildBookingTitle } from "#/domain/booking-kind";
 import type { Recurrence } from "#/domain/recurrence";
 import { availabilityIn, busyReasonText } from "#/domain/room-filter";
 import type { Space } from "#/domain/space";
@@ -72,6 +73,8 @@ export type BookingSheetProps = {
   }) => Promise<AdminResponse<RecurringOutcome>>;
   /** Série gravada (ao menos uma data). */
   onSeriesSuccess?: () => void;
+  /** Papel `manutencao`: mostra a escolha de tipo (aula/evento ou manutenção). */
+  canMaintenance?: boolean;
 };
 
 type SeriesDone = { created: number; skipped: number };
@@ -170,6 +173,7 @@ export function BookingSheet({
   previewRecurring,
   createRecurring,
   onSeriesSuccess,
+  canMaintenance = false,
 }: BookingSheetProps) {
   const uid = useId();
   const router = useRouter();
@@ -181,6 +185,7 @@ export function BookingSheet({
   const [start, setStart] = useState(initialSlot?.start ?? "08:00");
   const [end, setEnd] = useState(initialSlot?.end ?? "09:50");
   const [purpose, setPurpose] = useState("");
+  const [kind, setKind] = useState<BookingKind>("evento");
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -192,15 +197,21 @@ export function BookingSheet({
   // A busca do dia espera o formulário receber a data do slot, para não pedir o dia errado.
   const [synced, setSynced] = useState(false);
   const [day, setDay] = useState<RoomsDay | null>(null);
+  const slotSpaceId = initialSlot?.spaceId;
+  const slotDate = initialSlot?.date;
+  const slotStart = initialSlot?.start;
+  const slotEnd = initialSlot?.end;
+  const firstSpaceId = spaces[0]?.id;
 
   // Sincroniza formulário na abertura ou mudança do slot inicial
   useEffect(() => {
     if (open) {
-      setSpaceId(initialSlot?.spaceId ?? spaces[0]?.id ?? "");
-      setDate(initialSlot?.date ?? localNow(new Date(), timeZone).slice(0, 10));
-      setStart(initialSlot?.start ?? "08:00");
-      setEnd(initialSlot?.end ?? "09:50");
+      setSpaceId(slotSpaceId ?? firstSpaceId ?? "");
+      setDate(slotDate ?? localNow(new Date(), timeZone).slice(0, 10));
+      setStart(slotStart ?? "08:00");
+      setEnd(slotEnd ?? "09:50");
       setPurpose("");
+      setKind("evento");
       setIsSubmitting(false);
       setErrorMessage(null);
       setFieldErrors({});
@@ -210,7 +221,7 @@ export function BookingSheet({
       setSeriesDone(null);
     }
     setSynced(open);
-  }, [open, initialSlot, spaces, timeZone]);
+  }, [open, slotSpaceId, slotDate, slotStart, slotEnd, firstSpaceId, timeZone]);
 
   useEffect(() => {
     if (!synced || availability === undefined || !ISO_DATE.test(date)) return;
@@ -247,10 +258,10 @@ export function BookingSheet({
       errors.repeat = summary.text;
     }
 
-    const trimmedPurpose = purpose.trim();
-    if (trimmedPurpose.length === 0) {
+    const composedTitle = buildBookingTitle(kind, purpose);
+    if (purpose.trim().length === 0) {
       errors.purpose = "Informe a finalidade da reserva.";
-    } else if (trimmedPurpose.length > 120) {
+    } else if (composedTitle.length > 120) {
       errors.purpose = "A finalidade deve ter no máximo 120 caracteres.";
     }
 
@@ -275,7 +286,14 @@ export function BookingSheet({
   }
 
   function recurringData(recurrence: Recurrence): RecurringData {
-    return { spaceId, date, start, end, purpose: purpose.trim(), rule: recurrence };
+    return {
+      spaceId,
+      date,
+      start,
+      end,
+      purpose: buildBookingTitle(kind, purpose),
+      rule: recurrence,
+    };
   }
 
   async function requestPreview(recurrence: Recurrence) {
@@ -288,9 +306,8 @@ export function BookingSheet({
     else showFailure(response);
   }
 
-  async function confirmSeries() {
-    if (rule === null || preview === null) return;
-    const confirmed = preview.dates.filter((item) => item.free).map((item) => item.date);
+  async function confirmSeries(confirmed: string[]) {
+    if (rule === null || preview === null || confirmed.length === 0) return;
     setIsSubmitting(true);
     setErrorMessage(null);
     const caller = createRecurring ?? createRecurringFn;
@@ -337,7 +354,7 @@ export function BookingSheet({
           date,
           start,
           end,
-          purpose: purpose.trim(),
+          purpose: buildBookingTitle(kind, purpose),
         },
       }),
     );
@@ -482,7 +499,7 @@ export function BookingSheet({
                 setPreview(null);
                 setErrorMessage(null);
               }}
-              onConfirm={() => void confirmSeries()}
+              onConfirm={(dates) => void confirmSeries(dates)}
             />
           ) : (
             /* Formulário de Criação */
@@ -629,10 +646,31 @@ export function BookingSheet({
                 error={fieldErrors.repeat}
               />
 
+              {/* Tipo de reserva (só para quem tem o papel de manutenção) */}
+              {canMaintenance && (
+                <fieldset className="grid gap-1.5 border-0 p-0 m-0 min-w-0">
+                  <legend className="text-[13px] font-semibold mb-0.5">Tipo</legend>
+                  <div className="grid grid-cols-2 gap-2">
+                    <ChoiceCard
+                      name={`${uid}-kind`}
+                      title="Aula ou evento"
+                      checked={kind === "evento"}
+                      onChange={() => setKind("evento")}
+                    />
+                    <ChoiceCard
+                      name={`${uid}-kind`}
+                      title="Manutenção"
+                      checked={kind === "manutencao"}
+                      onChange={() => setKind("manutencao")}
+                    />
+                  </div>
+                </fieldset>
+              )}
+
               {/* Finalidade */}
               <Field
                 id={`${uid}-purpose`}
-                label="Finalidade"
+                label={kind === "manutencao" ? "Descrição da manutenção" : "Finalidade"}
                 hint={`${purpose.length}/120`}
                 error={fieldErrors.purpose}
               >
@@ -640,7 +678,9 @@ export function BookingSheet({
                   id={`${uid}-purpose`}
                   type="text"
                   maxLength={120}
-                  placeholder="Ex.: Reunião pedagógica"
+                  placeholder={
+                    kind === "manutencao" ? "Ex.: Troca de lâmpada" : "Ex.: Reunião pedagógica"
+                  }
                   value={purpose}
                   onChange={(e) => {
                     setPurpose(e.target.value);

@@ -102,6 +102,9 @@ function LoginPage() {
                 Entrar <ArrowRight className="size-4" aria-hidden="true" />
               </Button>
             </form>
+            <Link to="/recuperar-senha" className="mt-4 inline-block text-sm underline">
+              Esqueci minha senha
+            </Link>
             {session.publicRead && (
               <div className="mt-6 border-t pt-6">
                 <Button asChild variant="outline" className="h-11 w-full">

@@ -110,6 +110,7 @@ export function OverviewSelection({
           <X aria-hidden="true" />
         </Button>
       </div>
+      <p className="text-xs text-muted-foreground">Alternativas para o horário selecionado</p>
       <WindowFields filter={filter} onChange={change} />
       <div className="flex flex-col gap-2">
         <PlaceChips

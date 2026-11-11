@@ -21,11 +21,15 @@ type CapacityInput = number | string | null;
  * Equipamentos vindos do formulário: tipo → valor. Vazio ou nulo = não informado; presença usa
  * 1 (tem) e 0 (não tem); contagem aceita inteiro de 0 a 999.
  */
-type EquipmentInput = { items?: Record<string, number | string | null>; notes?: string | null };
+type EquipmentInput = {
+  items?: Record<string, number | string | null>;
+  notes?: string | null;
+  computersInMaintenance?: number | string | null;
+};
 
 /**
- * Na edição, `items` e `notes` são independentes: o que vier substitui o gravado e o que faltar
- * fica como está (sem `equipment`, os dois ficam).
+ * Na edição, `items`, `notes` e `computersInMaintenance` são independentes: o que vier substitui o
+ * gravado e o que faltar fica como está (sem `equipment`, os três ficam).
  */
 export type SpaceInput = { name: string; capacity: CapacityInput; equipment?: EquipmentInput };
 
@@ -93,6 +97,39 @@ function parseNotes(raw: string | null): Result<string | null> {
   return ok(value);
 }
 
+const MAINTENANCE_EXCEEDS_TOTAL =
+  "Os computadores em manutenção não podem ser mais que o total de computadores.";
+
+/**
+ * Computadores em manutenção: inteiro de 0 em diante; vazio ou nulo = não informado. Quando o
+ * total de computadores é conhecido na mesma gravação, não pode superá-lo (checagem contra o
+ * valor já gravado, para quando um dos dois falta nesta gravação, fica em `update`, que tem acesso
+ * ao repositório).
+ */
+function parseComputersInMaintenance(
+  raw: number | string | null,
+  totalComputers: number | undefined,
+): Result<number | null> {
+  if (raw === null || (typeof raw === "string" && raw.trim() === "")) return ok(null);
+  const value =
+    typeof raw === "string"
+      ? /^\d{1,4}$/.test(raw.trim())
+        ? Number(raw.trim())
+        : Number.NaN
+      : raw;
+  if (!Number.isInteger(value) || value < 0) {
+    return fail(
+      "validation",
+      "Os computadores em manutenção devem ser um número inteiro de 0 ou mais.",
+      "computersInMaintenance",
+    );
+  }
+  if (totalComputers !== undefined && value > totalComputers) {
+    return fail("validation", MAINTENANCE_EXCEEDS_TOTAL, "computersInMaintenance");
+  }
+  return ok(value);
+}
+
 function parseItems(input: NonNullable<EquipmentInput["items"]>): Result<SpaceEquipment["items"]> {
   const items: SpaceEquipment["items"] = {};
   for (const [kind, raw] of Object.entries(input)) {
@@ -116,6 +153,14 @@ function parseEquipment(input: EquipmentInput): Result<EquipmentWrite> {
     if (!notes.ok) return notes;
     equipment.notes = notes.value;
   }
+  if (input.computersInMaintenance !== undefined) {
+    const maintenance = parseComputersInMaintenance(
+      input.computersInMaintenance,
+      equipment.items?.computadores,
+    );
+    if (!maintenance.ok) return maintenance;
+    equipment.computersInMaintenance = maintenance.value;
+  }
   return ok(equipment);
 }
 
@@ -131,6 +176,38 @@ export function createSpacesService(deps: { spaces: SpaceRepository }) {
     return (await spaces.list()).some(
       (space) => space.id !== ownId && space.name.toLocaleLowerCase("pt-BR") === lower,
     );
+  }
+
+  /**
+   * Checa computadores em manutenção contra o total quando um dos dois falta nesta gravação
+   * (ou quando `items` baixa o total sem mandar um novo valor de manutenção): busca o espaço
+   * gravado para completar o que faltou. Quando os dois vêm na mesma gravação, `parseEquipment`
+   * já checou; aqui não repete.
+   */
+  async function checkMaintenanceAgainstStored(
+    id: string,
+    equipment: EquipmentWrite | undefined,
+  ): Promise<Result<null>> {
+    if (equipment === undefined) return ok(null);
+    const itemsTouched = equipment.items !== undefined;
+    const maintenanceTouched = equipment.computersInMaintenance !== undefined;
+    if (itemsTouched && maintenanceTouched) return ok(null); // já checado na mesma gravação
+    const existing = (await spaces.listWithEquipment()).find((space) => space.id === id);
+    if (existing === undefined) return ok(null); // inexistente: `update` do repositório devolve not_found
+    const totalComputers = itemsTouched
+      ? equipment.items?.computadores
+      : existing.equipment?.items.computadores;
+    const maintenance = maintenanceTouched
+      ? equipment.computersInMaintenance
+      : (existing.equipment?.computersInMaintenance ?? null);
+    if (
+      typeof maintenance === "number" &&
+      totalComputers !== undefined &&
+      maintenance > totalComputers
+    ) {
+      return fail("validation", MAINTENANCE_EXCEEDS_TOTAL, "computersInMaintenance");
+    }
+    return ok(null);
   }
 
   function parse(input: SpaceInput): Result<SpaceWrite> {
@@ -170,6 +247,8 @@ export function createSpacesService(deps: { spaces: SpaceRepository }) {
     async update(id: string, input: SpaceInput): Promise<Result<Space>> {
       const parsed = parse(input);
       if (!parsed.ok) return parsed;
+      const maintenanceCheck = await checkMaintenanceAgainstStored(id, parsed.value.equipment);
+      if (!maintenanceCheck.ok) return maintenanceCheck;
       if (await nameTaken(parsed.value.name, id)) return fail("conflict", DUPLICATE, "name");
       try {
         const updated = await spaces.update(id, parsed.value);

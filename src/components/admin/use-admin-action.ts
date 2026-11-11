@@ -5,9 +5,10 @@ export const ROLE_LABELS = {
   admin: "Administrador",
   horarios: "Horários",
   docente: "Docente",
+  manutencao: "Manutenção",
 } as const;
 
-export const ROLE_OPTIONS = ["admin", "horarios", "docente"] as const;
+export const ROLE_OPTIONS = ["admin", "horarios", "docente", "manutencao"] as const;
 
 const SESSION_ERROR =
   "Não foi possível concluir a ação. Sua sessão pode ter expirado ou faltar permissão; entre de novo.";

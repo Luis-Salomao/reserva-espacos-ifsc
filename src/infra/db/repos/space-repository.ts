@@ -25,6 +25,7 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
           name: spaces.name,
           capacity: spaces.capacity,
           notes: spaces.equipmentNotes,
+          computersInMaintenance: spaces.computersInMaintenance,
         })
         .from(spaces)
         .where(id === undefined ? undefined : eq(spaces.id, id))
@@ -44,7 +45,13 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
         id: row.id,
         name: row.name,
         capacity: row.capacity,
-        equipment: { items: bySpace.get(row.id) ?? {}, notes: row.notes },
+        equipment: {
+          items: bySpace.get(row.id) ?? {},
+          notes: row.notes,
+          ...(row.computersInMaintenance === null
+            ? {}
+            : { computersInMaintenance: row.computersInMaintenance }),
+        },
       }),
     );
   }
@@ -72,12 +79,18 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
         await db.insert(spaces).values(row);
         return space;
       }
+      const maintenance = input.equipment.computersInMaintenance ?? null;
       const equipment = {
         items: input.equipment.items ?? {},
         notes: input.equipment.notes ?? null,
+        ...(maintenance === null ? {} : { computersInMaintenance: maintenance }),
       };
       await runAtomically(db, (x) => [
-        x.insert(spaces).values({ ...row, equipmentNotes: equipment.notes }),
+        x.insert(spaces).values({
+          ...row,
+          equipmentNotes: equipment.notes,
+          computersInMaintenance: maintenance,
+        }),
         ...equipmentInserts(x, row.id, equipment.items),
       ]);
       return { ...space, equipment };
@@ -94,7 +107,7 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
       }
       const [existing] = await db.select({ id: spaces.id }).from(spaces).where(eq(spaces.id, id));
       if (existing === undefined) return null;
-      const { items, notes } = equipment;
+      const { items, notes, computersInMaintenance } = equipment;
       await runAtomically(db, (x) => [
         x
           .update(spaces)
@@ -102,6 +115,7 @@ export function createSpaceRepository(db: AppDb): SpaceRepository {
             name: input.name,
             capacity: input.capacity,
             ...(notes === undefined ? {} : { equipmentNotes: notes }),
+            ...(computersInMaintenance === undefined ? {} : { computersInMaintenance }),
           })
           .where(eq(spaces.id, id)),
         ...(items === undefined
