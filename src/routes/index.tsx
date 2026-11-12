@@ -9,6 +9,7 @@ import { OccupationDetails } from "#/components/agenda/occupation-details";
 import { AppShell } from "#/components/app-shell";
 import { Notice, PageHeader } from "#/components/page";
 import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
+import { SystemIntro } from "#/components/system-intro";
 import type { PageView } from "#/components/view-switcher";
 import { localNow } from "#/domain/availability";
 import { addDays, weekdayOf } from "#/domain/calendar";
@@ -188,6 +189,7 @@ function RoomsPage({ data }: { data: SalasLoaderData }) {
   const router = useRouter();
   return (
     <AppShell wide>
+      {data.isVisitor && <SystemIntro />}
       <RoomsView
         roomsDay={data.roomsDay}
         roomsWeek={data.roomsWeek}
