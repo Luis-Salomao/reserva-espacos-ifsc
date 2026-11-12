@@ -38,7 +38,7 @@ Opções para uso não interativo: `--target local|cloudflare`, `--database-path
 
 ### Alvo local (Bun + SQLite)
 
-`bun run cli init --target local` cria o `.env` (`DEPLOY_TARGET=local`, `DATABASE_PATH`, `TIMEZONE`) e aplica as migrações (`bun run db:migrate`). `DATABASE_PATH` é obrigatória e não tem valor padrão no código: sem ela, `start:local`, `db:migrate` e `db:generate` falham informando a variável. O padrão sugerido (`.env.example` e CLI) é `./data/app.sqlite`. Depois:
+`bun run cli init --target local` cria o `.env` (`DEPLOY_TARGET=local`, `DATABASE_PATH`, `TIMEZONE`) e aplica as migrações (`bun run db:migrate`). Em produção (`start:local`), `DATABASE_PATH` é obrigatória e não tem padrão oculto: sem ela, o comando falha informando a variável (o padrão `./data/dev.sqlite` de `settings.ts` vale só em desenvolvimento). O padrão sugerido (`.env.example` e CLI) é `./data/app.sqlite`. Depois:
 
 ```bash
 bun run build:local
@@ -231,10 +231,13 @@ bun test cli/
 ## Desenvolvimento
 
 ```bash
+git clone <url-do-repositorio> && cd reserva-espacos-ifsc
 bun install
-cp .env.example .env   # define DATABASE_PATH (obrigatória no alvo local)
-bun run dev            # http://localhost:3000
+bun run db:migrate     # cria data/ e o banco ./data/dev.sqlite
+bun dev                # http://localhost:3000
 ```
+
+Não é preciso criar `.env` nem passar variáveis: os valores não secretos ficam em `src/infra/settings.ts` (versionado). Prioridade: variável de ambiente (`.env` incluído) > `settings.ts` > padrão do código. `DEPLOY_TARGET=local` e `DATABASE_PATH=./data/dev.sqlite` valem como padrão só no desenvolvimento local; com `NODE_ENV=production` (como em `start:local` e no Docker) `DATABASE_PATH` continua obrigatória, e no alvo Cloudflare não há padrão. Segredos (`PASSWORD_PEPPER`, `RESEND_API_KEY`, `EMAIL_PAYLOAD_KEY`, `PUBLIC_ORIGIN`) nunca vão em `settings.ts`; veja `.env.example` para todos os nomes.
 
 ### Alvo Cloudflare (Workers + D1) em desenvolvimento
 
