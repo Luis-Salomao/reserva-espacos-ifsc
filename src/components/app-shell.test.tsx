@@ -77,8 +77,9 @@ describe("AppShell", () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     const lateral = screen.getByRole("banner").className.split(" ");
     expect(lateral).toContain("menu-forte");
-    expect(lateral).toContain("md:bg-primary");
-    expect(lateral).not.toContain("md:bg-sidebar");
+    // Lateral com token próprio: #32A041 no claro, verde profundo no escuro.
+    expect(lateral).toContain("md:bg-sidebar");
+    expect(lateral).not.toContain("md:bg-primary");
     const barra = screen.getByRole("navigation", { name: "Localização" }).className.split(" ");
     expect(barra).toContain("bg-menu-soft");
     expect(barra).toContain("text-foreground");

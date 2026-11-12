@@ -71,6 +71,7 @@
   --color-brand-red: var(--brand-red);
   --color-surface-2: var(--surface-2);
   --color-menu-soft: var(--menu-soft);
+  --color-sidebar: var(--sidebar);
   --color-occ-free: var(--occ-free);
   --color-occ-booked: var(--occ-booked);
   --color-occ-imported: var(--occ-imported);
@@ -113,26 +114,25 @@
 }
 
 /*
- * Lateral do computador (verde forte #32A041 nos dois temas): redefine as variáveis do tema para os
- * filhos (itens, botões, conta, tema) lerem texto escuro, pílula branca e foco escuro sem duplicar
- * classes. No celular o cabeçalho continua neutro (o logo colorido perde-se sobre o verde forte).
- * Razões: #111111 sobre #32A041 = 5,61; #0F2615 sobre #32A041 = 4,77.
+ * Lateral do computador (verde #32A041 no claro, verde profundo no escuro): redefine as variáveis do
+ * tema para os filhos (itens, botões, conta, tema) lerem o texto, a pílula do item ativo e o foco da
+ * lateral sem duplicar classes. No celular o cabeçalho continua neutro.
  */
 @media (min-width: 48rem) {
   .menu-forte {
-    --background: #ffffff;
-    --foreground: var(--menu-text);
-    --muted-foreground: var(--menu-text-muted);
-    --accent-soft: rgb(255 255 255 / 0.55);
-    --accent-foreground: var(--menu-text);
-    --border: rgb(15 38 21 / 0.35);
-    --focus: var(--menu-text);
-    --ring: var(--menu-text);
-    color: var(--menu-text);
+    --background: var(--sidebar-active);
+    --foreground: var(--sidebar-text);
+    --muted-foreground: var(--sidebar-text-muted);
+    --accent-soft: color-mix(in srgb, var(--sidebar-active) 55%, transparent);
+    --accent-foreground: var(--sidebar-text);
+    --border: color-mix(in srgb, var(--sidebar-text) 30%, transparent);
+    --focus: var(--sidebar-text);
+    --ring: var(--sidebar-text);
+    color: var(--sidebar-text);
   }
 
-  /* O anel de foco fica escuro e opaco (o padrão do projeto é meio transparente e some no verde). */
+  /* O anel de foco fica opaco (o padrão do projeto é meio transparente e some no verde). */
   .menu-forte :focus-visible {
-    outline-color: var(--menu-text);
+    outline-color: var(--sidebar-text);
   }
 }

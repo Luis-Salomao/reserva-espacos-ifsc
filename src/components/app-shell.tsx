@@ -215,7 +215,7 @@ export function AppShell({ children, wide = false }: Props) {
       </a>
       <header
         className={cn(
-          "menu-forte sticky top-0 z-30 flex min-h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r-0 md:border-b-0 md:bg-primary md:px-3 md:py-3 md:backdrop-blur-none",
+          "menu-forte sticky top-0 z-30 flex min-h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r-0 md:border-b-0 md:bg-sidebar md:px-3 md:py-3 md:backdrop-blur-none",
           collapsed ? "md:w-16 md:px-2" : "md:w-60",
         )}
       >

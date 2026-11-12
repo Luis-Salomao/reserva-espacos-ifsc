@@ -1,89 +1,100 @@
-/* Tokens do design system. Neutros frios e densos; o verde oficial do IFSC (Manual da Marca 2017: #32A041) fica só para destaque e ação principal. */
+/*
+ * Tokens do design system. Neutros levemente esverdeados (casam com o verde da marca em vez de
+ * brigar com ele); o verde oficial do IFSC (Manual da Marca 2017: #32A041) fica para destaque e
+ * ação principal. No tema escuro a lateral vira um verde profundo: o #32A041 em área grande cansa
+ * a vista no escuro, então ele aparece só em botões, abas e marcações.
+ */
 :root {
   color-scheme: light;
   --bg: #ffffff;
-  --surface: #fbfbfc;
-  --surface-2: #f2f2f5;
-  --menu-soft: #cfe8d2;
-  --border: #b4b4be;
-  --divider: #e2e2e8;
-  --text: #16161b;
-  --text-muted: #5f5f6c;
+  --surface: #fafbfa;
+  --surface-2: #f1f4f2;
+  --menu-soft: #e3f1e5;
+  --border: #b1b9b3;
+  --divider: #e0e5e1;
+  --text: #141a16;
+  --text-muted: #56605a;
   --accent: #32a041;
-  --accent-contrast: #111111;
+  --accent-contrast: #0b1a0f;
   --accent-text: #237a2f;
   --occ-free: #e6f4e8;
-  --occ-booked: #e9e9ec;
-  --occ-imported: #f1f1f3;
+  --occ-booked: #e7ebe8;
+  --occ-imported: #f0f3f1;
   --occ-conflict: #fde9e8;
   --focus: #237a2f;
   --line-free: #237a2f;
-  --line-booked: #16161b;
-  --line-imported: #6e7175;
+  --line-booked: #141a16;
+  --line-imported: #69726c;
   --line-conflict: #c8191e;
   --warn: #fdf1c6;
   --warn-text: #7a4a00;
   --brand-red: #c8191e;
-  --menu-text: #111111;
-  --menu-text-muted: #0f2615;
+  --sidebar: #32a041;
+  --sidebar-text: #0b1a0f;
+  --sidebar-text-muted: #0f2615;
+  --sidebar-active: #ffffff;
 }
 
 :root[data-theme="dark"] {
   color-scheme: dark;
-  --bg: #0e0e11;
-  --surface: #141418;
-  --surface-2: #1c1c21;
-  --menu-soft: #1b3622;
-  --border: #4a4a54;
-  --divider: #2b2b33;
-  --text: #ececf1;
-  --text-muted: #9d9daa;
+  --bg: #0f1311;
+  --surface: #141916;
+  --surface-2: #1b211d;
+  --menu-soft: #16241a;
+  --border: #48524b;
+  --divider: #262d28;
+  --text: #e6ebe7;
+  --text-muted: #9aa59d;
   --accent: #32a041;
-  --accent-contrast: #111111;
-  --accent-text: #4cbb5b;
-  --occ-free: #11291a;
-  --occ-booked: #2a2a30;
-  --occ-imported: #202026;
+  --accent-contrast: #0b1a0f;
+  --accent-text: #5cc46a;
+  --occ-free: #12281a;
+  --occ-booked: #262c28;
+  --occ-imported: #1d2420;
   --occ-conflict: #351619;
-  --focus: #4cbb5b;
-  --line-free: #4cbb5b;
-  --line-booked: #ececf1;
-  --line-imported: #9d9daa;
+  --focus: #5cc46a;
+  --line-free: #5cc46a;
+  --line-booked: #e6ebe7;
+  --line-imported: #9aa59d;
   --line-conflict: #ff6b6f;
   --warn: #3a2a06;
   --warn-text: #f5c84a;
   --brand-red: #ff6b6f;
-  --menu-text: #111111;
-  --menu-text-muted: #0f2615;
+  --sidebar: #123620;
+  --sidebar-text: #eef6ef;
+  --sidebar-text-muted: #b3cdb8;
+  --sidebar-active: #22553a;
 }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) {
     color-scheme: dark;
-    --bg: #0e0e11;
-    --surface: #141418;
-    --surface-2: #1c1c21;
-    --menu-soft: #1b3622;
-    --border: #4a4a54;
-    --divider: #2b2b33;
-    --text: #ececf1;
-    --text-muted: #9d9daa;
+    --bg: #0f1311;
+    --surface: #141916;
+    --surface-2: #1b211d;
+    --menu-soft: #16241a;
+    --border: #48524b;
+    --divider: #262d28;
+    --text: #e6ebe7;
+    --text-muted: #9aa59d;
     --accent: #32a041;
-    --accent-contrast: #111111;
-    --accent-text: #4cbb5b;
-    --occ-free: #11291a;
-    --occ-booked: #2a2a30;
-    --occ-imported: #202026;
+    --accent-contrast: #0b1a0f;
+    --accent-text: #5cc46a;
+    --occ-free: #12281a;
+    --occ-booked: #262c28;
+    --occ-imported: #1d2420;
     --occ-conflict: #351619;
-    --focus: #4cbb5b;
-    --line-free: #4cbb5b;
-    --line-booked: #ececf1;
-    --line-imported: #9d9daa;
+    --focus: #5cc46a;
+    --line-free: #5cc46a;
+    --line-booked: #e6ebe7;
+    --line-imported: #9aa59d;
     --line-conflict: #ff6b6f;
     --warn: #3a2a06;
     --warn-text: #f5c84a;
     --brand-red: #ff6b6f;
-    --menu-text: #111111;
-    --menu-text-muted: #0f2615;
+    --sidebar: #123620;
+    --sidebar-text: #eef6ef;
+    --sidebar-text-muted: #b3cdb8;
+    --sidebar-active: #22553a;
   }
 }

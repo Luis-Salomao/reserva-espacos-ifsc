@@ -131,7 +131,7 @@ export function MiniCalendar({ selectedDate, todayDate, onSelectDate }: MiniCale
                 cell.isWeekend ? "text-muted-foreground" : "text-foreground",
                 !isSelected && "hover:bg-surface-2",
                 isToday && !isSelected && "font-semibold text-[var(--accent-text)]",
-                isSelected && "!bg-foreground !text-background font-semibold",
+                isSelected && "!bg-primary !text-primary-foreground font-semibold",
               )}
             >
               {cell.dayNum}

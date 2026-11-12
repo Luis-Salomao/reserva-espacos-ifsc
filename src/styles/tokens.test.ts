@@ -54,8 +54,10 @@ const REQUIRED = [
   "--surface",
   "--surface-2",
   "--menu-soft",
-  "--menu-text",
-  "--menu-text-muted",
+  "--sidebar",
+  "--sidebar-text",
+  "--sidebar-text-muted",
+  "--sidebar-active",
   "--border",
   "--divider",
   "--text",
@@ -119,12 +121,20 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     expect(g).toBeGreaterThan(b);
   });
 
-  // Razões medidas: #111111 sobre #32A041 = 5,61; #0F2615 sobre #32A041 = 4,77.
-  test("a lateral é o verde forte oficial e texto e texto secundário escuros ficam legíveis sobre ela", () => {
-    const fundo = t["--accent"] as string;
-    expect(contrast(t["--menu-text"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(t["--menu-text-muted"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(t["--menu-text"] as string, "#ffffff")).toBeGreaterThanOrEqual(4.5);
+  test("a lateral é verde e o texto, o texto secundário e o item ativo ficam legíveis sobre ela", () => {
+    const fundo = t["--sidebar"] as string;
+    const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(fundo.slice(i, i + 2), 16)) as [
+      number,
+      number,
+      number,
+    ];
+    expect(g).toBeGreaterThan(r);
+    expect(g).toBeGreaterThan(b);
+    expect(contrast(t["--sidebar-text"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(t["--sidebar-text-muted"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
+    const ativo = t["--sidebar-active"] as string;
+    expect(ativo).not.toBe(fundo);
+    expect(contrast(t["--sidebar-text"] as string, ativo)).toBeGreaterThanOrEqual(4.5);
   });
 
   test("texto sobre o destaque >= 4.5", () => {
