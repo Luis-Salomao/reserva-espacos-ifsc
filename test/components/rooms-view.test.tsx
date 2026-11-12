@@ -87,10 +87,10 @@ const WEEK: RoomsWeek = {
 
 const cellsOn = (date: string) => document.querySelectorAll(`[data-cell][data-date='${date}']`);
 
-function setCompact(compact: boolean) {
+function setViewportWidth(width: number) {
   window.matchMedia = (query: string) =>
     ({
-      matches: compact && query.includes("max-width"),
+      matches: width <= Number(query.match(/max-width:\s*(\d+)px/)?.[1] ?? -1),
       media: query,
       onchange: null,
       addListener: () => {},
@@ -194,7 +194,7 @@ const namesIn = (list: string) => {
 };
 const freeNames = () => namesIn("Salas livres");
 
-beforeEach(() => setCompact(false));
+beforeEach(() => setViewportWidth(1280));
 
 describe("RoomsView", () => {
   test("períodos ficam junto aos filtros, sem uma segunda barra na grade", async () => {
@@ -345,7 +345,7 @@ describe("RoomsView", () => {
   });
 
   test("no celular, sem visao na URL, abre em Visao geral", async () => {
-    setCompact(true);
+    setViewportWidth(390);
     await setup({ url: "/" });
     expect(screen.getByRole("button", { name: /Vis.o geral/ }).getAttribute("aria-pressed")).toBe(
       "true",
@@ -355,7 +355,7 @@ describe("RoomsView", () => {
   });
 
   test("no celular, a visão da URL prevalece", async () => {
-    setCompact(true);
+    setViewportWidth(390);
     await setup({ url: "/?visao=colunas" });
     expect(columnOf("a202")).not.toBeNull();
   });
@@ -571,8 +571,8 @@ describe("RoomsView", () => {
     expect(screen.getByRole("button", { name: "Tentar de novo" })).toBeDefined();
   });
 
-  test("no celular, a visao geral permite percorrer as datas lado a lado", async () => {
-    setCompact(true);
+  test("em viewport de 980 px (Chrome Android em modo desktop), a visão geral usa cartões móveis", async () => {
+    setViewportWidth(980);
     await setup({ url: "/?visao=geral" });
     const tabs = screen.getAllByRole("tab");
     expect(tabs).toHaveLength(WEEK_DAYS.length);
@@ -594,7 +594,7 @@ describe("RoomsView", () => {
   });
 
   test("no celular, tocar num quadradinho ocupado abre o cartão em vez de navegar", async () => {
-    setCompact(true);
+    setViewportWidth(390);
     const { router } = await setup({ url: "/?visao=geral" });
     const cell = document.querySelector(
       `[data-cell='ocupado'][data-room='a202'][data-date='${DATE}']`,
@@ -607,7 +607,7 @@ describe("RoomsView", () => {
   });
 
   test("no celular, os quadradinhos têm pelo menos 32 px", async () => {
-    setCompact(true);
+    setViewportWidth(390);
     await setup({ url: "/?visao=geral" });
     for (const cell of Array.from(cellsOn(DATE)))
       expect((cell as HTMLElement).className.split(" ")).toContain("size-8");

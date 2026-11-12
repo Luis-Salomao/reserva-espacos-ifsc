@@ -78,7 +78,8 @@ async function loadOverviewWeek(weekStart: string): Promise<RoomsWeek> {
   return response.data;
 }
 
-const COMPACT_QUERY = "(max-width: 767px)";
+// Chrome Android em modo "Site para computador" pode expor viewport CSS perto de 980 px.
+const COMPACT_QUERY = "(max-width: 1023px)";
 
 function subscribeCompact(onChange: () => void) {
   const query = window.matchMedia(COMPACT_QUERY);
@@ -86,7 +87,7 @@ function subscribeCompact(onChange: () => void) {
   return () => query.removeEventListener("change", onChange);
 }
 
-/** Abaixo de 768 px; no servidor vale a tela larga. */
+/** Abaixo de 1024 px; no servidor vale a tela larga. */
 function useCompact(): boolean {
   return useSyncExternalStore(
     subscribeCompact,
