@@ -130,4 +130,9 @@
     --ring: var(--menu-text);
     color: var(--menu-text);
   }
+
+  /* O anel de foco fica escuro e opaco (o padrão do projeto é meio transparente e some no verde). */
+  .menu-forte :focus-visible {
+    outline-color: var(--menu-text);
+  }
 }

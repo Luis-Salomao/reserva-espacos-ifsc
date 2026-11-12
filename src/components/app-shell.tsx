@@ -247,7 +247,7 @@ export function AppShell({ children, wide = false }: Props) {
               <Link
                 key={item.to}
                 to={item.to}
-                activeOptions={{ exact: item.exact === true }}
+                activeOptions={{ exact: item.exact === true, includeSearch: false }}
                 title={item.label}
                 className={cn(NAV_LINK, collapsed && "md:justify-center md:px-0")}
                 activeProps={{
@@ -409,7 +409,7 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
               <Link
                 key={item.to}
                 to={item.to}
-                activeOptions={{ exact: item.exact === true }}
+                activeOptions={{ exact: item.exact === true, includeSearch: false }}
                 className={itemClass}
                 activeProps={{ className: cn(itemClass, "bg-surface-2") }}
                 onClick={() => setOpen(false)}
