@@ -64,8 +64,8 @@ async function asReader<T>(
 }
 
 /** Qualquer conta autenticada; as regras de posse ficam no serviço (403 ali). */
-async function asAccount<T>(
-  deps: BookingDeps,
+export async function asAccount<T>(
+  deps: Pick<BookingDeps, "auth" | "cookieSecure">,
   request: RequestLike,
   run: (user: User) => Promise<AdminResponse<T>>,
 ): Promise<AdminOutcome<T>> {
@@ -308,7 +308,8 @@ export function createRecurringAction(deps: BookingDeps, request: RequestLike, d
 
 /**
  * Cancela uma data (`scope: "data"`) ou a série (`"serie"`); a posse é checada no serviço (403).
- * `expectedCount` opcional (tamanho da prévia): série de outro tamanho -> 409.
+ * `expectedCount` opcional (tamanho da prévia): série de outro tamanho -> 409. `note` opcional:
+ * motivo enviado ao dono quando a administração cancela a reserva de outra pessoa.
  */
 export function cancelOccupationAction(deps: BookingDeps, request: RequestLike, data: unknown) {
   return asAccount<{ cancelled: number }>(deps, request, async (user) => {
@@ -316,7 +317,13 @@ export function cancelOccupationAction(deps: BookingDeps, request: RequestLike, 
     const occupationId = body && text(body, "occupationId");
     const scope = body?.scope;
     const expectedCount = body && boundedInt(body.expectedCount, 0, MAX_SERIES);
-    if (occupationId == null || (scope !== "data" && scope !== "serie") || expectedCount === null) {
+    const note = body?.note;
+    if (
+      occupationId == null ||
+      (scope !== "data" && scope !== "serie") ||
+      expectedCount === null ||
+      (note !== undefined && typeof note !== "string")
+    ) {
       return reject(400, BAD_REQUEST);
     }
     return fromResult(
@@ -324,6 +331,7 @@ export function cancelOccupationAction(deps: BookingDeps, request: RequestLike, 
         occupationId,
         scope,
         ...(expectedCount === undefined ? {} : { expectedCount }),
+        ...(note === undefined ? {} : { note }),
       }),
     );
   });

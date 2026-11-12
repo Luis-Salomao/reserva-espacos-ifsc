@@ -8,6 +8,7 @@ import { getEnv } from "#/infra/env";
 import { cryptoRandom, systemClock } from "#/infra/runtime";
 import { getDb, getRuntimeEnv } from "#db-client";
 import { resolveSession } from "./auth-handlers.ts";
+import { getNoticesService } from "./notices-context.ts";
 
 /**
  * Raiz de composição da autenticação: monta o serviço por requisição (em Workers o env e o
@@ -43,5 +44,6 @@ export async function getRequestSession() {
   if (setCookie !== null) setResponseHeader("Set-Cookie", setCookie);
   setResponseHeader("Cache-Control", "no-store");
   const env = getEnv(getRuntimeEnv());
-  return { user, publicRead: env.PUBLIC_READ, timeZone: env.TIMEZONE };
+  const unreadNotices = user === null ? 0 : await getNoticesService().badge(user);
+  return { user, publicRead: env.PUBLIC_READ, timeZone: env.TIMEZONE, unreadNotices };
 }

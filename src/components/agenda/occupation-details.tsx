@@ -19,6 +19,8 @@ export type OccupationDetailsProps = {
   spaceName: string;
   onOpenChange: (open: boolean) => void;
   onCancel: (occupation: AgendaItem) => void;
+  /** Abre o pedido da sala (só aparece se a ocupação aceita pedidos de quem consulta). */
+  onRequest?: (occupation: AgendaItem) => void;
 };
 
 /** Detalhes de uma ocupação da agenda; o nome da pessoa só chega aqui para quem está logado. */
@@ -27,6 +29,7 @@ export function OccupationDetails({
   spaceName,
   onOpenChange,
   onCancel,
+  onRequest,
 }: OccupationDetailsProps) {
   const item = occupation;
   const isImport = item?.source === "import";
@@ -115,6 +118,11 @@ export function OccupationDetails({
                     Fechar
                   </Button>
                 </Dialog.Close>
+                {item.canRequest === true && onRequest !== undefined && (
+                  <Button variant="outline" size="sm" onClick={() => onRequest(item)}>
+                    Pedir esta sala…
+                  </Button>
+                )}
                 {item.canCancel && (
                   <Button variant="destructive" size="sm" onClick={() => onCancel(item)}>
                     Cancelar…

@@ -499,7 +499,7 @@ export interface NotificationRepository {
   markAllRead(userId: string, at: string): Promise<void>;
 }
 
-export type RoomRequestRecord = {
+type RoomRequestRecord = {
   id: string;
   occupationId: string;
   requesterId: string;
@@ -523,12 +523,12 @@ export type RoomRequestRow = RoomRequestRecord & {
   occupationStatus: "ativa" | "cancelada";
 };
 
-export type NewRoomRequest = Pick<
+type NewRoomRequest = Pick<
   RoomRequestRecord,
   "id" | "occupationId" | "requesterId" | "ownerId" | "purpose" | "message" | "createdAt"
 > & { notice: NewNotification };
 
-export type AcceptRequest = {
+type AcceptRequest = {
   requestId: string;
   ownerId: string;
   newOccupationId: string;

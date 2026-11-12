@@ -33,8 +33,8 @@ export function effectiveStatus(
   return occupation.status === "ativa" && occupation.endsAt > now ? "pendente" : "indisponivel";
 }
 
-export const NO_OWNER = "Esta aula não tem responsável com conta ativa; fale com a coordenação.";
-export const OWN_OCCUPATION = "Esta ocupação já é sua.";
+const NO_OWNER = "Esta aula não tem responsável com conta ativa; fale com a coordenação.";
+const OWN_OCCUPATION = "Esta ocupação já é sua.";
 export const UNAVAILABLE = "Esta ocupação não está mais disponível.";
 
 /**

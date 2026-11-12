@@ -10,7 +10,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { User } from "#/domain/user";
 import type { SessionInfo } from "#/server/session";
-import { AppShell, SCREEN_HINTS } from "./app-shell";
+import { AppShell, navLabel, SCREEN_HINTS } from "./app-shell";
 
 const ana: User = {
   id: "u1",
@@ -475,5 +475,54 @@ describe("AppShell, estilo agenda", () => {
     const skip = screen.getByRole("link", { name: "Pular para o conteúdo" });
     expect(skip.getAttribute("href")).toBe("#conteudo");
     expect(screen.getByRole("main").id).toBe("conteudo");
+  });
+
+  describe("selo de avisos em Minhas reservas", () => {
+    const docente = { ...ana, roles: ["docente" as const] };
+    const withNotices = (unreadNotices: number): SessionInfo => ({
+      user: docente,
+      publicRead: true,
+      timeZone: "America/Sao_Paulo",
+      unreadNotices,
+    });
+
+    test("mostra a contagem e o nome acessível com o número de avisos", async () => {
+      await renderShell("x", withNotices(2));
+      const link = screen.getByRole("link", { name: "Minhas reservas, 2 avisos novos" });
+      expect(link.querySelector("[data-testid='nav-badge']")?.textContent).toBe("2");
+    });
+
+    test("singular com um aviso e 99+ para muitos", async () => {
+      await renderShell("x", withNotices(1));
+      expect(screen.getByRole("link", { name: "Minhas reservas, 1 aviso novo" })).toBeDefined();
+      cleanup();
+      await renderShell("x", withNotices(120));
+      const link = screen.getByRole("link", { name: "Minhas reservas, 120 avisos novos" });
+      expect(link.querySelector("[data-testid='nav-badge']")?.textContent).toBe("99+");
+    });
+
+    test("sem avisos não há selo e o nome é só o rótulo", async () => {
+      await renderShell("x", withNotices(0));
+      expect(screen.getByRole("link", { name: "Minhas reservas" })).toBeDefined();
+      expect(screen.queryByTestId("nav-badge")).toBeNull();
+    });
+
+    test("na lateral recolhida o selo vira uma bolinha sobre o ícone", async () => {
+      await renderShell("x", withNotices(3));
+      fireEvent.click(screen.getByRole("button", { name: "Recolher menu lateral" }));
+      expect(screen.getByTestId("nav-dot")).toBeDefined();
+      expect(screen.getByTestId("nav-badge").className).toContain("md:hidden");
+    });
+
+    test("o menu do celular também mostra o selo", async () => {
+      await renderShell("x", withNotices(2));
+      fireEvent.click(screen.getByRole("button", { name: "Menu" }));
+      expect(screen.getAllByTestId("nav-badge").length).toBe(2);
+    });
+
+    test("navLabel só muda o item Minhas reservas", () => {
+      expect(navLabel({ to: "/importar", label: "Importar" }, 5)).toBeUndefined();
+      expect(navLabel({ to: "/minhas-reservas", label: "Minhas reservas" }, 0)).toBeUndefined();
+    });
   });
 });

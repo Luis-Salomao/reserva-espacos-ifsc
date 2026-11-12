@@ -78,6 +78,34 @@ function useSessionUser(): SessionInfo["user"] {
   return context.session?.user ?? null;
 }
 
+/** Avisos não lidos e pedidos esperando resposta; alimenta o selo de Minhas reservas. */
+function useUnreadNotices(): number {
+  const context: { session?: SessionInfo } = useRouteContext({ strict: false });
+  return context.session?.unreadNotices ?? 0;
+}
+
+/** Nome acessível do item: "Minhas reservas, 2 avisos novos"; os demais itens usam o texto. */
+export function navLabel(item: NavItem, unread: number): string | undefined {
+  if (item.to !== "/minhas-reservas" || unread <= 0) return undefined;
+  return `${item.label}, ${unread} ${unread === 1 ? "aviso novo" : "avisos novos"}`;
+}
+
+/** Selo vermelho do IFSC com a contagem (some do leitor de tela: o nome do item já traz o número). */
+function NavBadge({ count, className }: { count: number; className?: string }) {
+  return (
+    <span
+      aria-hidden="true"
+      data-testid="nav-badge"
+      className={cn(
+        "ml-auto inline-flex h-5 min-w-5 items-center justify-center rounded-full bg-brand-red px-1.5 text-[11px] leading-none font-semibold text-white tabular-nums",
+        className,
+      )}
+    >
+      {count > 99 ? "99+" : count}
+    </span>
+  );
+}
+
 /** Papéis que têm página pessoal de Minhas reservas no menu. */
 const MY_BOOKINGS_ROLES = ["admin", "docente"] as const;
 
@@ -155,7 +183,7 @@ function BrandLogo({ onSidebar = false }: { onSidebar?: boolean }) {
 }
 
 const NAV_LINK =
-  "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground";
+  "relative flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground";
 /* Item ativo: pílula verde clara com um traço vermelho do IFSC à esquerda (o vermelho do logo). */
 const NAV_LINK_ACTIVE =
   "relative bg-background font-semibold text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-brand-red";
@@ -176,6 +204,7 @@ function NavigationIcon({ icon: Icon, muted = false }: { icon: LucideIcon; muted
  */
 export function AppShell({ children, wide = false }: Props) {
   const user = useSessionUser();
+  const unread = useUnreadNotices();
   const items = navItems(user);
   const [collapsed, setCollapsed] = useState(false);
   useEffect(() => {
@@ -265,12 +294,14 @@ export function AppShell({ children, wide = false }: Props) {
         <nav aria-label="Principal" className="mt-5 hidden flex-col gap-0.5 md:flex">
           {items.map((item) => {
             const Icon = NAV_ICONS[item.to];
+            const label = navLabel(item, unread);
             return (
               <Link
                 key={item.to}
                 to={item.to}
                 activeOptions={{ exact: item.exact === true, includeSearch: false }}
-                title={item.label}
+                title={label ?? item.label}
+                {...(label === undefined ? {} : { "aria-label": label })}
                 className={cn(NAV_LINK, collapsed && "md:justify-center md:px-0")}
                 activeProps={{
                   className: cn(
@@ -282,6 +313,18 @@ export function AppShell({ children, wide = false }: Props) {
               >
                 <NavigationIcon icon={Icon} />
                 <span className={cn(collapsed && "md:sr-only")}>{item.label}</span>
+                {label !== undefined && (
+                  <>
+                    <NavBadge count={unread} className={cn(collapsed && "md:hidden")} />
+                    {collapsed && (
+                      <span
+                        aria-hidden="true"
+                        data-testid="nav-dot"
+                        className="absolute top-0.5 right-1.5 hidden size-2.5 rounded-full bg-brand-red ring-2 ring-sidebar md:block"
+                      />
+                    )}
+                  </>
+                )}
               </Link>
             );
           })}
@@ -310,7 +353,7 @@ export function AppShell({ children, wide = false }: Props) {
             </>
           )}
           {/* Visitante só teria "Agenda" (a marca já leva a ela): sem menu, sobra espaço ao nome. */}
-          {user !== null && <MobileMenu items={items} user={user} />}
+          {user !== null && <MobileMenu items={items} user={user} unread={unread} />}
         </div>
       </header>
       <SidebarHandle collapsed={collapsed} onToggle={toggleSidebar} />
@@ -390,7 +433,15 @@ function ScreenBar({ items }: { items: NavItem[] }) {
 }
 
 /** Menu do celular: botão com aria-expanded que abre um painel com links por papel e Sair/Entrar. */
-function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user"] }) {
+function MobileMenu({
+  items,
+  user,
+  unread,
+}: {
+  items: NavItem[];
+  user: SessionInfo["user"];
+  unread: number;
+}) {
   const [open, setOpen] = useState(false);
   const panelId = useId();
   const root = useRef<HTMLDivElement>(null);
@@ -453,17 +504,20 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
           )}
           {items.map((item) => {
             const Icon = NAV_ICONS[item.to];
+            const label = navLabel(item, unread);
             return (
               <Link
                 key={item.to}
                 to={item.to}
                 activeOptions={{ exact: item.exact === true, includeSearch: false }}
+                {...(label === undefined ? {} : { "aria-label": label })}
                 className={itemClass}
                 activeProps={{ className: cn(itemClass, "bg-surface-2") }}
                 onClick={() => setOpen(false)}
               >
                 <NavigationIcon icon={Icon} muted />
                 {item.label}
+                {label !== undefined && <NavBadge count={unread} />}
               </Link>
             );
           })}

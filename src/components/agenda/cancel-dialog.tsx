@@ -11,6 +11,8 @@ import {
   AlertDialogTitle,
 } from "#/components/ui/alert-dialog";
 import { Button } from "#/components/ui/button";
+import { Label } from "#/components/ui/label";
+import { Textarea } from "#/components/ui/textarea";
 import type { AdminResponse } from "#/server/admin-actions";
 import { cancelOccupationFn, previewSeriesFn } from "#/server/booking-fns";
 
@@ -24,6 +26,8 @@ export type CancelTarget = {
   spaceName: string;
   /** Reserva avulsa de uma série recorrente: oferece "esta e as próximas". */
   inSeries?: boolean;
+  /** Reserva de outra pessoa (cancelada pela administração): o motivo opcional vai ao dono. */
+  foreign?: boolean;
 };
 
 export type CancelDialogProps = {
@@ -34,7 +38,7 @@ export type CancelDialogProps = {
   onSuccess?: (result: { cancelled: number; scope: "data" | "serie" }) => void;
   onCancelled?: (result?: { cancelled: number; scope: "data" | "serie" }) => void;
   cancelFn?: (input: {
-    data: { occupationId: string; scope: "data" | "serie"; expectedCount?: number };
+    data: { occupationId: string; scope: "data" | "serie"; expectedCount?: number; note?: string };
   }) => Promise<AdminResponse<{ cancelled: number }>>;
   previewFn?: (input: {
     data: { occupationId: string };
@@ -97,6 +101,7 @@ export function CancelDialog({
   const [isLoadingPreview, setIsLoadingPreview] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [note, setNote] = useState("");
 
   // Reseta estado quando o diálogo abre ou o item muda
   useEffect(() => {
@@ -106,6 +111,7 @@ export function CancelDialog({
       setIsLoadingPreview(false);
       setIsSubmitting(false);
       setErrorMessage(null);
+      setNote("");
     }
   }, [open, item]);
 
@@ -153,6 +159,7 @@ export function CancelDialog({
           ...(scope === "serie" && previewDates !== null
             ? { expectedCount: previewDates.length }
             : {}),
+          ...(item.foreign === true && note.trim() !== "" ? { note: note.trim() } : {}),
         },
       }),
     );
@@ -197,11 +204,13 @@ export function CancelDialog({
         <AlertDialogHeader>
           <AlertDialogTitle>Cancelar reserva</AlertDialogTitle>
           <p className="text-sm text-muted-foreground">
-            {isManual
-              ? "Reserva feita por você."
-              : manualSeries
-                ? "Reserva feita por você, parte de uma série."
-                : "Aula importada do horário oficial. Você é a pessoa responsável."}
+            {item.foreign === true
+              ? "Reserva de outra pessoa. A pessoa responsável será avisada do cancelamento."
+              : isManual
+                ? "Reserva feita por você."
+                : manualSeries
+                  ? "Reserva feita por você, parte de uma série."
+                  : "Aula importada do horário oficial. Você é a pessoa responsável."}
           </p>
         </AlertDialogHeader>
 
@@ -302,6 +311,19 @@ export function CancelDialog({
             </fieldset>
           )}
         </div>
+
+        {item.foreign === true && (
+          <div className="grid gap-2">
+            <Label htmlFor="cancel-note">Motivo (opcional, enviado ao responsável)</Label>
+            <Textarea
+              id="cancel-note"
+              maxLength={300}
+              value={note}
+              disabled={isSubmitting}
+              onChange={(event) => setNote(event.target.value)}
+            />
+          </div>
+        )}
 
         <AlertDialogFooter>
           <Button

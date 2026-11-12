@@ -6,6 +6,7 @@ import { BookingSheet, type BookingSlotInit } from "#/components/agenda/booking-
 import { CancelDialog, type CancelTarget } from "#/components/agenda/cancel-dialog";
 import { GateDialog } from "#/components/agenda/gate-dialog";
 import { OccupationDetails } from "#/components/agenda/occupation-details";
+import { RequestRoomDialog, type RequestTarget } from "#/components/agenda/request-room-dialog";
 import { AppShell } from "#/components/app-shell";
 import { Notice, PageHeader } from "#/components/page";
 import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
@@ -217,6 +218,8 @@ function AgendaPage({ data }: { data: AgendaLoaderData }) {
   const [selectedSlot, setSelectedSlot] = useState<BookingSlotInit | null>(null);
   const [details, setDetails] = useState<AgendaItem | null>(null);
   const [cancelTarget, setCancelTarget] = useState<CancelTarget | null>(null);
+  const [requestTarget, setRequestTarget] = useState<RequestTarget | null>(null);
+  const [requestSent, setRequestSent] = useState(false);
 
   const { spaces, selectedDate, selectedSpaceId, weekAgenda, isVisitor, session, timeZone } = data;
 
@@ -299,6 +302,19 @@ function AgendaPage({ data }: { data: AgendaLoaderData }) {
       title: item.title,
       source: item.source,
       spaceName: activeSpaceName,
+      foreign: !item.mine,
+    });
+  };
+
+  const handleRequest = (item: AgendaItem) => {
+    setDetails(null);
+    setRequestSent(false);
+    setRequestTarget({
+      id: item.id,
+      spaceName: activeSpaceName,
+      date: item.date,
+      start: item.start,
+      end: item.end,
     });
   };
 
@@ -326,6 +342,11 @@ function AgendaPage({ data }: { data: AgendaLoaderData }) {
       ) : (
         <>
           {isVisitor && <SystemIntro />}
+          {requestSent && (
+            <Notice tone="ok" role="status" className="mx-4 mt-4">
+              Pedido enviado; você verá a resposta em Minhas reservas.
+            </Notice>
+          )}
           {weekAgenda !== null ? (
             <AgendaView
               spaces={spaces}
@@ -361,6 +382,17 @@ function AgendaPage({ data }: { data: AgendaLoaderData }) {
               if (!open) setDetails(null);
             }}
             onCancel={handleCancel}
+            onRequest={handleRequest}
+          />
+          <RequestRoomDialog
+            target={requestTarget}
+            onOpenChange={(open) => {
+              if (!open) setRequestTarget(null);
+            }}
+            onSent={() => {
+              setRequestTarget(null);
+              setRequestSent(true);
+            }}
           />
           <CancelDialog
             open={cancelTarget !== null}

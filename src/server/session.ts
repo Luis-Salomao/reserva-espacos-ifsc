@@ -152,4 +152,10 @@ export function safeRedirectTarget(raw: string | null | undefined): string {
 
 /** Sessão da requisição que o servidor entrega às páginas. */
 /** `timeZone` é o TIMEZONE do servidor: o mesmo na renderização do servidor e no navegador. */
-export type SessionInfo = { user: User | null; publicRead: boolean; timeZone: string };
+/** `unreadNotices`: avisos não lidos mais pedidos de sala esperando resposta (selo de Minhas reservas). */
+export type SessionInfo = {
+  user: User | null;
+  publicRead: boolean;
+  timeZone: string;
+  unreadNotices?: number;
+};

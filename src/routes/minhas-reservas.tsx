@@ -1,16 +1,19 @@
 import { createFileRoute, Link, redirect, useRouter } from "@tanstack/react-router";
 import { CalendarDays } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { MyBooking } from "#/application/bookings";
+import type { NoticesOverview } from "#/application/notifications";
 import { CancelDialog } from "#/components/agenda/cancel-dialog";
 import { EditBookingDialog } from "#/components/agenda/edit-booking-dialog";
 import { AppShell } from "#/components/app-shell";
+import { NoticesSection } from "#/components/notices/notices-section";
 import { Notice, PageHeader } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { localNow } from "#/domain/availability";
 import { weekdayOf } from "#/domain/calendar";
 import { cn } from "#/lib/utils";
 import { myBookingsFn } from "#/server/booking-fns";
+import { markNoticesReadFn, myNoticesFn } from "#/server/notification-fns";
 import { listSpaces } from "#/server/spaces";
 
 export type MinhasReservasSearch = {
@@ -59,11 +62,19 @@ export const Route = createFileRoute("/minhas-reservas")({
   loader: async ({ context }) => {
     const timeZone = context.session?.timeZone ?? "America/Sao_Paulo";
     const today = localNow(new Date(), timeZone).slice(0, 10);
-    const result = await myBookingsFn({ data: { from: today } });
+    const [result, notices] = await Promise.all([
+      myBookingsFn({ data: { from: today } }),
+      myNoticesFn({ data: {} }),
+    ]);
     if (!result.ok) {
       throw new Error(result.message);
     }
+    // Avisos são um complemento: se falharem, a lista de reservas continua útil.
+    const overview: NoticesOverview = notices.ok
+      ? notices.data
+      : { notices: [], incoming: [], outgoing: [] };
     return {
+      overview,
       items: result.data.items,
       hasMore: result.data.hasMore,
       today,
@@ -365,7 +376,7 @@ export function MinhasReservasList({
 }
 
 export function MinhasReservasPage() {
-  const { items, spaces } = Route.useLoaderData();
+  const { items, spaces, overview } = Route.useLoaderData();
   const search = Route.useSearch();
   const router = useRouter();
   const [cancelTarget, setCancelTarget] = useState<MyBooking | null>(null);
@@ -380,12 +391,38 @@ export function MinhasReservasPage() {
     }
   }, [search.newId]);
 
+  // Avisos não lidos ficam destacados só nesta visita: guarda os ids vistos como novos, porque
+  // marcar como lido e recarregar devolveria todos já lidos.
+  const freshIds = useRef(new Set<string>());
+  for (const notice of overview.notices) if (notice.unread) freshIds.current.add(notice.id);
+  const shown: NoticesOverview = {
+    ...overview,
+    notices: overview.notices.map((notice) => ({
+      ...notice,
+      unread: notice.unread || freshIds.current.has(notice.id),
+    })),
+  };
+  const hasUnread = overview.notices.some((notice) => notice.unread);
+  useEffect(() => {
+    if (!hasUnread) return;
+    void (async () => {
+      try {
+        await markNoticesReadFn({ data: {} });
+        await router.invalidate();
+      } catch {
+        // Sem rede ou sem roteador: o selo se atualiza na próxima visita.
+      }
+    })();
+  }, [hasUnread, router]);
+
   const count = items.length;
   const countLabel = count === 1 ? "1 próxima reserva" : `${count} próximas reservas`;
 
   return (
     <AppShell>
       <PageHeader title="Minhas reservas" description={count > 0 ? countLabel : undefined} />
+
+      <NoticesSection overview={shown} onChanged={() => void router.invalidate()} />
 
       <MinhasReservasList
         items={items}
