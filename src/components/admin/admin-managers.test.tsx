@@ -82,7 +82,7 @@ mock.module("#/server/admin", () => ({
 
 const { AccountsManager } = await import("./accounts-manager");
 const { SpacesLoadError, SpacesManager } = await import("./spaces-manager");
-const { SpaceCard } = await import("./space-card");
+const { SpaceDeleteDialog } = await import("./space-delete-dialog");
 const { SpaceFormDialog } = await import("./space-form-dialog");
 const { SemesterForm } = await import("#/components/semesters/semester-form");
 
@@ -547,13 +547,11 @@ describe("SpacesManager", () => {
     await screen.findByRole("button", { name: "Novo espaço" });
   }
 
-  const names = () =>
-    screen
-      .getAllByRole("listitem")
-      .filter((item) => item.querySelector("[aria-label='Equipamentos']") !== null)
-      .map((item) => item.querySelector("p")?.textContent);
+  const spaceRows = () =>
+    screen.getAllByRole("row").filter((row) => within(row).queryAllByRole("cell").length > 0);
+  const names = () => spaceRows().map((row) => within(row).getAllByRole("cell")[0]?.textContent);
 
-  test("agrupa por bloco e andar, com 'Outros espaços' por último", async () => {
+  test("agrupa por bloco, com uma tabela por bloco, o andar em coluna e 'Outros espaços' por último", async () => {
     await renderSpaces(spaces);
     expect(screen.getAllByRole("heading", { level: 2 }).map((h) => h.textContent)).toEqual([
       "Bloco A",
@@ -562,15 +560,15 @@ describe("SpacesManager", () => {
     ]);
     const blockA = screen.getByRole("region", { name: "Bloco A" });
     expect(
-      within(blockA)
-        .getAllByRole("heading", { level: 3 })
-        .map((h) => h.textContent),
-    ).toEqual(["Andar 1", "Andar 2"]);
+      within(within(blockA).getByRole("table", { name: "Espaços do Bloco A" }))
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("cell")[1]?.textContent),
+    ).toEqual(["Andar 1", "Andar 1", "Andar 2"]);
     expect(names()).toEqual(["A-105", "A-110", "A-202", "B-101", "Auditório"]);
     expect(
-      within(screen.getByRole("region", { name: "Outros espaços" })).getByRole("heading", {
-        level: 3,
-      }).textContent,
+      within(screen.getByRole("region", { name: "Outros espaços" })).getAllByRole("cell")[1]
+        ?.textContent,
     ).toBe("Sem andar identificado");
     expect(screen.getByText("5 de 5 espaços")).toBeTruthy();
   });
@@ -614,7 +612,7 @@ describe("SpacesManager", () => {
 
   test("excluir recarrega a lista e anuncia 'Espaço excluído.'", async () => {
     await renderSpaces(spaces);
-    fireEvent.click(screen.getByRole("button", { name: "Excluir B-101" }));
+    await chooseAction("B-101", "Excluir");
     served = spaces.filter((space) => space.id !== "b101");
     fireEvent.click(await screen.findByRole("button", { name: "Excluir espaço" }));
     await waitFor(() => expect(screen.getByRole("status").textContent).toBe("Espaço excluído."));
@@ -652,100 +650,139 @@ describe("SpacesManager", () => {
   });
 });
 
-describe("SpaceCard", () => {
+describe("tabela de espaços", () => {
   const informed: Space = {
     id: "a202",
     name: "A-202",
     capacity: 40,
-    equipment: { items: { projetor: 1, computadores: 1, som: 0 }, notes: "Lousa digital\nTV" },
+    equipment: {
+      items: { projetor: 1, computadores: 12, som: 0 },
+      notes: "Lousa digital\nTV",
+      computersInMaintenance: 2,
+    },
   };
+  const bare: Space = { id: "b1", name: "Auditório", capacity: null };
 
-  function renderCard(space: Space) {
-    const edits: string[] = [];
-    const deleted: string[] = [];
-    render(
-      <ul>
-        <SpaceCard
-          space={space}
-          onEdit={() => edits.push(space.id)}
-          onDeleted={() => deleted.push(space.id)}
-        />
-      </ul>,
-    );
-    return { edits, deleted };
+  async function renderTable(list: Space[]) {
+    const root = createRootRoute({ component: () => <SpacesManager spaces={list} /> });
+    const router = createRouter({
+      routeTree: root,
+      history: createMemoryHistory({ initialEntries: ["/"] }),
+    });
+    render(<RouterProvider router={router} />);
+    await screen.findByRole("button", { name: "Novo espaço" });
   }
 
-  test("mostra capacidade, um rótulo por equipamento e as observações", () => {
-    renderCard(informed);
-    expect(screen.getByText("40 lugares")).toBeTruthy();
-    const tags = within(screen.getByRole("list", { name: "Equipamentos" }))
-      .getAllByRole("listitem")
-      .map((item) => item.textContent);
-    expect(tags).toEqual(["Projetor", "1 computador", "Sem aparelho de som"]);
-    expect(screen.getByText(/Lousa digital/).textContent).toBe("Observações: Lousa digital\nTV");
-  });
-
-  test("sem dados mostra capacidade e equipamentos não informados e nenhuma observação", () => {
-    renderCard({ id: "b1", name: "Auditório", capacity: null });
-    expect(screen.getByText("Capacidade não informada")).toBeTruthy();
-    const tags = within(screen.getByRole("list", { name: "Equipamentos" }))
-      .getAllByRole("listitem")
-      .map((item) => item.textContent);
-    expect(tags).toEqual([
-      "Projetor não informado",
-      "Computadores não informados",
-      "Aparelho de som não informado",
+  test("tem as colunas pedidas, com cabeçalhos de coluna", async () => {
+    await renderTable([informed]);
+    expect(screen.getAllByRole("columnheader").map((th) => th.textContent)).toEqual([
+      "Nome da sala",
+      "Andar",
+      "Capacidade",
+      "Equipamentos",
+      "Computadores em manutenção",
+      "Observações",
+      "Ações",
     ]);
-    expect(screen.queryByText(/Observações/) === null).toBe(true);
   });
 
-  test("nome e observações longos sem espaço podem quebrar em qualquer ponto", async () => {
-    const long = "x".repeat(120);
-    renderCard({
-      id: "l1",
-      name: `Sala-${long}`,
-      capacity: null,
-      equipment: { items: {}, notes: long },
-    });
-    const notes = screen.getByText(long);
-    expect(notes.textContent).toBe(`Observações: ${long}`);
-    expect(notes.classList.contains("wrap-anywhere")).toBe(true);
-    const name = screen.getByText(`Sala-${long}`, { selector: "p" });
-    expect(name.classList.contains("wrap-anywhere")).toBe(true);
-    expect((name.closest("li") as HTMLElement).classList.contains("min-w-0")).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: `Excluir Sala-${long}` }));
-    const title = within(await screen.findByRole("alertdialog")).getByRole("heading");
-    expect(title.classList.contains("wrap-anywhere")).toBe(true);
+  test("mostra capacidade, um rótulo por equipamento, computadores em manutenção e observações", async () => {
+    await renderTable([informed]);
+    const row = screen.getByText("A-202").closest("tr") as HTMLElement;
+    const cells = within(row).getAllByRole("cell");
+    expect(cells[2]?.textContent).toBe("40 lugares");
+    const marks = within(cells[3] as HTMLElement).getByRole("group", { name: "Equipamentos" });
+    expect(marks.textContent).toBe("Projetor12 computadoresSem aparelho de som");
+    expect(cells[4]?.textContent).toContain("2");
+    const notes = within(cells[5] as HTMLElement).getByText(/Lousa digital/);
+    expect(notes.getAttribute("title")).toBe("Lousa digital\nTV");
+    expect(notes.classList.contains("md:truncate")).toBe(true);
   });
 
-  test("Editar avisa o gerenciador", () => {
-    const { edits } = renderCard(informed);
-    fireEvent.click(screen.getByRole("button", { name: "Editar A-202" }));
-    expect(edits).toEqual(["a202"]);
+  test("sem dados: capacidade e equipamentos não informados, sem manutenção nem observações", async () => {
+    await renderTable([bare]);
+    const row = screen.getByText("Auditório").closest("tr") as HTMLElement;
+    const cells = within(row).getAllByRole("cell");
+    expect(cells[2]?.textContent).toBe("Capacidade não informada");
+    const marks = within(cells[3] as HTMLElement).getByRole("group", { name: "Equipamentos" });
+    expect(marks.textContent).toBe(
+      "Projetor não informadoComputadores não informadosAparelho de som não informado",
+    );
+    expect(within(cells[4] as HTMLElement).queryByText(/computador/) === null).toBe(true);
+    expect(cells[5]?.textContent).toBe("—");
   });
 
-  test("Excluir só abre a confirmação; Cancelar fecha sem chamar o servidor", async () => {
-    renderCard(informed);
-    fireEvent.click(screen.getByRole("button", { name: "Excluir A-202" }));
+  test("nome longo sem espaço pode quebrar em qualquer ponto", async () => {
+    const long = `Sala-${"x".repeat(120)}`;
+    await renderTable([{ id: "l1", name: long, capacity: null }]);
+    expect(screen.getByText(long).classList.contains("wrap-anywhere")).toBe(true);
+  });
+
+  test("o lápis é um ícone 'Editar NOME' e o menu traz Excluir", async () => {
+    await renderTable([informed]);
+    const pencil = screen.getByRole("button", { name: "Editar A-202" });
+    expect(pencil.getAttribute("title")).toBe("Editar");
+    const items = within(await openRowMenu("A-202")).getAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual(["Excluir"]);
+  });
+
+  test("o lápis abre o diálogo de edição e Cancelar devolve o foco ao lápis", async () => {
+    await renderTable([informed]);
+    const pencil = screen.getByRole("button", { name: "Editar A-202" });
+    fireEvent.click(pencil);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog") === null).toBe(true));
+    await waitFor(() => expect(document.activeElement === pencil).toBe(true));
+  });
+});
+
+describe("SpaceDeleteDialog", () => {
+  const space: Space = { id: "a202", name: "A-202", capacity: 40 };
+
+  function renderDialog(target: Space | null = space) {
+    const deleted: string[] = [];
+    const closed: string[] = [];
+    render(
+      <SpaceDeleteDialog
+        space={target}
+        onClose={() => closed.push("fechou")}
+        onDeleted={() => deleted.push(space.id)}
+      />,
+    );
+    return { deleted, closed };
+  }
+
+  test("fechado, não monta a confirmação", () => {
+    renderDialog(null);
+    expect(screen.queryByRole("alertdialog") === null).toBe(true);
+  });
+
+  test("pergunta antes; Cancelar fecha sem chamar o servidor", async () => {
+    const { closed } = renderDialog();
     const dialog = await screen.findByRole("alertdialog");
     expect(within(dialog).getByText("Excluir A-202?")).toBeTruthy();
     expect(within(dialog).getByRole("button", { name: "Excluir espaço" })).toBeTruthy();
     fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
-    await waitFor(() => expect(screen.queryByRole("alertdialog") === null).toBe(true));
+    expect(closed).toEqual(["fechou"]);
     expect(spaceCalls).toEqual([]);
+  });
+
+  test("título com nome longo sem espaço pode quebrar em qualquer ponto", async () => {
+    renderDialog({ ...space, name: `Sala-${"x".repeat(120)}` });
+    const title = within(await screen.findByRole("alertdialog")).getByRole("heading");
+    expect(title.classList.contains("wrap-anywhere")).toBe(true);
   });
 
   test("confirmar envia o id, mostra 'Excluindo…' e avisa ao concluir", async () => {
     const release = holdSpaceResponses();
-    const { deleted } = renderCard(informed);
-    fireEvent.click(screen.getByRole("button", { name: "Excluir A-202" }));
+    const { deleted } = renderDialog();
     fireEvent.click(await screen.findByRole("button", { name: "Excluir espaço" }));
     const pending = await screen.findByRole("button", { name: "Excluindo…" });
     expect((pending as HTMLButtonElement).disabled).toBe(true);
     expect(spaceCalls).toEqual([{ action: "delete", id: "a202" }]);
     release();
     await waitFor(() => expect(deleted).toEqual(["a202"]));
-    await waitFor(() => expect(screen.queryByRole("alertdialog") === null).toBe(true));
   });
 
   test("recusa aparece dentro da confirmação, que continua aberta", async () => {
@@ -754,18 +791,11 @@ describe("SpaceCard", () => {
       status: 409,
       message: "Este espaço tem reservas, aulas ou vínculo com o XML e não pode ser excluído.",
     };
-    const { deleted } = renderCard(informed);
-    fireEvent.click(screen.getByRole("button", { name: "Excluir A-202" }));
+    const { deleted } = renderDialog();
     fireEvent.click(await screen.findByRole("button", { name: "Excluir espaço" }));
-    const dialog = screen.getByRole("alertdialog");
-    const alert = await within(dialog).findByRole("alert");
+    const alert = await within(screen.getByRole("alertdialog")).findByRole("alert");
     expect(alert.textContent).toMatch(/não pode ser excluído/);
     expect(deleted).toEqual([]);
-    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
-    await waitFor(() => expect(screen.queryByRole("alertdialog") === null).toBe(true));
-    fireEvent.click(screen.getByRole("button", { name: "Excluir A-202" }));
-    await screen.findByRole("alertdialog");
-    expect(screen.queryByRole("alert") === null).toBe(true);
   });
 });
 
