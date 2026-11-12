@@ -192,13 +192,16 @@ describe("AppShell", () => {
     expect(negativa?.className.split(" ")).toContain("md:block");
   });
 
-  test("recolhida, a lateral mostra o símbolo do IFSC no topo e o botão de expandir logo abaixo", async () => {
+  test("a alça na borda da lateral recolhe e expande; recolhida, o topo mostra o símbolo do IFSC", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
-    fireEvent.click(screen.getByRole("button", { name: "Recolher menu lateral" }));
-    const simbolo = document.querySelector("[data-logo='simbolo']");
-    expect(simbolo).not.toBeNull();
+    const recolher = screen.getByRole("button", { name: "Recolher menu lateral" });
+    expect(recolher.hasAttribute("data-handle")).toBe(true);
+    expect(recolher.className.split(" ")).toContain("left-60");
+    fireEvent.click(recolher);
+    expect(document.querySelector("[data-logo='simbolo']")).not.toBeNull();
     const expandir = screen.getByRole("button", { name: "Expandir menu lateral" });
-    expect(simbolo?.compareDocumentPosition(expandir)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(expandir.className.split(" ")).toContain("left-16");
+    expect(expandir.getAttribute("aria-expanded")).toBe("false");
   });
 
   test("o visitante não recebe o logo negativo (o cabeçalho dele é neutro)", async () => {

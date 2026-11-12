@@ -2,6 +2,7 @@ import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
   CalendarRange,
+  ChevronLeft,
   ChevronRight,
   ChevronsUpDown,
   FileUp,
@@ -9,8 +10,6 @@ import {
   LogOut,
   type LucideIcon,
   Menu,
-  PanelLeftClose,
-  PanelLeftOpen,
   Users,
   Wrench,
   X,
@@ -262,13 +261,7 @@ export function AppShell({ children, wide = false }: Props) {
               />
             </Link>
           )}
-          {!collapsed && <SidebarToggle collapsed={collapsed} onToggle={toggleSidebar} />}
         </div>
-        {collapsed && (
-          <div className="mt-3 hidden justify-center md:flex">
-            <SidebarToggle collapsed={collapsed} onToggle={toggleSidebar} />
-          </div>
-        )}
         <nav aria-label="Principal" className="mt-5 hidden flex-col gap-0.5 md:flex">
           {items.map((item) => {
             const Icon = NAV_ICONS[item.to];
@@ -320,6 +313,7 @@ export function AppShell({ children, wide = false }: Props) {
           {user !== null && <MobileMenu items={items} user={user} />}
         </div>
       </header>
+      <SidebarHandle collapsed={collapsed} onToggle={toggleSidebar} />
       <div className={collapsed ? "md:pl-16" : "md:pl-60"}>
         <ScreenBar items={items} />
         <main
@@ -337,21 +331,28 @@ export function AppShell({ children, wide = false }: Props) {
   );
 }
 
-function SidebarToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+/**
+ * Alça na borda direita da lateral (só no computador): uma "barriga" verde com a seta para
+ * recolher ou expandir. Fica fora do `.menu-forte` para o foco usar a cor do conteúdo.
+ */
+function SidebarHandle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
   const label = collapsed ? "Expandir menu lateral" : "Recolher menu lateral";
+  const Arrow = collapsed ? ChevronRight : ChevronLeft;
   return (
-    <Button
+    <button
       type="button"
-      variant="ghost"
-      size="icon"
-      className="hidden shrink-0 md:inline-flex"
       aria-label={label}
       aria-expanded={!collapsed}
-      onClick={onToggle}
       title={label}
+      onClick={onToggle}
+      data-handle=""
+      className={cn(
+        "fixed top-1/2 z-40 hidden h-14 w-5 -translate-y-1/2 items-center justify-center rounded-r-xl bg-sidebar text-(--sidebar-text) shadow-[2px_0_6px_rgb(0_0_0/0.18)] transition-[width] hover:w-6 md:flex",
+        collapsed ? "left-16" : "left-60",
+      )}
     >
-      {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
-    </Button>
+      <Arrow aria-hidden="true" className="size-4" />
+    </button>
   );
 }
 
