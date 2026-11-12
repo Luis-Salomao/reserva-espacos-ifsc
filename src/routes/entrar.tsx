@@ -16,6 +16,8 @@ import { safeRedirectTarget } from "#/server/session";
 type LoginSearch = { erro?: LoginErrorCode; voltar?: string };
 
 export const Route = createFileRoute("/entrar")({
+  // Restaura a política após navegação SPA a partir das páginas de recuperação.
+  head: () => ({ meta: [{ name: "referrer", content: "same-origin" }] }),
   validateSearch: (search: Record<string, unknown>): LoginSearch => {
     const erro = loginErrorFromSearch(search.erro);
     const voltar = typeof search.voltar === "string" ? safeRedirectTarget(search.voltar) : "/";
