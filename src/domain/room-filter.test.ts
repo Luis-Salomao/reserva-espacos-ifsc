@@ -43,6 +43,8 @@ const NONE: RoomFilter = {
   blocks: [],
   floors: [],
   minCapacity: null,
+  withProjector: false,
+  minComputers: null,
   query: "",
   onlyFree: false,
   window: { start: "14:00", end: "16:00" },
@@ -50,6 +52,26 @@ const NONE: RoomFilter = {
 
 const names = (result: { rooms: { space: { name: string } }[] }) =>
   result.rooms.map((item) => item.space.name);
+
+describe("filterRooms equipamentos", () => {
+  function equipped(name: string, items: { projetor?: number; computadores?: number }) {
+    const base = room(name, 30, ALL_DAY);
+    return { ...base, space: { ...base.space, equipment: { items, notes: null } } };
+  }
+
+  test("com projetor exclui zero e não informado; mínimo de computadores exclui abaixo e desconhecido", () => {
+    const rooms = [
+      equipped("A-202", { projetor: 1, computadores: 12 }),
+      equipped("A-101", { projetor: 0, computadores: 4 }),
+      room("B-104", 25, ALL_DAY),
+    ];
+    expect(names(filterRooms(rooms, { ...NONE, withProjector: true }, BEFORE))).toEqual(["A-202"]);
+    expect(names(filterRooms(rooms, { ...NONE, minComputers: 8 }, BEFORE))).toEqual(["A-202"]);
+    expect(
+      filterRooms(rooms, { ...NONE, minComputers: 8, minCapacity: 100 }, BEFORE).hiddenNoCapacity,
+    ).toBe(0);
+  });
+});
 
 describe("blockOf", () => {
   test("letra do código no nome; sem código, nenhum bloco", () => {

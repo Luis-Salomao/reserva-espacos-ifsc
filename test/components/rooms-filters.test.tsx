@@ -7,6 +7,8 @@ const NONE: RoomFilter = {
   blocks: [],
   floors: [],
   minCapacity: null,
+  withProjector: false,
+  minComputers: null,
   query: "",
   onlyFree: false,
   window: { start: "14:00", end: "16:00" },
@@ -67,6 +69,17 @@ describe("RoomsFilters", () => {
     expect(absent(within(panel).queryByRole("switch", { name: "Só livres" }))).toBe(false);
     expect(absent(within(panel).queryByLabelText("Início"))).toBe(false);
     expect(absent(within(panel).queryByLabelText("Buscar sala"))).toBe(true);
+  });
+
+  test("com projetor e mínimo de computadores entram na conta e no filtro", async () => {
+    const { onChange } = renderFilters();
+    const panel = await openFilters();
+    fireEvent.click(within(panel).getByRole("switch", { name: "Com projetor" }));
+    expect(onChange.mock.calls[0]?.[0]).toEqual({ ...NONE, withProjector: true });
+    fireEvent.change(within(panel).getByLabelText("Mínimo de computadores"), {
+      target: { value: "8" },
+    });
+    expect(lastFilter(onChange)).toEqual({ ...NONE, minComputers: 8 });
   });
 
   test("o botão mostra 'Filtros · 2' com dois filtros escondidos ativos", () => {

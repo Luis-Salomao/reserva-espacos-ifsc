@@ -790,7 +790,7 @@ describe("Challenger M2 — Suite 5: UI Resilience & State Preservation", () => 
       />,
     );
 
-    const purposeInput = screen.getByLabelText(/Finalidade/i) as HTMLInputElement;
+    const purposeInput = screen.getByLabelText(/Matéria ou título/i) as HTMLInputElement;
     fireEvent.change(purposeInput, { target: { value: "Reunião de Alinhamento" } });
 
     const submitBtn = screen.getByRole("button", { name: "Reservar" });

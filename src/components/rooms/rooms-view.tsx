@@ -41,6 +41,8 @@ export type SalasSearch = {
   bloco?: string[];
   andar?: number[];
   cap?: number;
+  projetor?: true;
+  pcs?: number;
   q?: string;
   ini?: string;
   fim?: string;
@@ -103,6 +105,8 @@ function withFilter(prev: SalasSearch, next: RoomFilter, shown: TimeRange): Sala
     cap: _cap,
     q: _q,
     livres: _livres,
+    projetor: _projetor,
+    pcs: _pcs,
     ini,
     fim,
     ...rest
@@ -116,6 +120,8 @@ function withFilter(prev: SalasSearch, next: RoomFilter, shown: TimeRange): Sala
     ...(next.blocks.length > 0 ? { bloco: [...next.blocks] } : {}),
     ...(next.floors.length > 0 ? { andar: [...next.floors] } : {}),
     ...(next.minCapacity !== null ? { cap: next.minCapacity } : {}),
+    ...(next.withProjector ? { projetor: true as const } : {}),
+    ...(next.minComputers !== null ? { pcs: next.minComputers } : {}),
     ...(query !== "" ? { q: query } : {}),
     ...times,
     ...(next.onlyFree ? { livres: true as const } : {}),
@@ -123,7 +129,16 @@ function withFilter(prev: SalasSearch, next: RoomFilter, shown: TimeRange): Sala
 }
 
 function withoutFilters(prev: SalasSearch): SalasSearch {
-  const { bloco: _bloco, andar: _andar, cap: _cap, q: _q, livres: _livres, ...rest } = prev;
+  const {
+    bloco: _bloco,
+    andar: _andar,
+    cap: _cap,
+    q: _q,
+    livres: _livres,
+    projetor: _projetor,
+    pcs: _pcs,
+    ...rest
+  } = prev;
   return rest;
 }
 
@@ -190,6 +205,8 @@ export function RoomsView({
     blocks: search.bloco ?? [],
     floors: search.andar ?? [],
     minCapacity: search.cap ?? null,
+    withProjector: search.projetor === true,
+    minComputers: search.pcs ?? null,
     query: search.q ?? "",
     onlyFree: search.livres === true,
     window: requested,
@@ -327,6 +344,7 @@ export function RoomsView({
               canBook={canBook}
               onBook={book}
               onClearFilters={clearFilters}
+              showNotes={!isVisitor}
             />
           ) : geral ? (
             weekResult.rooms.length === 0 || roomsWeek === null ? (
@@ -361,6 +379,7 @@ export function RoomsView({
                 onDraftChange={setDraft}
                 onSelectSlot={book}
                 spacesIndex={spacesIndex}
+                showNotes={!isVisitor}
               />
             </>
           )}

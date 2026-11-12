@@ -8,6 +8,7 @@ import {
   getDayAgenda,
   getRoomsDay,
   getRoomsWeek,
+  getSubjects,
   getWeekAgenda,
   myBookingsAction,
   previewSeriesAction,
@@ -495,5 +496,63 @@ describe("minhas reservas", () => {
         status: 400,
       });
     }
+  });
+});
+
+describe("matérias", () => {
+  test("sem sessão recusa com 401 e não devolve títulos", async () => {
+    const { deps, req } = await setup();
+    const unauthenticated = {
+      ok: false as const,
+      status: 401 as const,
+      message: "É preciso entrar.",
+    };
+    for (const token of [null, "token-que-nao-existe"]) {
+      const outcome = await getSubjects(deps, req(token), { date: "2026-11-10" });
+      expect(outcome.response).toEqual(unauthenticated);
+      expect(JSON.stringify(outcome.response)).not.toContain("mine");
+    }
+  });
+
+  test("corpo inválido é 400; data inválida aponta o campo", async () => {
+    const { deps, req } = await setup();
+    for (const data of [null, "x", {}, { date: 1 }]) {
+      expect((await getSubjects(deps, req("doca"), data)).response).toEqual({
+        ok: false,
+        status: 400,
+        message: "Requisição inválida.",
+      });
+    }
+    expect((await getSubjects(deps, req("doca"), { date: "2026-02-30" })).response).toMatchObject({
+      ok: false,
+      status: 400,
+      field: "date",
+      message: "Informe uma data válida.",
+    });
+  });
+
+  test("repassa a data ao serviço e devolve os grupos", async () => {
+    const { db, s, deps, req } = await setup();
+    insertImported(db, {
+      id: "a",
+      spaceId: s.sala1.id,
+      date: "2026-11-10",
+      start: "08:00",
+      end: "09:00",
+      title: "Cálculo — 1A",
+      responsibleUserId: s.docA.id,
+    });
+    const seen: Array<{ date: string }> = [];
+    const original = deps.bookings.subjects.bind(deps.bookings);
+    deps.bookings.subjects = (user, input) => {
+      seen.push(input);
+      return original(user, input);
+    };
+    const outcome = await getSubjects(deps, req("doca"), { date: "2026-11-10" });
+    expect(seen).toEqual([{ date: "2026-11-10" }]);
+    expect(outcome.response).toEqual({
+      ok: true,
+      data: { mine: ["Cálculo — 1A"], all: [] },
+    });
   });
 });

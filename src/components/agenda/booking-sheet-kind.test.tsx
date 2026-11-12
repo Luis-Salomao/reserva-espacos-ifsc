@@ -44,7 +44,7 @@ describe("BookingSheet — tipo de reserva (manutenção)", () => {
     renderWithRouter(
       <BookingSheet open={true} onOpenChange={() => {}} spaces={spaces} canMaintenance={false} />,
     );
-    await screen.findByLabelText("Finalidade");
+    await screen.findByLabelText("Matéria ou título");
     expect(screen.queryByText("Tipo")).toBeNull();
     expect(screen.queryByText("Manutenção")).toBeNull();
   });
@@ -56,7 +56,7 @@ describe("BookingSheet — tipo de reserva (manutenção)", () => {
     expect(await screen.findByText("Tipo")).toBeDefined();
     const eventoOption = screen.getByRole("radio", { name: /Aula ou evento/ });
     expect(eventoOption).toHaveProperty("checked", true);
-    expect(screen.getByLabelText("Finalidade")).toBeDefined();
+    expect(screen.getByLabelText("Matéria ou título")).toBeDefined();
   });
 
   test("ao escolher Manutenção, o rótulo muda e o envio prefixa a finalidade", async () => {

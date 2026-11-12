@@ -198,7 +198,7 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
         createFn: mock(async (..._args: unknown[]) => ({ ok: true as const, data: mockSuccess })),
       });
 
-      const purposeInput = screen.getByLabelText(/Finalidade/i);
+      const purposeInput = screen.getByLabelText(/Matéria ou título/i);
       fireEvent.change(purposeInput, { target: { value: "Reunião Departamental Longa" } });
       fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
 
@@ -534,16 +534,16 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
         createFn: mockCreate,
       });
 
-      const purposeInput = screen.getByLabelText(/Finalidade/i);
+      const purposeInput = screen.getByLabelText(/Matéria ou título/i);
 
       // Whitespace only
       fireEvent.change(purposeInput, { target: { value: "     " } });
       fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
 
       await waitFor(() => {
-        expect(
-          screen.getAllByText("Informe a finalidade da reserva.").length,
-        ).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText("Informe a matéria ou o título").length).toBeGreaterThanOrEqual(
+          1,
+        );
       });
       expect(mockCreate).not.toHaveBeenCalled();
 
@@ -551,9 +551,9 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
       fireEvent.change(purposeInput, { target: { value: "\t\n  \r\n" } });
       fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
       await waitFor(() => {
-        expect(
-          screen.getAllByText("Informe a finalidade da reserva.").length,
-        ).toBeGreaterThanOrEqual(1);
+        expect(screen.getAllByText("Informe a matéria ou o título").length).toBeGreaterThanOrEqual(
+          1,
+        );
       });
       expect(mockCreate).not.toHaveBeenCalled();
     });
@@ -579,7 +579,7 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
         createFn: mockCreate,
       });
 
-      const purposeInput = screen.getByLabelText(/Finalidade/i);
+      const purposeInput = screen.getByLabelText(/Matéria ou título/i);
       fireEvent.change(purposeInput, {
         target: { value: "   Reunião Pedagógica com Coordenadores   " },
       });
@@ -606,7 +606,7 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
         createFn: mockCreate,
       });
 
-      const purposeInput = screen.getByLabelText(/Finalidade/i) as HTMLInputElement;
+      const purposeInput = screen.getByLabelText(/Matéria ou título/i) as HTMLInputElement;
       expect(purposeInput.maxLength).toBe(120);
 
       // Exactly 1 character
@@ -653,7 +653,7 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
         createFn: mockCreate,
       });
 
-      const purposeInput = screen.getByLabelText(/Finalidade/i);
+      const purposeInput = screen.getByLabelText(/Matéria ou título/i);
       fireEvent.change(purposeInput, { target: { value: payloadXSS } });
       fireEvent.click(screen.getByRole("button", { name: "Reservar" }));
 

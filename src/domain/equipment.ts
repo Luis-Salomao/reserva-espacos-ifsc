@@ -44,6 +44,20 @@ const TEXTS: Record<EquipmentKind, Texts> = {
   },
 };
 
+/**
+ * Itens para qualquer um. Observações livres só para quem está logado: premissa não confirmada,
+ * aplicada na borda dos dados para o visitante não recebê-las.
+ */
+export function equipmentForViewer(
+  equipment: SpaceEquipment | undefined,
+  loggedIn: boolean,
+): SpaceEquipment {
+  return {
+    items: equipment?.items ?? {},
+    notes: loggedIn ? (equipment?.notes ?? null) : null,
+  };
+}
+
 /** Rótulo do equipamento no estado cadastrado; `known` é falso só quando não foi informado. */
 export function describeEquipment(
   kind: EquipmentKind,

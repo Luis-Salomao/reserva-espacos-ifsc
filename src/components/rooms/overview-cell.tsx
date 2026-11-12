@@ -5,9 +5,11 @@ import { createPortal } from "react-dom";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
 import { Tag } from "#/components/ds";
+import { EquipmentMarks } from "#/components/equipment-marks";
 import { freeIntervals, type TimeRange } from "#/domain/availability";
 import { isMaintenanceTitle, MAINTENANCE_PREFIX } from "#/domain/booking-kind";
 import { weekdayOf } from "#/domain/calendar";
+import type { SpaceEquipment } from "#/domain/equipment";
 import {
   type Cell,
   RESERVA_TONE,
@@ -70,7 +72,7 @@ export function toneStyle(tone: Tone): CSSProperties {
 
 type Props = {
   cell: OverviewCellData;
-  room: { id: string; name: string };
+  room: { id: string; name: string; equipment?: SpaceEquipment };
   date: string;
   /** Chave da matéria destacada na legenda; as faixas de outras matérias ficam esmaecidas. */
   highlight: string | null;
@@ -110,10 +112,20 @@ type CardProps = {
   date: string;
   isVisitor: boolean;
   free: TimeRange[];
+  equipment?: SpaceEquipment | undefined;
 };
 
 /** Detalhes das ocupações do bloco; pessoa (avatar e nome) só para quem está logado. */
-function OverviewCard({ id, anchor, items, roomName, date, isVisitor, free }: CardProps) {
+function OverviewCard({
+  id,
+  anchor,
+  items,
+  roomName,
+  date,
+  isVisitor,
+  free,
+  equipment,
+}: CardProps) {
   const below = anchor.top < CARD_ROOM;
   const center = anchor.left + anchor.width / 2;
   return createPortal(
@@ -177,6 +189,7 @@ function OverviewCard({ id, anchor, items, roomName, date, isVisitor, free }: Ca
           {`Livre: ${free.map((range) => `${range.start}–${range.end}`).join("; ")}`}
         </p>
       )}
+      <EquipmentMarks equipment={equipment} showNotes={!isVisitor} />
     </div>,
     document.body,
   );
@@ -311,6 +324,7 @@ export function OverviewCell({
           date={date}
           isVisitor={isVisitor}
           free={free}
+          equipment={room.equipment}
         />
       )}
     </>

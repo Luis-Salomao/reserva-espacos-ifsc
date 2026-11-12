@@ -131,7 +131,10 @@ const maybeList = (name: string) => screen.queryByRole("list", { name });
 const namesIn = (name: string) =>
   within(listOf(name))
     .getAllByRole("listitem")
-    .map((item) => within(item).getByRole("heading").textContent);
+    .flatMap((item) => {
+      const heading = within(item).queryByRole("heading");
+      return heading === null ? [] : [heading.textContent];
+    });
 
 /** Arrasto com o mouse de um quadradinho a outro. */
 function sweep(from: HTMLElement, to: HTMLElement) {
