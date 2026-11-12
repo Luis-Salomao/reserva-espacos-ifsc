@@ -58,7 +58,7 @@ export function RoomSelector({
             "h-10 min-w-0 justify-start gap-2",
             variant === "vertical"
               ? "w-full"
-              : "w-full border-primary bg-primary/10 font-semibold text-foreground hover:bg-primary/20 sm:max-w-sm",
+              : "w-full bg-surface font-semibold text-foreground sm:max-w-sm",
           )}
           disabled={spaces.length === 0}
         >

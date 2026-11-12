@@ -395,7 +395,7 @@ describe("Empirical Challenger — Suite 2: Public Read Mode Privacy Leak Probe"
     }
   });
 
-  test("Public banner is displayed with visitor notice and login link", async () => {
+  test("Duplicate public banner is no longer displayed for visitors", async () => {
     const weekAgenda = createWeekAgendaWithSensitiveData();
     await renderWithRouter(
       <AgendaView
@@ -409,13 +409,9 @@ describe("Empirical Challenger — Suite 2: Public Read Mode Privacy Leak Probe"
       />,
     );
 
-    const banner = screen.getByRole("status", { name: "Aviso de visitante" });
-    expect(banner).toBeTruthy();
-    expect(within(banner).getByText(/Você está vendo como/i)).toBeTruthy();
-    expect(within(banner).getByText("visitante")).toBeTruthy();
-
-    const loginLink = within(banner).getByRole("link", { name: /Entrar/i });
-    expect(loginLink.getAttribute("href")).toBe("/entrar");
+    // O aviso duplicado saiu; quem explica ao visitante é o SystemIntro da página.
+    expect(screen.queryByRole("status", { name: "Aviso de visitante" })).toBeNull();
+    expect(screen.queryByText(/Você está vendo como/i)).toBeNull();
   });
 
   test("Booking creation triggers are completely absent from DOM for unauthenticated visitors", async () => {

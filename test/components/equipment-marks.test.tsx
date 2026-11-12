@@ -60,7 +60,11 @@ describe("EquipmentMarks", () => {
     const desconhecido = marca("Aparelho de som não informado");
     expect(desconhecido.getAttribute("data-estado")).toBe("nao-informado");
     expect(desconhecido.className).toContain("border-dashed");
-    expect(desconhecido.querySelector("[data-corte]") === null).toBe(true);
-    expect(container.querySelectorAll("[data-corte]").length).toBe(1);
+    // Risco nos dois estados sem equipamento confirmado, com cores distintas.
+    expect(sem.querySelector("[data-corte='sem']")?.className).toContain("bg-destructive");
+    const riscoCinza = desconhecido.querySelector("[data-corte='nao-informado']");
+    expect(riscoCinza?.className).toContain("bg-muted-foreground");
+    expect(riscoCinza?.className).not.toContain("bg-destructive");
+    expect(container.querySelectorAll("[data-corte]").length).toBe(2);
   });
 });

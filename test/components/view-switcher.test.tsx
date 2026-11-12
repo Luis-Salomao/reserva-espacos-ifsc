@@ -19,18 +19,12 @@ function ControlledSwitcher({ changes }: { changes: PageView[] }) {
 const NOMES = ["Uma sala", "Salas por horário", "Salas livres", "Visão geral"];
 
 describe("ViewSwitcher", () => {
-  test("explica a visualização selecionada e atualiza a orientação ao trocar", () => {
+  test("trocar de aba chama onChange e a ajuda fica no modal (sem texto solto sob as abas)", () => {
     const changes: PageView[] = [];
     render(<ControlledSwitcher changes={changes} />);
-
-    expect(
-      screen.getByText("Veja a semana de uma sala. Use o seletor para trocar de ambiente."),
-    ).toBeDefined();
+    expect(screen.queryByText(/Veja a semana de uma sala/)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Salas livres" }));
     expect(changes).toEqual(["livres"]);
-    expect(
-      screen.getByText("Encontre apenas salas livres no intervalo selecionado."),
-    ).toBeDefined();
   });
 
   test("os botões formam uma barra de abas legível, com a ativa em destaque", () => {
@@ -40,8 +34,8 @@ describe("ViewSwitcher", () => {
     const inativo = within(grupo).getByRole("button", { name: "Visão geral" });
     expect(ativo.getAttribute("aria-pressed")).toBe("true");
     expect(ativo.className.split(" ")).toContain("bg-primary");
-    expect(ativo.className).toContain("min-h-10");
-    expect(ativo.className).toContain("text-sm");
+    expect(ativo.className).toContain("min-h-9");
+    expect(ativo.className).toContain("text-[13px]");
     expect(inativo.className.split(" ")).not.toContain("bg-primary");
     expect(inativo.className).toContain("hover:bg-");
   });

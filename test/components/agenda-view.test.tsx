@@ -320,7 +320,7 @@ describe("AgendaView — Suíte 1: Visualização Semanal Desktop", () => {
     });
 
     const legend = screen.getByLabelText("Legenda de estados da agenda");
-    expect(within(legend).getByText("Aula importada")).toBeTruthy();
+    expect(within(legend).getByText(/Aula importada/)).toBeTruthy();
     expect(within(legend).getByText("Reserva")).toBeTruthy();
     expect(within(legend).getByText("Conflito")).toBeTruthy();
     expect(within(legend).getByText("Livre")).toBeTruthy();
@@ -397,12 +397,11 @@ describe("AgendaView — Suíte 2: Linha do Tempo Diária Mobile (RNF-01, 360 px
 
       const options = screen.getByText("Mais opções").closest("details");
       expect(options?.hasAttribute("open")).toBe(false);
-      fireEvent.click(screen.getByText("Mais opções"));
-      const mobileViews = within(options as HTMLElement).getByRole("group", {
-        name: "Visualização",
-      });
+      // As abas ficam sempre à vista, fora de "Mais opções".
+      const mobileViews = screen.getByRole("group", { name: "Visualização" });
+      expect(options?.contains(mobileViews)).toBe(false);
       expect(within(mobileViews).getAllByRole("button")).toHaveLength(4);
-      expect(mobileViews.className).toContain("flex-wrap");
+      expect(mobileViews.className).toContain("grid-cols-2");
       cleanup();
     }
   });
@@ -807,9 +806,7 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
       });
       expect(screen.queryByRole("link", { name: /Todas as salas/ }) === null).toBe(true);
       expect(document.querySelector("a[href*='salas']") === null).toBe(true);
-      const options = screen.getByText("Mais opções").closest("details");
-      fireEvent.click(screen.getByText("Mais opções"));
-      const views = within(options as HTMLElement).getByRole("group", { name: "Visualização" });
+      const views = screen.getByRole("group", { name: "Visualização" });
       expect(
         within(views)
           .getAllByRole("button")
@@ -836,12 +833,14 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
         onSelectDate: () => {},
         onSelectSpace: () => {},
       });
-      fireEvent.click(screen.getByText("Mais opções"));
       const label = { colunas: "Salas por horário", livres: "Salas livres", geral: "Visão geral" }[
         visao
       ];
-      const options = screen.getByText("Mais opções").closest("details");
-      fireEvent.click(within(options as HTMLElement).getByRole("button", { name: label }));
+      fireEvent.click(
+        within(screen.getByRole("group", { name: "Visualização" })).getByRole("button", {
+          name: label,
+        }),
+      );
       await waitFor(() =>
         expect(router.state.location.search).toEqual({
           data: MOCK_DATE_TUESDAY,
@@ -877,7 +876,7 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
     expect(router.state.location.pathname).toBe("/");
   });
 
-  test("visitante não autenticado vê banner informativo com botão de entrar", async () => {
+  test("visitante não vê o aviso duplicado (o SystemIntro da página já explica)", async () => {
     const week = createMockWeekAgenda();
     await renderAgenda({
       spaces: MOCK_SPACES,
@@ -889,10 +888,8 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
       onSelectSpace: () => {},
     });
 
-    expect(screen.getByText(/Você está vendo como/i)).toBeTruthy();
-    expect(screen.getByText(/visitante/i)).toBeTruthy();
-    const loginLink = screen.getByRole("link", { name: /Entrar/i });
-    expect(loginLink.getAttribute("href")).toBe("/entrar");
+    expect(screen.queryByText(/Você está vendo como/i)).toBeNull();
+    expect(screen.queryByRole("status", { name: "Aviso de visitante" })).toBeNull();
   });
 
   test("visitante NÃO vê nomes de pessoas nem e-mails nas ocupações", async () => {

@@ -145,7 +145,7 @@ describe("responsável na grade", () => {
     const { container, rerender } = render(
       <TimelineDay dayAgenda={day([])} onSelectSlot={() => {}} isVisitor={false} />,
     );
-    const hasNowLine = () => container.querySelector(".border-primary") !== null;
+    const hasNowLine = () => container.querySelector(".border-brand-red") !== null;
     expect(hasNowLine()).toBe(true);
     rerender(
       <TimelineDay

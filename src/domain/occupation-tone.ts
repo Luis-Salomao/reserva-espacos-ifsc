@@ -1,4 +1,3 @@
-import type { AgendaItem } from "#/application/bookings";
 import { isMaintenanceTitle } from "./booking-kind";
 import { RESERVA_TONE, SUBJECT_PALETTE, subjectOf, subjectTone, type Tone } from "./overview";
 
@@ -18,7 +17,7 @@ function subjectPattern(subject: string): number {
  * Cor de uma ocupação, num só lugar: reserva avulsa fica neutra, exceto quando usa o título
  * canônico da importação `MATÉRIA — TURMA`; nesse caso compartilha a cor da matéria.
  */
-export function legendEntryOf(item: Pick<AgendaItem, "source" | "title">): LegendEntry {
+export function legendEntryOf(item: { source: "import" | "manual"; title: string }): LegendEntry {
   const hasImportedSubjectTitle =
     item.source === "manual" &&
     !isMaintenanceTitle(item.title) &&

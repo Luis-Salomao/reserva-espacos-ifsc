@@ -144,6 +144,13 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     expect(divider).toBeLessThan(contrast(t["--border"] as string, t["--bg"] as string));
   });
 
+  test("vermelho da marca (linha do horário atual) sobre o fundo e a superfície >= 3", () => {
+    expect(contrast(t["--brand-red"] as string, t["--bg"] as string)).toBeGreaterThanOrEqual(3);
+    expect(contrast(t["--brand-red"] as string, t["--surface"] as string)).toBeGreaterThanOrEqual(
+      3,
+    );
+  });
+
   test("estados de ocupação são todos distintos", () => {
     const values = OCCUPANCY.map((key) => (t[key] as string).toLowerCase());
     expect(new Set(values).size).toBe(values.length);
