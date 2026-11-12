@@ -189,7 +189,7 @@ export function AppShell({ children, wide = false }: Props) {
         <a href="#conteudo" className="sr-only focus:not-sr-only">
           Pular para o conteúdo
         </a>
-        <header className="relative flex min-h-14 items-center justify-between gap-3 border-b px-4 pt-[3px] sm:px-6">
+        <header className="relative flex min-h-14 items-center justify-between gap-3 border-b border-primary px-4 pt-[3px] sm:px-6">
           <IfscStripe />
           <Brand />
           <div className="flex items-center gap-2">
@@ -222,7 +222,7 @@ export function AppShell({ children, wide = false }: Props) {
       </a>
       <header
         className={cn(
-          "sticky top-0 z-30 flex min-h-14 items-center gap-1 pt-[3px] border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:bg-surface md:px-3 md:py-3 md:backdrop-blur-none",
+          "sticky top-0 z-30 flex min-h-14 items-center gap-1 pt-[3px] border-b border-primary bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:bg-surface md:px-3 md:py-3 md:backdrop-blur-none",
           collapsed ? "md:w-16 md:px-2" : "md:w-60",
         )}
       >
