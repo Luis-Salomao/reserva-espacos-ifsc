@@ -2,6 +2,7 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ArrowRight, CalendarDays, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import campusImage from "#/assets/campus-garopaba-login.webp";
+import { IfscStripe } from "#/components/app-shell";
 import { Field } from "#/components/ds";
 import { IFSCMark } from "#/components/ifsc-mark";
 import { Notice } from "#/components/page";
@@ -39,7 +40,8 @@ function LoginPage() {
   const { session } = Route.useRouteContext();
   const [submitting, setSubmitting] = useState(false);
   return (
-    <main className="min-h-svh bg-background text-foreground">
+    <main className="relative min-h-svh bg-background text-foreground">
+      <IfscStripe />
       <div className="grid min-h-svh w-full bg-surface lg:grid-cols-2">
         <div className="relative isolate hidden overflow-hidden bg-zinc-900 lg:block">
           <img
@@ -64,7 +66,11 @@ function LoginPage() {
                 <IFSCMark className="size-8 shrink-0 object-contain" />
                 <p className="text-xs font-medium text-foreground">IFSC Câmpus Garopaba</p>
               </div>
+              <p className="mb-1 text-sm font-semibold text-foreground">
+                Sistema de Reserva de Espaços
+              </p>
               <h1 className="text-3xl font-semibold tracking-tight">Entrar</h1>
+              <span aria-hidden="true" className="mt-3 block h-[3px] w-12 bg-brand-red" />
             </div>
             {erro !== undefined && (
               <Notice id="login-error" tone="error" role="alert" className="mb-4">

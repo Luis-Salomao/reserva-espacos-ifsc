@@ -70,6 +70,7 @@ const REQUIRED = [
   "--line-conflict",
   "--warn",
   "--warn-text",
+  "--brand-red",
 ];
 const LINES = ["--line-free", "--line-booked", "--line-imported", "--line-conflict"];
 const OCCUPANCY = ["--occ-free", "--occ-booked", "--occ-imported", "--occ-conflict"];
@@ -138,4 +139,8 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
 
 test("tema escuro via atributo e via preferência do sistema são idênticos", () => {
   expect(darkMedia).toEqual(dark);
+});
+
+test("vermelho oficial do IFSC no tema claro (Manual da Marca 2017: #C8191E)", () => {
+  expect((light["--brand-red"] as string).toLowerCase()).toBe("#c8191e");
 });

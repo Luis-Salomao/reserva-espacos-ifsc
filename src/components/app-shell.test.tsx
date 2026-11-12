@@ -58,6 +58,30 @@ function expectAlignedNavigationIcons(links: Iterable<Element>) {
 }
 
 describe("AppShell", () => {
+  test("cabeçalho do visitante mostra o nome do sistema, a explicação e a faixa vermelha", async () => {
+    await renderShell(<p>x</p>);
+    const banner = screen.getByRole("banner");
+    expect(banner.textContent).toContain("Sistema de Reserva de Espaços");
+    expect(banner.textContent).toContain("Consulte a ocupação das salas e reserve espaços");
+    expect(banner.querySelector("[data-faixa-ifsc]")).not.toBeNull();
+    expect(banner.textContent).not.toContain("…");
+  });
+  test("bordas do cabeçalho e da lateral usam o verde do IFSC", async () => {
+    await renderShell(<p>x</p>);
+    expect(screen.getByRole("banner").className).toContain("border-primary");
+    cleanup();
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    const classes = screen.getByRole("banner").className;
+    expect(classes).toContain("border-primary");
+    expect(classes).toContain("md:border-r");
+  });
+  test("cabeçalho do usuário logado também mostra o nome do sistema", async () => {
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    const banner = screen.getByRole("banner");
+    expect(banner.textContent).toContain("Sistema de Reserva de Espaços");
+    expect(banner.querySelector("[data-faixa-ifsc]")).not.toBeNull();
+    expect(banner.querySelectorAll("h1").length).toBe(0);
+  });
   test("recolhe e expande a lateral, preservando links e a preferência", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     const nav = screen.getByRole("navigation", { name: "Principal" });

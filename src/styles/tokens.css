@@ -21,6 +21,7 @@
   --line-conflict: #c8191e;
   --warn: #fdf1c6;
   --warn-text: #7a4a00;
+  --brand-red: #c8191e;
 }
 
 :root[data-theme="dark"] {
@@ -45,6 +46,7 @@
   --line-conflict: #ff6b6f;
   --warn: #3a2a06;
   --warn-text: #f5c84a;
+  --brand-red: #ff6b6f;
 }
 
 @media (prefers-color-scheme: dark) {
@@ -70,5 +72,6 @@
     --line-conflict: #ff6b6f;
     --warn: #3a2a06;
     --warn-text: #f5c84a;
+    --brand-red: #ff6b6f;
   }
 }

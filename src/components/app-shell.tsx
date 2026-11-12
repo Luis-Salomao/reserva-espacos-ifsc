@@ -82,7 +82,46 @@ export function navItems(user: SessionInfo["user"]): NavItem[] {
   return items;
 }
 
-function Brand() {
+const SYSTEM_NAME = "Sistema de Reserva de Espaços";
+const SYSTEM_TAGLINE = "Consulte a ocupação das salas e reserve espaços do IFSC Câmpus Garopaba.";
+
+/** Faixa fina vermelha (cor oficial do IFSC) usada só como detalhe decorativo no topo. */
+export function IfscStripe() {
+  return (
+    <span
+      aria-hidden="true"
+      data-faixa-ifsc=""
+      className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-brand-red"
+    />
+  );
+}
+
+/** Logo do IFSC com o nome do sistema ao lado (quebra de linha, sem reticências). */
+function Brand({ stacked = false }: { stacked?: boolean }) {
+  return (
+    <div
+      className={cn(
+        "flex min-w-0 items-center gap-2",
+        stacked && "md:flex-col md:items-start md:gap-1",
+      )}
+    >
+      <BrandLogo />
+      <div className="min-w-0 leading-tight">
+        <p className="text-[11px] font-semibold sm:text-sm">{SYSTEM_NAME}</p>
+        <p
+          className={cn(
+            "mt-0.5 hidden text-xs text-muted-foreground",
+            stacked ? "md:block" : "sm:block",
+          )}
+        >
+          {SYSTEM_TAGLINE}
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function BrandLogo() {
   return (
     <Link
       to="/"
@@ -150,7 +189,8 @@ export function AppShell({ children, wide = false }: Props) {
         <a href="#conteudo" className="sr-only focus:not-sr-only">
           Pular para o conteúdo
         </a>
-        <header className="flex h-14 items-center justify-between gap-3 border-b px-4 sm:px-6">
+        <header className="relative flex min-h-14 items-center justify-between gap-3 border-b border-primary px-4 pt-[3px] sm:px-6">
+          <IfscStripe />
           <Brand />
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -182,13 +222,14 @@ export function AppShell({ children, wide = false }: Props) {
       </a>
       <header
         className={cn(
-          "sticky top-0 z-30 flex h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:h-auto md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:bg-surface md:px-3 md:py-3 md:backdrop-blur-none",
+          "sticky top-0 z-30 flex min-h-14 items-center gap-1 pt-[3px] border-b border-primary bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:bg-surface md:px-3 md:py-3 md:backdrop-blur-none",
           collapsed ? "md:w-16 md:px-2" : "md:w-60",
         )}
       >
+        <IfscStripe />
         <div className="flex min-w-0 items-center gap-1">
           <div className={cn("min-w-0 flex-1", collapsed && "md:hidden")}>
-            <Brand />
+            <Brand stacked />
           </div>
           <Button
             type="button"
