@@ -10,7 +10,7 @@ Domínio final: https://reservas-ifsc.luissalomao.dev/
 
 | # | Pedido | Estado inicial / tarefa |
 |---|---|---|
-| 1 | Identificar claramente o IFSC Câmpus Garopaba na tela inicial | **Implementado:** marca global identifica “IFSC Garopaba” e “Reserva de espaços”. |
+| 1 | Identificar claramente o IFSC Câmpus Garopaba na tela inicial | **Implementado:** cabeçalho usa a marca oficial horizontal do IFSC Câmpus Garopaba em base branca no tema escuro; o nome do sistema usa cor adaptada ao tema. |
 | 2 | Explicar as visualizações e melhorar a navegação | **Implementado:** cada visualização mostra orientação contextual e mantém dica no controle. |
 | 3 | Dar retorno visível ao enviar o login | **Implementado:** botão muda para “Entrando…”, bloqueia duplo envio e anuncia o estado. |
 | 4 | Validar envio de e-mail para `ryan.fragnani@ifsc.edu.br` | **Pendente de ambiente:** configuração/diagnóstico local existe; entrega real depende de secrets e execução do provedor. Nenhum e-mail foi enviado. |
@@ -27,6 +27,8 @@ Domínio final: https://reservas-ifsc.luissalomao.dev/
 | 15 | Fazer os cliques no calendário Sala > Semana funcionarem | **Coberto por teste de componente** que confirma a sala, data e intervalo; não houve conferência manual no navegador. |
 | 16 | Melhorar usabilidade mobile, possivelmente com modo próprio | **Implementado:** cartões por dia/sala e blocos de horário tocáveis na visão compacta, mantendo a matriz desktop. |
 | 17 | Evitar a grade semanal comprimida no celular quando o navegador solicita “Site para computador” | **Implementado:** o modo compacto ativa até 1023 px, incluindo viewport CSS próximo de 980 px. Teste de componente em 980 px; sem validação em aparelho físico. |
+| 18 | Evitar que “Detalhes” quebre para uma linha separada no cabeçalho da sala | **Implementado:** botão compacto com ícone de informação em círculo e rótulo acessível com o nome da sala. |
+| 19 | Investigar clique noturno que supostamente abre duas reservas | **Coberto por teste de componente:** um toque em um intervalo noturno emite uma única seleção. O problema não foi reproduzido manualmente no navegador. |
 
 ## Estado salvo
 
@@ -46,6 +48,8 @@ Snapshot local commitado em `codex/estado-deploy-2026-11-11` (`ce82b4d`). O comm
 - Login: feedback de envio com estado acessível e botão desabilitado durante a submissão.
 - Tema: botão de alternância fora do menu da conta para acesso direto.
 - Navegação: ícones alinhados por contêineres uniformes de 20 px.
+- Identidade: marca oficial horizontal do IFSC Câmpus Garopaba aplicada ao cabeçalho, com registro da fonte em `src/assets/ifsc-garopaba-horizontal.md`; o nome “Reserva de espaços” usa a cor principal do tema para manter contraste.
+- Detalhes da sala: o rótulo que quebrava a linha foi substituído por um botão compacto de informação, com nome acessível.
 - Verificações previstas: `bun test src/components/app-shell.test.tsx test/components/view-switcher.test.tsx`; não houve deploy.
 
 ## Implementação de usabilidade e estado dos itens 6–16
@@ -63,7 +67,8 @@ Snapshot local commitado em `codex/estado-deploy-2026-11-11` (`ce82b4d`). O comm
 - `bunx biome check` nos arquivos alterados: passou.
 - `bun run typecheck`: passou após corrigir a possibilidade de dia ausente no modo compacto.
 - Testes focados de agenda, formulário de reserva/recorrência, visão geral de salas, calendário Sala > Semana e Minhas reservas: **135 passaram, 0 falharam** (127 na rodada anterior e 8 na suíte focada de `rooms-columns`).
-- `bun run check`: **passou após o ajuste mobile**. Biome, TypeScript, Knip, dependency-cruiser e Betterleaks sem achados; suíte completa com **1895 testes aprovados, 3 ignorados e 0 falhas** (1.898 no total).
+- `bun run check`: **passou nesta rodada**. Biome, TypeScript, Knip, dependency-cruiser e Betterleaks sem achados; suíte completa com **1896 testes aprovados, 3 ignorados e 0 falhas** (1.899 no total).
+- A verificação focada do clique noturno confere que um toque no intervalo 20:10–22:00 chama o fluxo de reserva uma única vez; ela não substitui reprodução manual no navegador.
 - Nenhum deploy foi feito; o comportamento em produção não foi verificado.
 
 ## Achado complementar — modo desktop do navegador em celular

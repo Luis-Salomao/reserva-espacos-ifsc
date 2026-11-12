@@ -665,13 +665,15 @@ describe("RoomsOverview", () => {
 
     expect(screen.getByText(/3 computadores em manutenção/)).toBeTruthy();
 
-    const button = screen.getAllByRole("button", { name: "Detalhes" })[0] as HTMLElement;
+    const button = screen.getAllByRole("button", { name: "Detalhes de A-202" })[0] as HTMLElement;
     fireEvent.click(button);
-    const dialog = await screen.findByLabelText("Detalhes de A-202");
+    const dialog = await screen.findByRole("dialog", { name: "Detalhes de A-202" });
     expect(dialog).toBeTruthy();
 
     fireEvent.keyDown(dialog, { key: "Escape" });
-    await waitFor(() => expect(screen.queryByLabelText("Detalhes de A-202")).toBeNull());
+    await waitFor(() =>
+      expect(screen.queryByRole("dialog", { name: "Detalhes de A-202" })).toBeNull(),
+    );
     expect(document.activeElement).toBe(button);
   });
 

@@ -62,7 +62,9 @@ describe("AppShell", () => {
     expect(
       screen.getByRole("link", { name: "IFSC Câmpus Garopaba — Reserva de espaços" }),
     ).toBeDefined();
-    expect(screen.getByRole("banner").textContent).toContain("IFSC Câmpus Garopaba");
+    const logo = screen.getByRole("banner").querySelector("img[aria-hidden='true']");
+    expect(logo).not.toBeNull();
+    expect(logo?.className).toContain("bg-white");
     expect(screen.getByRole("main").textContent).toBe("conteúdo");
   });
 
