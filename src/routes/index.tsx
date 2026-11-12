@@ -189,7 +189,6 @@ function RoomsPage({ data }: { data: SalasLoaderData }) {
   const router = useRouter();
   return (
     <AppShell wide>
-      {data.isVisitor && <SystemIntro />}
       <RoomsView
         roomsDay={data.roomsDay}
         roomsWeek={data.roomsWeek}
@@ -326,6 +325,7 @@ function AgendaPage({ data }: { data: AgendaLoaderData }) {
         </div>
       ) : (
         <>
+          {isVisitor && <SystemIntro />}
           {weekAgenda !== null ? (
             <AgendaView
               spaces={spaces}
