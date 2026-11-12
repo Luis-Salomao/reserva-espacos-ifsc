@@ -680,6 +680,44 @@ describe("AgendaView — Suíte 5: Intervalos Livres Clicáveis", () => {
     });
   });
 
+  test("um clique físico do mouse no bloco noturno abre somente uma reserva", async () => {
+    setViewportWidth(1280);
+    const onSelectSlot = mock();
+    const week = createMockWeekAgenda({
+      days: createMockWeekAgenda().days.map((day) =>
+        day.date === MOCK_DATE_TUESDAY ? { ...day, free: [{ start: "20:10", end: "22:00" }] } : day,
+      ),
+    });
+    await renderAgenda({
+      spaces: MOCK_SPACES,
+      selectedSpaceId: "space-adm",
+      selectedDate: MOCK_DATE_TUESDAY,
+      weekAgenda: week,
+      session: createMockSession(),
+      onSelectDate: () => {},
+      onSelectSpace: () => {},
+      onSelectSlot,
+    });
+
+    const weekGrid = screen.getByTestId("week-grid");
+    const nightSlot = within(weekGrid).getByRole("button", {
+      name: /Livre.*20:10.*22:00.*Reservar/i,
+    });
+    // Simula a sequência de eventos do navegador para um clique de mouse, além do click sintético.
+    fireEvent.pointerDown(nightSlot, { pointerType: "mouse", button: 0, clientY: 775 });
+    fireEvent.pointerUp(nightSlot, { pointerType: "mouse", button: 0, clientY: 775 });
+    fireEvent.click(nightSlot);
+
+    expect(onSelectSlot).toHaveBeenCalledTimes(1);
+    expect(onSelectSlot).toHaveBeenCalledWith({
+      spaceId: "space-adm",
+      date: MOCK_DATE_TUESDAY,
+      start: "20:10",
+      end: "22:00",
+    });
+    expect(screen.queryByRole("button", { name: /Rascunho/ })).toBeNull();
+  });
+
   test("um toque em um horário livre noturno abre somente uma reserva", async () => {
     setViewportWidth(390);
     const onSelectSlot = mock();
