@@ -1,7 +1,6 @@
-import { describe, expect, mock, test } from "bun:test";
+import { describe, expect, test } from "bun:test";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { OverlapView, RoomView, SlotView } from "#/server/import-preview-view";
-import { RoomScheduleOverview } from "./room-schedule-overview";
 import { ImportRoomsOverview } from "./rooms-overview";
 
 const slot = (key: string, weekday: number): SlotView => ({
@@ -29,8 +28,10 @@ const rooms: RoomView[] = [
     weekdays: [0, 2, 4],
     slots: [slot("s1", 0), slot("s2", 2)],
   },
-  { id: "R2", short: "A-203", name: "Sala A-203", slotCount: 0, weekdays: [], slots: [] },
+  { id: "R2", short: "A-203", name: " A-203 ", slotCount: 0, weekdays: [], slots: [] },
 ];
+
+const periods = [{ number: 1, name: "Manhã", short: "M1", start: "08:00", end: "09:40" }];
 
 const overlap: OverlapView = {
   key: "ov-1",
@@ -43,48 +44,55 @@ const overlap: OverlapView = {
 };
 
 describe("ImportRoomsOverview", () => {
-  test("resume todas as salas sem trocar o seletor individual e destaca horários e avisos", () => {
-    const onShowRoom = mock((_id: string) => {});
+  test("guia a conferência sala a sala e prioriza salas com sobreposição", () => {
     render(
       <ImportRoomsOverview
         rooms={rooms}
         overlaps={[overlap]}
         truncated={false}
-        onShowRoom={onShowRoom}
+        periods={periods}
       />,
     );
 
     const table = screen.getByRole("table", { name: "Visão geral das salas do arquivo" });
-    expect(within(table).getByText("A-202")).toBeTruthy();
+    expect(within(table).getByText(/A-202/)).toBeTruthy();
     expect(within(table).getByText("A-203")).toBeTruthy();
-    expect(within(table).getByText("3 ocorrências")).toBeTruthy();
+    expect(within(table).queryByText(/A-203 — A-203/)).toBeNull();
+    expect(within(table).getByText("3 horários")).toBeTruthy();
     expect(within(table).getByText("3 dias")).toBeTruthy();
     expect(within(table).getByText(/1 possível/)).toBeTruthy();
-    expect(within(table).getByText("Sem horários no arquivo")).toBeTruthy();
-    expect(screen.getByText(/ocorrências incluem aulas que listam várias salas/)).toBeTruthy();
-    fireEvent.click(within(table).getByRole("button", { name: "Ver grade da sala A-203" }));
-    expect(onShowRoom).toHaveBeenCalledWith("R2");
+    expect(within(table).getByText("0 horários")).toBeTruthy();
+    expect(screen.getByText("1 com sobreposição apontada")).toBeTruthy();
+    expect(screen.getByText("1 sem horários listados")).toBeTruthy();
+    expect(within(table).getAllByRole("row")[1]?.textContent).toContain("A-202");
+    expect(screen.getByText("Conferência sala a sala · 1 de 2")).toBeTruthy();
+    const guidedReview = screen.getByRole("region", { name: "Conferência sala a sala" });
+    expect(within(guidedReview).getByRole("heading", { name: "A-202 — Sala A-202" })).toBeTruthy();
+    expect(
+      within(guidedReview).getByText(/contagem inclui aulas que listam várias salas/),
+    ).toBeTruthy();
+    expect(screen.getByText("Sobreposições apontadas nesta sala")).toBeTruthy();
+    expect(screen.getByText("Sobreposição possível · Segunda-feira")).toBeTruthy();
+    expect(screen.getAllByText("Mat").length).toBeGreaterThan(0);
+
+    const selectRoom = within(table).getByRole("button", {
+      name: "Abrir A-203 na conferência sala a sala",
+    });
+    fireEvent.click(selectRoom);
+    expect(screen.getByText("Conferência sala a sala · 2 de 2")).toBeTruthy();
+    expect(within(guidedReview).getByRole("heading", { name: "A-203" })).toBeTruthy();
+    expect(screen.getByText("Nenhum horário desta sala foi encontrado no arquivo.")).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: "Sala anterior" }));
+    expect(within(guidedReview).getByRole("heading", { name: "A-202 — Sala A-202" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Próxima sala" }));
+    expect(within(guidedReview).getByRole("heading", { name: "A-203" })).toBeTruthy();
   });
 
   test("avisa quando o detalhamento de sobreposições foi truncado", () => {
-    render(
-      <ImportRoomsOverview rooms={rooms} overlaps={[overlap]} truncated onShowRoom={() => {}} />,
-    );
+    render(<ImportRoomsOverview rooms={rooms} overlaps={[overlap]} truncated periods={periods} />);
     expect(screen.getByRole("status").textContent).toContain(
       "totais por sala podem estar parciais",
     );
-  });
-});
-
-describe("RoomScheduleOverview", () => {
-  test("mostra os horários de todas as salas juntos, inclusive sala sem aula", () => {
-    render(<RoomScheduleOverview rooms={rooms} />);
-
-    const table = screen.getByRole("table", { name: "Grade semanal de todas as salas" });
-    expect(within(table).getByText("A-202")).toBeTruthy();
-    expect(within(table).getByText("A-203")).toBeTruthy();
-    expect(within(table).getAllByText("Mat").length).toBeGreaterThan(0);
-    expect(screen.getByText("Sem horários com sala única.")).toBeTruthy();
-    expect(screen.getByText(/somente horários atribuídos a uma sala/)).toBeTruthy();
   });
 });
