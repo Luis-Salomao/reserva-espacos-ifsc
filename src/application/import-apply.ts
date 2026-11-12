@@ -101,8 +101,10 @@ export type PrepareOutput = StepOutput & {
 function summarize(rows: readonly ImportRow[], version?: VersionSummary): ImportSummary {
   const counts: ImportRowCounts = { ...EMPTY_COUNTS };
   const notApplicable: Record<string, number> = {};
+  const bySpace = new Map<string | null, number>();
   for (const row of rows) {
     counts[row.status] += 1;
+    bySpace.set(row.spaceId, (bySpace.get(row.spaceId) ?? 0) + 1);
     if (row.status === "nao_aplicavel" && row.reasonCode !== null) {
       notApplicable[row.reasonCode] = (notApplicable[row.reasonCode] ?? 0) + 1;
     }
@@ -111,6 +113,11 @@ function summarize(rows: readonly ImportRow[], version?: VersionSummary): Import
     rows: rows.length,
     notApplicable,
     counts,
+    bySpace: [...bySpace.entries()]
+      .map(([spaceId, rows]) => ({ spaceId, rows }))
+      .sort((a, b) =>
+        a.spaceId === null ? 1 : b.spaceId === null ? -1 : a.spaceId.localeCompare(b.spaceId),
+      ),
     ...(version === undefined ? {} : { version }),
   };
 }

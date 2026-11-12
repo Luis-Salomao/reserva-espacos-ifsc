@@ -4,8 +4,15 @@ import { describeReason } from "#/domain/import-reasons";
 import { STATUS_LABELS, STATUS_ORDER, STATUS_TONE, VERSION_STATUS_ORDER } from "./flow-helpers";
 
 /** Contagens do lote por estado e, nas não aplicáveis, por motivo. O texto acompanha toda cor. */
-export function BatchCounts({ summary }: { summary: ImportSummary }) {
+export function BatchCounts({
+  summary,
+  spaces,
+}: {
+  summary: ImportSummary;
+  spaces?: readonly { id: string; name: string }[];
+}) {
   const reasons = Object.entries(summary.notApplicable).sort((a, b) => b[1] - a[1]);
+  const spaceNames = new Map((spaces ?? []).map((space) => [space.id, space.name]));
   return (
     <div className="grid gap-3">
       <p className="text-sm text-muted-foreground">
@@ -48,6 +55,31 @@ export function BatchCounts({ summary }: { summary: ImportSummary }) {
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {spaces !== undefined && summary.bySpace !== undefined && summary.bySpace.length > 0 && (
+        <div className="grid gap-1">
+          <h3 className="text-sm font-medium">Distribuição por sala</h3>
+          <ul className="grid gap-1 text-sm sm:grid-cols-2">
+            {summary.bySpace.map(({ spaceId, rows }) => (
+              <li key={spaceId ?? "sem-espaco"}>
+                <Card compact className="flex justify-between gap-4 py-2 shadow-none">
+                  <span className="break-words">
+                    {spaceId === null
+                      ? "Sem espaço associado"
+                      : (spaceNames.get(spaceId) ?? "Espaço não encontrado")}
+                  </span>
+                  <span className="shrink-0 font-medium">
+                    {rows} {rows === 1 ? "linha" : "linhas"}
+                  </span>
+                </Card>
+              </li>
+            ))}
+          </ul>
+          <p className="text-xs text-muted-foreground">
+            São linhas previstas no lote, incluindo pendências e conflitos; não representam
+            ocupações já gravadas.
+          </p>
         </div>
       )}
     </div>

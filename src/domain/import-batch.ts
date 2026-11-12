@@ -80,6 +80,8 @@ export type ImportSummary = {
   /** Não aplicáveis, por motivo. */
   notApplicable: Record<string, number>;
   counts: ImportRowCounts;
+  /** Contagem de linhas por espaço de destino (null reúne linhas sem espaço associado). */
+  bySpace?: Array<{ spaceId: string | null; rows: number }>;
   version?: VersionSummary;
 };
 

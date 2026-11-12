@@ -21,6 +21,27 @@ describe("BatchCounts", () => {
     expect(screen.getByText("Duração sem datas no semestre")).toBeTruthy();
   });
 
+  test("distribui as linhas conferidas por sala e identifica linhas sem espaço", () => {
+    render(
+      <BatchCounts
+        summary={{
+          rows: 4,
+          counts: { ...EMPTY_COUNTS, pendente: 3, nao_aplicavel: 1 },
+          notApplicable: { term_without_dates: 1 },
+          bySpace: [
+            { spaceId: "s1", rows: 3 },
+            { spaceId: null, rows: 1 },
+          ],
+        }}
+        spaces={[{ id: "s1", name: "Laboratório A-202" }]}
+      />,
+    );
+
+    expect(screen.getByText("Distribuição por sala")).toBeTruthy();
+    expect(screen.getByText("Laboratório A-202").parentElement?.textContent).toContain("3");
+    expect(screen.getByText(/Sem espaço associado/).parentElement?.textContent).toContain("1");
+  });
+
   test("não mostra alerta de zero quando ainda há linhas pendentes", () => {
     render(
       <BatchCounts
