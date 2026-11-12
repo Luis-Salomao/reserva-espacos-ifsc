@@ -31,5 +31,5 @@ test("login apresenta a marca IFSC com nome acessível", async () => {
 
   expect(await screen.findByRole("img", { name: "Marca do IFSC" })).toBeDefined();
   expect(screen.getByText("Sistema de Reserva de Espaços")).toBeDefined();
-  expect(document.querySelector("[data-faixa-ifsc]")).not.toBeNull();
+  expect(document.querySelector("[data-faixa-ifsc]")).toBeNull();
 });

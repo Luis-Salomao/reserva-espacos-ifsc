@@ -63,38 +63,31 @@ function expectAlignedNavigationIcons(links: Iterable<Element>) {
 }
 
 describe("AppShell", () => {
-  test("cabeçalho do visitante mostra o nome do sistema, a explicação e a faixa vermelha", async () => {
+  test("cabeçalho do visitante mostra o nome do sistema e a explicação", async () => {
     await renderShell(<p>x</p>);
     const banner = screen.getByRole("banner");
     expect(banner.textContent).toContain("Sistema de Reserva de Espaços");
     expect(banner.textContent).toContain("Consulte a ocupação das salas e reserve espaços");
-    expect(document.querySelectorAll("[data-faixa-ifsc]").length).toBe(1);
     expect(banner.textContent).not.toContain("…");
   });
-  test("só a linha vertical da lateral é verde; o cabeçalho do visitante e a barra superior são neutros", async () => {
+  test("a barra superior do logado é verde do IFSC; o cabeçalho do visitante (com logo) é neutro", async () => {
     await renderShell(<p>x</p>);
     expect(screen.getByRole("banner").className).not.toContain("primary");
     cleanup();
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
-    const classes = screen.getByRole("banner").className.split(" ");
-    expect(classes).toContain("md:border-r");
-    expect(classes).toContain("md:border-r-primary");
-    expect(classes).not.toContain("border-primary");
-    expect(screen.getByRole("navigation", { name: "Localização" }).className).not.toContain(
-      "primary",
-    );
+    const lateral = screen.getByRole("banner").className.split(" ");
+    expect(lateral).toContain("md:border-r-primary");
+    expect(lateral).toContain("md:bg-sidebar");
+    const barra = screen.getByRole("navigation", { name: "Localização" }).className.split(" ");
+    expect(barra).toContain("bg-primary");
+    expect(barra).toContain("text-primary-foreground");
   });
-  test("a faixa vermelha é uma só, fixa no topo da janela e cobre a largura toda", async () => {
-    for (const session of [null, { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" }]) {
-      if (session === null) await renderShell(<p>x</p>);
-      else await renderShell("x", session);
-      const faixas = document.querySelectorAll("[data-faixa-ifsc]");
-      expect(faixas.length).toBe(1);
-      expect(faixas[0]?.className.split(" ")).toEqual(
-        expect.arrayContaining(["fixed", "inset-x-0", "top-0"]),
-      );
-      cleanup();
-    }
+  test("não há faixa vermelha no topo em nenhum layout", async () => {
+    await renderShell(<p>x</p>);
+    expect(document.querySelectorAll("[data-faixa-ifsc]").length).toBe(0);
+    cleanup();
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    expect(document.querySelectorAll("[data-faixa-ifsc]").length).toBe(0);
   });
   test("o topo não sai do lugar ao rolar: cabeçalho do visitante e barra superior do logado são sticky", async () => {
     await renderShell(<p>x</p>);
@@ -126,8 +119,7 @@ describe("AppShell", () => {
     expect(bar.textContent).toContain(SCREEN_HINTS["/"]);
     expect(bar.querySelectorAll("h1").length).toBe(0);
     expect(bar.textContent).not.toContain("…");
-    expect(bar.className).not.toContain("border-primary");
-    expect(bar.className).not.toContain("bg-primary");
+    expect(bar.className).toContain("bg-primary");
   });
   test("toda frase de tela é curta (até 60 caracteres) e sem reticências", () => {
     for (const hint of Object.values(SCREEN_HINTS)) {

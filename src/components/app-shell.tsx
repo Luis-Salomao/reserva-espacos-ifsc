@@ -96,20 +96,6 @@ export function navItems(user: SessionInfo["user"]): NavItem[] {
 const SYSTEM_NAME = "Sistema de Reserva de Espaços";
 const SYSTEM_TAGLINE = "Consulte a ocupação das salas e reserve espaços do IFSC Câmpus Garopaba.";
 
-/**
- * Faixa fina vermelha (cor oficial do IFSC), detalhe decorativo: uma só por tela, fixa no topo da
- * janela e sobre a largura toda (lateral e conteúdo), então não sai do lugar ao rolar.
- */
-export function IfscStripe() {
-  return (
-    <span
-      aria-hidden="true"
-      data-faixa-ifsc=""
-      className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-[3px] bg-brand-red"
-    />
-  );
-}
-
 /** Logo do IFSC com o nome do sistema ao lado (quebra de linha, sem reticências). */
 function Brand({ stacked = false }: { stacked?: boolean }) {
   return (
@@ -154,8 +140,8 @@ function BrandLogo() {
 }
 
 const NAV_LINK =
-  "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground";
-const NAV_LINK_ACTIVE = "bg-surface-2 text-foreground";
+  "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground";
+const NAV_LINK_ACTIVE = "bg-background text-foreground shadow-xs";
 const NAV_ICON_SLOT = "grid size-5 shrink-0 place-items-center";
 const NAV_ICON = "block size-4 shrink-0";
 
@@ -194,11 +180,10 @@ export function AppShell({ children, wide = false }: Props) {
   if (user === null) {
     return (
       <div className="min-h-screen bg-background text-foreground">
-        <IfscStripe />
         <a href="#conteudo" className="sr-only focus:not-sr-only">
           Pular para o conteúdo
         </a>
-        <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-3 border-b bg-background px-4 pt-[3px] sm:px-6">
+        <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-3 border-b bg-background px-4 sm:px-6">
           <Brand />
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -222,7 +207,6 @@ export function AppShell({ children, wide = false }: Props) {
   }
   return (
     <div className="min-h-screen bg-background text-foreground">
-      <IfscStripe />
       <a
         href="#conteudo"
         className="sr-only z-50 rounded-md bg-background px-4 py-2 text-sm font-semibold focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -231,7 +215,7 @@ export function AppShell({ children, wide = false }: Props) {
       </a>
       <header
         className={cn(
-          "sticky top-0 z-30 flex min-h-14 items-center gap-1 pt-[3px] border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-r-primary md:border-b-0 md:bg-sidebar md:px-3 md:py-3 md:backdrop-blur-none",
+          "sticky top-0 z-30 flex min-h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-r-primary md:border-b-0 md:bg-sidebar md:px-3 md:py-3 md:backdrop-blur-none",
           collapsed ? "md:w-16 md:px-2" : "md:w-60",
         )}
       >
@@ -342,14 +326,14 @@ function ScreenBar({ items }: { items: NavItem[] }) {
   return (
     <nav
       aria-label="Localização"
-      className="sticky top-0 z-40 hidden min-h-14 items-center gap-x-2 border-b border-divider bg-surface px-6 pt-[3px] md:flex"
+      className="sticky top-0 z-40 hidden min-h-14 items-center gap-x-2 border-b border-primary bg-primary px-6 text-primary-foreground md:flex"
     >
       <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm">
         <span className="font-semibold">{SYSTEM_NAME}</span>
         {current !== undefined && (
           <>
-            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="text-muted-foreground">{SCREEN_HINTS[current.to]}</span>
+            <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+            <span>{SCREEN_HINTS[current.to]}</span>
           </>
         )}
       </p>

@@ -2,7 +2,6 @@ import { createFileRoute, Link, redirect } from "@tanstack/react-router";
 import { ArrowRight, CalendarDays, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import campusImage from "#/assets/campus-garopaba-login.webp";
-import { IfscStripe } from "#/components/app-shell";
 import { Field } from "#/components/ds";
 import { IFSCMark } from "#/components/ifsc-mark";
 import { Notice } from "#/components/page";
@@ -41,7 +40,6 @@ function LoginPage() {
   const [submitting, setSubmitting] = useState(false);
   return (
     <main className="relative min-h-svh bg-background text-foreground">
-      <IfscStripe />
       <div className="grid min-h-svh w-full bg-surface lg:grid-cols-2">
         <div className="relative isolate hidden overflow-hidden bg-zinc-900 lg:block">
           <img

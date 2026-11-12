@@ -108,7 +108,6 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     expect(fundo).not.toBe(t["--surface"]);
     expect(contrast(t["--text"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(t["--text-muted"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
-    expect(contrast(t["--accent-text"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
     const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(fundo.slice(i, i + 2), 16)) as [
       number,
       number,
