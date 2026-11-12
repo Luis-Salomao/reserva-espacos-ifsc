@@ -3,7 +3,14 @@ import type { UserRecord, UserRepository } from "#/application/ports";
 import { normalizeEmail, parseRoles, serializeRoles, type User } from "#/domain/user";
 import { runAtomically } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
-import { occupations, sessions, teacherMappings, users } from "#/infra/db/schema";
+import {
+  notifications,
+  occupations,
+  roomRequests,
+  sessions,
+  teacherMappings,
+  users,
+} from "#/infra/db/schema";
 
 type Row = typeof users.$inferSelect;
 
@@ -133,6 +140,22 @@ export function createUserRepository(db: AppDb): UserRepository {
           .update(teacherMappings)
           .set({ userId: toId })
           .where(and(eq(teacherMappings.userId, fromId), allowed)),
+        x
+          .update(notifications)
+          .set({ userId: toId })
+          .where(and(eq(notifications.userId, fromId), allowed)),
+        x
+          .update(notifications)
+          .set({ actorId: toId })
+          .where(and(eq(notifications.actorId, fromId), allowed)),
+        x
+          .update(roomRequests)
+          .set({ requesterId: toId })
+          .where(and(eq(roomRequests.requesterId, fromId), allowed)),
+        x
+          .update(roomRequests)
+          .set({ ownerId: toId })
+          .where(and(eq(roomRequests.ownerId, fromId), allowed)),
         x.delete(sessions).where(and(eq(sessions.userId, fromId), allowed)),
         x.delete(users).where(and(eq(users.id, fromId), allowed)),
       ]);

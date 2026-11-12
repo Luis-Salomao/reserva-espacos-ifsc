@@ -1,9 +1,10 @@
 import { and, asc, eq, gt, gte, lt, or, sql } from "drizzle-orm";
 import type { OutboxWrite } from "#/application/email-ports";
-import type { OccupationRecord, OccupationRepository } from "#/application/ports";
+import type { NewNotification, OccupationRecord, OccupationRepository } from "#/application/ports";
 import { weekdaySqlite } from "#/domain/availability";
 import { runAtomically, runAtomicWrites, type Statement } from "#/infra/db/atomic";
 import type { AppDb } from "#/infra/db/client";
+import { notificationWrite } from "#/infra/db/notification-write";
 import { occupationSelectList } from "#/infra/db/occupation-insert";
 import { outboxWrite } from "#/infra/db/outbox-write";
 import { occupations, spaces } from "#/infra/db/schema";
@@ -73,10 +74,30 @@ export function createOccupationRepository(
   db: AppDb,
   email?: BookingEmailFactory,
 ): OccupationRepository {
-  async function writeWithMail(build: (x: AppDb) => Statement, job: OutboxWrite | null) {
-    const counts = await runAtomicWrites(db, (x) =>
-      job === null ? [build(x)] : [build(x), outboxWrite(x, job)],
-    );
+  /**
+   * Escreve e, na mesma unidade atômica, grava o e-mail do outbox e o aviso (se houver). O aviso só
+   * entra se esta chamada cancelou a ocupação `noticeFor` naquele `at` (nunca por outra chamada).
+   */
+  async function writeWithMail(
+    build: (x: AppDb) => Statement,
+    job: OutboxWrite | null,
+    notice: { notice: NewNotification; occupationId: string; at: string } | null = null,
+  ) {
+    const counts = await runAtomicWrites(db, (x) => {
+      const writes: [Statement, ...Statement[]] = [build(x)];
+      if (job !== null) writes.push(outboxWrite(x, job));
+      if (notice !== null) {
+        writes.push(
+          notificationWrite(
+            x,
+            notice.notice,
+            sql`EXISTS (SELECT 1 FROM occupations WHERE id = ${notice.occupationId}
+              AND status = 'cancelada' AND cancelled_at = ${notice.at})`,
+          ),
+        );
+      }
+      return writes;
+    });
     return counts[0] ?? 0;
   }
   return {
@@ -411,7 +432,7 @@ export function createOccupationRepository(
       return row?.total === expected;
     },
 
-    async cancelOne(id, reason, at) {
+    async cancelOne(id, reason, at, notice = null) {
       const [record] =
         email === undefined
           ? []
@@ -447,6 +468,7 @@ export function createOccupationRepository(
               ),
             ),
         job,
+        notice === null ? null : { notice, occupationId: id, at },
       );
       return changed > 0;
     },
@@ -460,7 +482,7 @@ export function createOccupationRepository(
       return rows.map((row) => row.startsAt.slice(0, 10));
     },
 
-    async cancelSeries(anchor, fromLocal, onlyResponsible, reason, at) {
+    async cancelSeries(anchor, fromLocal, onlyResponsible, reason, at, notice = null) {
       const job =
         anchor.source === "manual"
           ? ((await email?.prepare({
@@ -479,6 +501,7 @@ export function createOccupationRepository(
             .set({ status: "cancelada", cancelReason: reason, cancelledAt: at })
             .where(seriesCondition(anchor, fromLocal, onlyResponsible)),
         job,
+        notice === null ? null : { notice, occupationId: anchor.id, at },
       );
       return changed;
     },

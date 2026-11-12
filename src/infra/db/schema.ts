@@ -9,6 +9,7 @@ import {
 import { users } from "./schema-users";
 
 export { mailOutbox } from "./schema-email";
+export { notifications, roomRequests } from "./schema-notifications";
 export { passwordRecoveryRequests, passwordResets } from "./schema-password-reset";
 export { users } from "./schema-users";
 

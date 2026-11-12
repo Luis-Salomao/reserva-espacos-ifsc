@@ -7,4 +7,8 @@ export const CANCEL_REASONS = {
   novaVersao: "nova_versao",
   /** Cancelada à mão por uma pessoa. */
   usuario: "usuario",
+  /** Cancelada pela administração na reserva de outra pessoa. */
+  administracao: "administracao",
+  /** Cedida a outra pessoa, que pediu a sala e teve o pedido aceito. */
+  cedida: "cedida",
 } as const;

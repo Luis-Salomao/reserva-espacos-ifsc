@@ -11,6 +11,8 @@ import type {
   RoomMapping,
   TeacherMapping,
 } from "#/domain/import-batch";
+import type { NoticeData, NoticeKind } from "#/domain/notification";
+import type { RequestStatus } from "#/domain/room-request";
 import type { Semester } from "#/domain/semester";
 import type { Space } from "#/domain/space";
 import type { Role, User } from "#/domain/user";
@@ -93,7 +95,7 @@ export interface UserRepository {
   activatePlaceholder(id: string, email: string, passwordHash: string): Promise<boolean>;
   /**
    * Funde a fantasma `fromId` na conta `toId` numa unidade atômica: ocupações (responsável e quem
-   * criou) e vínculos do XML passam para `toId`, as sessões da fantasma caem e ela é apagada. Só
+   * criou), vínculos do XML, avisos e pedidos de sala passam para `toId`, as sessões da fantasma caem e ela é apagada. Só
    * age se `fromId` é fantasma e `toId` é conta ativa não fantasma; `false` se nada foi feito.
    */
   mergeInto(fromId: string, toId: string): Promise<boolean>;
@@ -430,8 +432,16 @@ export interface OccupationRepository {
    * espaço se sobrepõe; se alguma não entra, nenhuma fica gravada. `true` = todas gravadas.
    */
   insertSeriesIfFree(input: NewSeries): Promise<boolean>;
-  /** Cancela uma ocupação ativa; `false` se já não estava ativa. */
-  cancelOne(id: string, reason: string, at: string): Promise<boolean>;
+  /**
+   * Cancela uma ocupação ativa; `false` se já não estava ativa. Com `notice`, grava o aviso na mesma
+   * unidade atômica, só se esta chamada cancelou.
+   */
+  cancelOne(
+    id: string,
+    reason: string,
+    at: string,
+    notice?: NewNotification | null,
+  ): Promise<boolean>;
   /**
    * Datas "YYYY-MM-DD" (ordenadas) da série da âncora a partir de `fromLocal`: mesma aula, lote,
    * espaço, dia da semana e horário. `onlyResponsible` restringe às linhas desse responsável
@@ -442,13 +452,17 @@ export interface OccupationRepository {
     fromLocal: string,
     onlyResponsible: string | null,
   ): Promise<string[]>;
-  /** Cancela a âncora e a série pela MESMA condição de `seriesDates`. */
+  /**
+   * Cancela a âncora e a série pela MESMA condição de `seriesDates`. Com `notice`, grava um único
+   * aviso na mesma unidade atômica, só se a âncora foi cancelada por esta chamada.
+   */
   cancelSeries(
     anchor: OccupationRecord,
     fromLocal: string,
     onlyResponsible: string | null,
     reason: string,
     at: string,
+    notice?: NewNotification | null,
   ): Promise<number>;
   /** Próximas ocupações ativas criadas pelo usuário ou sob sua responsabilidade (termina depois de `fromLocal`). */
   listMine(
@@ -457,4 +471,98 @@ export interface OccupationRepository {
     limit: number,
     offset: number,
   ): Promise<OccupationWithSpace[]>;
+}
+
+/** Aviso a gravar; `data` vira `data_json`. */
+export type NewNotification = {
+  id: string;
+  userId: string;
+  kind: NoticeKind;
+  actorId: string | null;
+  occupationId: string | null;
+  requestId: string | null;
+  data: NoticeData;
+  createdAt: string;
+};
+
+export type StoredNotification = Omit<NewNotification, "createdAt"> & {
+  createdAt: string;
+  /** `null` = ainda não lido. */
+  readAt: string | null;
+};
+
+export interface NotificationRepository {
+  /** Avisos da pessoa, do mais novo ao mais antigo (os de pedido recebido ficam de fora: são cartões). */
+  listFor(userId: string, limit: number): Promise<StoredNotification[]>;
+  /** Avisos não lidos, sem contar os de pedido recebido. */
+  unreadCount(userId: string): Promise<number>;
+  markAllRead(userId: string, at: string): Promise<void>;
+}
+
+export type RoomRequestRecord = {
+  id: string;
+  occupationId: string;
+  requesterId: string;
+  ownerId: string;
+  purpose: string;
+  message: string | null;
+  status: RequestStatus;
+  decisionNote: string | null;
+  createdAt: string;
+  decidedAt: string | null;
+  newOccupationId: string | null;
+};
+
+/** Pedido com o que a tela precisa da ocupação e das pessoas. */
+export type RoomRequestRow = RoomRequestRecord & {
+  requesterName: string;
+  ownerName: string;
+  spaceName: string;
+  startsAt: string;
+  endsAt: string;
+  occupationStatus: "ativa" | "cancelada";
+};
+
+export type NewRoomRequest = Pick<
+  RoomRequestRecord,
+  "id" | "occupationId" | "requesterId" | "ownerId" | "purpose" | "message" | "createdAt"
+> & { notice: NewNotification };
+
+export type AcceptRequest = {
+  requestId: string;
+  ownerId: string;
+  newOccupationId: string;
+  at: string;
+  /** Agora em hora de parede: o aceite só vale enquanto a ocupação não terminou. */
+  nowLocal: string;
+  /** Aviso para quem pediu; gravado só se o aceite valeu. */
+  notice: NewNotification;
+};
+
+export interface RoomRequestRepository {
+  /** Insere o pedido e o aviso ao dono atomicamente. `false` se já há pedido pendente igual. */
+  create(input: NewRoomRequest): Promise<boolean>;
+  findById(id: string): Promise<RoomRequestRow | null>;
+  /** Pedidos pendentes recebidos pelo dono, do mais antigo ao mais novo. */
+  listIncoming(ownerId: string): Promise<RoomRequestRow[]>;
+  /** Pedidos feitos pela pessoa, do mais novo ao mais antigo (no máximo `limit`). */
+  listOutgoing(requesterId: string, limit: number): Promise<RoomRequestRow[]>;
+  /** Pendentes recebidos cuja ocupação ainda está ativa e termina depois de `nowLocal`. */
+  countPendingIncoming(ownerId: string, nowLocal: string): Promise<number>;
+  /** Recusa um pedido pendente do dono e avisa quem pediu na mesma unidade. `false` = nada mudou. */
+  decline(input: {
+    requestId: string;
+    ownerId: string;
+    note: string | null;
+    at: string;
+    notice: NewNotification;
+  }): Promise<boolean>;
+  /** Desistência de um pedido pendente de quem pediu. `false` = nada mudou. */
+  withdraw(requestId: string, requesterId: string, at: string): Promise<boolean>;
+  /**
+   * Aceita numa unidade atômica: cancela a ocupação (`cedida`), cria a nova para quem pediu, marca o
+   * pedido `aceito`, encerra os demais pendentes e avisa. Cada passo só age se o anterior valeu;
+   * um pedido obsoleto não altera nada. `true` se o aceite valeu.
+   */
+  accept(input: AcceptRequest): Promise<boolean>;
 }

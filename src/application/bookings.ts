@@ -1,6 +1,7 @@
 import type {
   Clock,
   ManualSeriesSlotUpdate,
+  NewNotification,
   OccupationRecord,
   OccupationRepository,
   OccupationWithSpace,
@@ -26,13 +27,15 @@ import {
   type Recurrence,
   recurrenceSummary,
 } from "#/domain/recurrence";
+import { canAskForRoom, MAX_NOTE, occupationOwnerId, requestIssue } from "#/domain/room-request";
 import { isValidDate, type Semester } from "#/domain/semester";
 import type { User } from "#/domain/user";
 
 /** Papéis que podem reservar. */
 const BOOKING_ROLES = ["admin", "horarios", "docente", "manutencao"] as const;
 
-const MAX_PURPOSE = 120;
+/** Tamanho máximo da finalidade (título) de uma reserva. */
+export const MAX_PURPOSE = 120;
 /** Dias da visão geral: segunda a sexta. */
 const WORKDAYS = 5;
 const DEFAULT_PAGE = 50;
@@ -73,6 +76,8 @@ export type AgendaItem = {
   canCancel: boolean;
   mine: boolean;
   person: AgendaPerson | null;
+  /** Quem consulta pode pedir esta sala ao dono (outra pessoa, ocupação futura, dono com conta ativa). */
+  canRequest?: boolean;
 };
 
 type AgendaBlock = { label: string; short: string; start: string; end: string };
@@ -220,7 +225,7 @@ export type BookingsDeps = {
   occupations: OccupationRepository;
   spaces: SpaceRepository;
   semesters: SemesterRepository;
-  users: Pick<UserRepository, "list">;
+  users: Pick<UserRepository, "list" | "findById">;
   clock: Clock;
   /** TIMEZONE: define "hoje" e "agora" em hora de parede. */
   timeZone: string;
@@ -260,13 +265,38 @@ function isMine(user: User | null, item: OccupationRecord): boolean {
   return user !== null && (item.createdBy === user.id || item.responsibleUserId === user.id);
 }
 
-type People = ReadonlyMap<string, AgendaPerson>;
+/** `active` só serve às regras do servidor: não vai para a tela. */
+type People = ReadonlyMap<string, AgendaPerson & { active: boolean }>;
 
 const NO_PEOPLE: People = new Map();
 
 function personOf(item: OccupationRecord, people: People): AgendaPerson | null {
   const id = item.source === "manual" ? item.createdBy : item.responsibleUserId;
-  return id === null ? null : (people.get(id) ?? null);
+  const person = id === null ? undefined : people.get(id);
+  return person === undefined
+    ? null
+    : { name: person.name, code: person.code, placeholder: person.placeholder };
+}
+
+/** O visitante logado pode pedir a sala: outra pessoa ocupa, futura e dono com conta ativa. */
+function canRequestRoom(
+  item: OccupationRecord,
+  viewer: User | null,
+  nowLocal: string,
+  people: People,
+): boolean {
+  if (viewer === null || !canAskForRoom(viewer)) return false;
+  const ownerId = occupationOwnerId(item);
+  const owner = ownerId === null ? undefined : people.get(ownerId);
+  if (ownerId === null || owner === undefined) return false;
+  return (
+    requestIssue({
+      requesterId: viewer.id,
+      occupation: item,
+      owner: { id: ownerId, active: owner.active, placeholder: owner.placeholder },
+      now: nowLocal,
+    }) === null
+  );
 }
 
 function toItem(
@@ -286,6 +316,7 @@ function toItem(
     canCancel: viewer !== null && item.endsAt > nowLocal && ownsOccupation(viewer, item),
     mine: isMine(viewer, item),
     person: viewer === null ? null : personOf(item, people),
+    canRequest: canRequestRoom(item, viewer, nowLocal, people),
   };
 }
 
@@ -355,6 +386,48 @@ export function createBookingsService(deps: BookingsDeps) {
 
   const nowLocal = () => localNow(clock.now(), timeZone);
 
+  /** Motivo opcional enviado ao dono: aparado, vazio vira `null`. */
+  function parseNote(raw: string | undefined): Result<string | null> {
+    if (raw === undefined || raw.trim() === "") return ok(null);
+    return parseText(raw, MAX_NOTE, "O motivo", "note");
+  }
+
+  /**
+   * Aviso ao dono quando outra pessoa (a administração) cancela a reserva dele; `null` se quem
+   * cancela é o dono, ou se o dono não existe, está inativo ou é conta fantasma.
+   */
+  async function cancelNotice(
+    actor: User,
+    item: OccupationRecord,
+    at: string,
+    note: string | null,
+    count: number,
+  ): Promise<NewNotification | null> {
+    const ownerId = occupationOwnerId(item);
+    if (ownerId === null || ownerId === actor.id) return null;
+    const owner = await users.findById(ownerId);
+    if (owner === null || !owner.active || owner.placeholder) return null;
+    const name = await spaceName(item.spaceId);
+    return {
+      id: crypto.randomUUID(),
+      userId: ownerId,
+      kind: "reserva_cancelada",
+      actorId: actor.id,
+      occupationId: item.id,
+      requestId: null,
+      data: {
+        spaceName: name ?? "",
+        date: item.startsAt.slice(0, 10),
+        start: item.startsAt.slice(11, 16),
+        end: item.endsAt.slice(11, 16),
+        title: item.title,
+        ...(count > 1 ? { count } : {}),
+        ...(note === null ? {} : { note }),
+      },
+      createdAt: at,
+    };
+  }
+
   /** Nomes só para quem está logado; o visitante nem dispara a consulta. */
   async function peopleFor(viewer: User | null): Promise<People> {
     if (viewer === null) return NO_PEOPLE;
@@ -362,7 +435,7 @@ export function createBookingsService(deps: BookingsDeps) {
     return new Map(
       all.map((user) => [
         user.id,
-        { name: user.name, code: user.code, placeholder: user.placeholder },
+        { name: user.name, code: user.code, placeholder: user.placeholder, active: user.active },
       ]),
     );
   }
@@ -955,29 +1028,36 @@ export function createBookingsService(deps: BookingsDeps) {
      */
     async cancelOccupation(
       user: User,
-      input: { occupationId: string; scope: CancelScope; expectedCount?: number },
+      input: { occupationId: string; scope: CancelScope; expectedCount?: number; note?: string },
     ): Promise<Result<{ cancelled: number }>> {
       const anchor = await loadCancellable(user, input.occupationId);
       if (!anchor.ok) return anchor;
+      const note = parseNote(input.note);
+      if (!note.ok) return note;
       const at = clock.now().toISOString();
+      const byOwner = occupationOwnerId(anchor.value) === user.id;
+      const reason = byOwner ? CANCEL_REASONS.usuario : CANCEL_REASONS.administracao;
       if (input.scope === "serie") {
         if (isLoneManual(anchor.value)) return fail("validation", SERIES_ON_MANUAL);
         const from = nowLocal();
         const owner = seriesOwner(user);
-        if (input.expectedCount !== undefined) {
-          const current = await occupations.seriesDates(anchor.value, from, owner);
-          if (current.length !== input.expectedCount) return fail("conflict", SERIES_CHANGED);
+        const current = await occupations.seriesDates(anchor.value, from, owner);
+        if (input.expectedCount !== undefined && current.length !== input.expectedCount) {
+          return fail("conflict", SERIES_CHANGED);
         }
+        const notice = await cancelNotice(user, anchor.value, at, note.value, current.length);
         const cancelled = await occupations.cancelSeries(
           anchor.value,
           from,
           owner,
-          CANCEL_REASONS.usuario,
+          reason,
           at,
+          notice,
         );
         return ok({ cancelled });
       }
-      const cancelled = await occupations.cancelOne(anchor.value.id, CANCEL_REASONS.usuario, at);
+      const notice = await cancelNotice(user, anchor.value, at, note.value, 1);
+      const cancelled = await occupations.cancelOne(anchor.value.id, reason, at, notice);
       return cancelled ? ok({ cancelled: 1 }) : fail("conflict", ALREADY_CANCELLED);
     },
 
