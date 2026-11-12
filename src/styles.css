@@ -70,7 +70,7 @@
   --color-surface: var(--surface);
   --color-brand-red: var(--brand-red);
   --color-surface-2: var(--surface-2);
-  --color-sidebar: var(--sidebar-bg);
+  --color-menu-soft: var(--menu-soft);
   --color-occ-free: var(--occ-free);
   --color-occ-booked: var(--occ-booked);
   --color-occ-imported: var(--occ-imported);
@@ -109,5 +109,30 @@
   :focus-visible {
     outline: 2px solid var(--focus);
     outline-offset: 2px;
+  }
+}
+
+/*
+ * Lateral do computador (verde forte #32A041 nos dois temas): redefine as variáveis do tema para os
+ * filhos (itens, botões, conta, tema) lerem texto escuro, pílula branca e foco escuro sem duplicar
+ * classes. No celular o cabeçalho continua neutro (o logo colorido perde-se sobre o verde forte).
+ * Razões: #111111 sobre #32A041 = 5,61; #0F2615 sobre #32A041 = 4,77.
+ */
+@media (min-width: 48rem) {
+  .menu-forte {
+    --background: #ffffff;
+    --foreground: var(--menu-text);
+    --muted-foreground: var(--menu-text-muted);
+    --accent-soft: rgb(255 255 255 / 0.55);
+    --accent-foreground: var(--menu-text);
+    --border: rgb(15 38 21 / 0.35);
+    --focus: var(--menu-text);
+    --ring: var(--menu-text);
+    color: var(--menu-text);
+  }
+
+  /* O anel de foco fica escuro e opaco (o padrão do projeto é meio transparente e some no verde). */
+  .menu-forte :focus-visible {
+    outline-color: var(--menu-text);
   }
 }

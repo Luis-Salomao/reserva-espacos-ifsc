@@ -120,20 +120,20 @@ function BrandLogo() {
     <Link
       to="/"
       aria-label="IFSC Câmpus Garopaba — Reserva de espaços"
-      className="flex shrink-0 items-center rounded-md px-1 py-1.5 md:px-2"
+      className="flex shrink-0 items-center rounded-md px-1 py-1.5 md:rounded-lg md:bg-white md:p-2"
     >
       {/* Marca oficial com fundo transparente; no tema escuro as letras pretas viram brancas. */}
       <img
         src={ifscGaropabaLogoClaro}
         alt=""
         aria-hidden="true"
-        className="block h-auto w-[112px] shrink-0 sm:w-[128px] dark:hidden"
+        className="block h-auto w-[112px] shrink-0 sm:w-[128px] dark:hidden md:dark:block"
       />
       <img
         src={ifscGaropabaLogoEscuro}
         alt=""
         aria-hidden="true"
-        className="hidden h-auto w-[112px] shrink-0 sm:w-[128px] dark:block"
+        className="hidden h-auto w-[112px] shrink-0 sm:w-[128px] dark:block md:hidden md:dark:hidden"
       />
     </Link>
   );
@@ -215,7 +215,7 @@ export function AppShell({ children, wide = false }: Props) {
       </a>
       <header
         className={cn(
-          "sticky top-0 z-30 flex min-h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-r-primary md:border-b-0 md:bg-sidebar md:px-3 md:py-3 md:backdrop-blur-none",
+          "menu-forte sticky top-0 z-30 flex min-h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r-0 md:border-b-0 md:bg-primary md:px-3 md:py-3 md:backdrop-blur-none",
           collapsed ? "md:w-16 md:px-2" : "md:w-60",
         )}
       >
@@ -247,7 +247,7 @@ export function AppShell({ children, wide = false }: Props) {
               <Link
                 key={item.to}
                 to={item.to}
-                activeOptions={{ exact: item.exact === true }}
+                activeOptions={{ exact: item.exact === true, includeSearch: false }}
                 title={item.label}
                 className={cn(NAV_LINK, collapsed && "md:justify-center md:px-0")}
                 activeProps={{
@@ -326,14 +326,14 @@ function ScreenBar({ items }: { items: NavItem[] }) {
   return (
     <nav
       aria-label="Localização"
-      className="sticky top-0 z-40 hidden min-h-14 items-center gap-x-2 border-b border-primary bg-primary px-6 text-primary-foreground md:flex"
+      className="sticky top-0 z-40 hidden min-h-14 items-center gap-x-2 border-b border-divider bg-menu-soft px-6 text-foreground md:flex"
     >
       <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm">
         <span className="font-semibold">{SYSTEM_NAME}</span>
         {current !== undefined && (
           <>
             <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
-            <span>{SCREEN_HINTS[current.to]}</span>
+            <span className="text-muted-foreground">{SCREEN_HINTS[current.to]}</span>
           </>
         )}
       </p>
@@ -409,7 +409,7 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
               <Link
                 key={item.to}
                 to={item.to}
-                activeOptions={{ exact: item.exact === true }}
+                activeOptions={{ exact: item.exact === true, includeSearch: false }}
                 className={itemClass}
                 activeProps={{ className: cn(itemClass, "bg-surface-2") }}
                 onClick={() => setOpen(false)}
