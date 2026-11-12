@@ -2,6 +2,7 @@ import { TanStackDevtools } from "@tanstack/react-devtools";
 import type { QueryClient } from "@tanstack/react-query";
 import { createRootRouteWithContext, HeadContent, Scripts } from "@tanstack/react-router";
 import { TanStackRouterDevtoolsPanel } from "@tanstack/react-router-devtools";
+import { ICON_LINKS } from "#/lib/icon-links";
 import { THEME_SCRIPT } from "#/lib/theme-script";
 import { getSessionInfo } from "#/server/auth-fns";
 import TanStackQueryDevtools from "../integrations/tanstack-query/devtools";
@@ -28,6 +29,7 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       },
     ],
     links: [
+      ...ICON_LINKS,
       {
         rel: "stylesheet",
         href: appCss,
