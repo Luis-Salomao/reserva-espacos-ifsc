@@ -1,5 +1,3 @@
-import { X } from "lucide-react";
-import { Dialog } from "radix-ui";
 import { type FormEvent, useId, useState } from "react";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
@@ -8,6 +6,7 @@ import { Label } from "#/components/ui/label";
 import type { Space } from "#/domain/space";
 import { createSpaceFn, updateSpaceFn } from "#/server/admin";
 import type { AdminResponse } from "#/server/admin-actions";
+import { AdminDialog } from "./admin-dialog";
 import { FieldError } from "./field-error";
 import { initialSpaceInfoValues, SpaceInfoFields, spaceInfoPayload } from "./space-info-fields";
 import { fieldError, generalError, runAdminAction, useFocusInvalidField } from "./use-admin-action";
@@ -17,42 +16,34 @@ type Props = {
   space: Space | null | undefined;
   onClose: () => void;
   onSaved: () => void;
+  /** Id do botão que recebe o foco ao fechar (o lápis da linha ou "Novo espaço"). */
+  returnFocusId?: string | undefined;
 };
 
 /**
  * Diálogo de criar ou editar espaço. O formulário só existe com o diálogo aberto: fechar descarta o
  * que não foi salvo, e a próxima abertura parte dos dados gravados.
  */
-export function SpaceFormDialog({ space, onClose, onSaved }: Props) {
+export function SpaceFormDialog({ space, onClose, onSaved, returnFocusId }: Props) {
   const uid = useId();
   return (
-    <Dialog.Root
+    <AdminDialog
       open={space !== undefined}
-      onOpenChange={(open) => {
-        if (!open) onClose();
-      }}
+      title={space === null ? "Novo espaço" : "Editar espaço"}
+      description='Deixe em branco ou em "Não informado" o que não souber.'
+      onClose={onClose}
+      returnFocusId={returnFocusId}
     >
-      <Dialog.Portal>
-        <Dialog.Overlay className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm" />
-        <Dialog.Content
-          onOpenAutoFocus={(event) => {
-            event.preventDefault();
-            document.getElementById(`${uid}-name`)?.focus();
-          }}
-          className="fixed inset-x-0 bottom-0 z-50 flex max-h-[90svh] w-full flex-col overflow-hidden rounded-t-2xl border bg-surface shadow-xl sm:inset-x-auto sm:top-1/2 sm:bottom-auto sm:left-1/2 sm:max-w-lg sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-2xl"
-        >
-          {space !== undefined && (
-            <SpaceForm
-              key={space?.id ?? "novo"}
-              uid={uid}
-              space={space}
-              onCancel={onClose}
-              onSaved={onSaved}
-            />
-          )}
-        </Dialog.Content>
-      </Dialog.Portal>
-    </Dialog.Root>
+      {space !== undefined && (
+        <SpaceForm
+          key={space?.id ?? "novo"}
+          uid={uid}
+          space={space}
+          onCancel={onClose}
+          onSaved={onSaved}
+        />
+      )}
+    </AdminDialog>
   );
 }
 
@@ -84,21 +75,6 @@ function SpaceForm({ uid, space, onCancel, onSaved }: FormProps) {
 
   return (
     <form onSubmit={onSubmit} className="flex min-h-0 flex-col">
-      <div className="flex items-start gap-3 border-b px-4 py-3">
-        <div className="min-w-0 flex-1">
-          <Dialog.Title className="text-base font-semibold tracking-tight">
-            {space === null ? "Novo espaço" : "Editar espaço"}
-          </Dialog.Title>
-          <Dialog.Description className="text-sm text-muted-foreground">
-            Deixe em branco ou em "Não informado" o que não souber.
-          </Dialog.Description>
-        </div>
-        <Dialog.Close asChild>
-          <Button type="button" variant="ghost" size="icon" aria-label="Fechar">
-            <X className="size-4" aria-hidden="true" />
-          </Button>
-        </Dialog.Close>
-      </div>
       <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto overscroll-contain p-4">
         {general !== undefined && (
           <Notice tone="error" role="alert">

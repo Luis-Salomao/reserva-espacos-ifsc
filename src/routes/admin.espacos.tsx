@@ -21,7 +21,7 @@ export const Route = createFileRoute("/admin/espacos")({
 function SpacesPage() {
   const spaces = Route.useLoaderData();
   return (
-    <AppShell>
+    <AppShell wide>
       <PageHeader title="Administração" description="Espaços reserváveis." />
       <AdminNav />
       <SpacesManager spaces={spaces} />
@@ -31,7 +31,7 @@ function SpacesPage() {
 
 function SpacesPending() {
   return (
-    <AppShell>
+    <AppShell wide>
       <PageHeader title="Administração" description="Espaços reserváveis." />
       <AdminNav />
       <Notice role="status">Carregando espaços…</Notice>
@@ -42,7 +42,7 @@ function SpacesPending() {
 function SpacesError() {
   const router = useRouter();
   return (
-    <AppShell>
+    <AppShell wide>
       <PageHeader title="Administração" description="Espaços reserváveis." />
       <AdminNav />
       <SpacesLoadError onRetry={() => void router.invalidate()} />
