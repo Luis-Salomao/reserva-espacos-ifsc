@@ -369,6 +369,44 @@ describe("AgendaView — Suíte 2: Linha do Tempo Diária Mobile (RNF-01, 360 px
     expect(terBtn.getAttribute("aria-pressed")).toBe("true");
   });
 
+  test("agrupa visualizações secundárias em 360–390 px e mantém sala, data, horários e reserva visíveis", async () => {
+    for (const width of [360, 390]) {
+      setViewportWidth(width);
+      await renderAgenda({
+        spaces: MOCK_SPACES,
+        selectedSpaceId: "space-adm",
+        selectedDate: MOCK_DATE_TUESDAY,
+        weekAgenda: createMockWeekAgenda(),
+        session: createMockSession(),
+        onSelectDate: () => {},
+        onSelectSpace: () => {},
+      });
+
+      const dayStrip = screen.getByRole("region", { name: "Dias da semana" });
+      expect(
+        within(dayStrip)
+          .getByRole("button", { name: /3 de novembro/i })
+          .getAttribute("aria-pressed"),
+      ).toBe("true");
+      expect(
+        screen.getAllByRole("button", { name: /Escolher sala: ADM 2/i }).length,
+      ).toBeGreaterThan(0);
+      expect(screen.getByTestId("timeline-day")).toBeTruthy();
+      expect(screen.getAllByRole("button", { name: /Livre/i }).length).toBeGreaterThan(0);
+      expect(screen.getByRole("button", { name: "Reservar" })).toBeTruthy();
+
+      const options = screen.getByText("Mais opções").closest("details");
+      expect(options?.hasAttribute("open")).toBe(false);
+      fireEvent.click(screen.getByText("Mais opções"));
+      const mobileViews = within(options as HTMLElement).getByRole("group", {
+        name: "Visualização",
+      });
+      expect(within(mobileViews).getAllByRole("button")).toHaveLength(4);
+      expect(mobileViews.className).toContain("flex-wrap");
+      cleanup();
+    }
+  });
+
   test("clicar em outro dia na faixa semanal móvel emite callback onSelectDate", async () => {
     const onSelectDate = mock();
     const week = createMockWeekAgenda();
@@ -624,7 +662,7 @@ describe("AgendaView — Suíte 4b: Informações da sala (SpaceDetails)", () =>
       onSelectSpace: () => {},
     });
 
-    const summary = screen.getByText("Informações da sala");
+    const summary = screen.getByText("Mais opções");
     const details = summary.closest("details");
     expect(details).toBeTruthy();
     expect(details?.hasAttribute("open")).toBe(false);
@@ -755,6 +793,7 @@ describe("AgendaView — Suíte 5: Intervalos Livres Clicáveis", () => {
 
 describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", () => {
   test("visitante e logado não têm o link 'Todas as salas'; o seletor marca 'Sala'", async () => {
+    setViewportWidth(360);
     for (const session of [createAnonymousSession(true), createMockSession()]) {
       await renderAgenda({
         spaces: MOCK_SPACES,
@@ -767,7 +806,9 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
       });
       expect(screen.queryByRole("link", { name: /Todas as salas/ }) === null).toBe(true);
       expect(document.querySelector("a[href*='salas']") === null).toBe(true);
-      const views = screen.getByRole("group", { name: "Visualização" });
+      const options = screen.getByText("Mais opções").closest("details");
+      fireEvent.click(screen.getByText("Mais opções"));
+      const views = within(options as HTMLElement).getByRole("group", { name: "Visualização" });
       expect(
         within(views)
           .getAllByRole("button")
@@ -783,6 +824,7 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
   });
 
   test("trocar de visualização atualiza 'visao' mantendo a data e a sala", async () => {
+    setViewportWidth(360);
     for (const visao of ["colunas", "livres", "geral"] as const) {
       const router = await renderAgenda({
         spaces: MOCK_SPACES,
@@ -793,8 +835,10 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
         onSelectDate: () => {},
         onSelectSpace: () => {},
       });
+      fireEvent.click(screen.getByText("Mais opções"));
       const label = { colunas: "Colunas", livres: "Livres", geral: "Visão geral" }[visao];
-      fireEvent.click(screen.getByRole("button", { name: label }));
+      const options = screen.getByText("Mais opções").closest("details");
+      fireEvent.click(within(options as HTMLElement).getByRole("button", { name: label }));
       await waitFor(() =>
         expect(router.state.location.search).toEqual({
           data: MOCK_DATE_TUESDAY,

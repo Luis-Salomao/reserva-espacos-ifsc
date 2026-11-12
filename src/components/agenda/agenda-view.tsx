@@ -248,14 +248,19 @@ export function AgendaView({
                 ))}
               </div>
             </div>
-            <ViewSwitcher value="sala" onChange={selectView} />
+            <div className="hidden lg:block">
+              <ViewSwitcher value="sala" onChange={selectView} />
+            </div>
           </div>
 
           <details className="mb-3 rounded-md border border-border px-3 py-2 xl:hidden">
             <summary className="cursor-pointer text-sm font-medium text-foreground">
-              Informações da sala
+              Mais opções
             </summary>
-            <div className="mt-2">
+            <div className="mt-2 grid gap-4">
+              <div className="lg:hidden">
+                <ViewSwitcher value="sala" onChange={selectView} className="w-full" />
+              </div>
               {currentSpace ? (
                 <SpaceDetails space={currentSpace} />
               ) : (

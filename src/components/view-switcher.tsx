@@ -27,7 +27,10 @@ type Props = {
 export function ViewSwitcher({ value, onChange, className }: Props) {
   return (
     <div className={cn("grid gap-1", className)}>
-      <fieldset aria-label="Visualização" className="flex w-fit rounded-md border bg-surface p-0.5">
+      <fieldset
+        aria-label="Visualização"
+        className="flex w-full max-w-full flex-wrap rounded-md border bg-surface p-0.5 sm:w-fit"
+      >
         {VIEWS.map((view) => (
           <button
             key={view.value}

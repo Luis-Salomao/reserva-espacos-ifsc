@@ -29,6 +29,7 @@ Domínio final: https://reservas-ifsc.luissalomao.dev/
 | 17 | Evitar a grade semanal comprimida no celular quando o navegador solicita “Site para computador” | **Implementado:** o modo compacto ativa até 1023 px, incluindo viewport CSS próximo de 980 px. Teste de componente em 980 px; sem validação em aparelho físico. |
 | 18 | Evitar que “Detalhes” quebre para uma linha separada no cabeçalho da sala | **Implementado:** botão compacto com ícone de informação em círculo e rótulo acessível com o nome da sala. |
 | 19 | Investigar clique noturno que supostamente abre duas reservas | **Coberto por teste de componente:** um toque em um intervalo noturno emite uma única seleção. O problema não foi reproduzido manualmente no navegador. |
+| 20 | Reduzir a quantidade de controles antes dos horários na agenda mobile | **Implementado:** visualizações secundárias e detalhes da sala em “Mais opções”; sala selecionada, dia, disponibilidade e ação de reserva continuam visíveis. Teste para 360 e 390 px adicionado; execução pendente por dependências ausentes no worktree. |
 
 ## Estado salvo
 
