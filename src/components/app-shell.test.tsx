@@ -77,6 +77,8 @@ describe("AppShell", () => {
     expect(
       screen.getByRole("link", { name: "IFSC Câmpus Garopaba — Reserva de espaços" }),
     ).toBeDefined();
+    // O texto "Reserva de espaços" não aparece visível no cabeçalho; só o nome acessível do link.
+    expect(screen.getByRole("banner").textContent).not.toContain("Reserva de espaços");
     const logos = screen.getByRole("banner").querySelectorAll("img[aria-hidden='true']");
     expect(logos.length).toBe(2);
     const clara = logos[0];

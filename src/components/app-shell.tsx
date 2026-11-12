@@ -87,7 +87,7 @@ function Brand() {
     <Link
       to="/"
       aria-label="IFSC Câmpus Garopaba — Reserva de espaços"
-      className="flex min-w-0 items-center gap-2 rounded-md px-1 py-1.5 md:px-2"
+      className="flex shrink-0 items-center rounded-md px-1 py-1.5 md:px-2"
     >
       {/* Marca oficial com fundo transparente; no tema escuro as letras pretas viram brancas. */}
       <img
@@ -102,9 +102,6 @@ function Brand() {
         aria-hidden="true"
         className="hidden h-auto w-[112px] shrink-0 sm:w-[128px] dark:block"
       />
-      <span className="min-w-0 truncate text-[11px] leading-tight font-medium text-foreground">
-        Reserva de espaços
-      </span>
     </Link>
   );
 }
