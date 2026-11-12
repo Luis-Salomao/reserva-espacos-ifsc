@@ -1,6 +1,7 @@
 import { describe, expect, mock, test } from "bun:test";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { OverlapView, RoomView, SlotView } from "#/server/import-preview-view";
+import { RoomScheduleOverview } from "./room-schedule-overview";
 import { ImportRoomsOverview } from "./rooms-overview";
 
 const slot = (key: string, weekday: number): SlotView => ({
@@ -72,5 +73,18 @@ describe("ImportRoomsOverview", () => {
     expect(screen.getByRole("status").textContent).toContain(
       "totais por sala podem estar parciais",
     );
+  });
+});
+
+describe("RoomScheduleOverview", () => {
+  test("mostra os horários de todas as salas juntos, inclusive sala sem aula", () => {
+    render(<RoomScheduleOverview rooms={rooms} />);
+
+    const table = screen.getByRole("table", { name: "Grade semanal de todas as salas" });
+    expect(within(table).getByText("A-202")).toBeTruthy();
+    expect(within(table).getByText("A-203")).toBeTruthy();
+    expect(within(table).getAllByText("Mat").length).toBeGreaterThan(0);
+    expect(screen.getByText("Sem horários com sala única.")).toBeTruthy();
+    expect(screen.getByText(/somente horários atribuídos a uma sala/)).toBeTruthy();
   });
 });

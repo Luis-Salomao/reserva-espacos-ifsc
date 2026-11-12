@@ -3,17 +3,21 @@ import { beforeEach, describe, expect, test } from "bun:test";
 import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sqlite";
 import { migrate } from "drizzle-orm/bun-sqlite/migrator";
+import { createBookingsService } from "#/application/bookings";
 import { createImportService, hashImportFile } from "#/application/import-apply";
 import type { ImportRepository } from "#/application/ports";
 import type { ImportBatch, ImportRow, ImportRowStatus } from "#/domain/import-batch";
 import type { Semester } from "#/domain/semester";
 import type { AscTimetable, Lesson } from "#/domain/timetable";
+import type { User } from "#/domain/user";
 import type { WeeklySlot } from "#/import-asc/slots";
 import type { AppDb } from "#/infra/db/client";
 import { createImportRepository } from "#/infra/db/repos/import-repository";
 import { createMappingRepositories } from "#/infra/db/repos/mapping-repositories";
+import { createOccupationRepository } from "#/infra/db/repos/occupation-repository";
 import { createSemesterRepository } from "#/infra/db/repos/semester-repository";
 import { createSpaceRepository } from "#/infra/db/repos/space-repository";
+import { createUserRepository } from "#/infra/db/repos/user-repository";
 import * as schema from "#/infra/db/schema";
 
 const NOW = new Date("2026-08-01T12:00:00Z");
@@ -242,6 +246,63 @@ describe("prepare + apply", () => {
       reasonCode: "room_unmapped",
       occupationId: null,
     });
+  });
+
+  test("XML atribui a aula à conta mapeada do docente, não a quem importou", async () => {
+    const teacherId = "user-teacher";
+    await env.db.insert(schema.users).values({
+      id: teacherId,
+      email: "docente@example.test",
+      name: "Docente de teste",
+      code: "T1",
+      roles: "docente",
+      passwordHash: "x",
+      active: true,
+      createdAt: "t",
+      updatedAt: "t",
+    });
+    const maps = createMappingRepositories(env.db);
+    await maps.teachers.saveMany(
+      [{ sourceTeacherId: "T1", sourceShort: "T1", userId: teacherId }],
+      "t",
+    );
+
+    const prepared = await env.service.prepare(prepareInput(env, [slot()]));
+    if (!prepared.ok) throw new Error("prepare");
+    await applyAll(env, prepared.value.batch.id);
+
+    const [stored] = await env.db.select().from(schema.occupations);
+    expect(stored).toMatchObject({
+      source: "import",
+      responsibleUserId: teacherId,
+    });
+
+    const bookings = createBookingsService({
+      occupations: createOccupationRepository(env.db),
+      spaces: createSpaceRepository(env.db),
+      semesters: createSemesterRepository(env.db),
+      users: createUserRepository(env.db),
+      clock,
+      timeZone: "America/Sao_Paulo",
+      hours: { opens: "06:00", closes: "23:00" },
+    });
+    const teacher: User = {
+      id: teacherId,
+      name: "Docente de teste",
+      email: "docente@example.test",
+      code: "T1",
+      roles: ["docente"],
+      active: true,
+      placeholder: false,
+    };
+    const mine = await bookings.myBookings(teacher, { from: "2026-08-03" });
+    expect(mine.ok && mine.value.items).toContainEqual(
+      expect.objectContaining({
+        title: "ALG — T1A",
+        responsible: true,
+        source: "import",
+      }),
+    );
   });
 
   test("mesmo arquivo e semestre já aplicado: reconhecido, nada duplicado", async () => {

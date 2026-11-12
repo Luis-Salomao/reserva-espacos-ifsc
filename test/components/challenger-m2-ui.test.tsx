@@ -355,6 +355,7 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
           status: "ativa",
           canCancel: true,
           mine: true,
+          responsible: false,
           person: null,
           inSeries: false,
         },

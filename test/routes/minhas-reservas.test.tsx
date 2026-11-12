@@ -36,6 +36,7 @@ const MOCK_BOOKING_MANUAL: MyBooking = {
   status: "ativa",
   canCancel: true,
   mine: true,
+  responsible: false,
   person: null,
   inSeries: false,
 };
@@ -52,6 +53,7 @@ const MOCK_BOOKING_IMPORTED: MyBooking = {
   status: "ativa",
   canCancel: true,
   mine: true,
+  responsible: true,
   person: null,
   inSeries: false,
 };
@@ -68,6 +70,7 @@ const MOCK_BOOKING_UNCANCELLABLE: MyBooking = {
   status: "ativa",
   canCancel: false,
   mine: true,
+  responsible: false,
   person: null,
   inSeries: false,
 };
@@ -80,6 +83,7 @@ const MOCK_BOOKING_SERIES: MyBooking[] = [
     title: "Laboratório de Redes",
     inSeries: true,
     seriesId: "series-redes",
+    canEdit: true,
   },
   {
     ...MOCK_BOOKING_MANUAL,
@@ -88,6 +92,7 @@ const MOCK_BOOKING_SERIES: MyBooking[] = [
     title: "Laboratório de Redes",
     inSeries: true,
     seriesId: "series-redes",
+    canEdit: true,
   },
 ];
 
@@ -203,11 +208,23 @@ describe("Minhas Reservas — Suíte de Testes (Milestone 2 Task 4)", () => {
       expect(screen.getAllByText("Nov").length).toBe(2);
     });
 
+    test("não chama quem apenas importou o arquivo de responsável pela aula", async () => {
+      await renderWithRouter(
+        <MinhasReservasList
+          items={[{ ...MOCK_BOOKING_IMPORTED, id: "b-imp-importer", responsible: false }]}
+        />,
+      );
+
+      expect(screen.getByText("Aula importada")).toBeDefined();
+      expect(screen.queryByText("Aula importada · você é responsável")).toBeNull();
+    });
+
     test("agrupa recorrências e preserva a ação individual em cada ocorrência", async () => {
       await renderWithRouter(<MinhasReservasList items={[...MOCK_BOOKING_SERIES]} />);
 
-      const group = screen.getByTestId("booking-series-series-redes") as HTMLDetailsElement;
-      expect(group.open).toBe(false);
+      const group = screen.getByTestId("booking-series-series-redes");
+      const disclosure = group.querySelector("details");
+      expect(disclosure?.open).toBe(false);
       expect(screen.getByTestId("booking-series-summary-series-redes").textContent).toContain(
         "Laboratório de Redes",
       );
@@ -217,9 +234,27 @@ describe("Minhas Reservas — Suíte de Testes (Milestone 2 Task 4)", () => {
 
       fireEvent.click(screen.getByTestId("booking-series-summary-series-redes"));
 
-      expect(group.open).toBe(true);
+      expect(disclosure?.open).toBe(true);
       expect(screen.getAllByTestId(/^booking-card-b-series-/)).toHaveLength(2);
       expect(screen.getAllByRole("button", { name: "Cancelar…" })).toHaveLength(2);
+    });
+
+    test("ações agrupadas editam a próxima ocorrência e abrem cancelamento com um item da série", async () => {
+      const mockCancelSelect = mock((_item: MyBooking) => {});
+      const mockEditSelect = mock((_item: MyBooking) => {});
+      await renderWithRouter(
+        <MinhasReservasList
+          items={[...MOCK_BOOKING_SERIES]}
+          onSelectCancel={mockCancelSelect}
+          onSelectEdit={mockEditSelect}
+        />,
+      );
+
+      fireEvent.click(screen.getByTestId("booking-series-edit-series-redes"));
+      fireEvent.click(screen.getByTestId("booking-series-cancel-series-redes"));
+
+      expect(mockEditSelect).toHaveBeenCalledWith(MOCK_BOOKING_SERIES[0]);
+      expect(mockCancelSelect).toHaveBeenCalledWith(MOCK_BOOKING_SERIES[0]);
     });
 
     test("destaca visualmente reserva recém-criada quando coincide com newId", async () => {

@@ -169,7 +169,7 @@ function BookingOccurrence({
         <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
           {isImported ? (
             <span className="inline-flex items-center rounded-md border border-line-imported bg-occ-imported px-2 py-0.5 text-xs font-medium text-foreground">
-              Aula importada · você é responsável
+              {item.responsible ? "Aula importada · você é responsável" : "Aula importada"}
             </span>
           ) : (
             <span className="inline-flex items-center rounded-md border border-line-booked bg-occ-booked px-2 py-0.5 text-xs font-medium text-foreground">
@@ -277,46 +277,83 @@ export function MinhasReservasList({
                 const monthName = MONTH_SHORT[Number(monthStr) - 1] ?? monthStr;
                 const weekdayName = WEEKDAY_SHORT[weekdayOf(first.date)] ?? "";
                 const count = bookingGroup.items.length;
+                const editable = bookingGroup.items.find(
+                  (item) => item.canEdit && item.source === "manual",
+                );
+                const cancellable = bookingGroup.items.find((item) => item.canCancel);
+
                 return (
-                  <details
+                  <div
                     key={bookingGroup.key}
                     data-testid={`booking-series-${bookingGroup.seriesId}`}
-                    open={bookingGroup.items.some((item) => item.id === newId)}
                     className="rounded-xl border border-border bg-surface-2"
                   >
-                    <summary
-                      data-testid={`booking-series-summary-${bookingGroup.seriesId}`}
-                      className="flex cursor-pointer flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl px-3 py-3 text-sm hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-                    >
-                      <span className="min-w-0 flex-1 font-semibold text-foreground">
-                        {first.title}
-                        <span className="ml-2 text-xs font-medium text-muted-foreground">
-                          Série
-                        </span>
-                      </span>
-                      <span
-                        data-testid={`booking-series-count-${bookingGroup.seriesId}`}
-                        className="shrink-0 text-xs font-medium text-muted-foreground"
+                    <div className="flex flex-wrap items-start gap-2 p-2">
+                      <details
+                        open={bookingGroup.items.some((item) => item.id === newId)}
+                        className="min-w-0 flex-1"
                       >
-                        {count} {count === 1 ? "ocorrência" : "ocorrências"}
-                      </span>
-                      <span className="w-full text-xs text-muted-foreground sm:w-auto">
-                        Próxima: {weekdayName} {Number(dayStr)} {monthName} · {first.start}–
-                        {first.end} · {first.spaceName}
-                      </span>
-                    </summary>
-                    <div className="grid gap-2 border-t border-border p-2">
-                      {bookingGroup.items.map((item) => (
-                        <BookingOccurrence
-                          key={item.id}
-                          item={item}
-                          isNew={newId === item.id}
-                          onSelectCancel={onSelectCancel}
-                          onSelectEdit={onSelectEdit}
-                        />
-                      ))}
+                        <summary
+                          data-testid={`booking-series-summary-${bookingGroup.seriesId}`}
+                          className="flex cursor-pointer flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl px-2 py-1 text-sm hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="min-w-0 flex-1 font-semibold text-foreground">
+                            {first.title}
+                            <span className="ml-2 text-xs font-medium text-muted-foreground">
+                              Série
+                            </span>
+                          </span>
+                          <span
+                            data-testid={`booking-series-count-${bookingGroup.seriesId}`}
+                            className="shrink-0 text-xs font-medium text-muted-foreground"
+                          >
+                            {count} {count === 1 ? "ocorrência" : "ocorrências"}
+                          </span>
+                          <span className="w-full text-xs text-muted-foreground sm:w-auto">
+                            Próxima: {weekdayName} {Number(dayStr)} {monthName} · {first.start}–
+                            {first.end} · {first.spaceName}
+                          </span>
+                        </summary>
+                        <div className="grid gap-2 border-t border-border p-2">
+                          {bookingGroup.items.map((item) => (
+                            <BookingOccurrence
+                              key={item.id}
+                              item={item}
+                              isNew={newId === item.id}
+                              onSelectCancel={onSelectCancel}
+                              onSelectEdit={onSelectEdit}
+                            />
+                          ))}
+                        </div>
+                      </details>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        {editable && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            data-testid={`booking-series-edit-${bookingGroup.seriesId}`}
+                            onClick={() => onSelectEdit?.(editable)}
+                          >
+                            Editar próxima
+                          </Button>
+                        )}
+                        {cancellable && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            data-testid={`booking-series-cancel-${bookingGroup.seriesId}`}
+                            aria-label="Opções de cancelamento da série"
+                            title="Escolher se cancela uma data ou esta e as próximas"
+                            onClick={() => onSelectCancel?.(cancellable)}
+                          >
+                            Cancelar…
+                          </Button>
+                        )}
+                      </div>
                     </div>
-                  </details>
+                  </div>
                 );
               })}
             </div>

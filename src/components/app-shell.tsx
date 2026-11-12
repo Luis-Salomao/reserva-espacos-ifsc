@@ -105,6 +105,16 @@ function Brand() {
 const NAV_LINK =
   "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-surface-2 hover:text-foreground";
 const NAV_LINK_ACTIVE = "bg-surface-2 text-foreground";
+const NAV_ICON_SLOT = "grid size-5 shrink-0 place-items-center";
+const NAV_ICON = "block size-4 shrink-0";
+
+function NavigationIcon({ icon: Icon, muted = false }: { icon: LucideIcon; muted?: boolean }) {
+  return (
+    <span className={NAV_ICON_SLOT} aria-hidden="true">
+      <Icon className={cn(NAV_ICON, muted && "text-muted-foreground")} />
+    </span>
+  );
+}
 
 /**
  * Estrutura base das páginas. No computador a barra é lateral (navegação, conta e tema);
@@ -211,9 +221,7 @@ export function AppShell({ children, wide = false }: Props) {
                   ),
                 }}
               >
-                <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
-                  <Icon className="block size-4" />
-                </span>
+                <NavigationIcon icon={Icon} />
                 <span className={cn(collapsed && "md:sr-only")}>{item.label}</span>
               </Link>
             );
@@ -330,9 +338,7 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
                 activeProps={{ className: cn(itemClass, "bg-surface-2") }}
                 onClick={() => setOpen(false)}
               >
-                <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
-                  <Icon className="block size-4 text-muted-foreground" />
-                </span>
+                <NavigationIcon icon={Icon} muted />
                 {item.label}
               </Link>
             );
