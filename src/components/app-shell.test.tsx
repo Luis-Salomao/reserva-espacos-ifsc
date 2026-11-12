@@ -126,13 +126,21 @@ describe("AppShell", () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     expect(screen.getByText("Ana Souza")).toBeDefined();
     expect(screen.queryByRole("button", { name: "Sair" })).toBeNull();
-    fireEvent.click(screen.getByRole("button", { name: "Configurações de Ana Souza" }));
+    fireEvent.click(screen.getByRole("button", { name: "Conta de Ana Souza" }));
     const button = await screen.findByRole("button", { name: "Sair" });
+    expect(screen.queryByText("Configurações")).toBeNull();
     const form = button.closest("form");
     expect(form?.getAttribute("method")?.toLowerCase()).toBe("post");
     expect(form?.getAttribute("action")).toBe("/api/sair");
     expect(screen.queryByRole("link", { name: "Entrar" })).toBeNull();
     expect(screen.getByRole("button", { name: "Tema escuro" })).toBeDefined();
+  });
+
+  test("menu lateral recolhido mantém o botão de tema dentro do rodapé", async () => {
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    fireEvent.click(screen.getByRole("button", { name: "Recolher menu lateral" }));
+    const theme = screen.getByRole("button", { name: "Tema escuro" });
+    expect(theme.parentElement?.className).toContain("md:flex-col");
   });
 
   test("docente não vê Importar", async () => {

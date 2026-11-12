@@ -601,6 +601,24 @@ describe("RoomsOverview", () => {
     expect(screen.getByRole("group", { name: "Legenda" })).toBeDefined();
   });
 
+  test("clique do mouse no quadrado noturno seleciona só um bloco e abre um painel", async () => {
+    const nightBlock = { label: "Noite 12", short: "N12", start: "20:10", end: "22:00" };
+    const week = {
+      ...WEEK,
+      days: WEEK.days.map((day) => ({ ...day, blocks: [nightBlock] })),
+    };
+    await renderOverview({ week });
+    const cell = cellAt("b104", TUE, "N12");
+
+    fireEvent.pointerDown(cell, { pointerType: "mouse", button: 0 });
+    fireEvent.pointerUp(document, { pointerType: "mouse", button: 0 });
+    fireEvent.click(cell);
+
+    expect(screen.getAllByRole("region", { name: "Horário selecionado" })).toHaveLength(1);
+    expect(panelTitle()).toBe("terça 10/11 · 20:10–22:00");
+    expect(selectedCells()).toEqual([["b104", TUE, "N12"]]);
+  });
+
   test("Escape fecha o painel de seleção e volta a legenda", async () => {
     await renderOverview();
     fireEvent.click(cellAt("b104", TUE, "M12"));

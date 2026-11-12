@@ -40,7 +40,9 @@ describe("SpaceDetails", () => {
 
   test("espaço sem nenhum dado mostra não informado em tudo", () => {
     const { getAllByText } = render(<SpaceDetails space={space()} />);
-    expect(getAllByText("Não informado").length).toBeGreaterThan(0);
+    const values = getAllByText("Não informado");
+    expect(values.length).toBeGreaterThan(0);
+    expect(values[0]?.closest("dd")?.className).toContain("whitespace-nowrap");
   });
 
   test("0 em manutenção mostra todos disponíveis no cadastro", () => {

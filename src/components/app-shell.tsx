@@ -10,7 +10,6 @@ import {
   Menu,
   PanelLeftClose,
   PanelLeftOpen,
-  Settings,
   Users,
   Wrench,
   X,
@@ -228,7 +227,12 @@ export function AppShell({ children, wide = false }: Props) {
           })}
         </nav>
         <div className="flex-1" />
-        <div className="flex items-center gap-1 md:border-t md:pt-3">
+        <div
+          className={cn(
+            "flex items-center gap-1 md:border-t md:pt-3",
+            collapsed && "md:flex-col md:items-center",
+          )}
+        >
           {user !== null ? (
             <>
               <AccountMenu user={user} collapsed={collapsed} />
@@ -349,7 +353,7 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
   );
 }
 
-/** Preferências e saída reunidas no avatar, com foco e teclado geridos pelo Popover. */
+/** Identificação da conta e saída no avatar, com foco e teclado geridos pelo Popover. */
 function AccountMenu({
   user,
   collapsed,
@@ -362,7 +366,7 @@ function AccountMenu({
       <PopoverTrigger asChild>
         <button
           type="button"
-          aria-label={`Configurações de ${user.name}`}
+          aria-label={`Conta de ${user.name}`}
           className="flex min-h-11 min-w-11 items-center justify-center gap-2.5 rounded-full p-1.5 transition-colors hover:bg-surface-2 md:w-full md:justify-start md:rounded-lg"
         >
           <Avatar name={user.name} className="size-9 text-xs" />
@@ -388,15 +392,11 @@ function AccountMenu({
         side="top"
         sideOffset={10}
         className="w-64 p-2"
-        aria-label="Configurações da conta"
+        aria-label="Conta do usuário"
       >
         <div className="border-b px-2 py-3">
           <p className="truncate text-sm font-semibold">{user.name}</p>
           <p className="truncate text-xs text-muted-foreground">{user.email}</p>
-        </div>
-        <div className="flex items-center gap-2 px-2 pt-3 pb-1 text-xs font-medium text-muted-foreground">
-          <Settings className="size-3.5" aria-hidden="true" />
-          Configurações
         </div>
         <form method="post" action="/api/sair" className="mt-1 border-t pt-1">
           <Button type="submit" variant="ghost" className="w-full justify-start">

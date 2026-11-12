@@ -37,7 +37,7 @@ function MaintenanceBadge({ label }: { label: string }) {
 
 function ComputersCompact({ total, inMaintenance }: MaintenanceInfo) {
   if (total === undefined) {
-    return <span className="text-sm text-muted-foreground">{NOT_INFORMED}</span>;
+    return <span className="text-sm text-muted-foreground whitespace-nowrap">{NOT_INFORMED}</span>;
   }
   return (
     <span className="inline-flex items-center gap-2">
@@ -100,15 +100,17 @@ export function SpaceDetails({ space, compact = false }: SpaceDetailsProps) {
       <dl className="grid gap-2 text-sm">
         <div className="flex items-baseline justify-between gap-4">
           <dt className="text-muted-foreground">Capacidade</dt>
-          <dd>{space.capacity !== null ? `${space.capacity} pessoas` : NOT_INFORMED}</dd>
+          <dd className="whitespace-nowrap">
+            {space.capacity !== null ? `${space.capacity} pessoas` : NOT_INFORMED}
+          </dd>
         </div>
         <div className="flex items-baseline justify-between gap-4">
           <dt className="text-muted-foreground">Projetor</dt>
-          <dd>{projetor}</dd>
+          <dd className="whitespace-nowrap">{projetor}</dd>
         </div>
         <div className="flex items-baseline justify-between gap-4">
           <dt className="text-muted-foreground">Aparelho de som</dt>
-          <dd>{som}</dd>
+          <dd className="whitespace-nowrap">{som}</dd>
         </div>
         <div className="flex items-baseline justify-between gap-4">
           <dt className="text-muted-foreground">Computadores</dt>
