@@ -43,35 +43,43 @@ function spaceColumns(
     {
       key: "name",
       header: "Nome da sala",
-      headerClassName: "md:w-[16%]",
-      cell: ({ space }) => <span className="block font-medium wrap-anywhere">{space.name}</span>,
+      headerClassName: "md:w-[22%]",
+      cell: ({ space }) => (
+        <span className="block font-medium wrap-anywhere md:truncate" title={space.name}>
+          {space.name}
+        </span>
+      ),
     },
     {
       key: "floor",
       header: "Andar",
-      headerClassName: "md:w-[10%]",
+      headerClassName: "md:w-[9%]",
       cellClassName: "max-md:hidden",
       cell: ({ floor }) => floor,
     },
     {
       key: "capacity",
       header: "Capacidade",
-      headerClassName: "md:w-[12%]",
+      headerClassName: "md:w-[14%]",
       cellClassName: "text-muted-foreground md:text-foreground",
-      cell: ({ space }) =>
-        space.capacity === null ? "Capacidade não informada" : `${space.capacity} lugares`,
+      cell: ({ space }) => (
+        <>
+          <span className="md:hidden">Capacidade: </span>
+          {space.capacity === null ? "Não informada" : `${space.capacity} lugares`}
+        </>
+      ),
     },
     {
       key: "equipment",
       header: "Equipamentos",
-      headerClassName: "md:w-[15%]",
+      headerClassName: "md:w-[13%]",
       cellClassName: "mt-1 md:mt-0",
       cell: ({ space }) => <EquipmentMarks equipment={space.equipment} />,
     },
     {
       key: "maintenance",
       header: "Computadores em manutenção",
-      headerClassName: "md:w-[14%]",
+      headerClassName: "md:w-[12%]",
       cellClassName: ({ space }) => (maintenanceText(space) === null ? "max-md:hidden" : ""),
       cell: ({ space }) => {
         const text = maintenanceText(space);
@@ -88,7 +96,7 @@ function spaceColumns(
     {
       key: "notes",
       header: "Observações",
-      headerClassName: "md:w-[23%]",
+      headerClassName: "md:w-[18%]",
       cellClassName: ({ space }) => (space.equipment?.notes ? "" : "max-md:hidden"),
       cell: ({ space }) => {
         const notes = space.equipment?.notes ?? null;

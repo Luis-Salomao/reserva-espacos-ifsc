@@ -21,7 +21,7 @@ function AccountsPage() {
   const users = Route.useLoaderData();
   const { session } = Route.useRouteContext();
   return (
-    <AppShell>
+    <AppShell wide>
       <PageHeader title="Administração" description="Contas de acesso e papéis." />
       <AdminNav />
       <AccountsManager users={users} currentUserId={session.user?.id ?? ""} />

@@ -103,7 +103,7 @@ function CreateAccountForm() {
   const codeError = fieldError(result, "code");
   const passwordError = fieldError(result, "password");
   return (
-    <Card>
+    <Card className="max-w-3xl">
       <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-3">
         <h2 className="text-lg font-semibold tracking-tight sm:col-span-2">Nova conta</h2>
         <div className="sm:col-span-2">
@@ -516,7 +516,7 @@ function accountColumns(actionsFor: (user: User) => ReactNode): Column<User>[] {
     {
       key: "email",
       header: "E-mail",
-      headerClassName: "md:w-[26%]",
+      headerClassName: "md:w-[25%]",
       cell: (user) => (
         <span className="block text-muted-foreground wrap-anywhere md:truncate" title={user.email}>
           {user.email}
@@ -526,7 +526,7 @@ function accountColumns(actionsFor: (user: User) => ReactNode): Column<User>[] {
     {
       key: "code",
       header: "Sigla",
-      headerClassName: "md:w-[8%]",
+      headerClassName: "md:w-[12%]",
       cellClassName: (user) => (user.code === null ? "max-md:hidden" : ""),
       cell: (user) => (
         <>
@@ -538,7 +538,7 @@ function accountColumns(actionsFor: (user: User) => ReactNode): Column<User>[] {
     {
       key: "roles",
       header: "Papéis",
-      headerClassName: "md:w-[22%]",
+      headerClassName: "md:w-[17%]",
       cell: (user) => {
         const text = user.roles.map((role) => ROLE_LABELS[role]).join(", ");
         return (

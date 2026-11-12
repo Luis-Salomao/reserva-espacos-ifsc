@@ -690,7 +690,7 @@ describe("tabela de espaços", () => {
     await renderTable([informed]);
     const row = screen.getByText("A-202").closest("tr") as HTMLElement;
     const cells = within(row).getAllByRole("cell");
-    expect(cells[2]?.textContent).toBe("40 lugares");
+    expect(cells[2]?.textContent).toBe("Capacidade: 40 lugares");
     const marks = within(cells[3] as HTMLElement).getByRole("group", { name: "Equipamentos" });
     expect(marks.textContent).toBe("Projetor12 computadoresSem aparelho de som");
     expect(cells[4]?.textContent).toContain("2");
@@ -703,7 +703,7 @@ describe("tabela de espaços", () => {
     await renderTable([bare]);
     const row = screen.getByText("Auditório").closest("tr") as HTMLElement;
     const cells = within(row).getAllByRole("cell");
-    expect(cells[2]?.textContent).toBe("Capacidade não informada");
+    expect(cells[2]?.textContent).toBe("Capacidade: Não informada");
     const marks = within(cells[3] as HTMLElement).getByRole("group", { name: "Equipamentos" });
     expect(marks.textContent).toBe(
       "Projetor não informadoComputadores não informadosAparelho de som não informado",

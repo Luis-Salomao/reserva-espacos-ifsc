@@ -125,7 +125,7 @@ export function AdminTable<T>({
                 <td
                   key={column.key}
                   className={cn(
-                    "min-w-0 md:table-cell md:h-11 md:px-3 md:py-1.5 md:align-middle",
+                    "min-w-0 md:table-cell md:h-11 md:overflow-hidden md:px-3 md:py-1 md:text-ellipsis md:whitespace-nowrap md:align-middle",
                     typeof column.cellClassName === "function"
                       ? column.cellClassName(row)
                       : column.cellClassName,
