@@ -148,6 +148,23 @@ describe("ações de importação: fluxo", () => {
     ctx = await setup();
   });
 
+  test("servidor recusa aplicar uma primeira versão sem linhas pendentes", async () => {
+    const prepared = await prepareImport(ctx.deps, ctx.req("hor"), ctx.semester.id, XML);
+    if (!prepared.response.ok) throw new Error("prepare");
+    expect(prepared.response.data.batch.summary.counts.pendente).toBe(0);
+
+    const applied = await applyImportBatch(ctx.deps, ctx.req("hor"), {
+      batchId: prepared.response.data.batch.id,
+    });
+    expect(applied.response).toMatchObject({
+      ok: false,
+      status: 400,
+      message:
+        "Nenhuma ocupação está pendente para aplicação. Corrija os dados e confira o lote novamente.",
+    });
+    expect(applied.response.ok ? applied.response.data.batch.status : "rascunho").toBe("rascunho");
+  });
+
   test("sugestões, vínculos, preparar, aplicar e relatório", async () => {
     const suggestions = await suggestMappings(ctx.deps, ctx.req("hor"), {
       classrooms: [{ id: "R1", short: "S1", name: "Sala 1" }],

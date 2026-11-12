@@ -44,6 +44,8 @@ const PARTIAL_MESSAGE =
 const CHANGED_MESSAGE =
   "O lote foi alterado por outra operação enquanto esta rodava. Recarregue e tente de novo.";
 const PREPARING_MESSAGE = "O lote ainda está sendo preparado. Conclua o preparo antes de aplicar.";
+const EMPTY_IMPORT_MESSAGE =
+  "Nenhuma ocupação está pendente para aplicação. Corrija os dados e confira o lote novamente.";
 const INCOMPLETE_MESSAGE =
   "O lote está incompleto (faltam linhas). Envie o arquivo de novo para refazer o preparo.";
 const DISCARD_APPLIED_MESSAGE = "Lote aplicado ou em aplicação não pode ser descartado.";
@@ -353,8 +355,17 @@ export function createImportService(deps: ImportServiceDeps) {
       if (batch === null) return fail("not_found", "Lote de importação não encontrado.");
       if (batch.status === "aplicado") return ok({ batch, done: true, remaining: 0 });
       if (batch.status === "preparando") return fail("conflict", PREPARING_MESSAGE);
-      if (total(await imports.countRows(batchId)) !== batch.summary.rows) {
+      const storedCounts = await imports.countRows(batchId);
+      if (total(storedCounts) !== batch.summary.rows) {
         return fail("conflict", INCOMPLETE_MESSAGE);
+      }
+      if (
+        batch.status === "rascunho" &&
+        batch.summary.version === undefined &&
+        pendingTotal(storedCounts) === 0 &&
+        (batch.summary.rows === 0 || storedCounts.nao_aplicavel === batch.summary.rows)
+      ) {
+        return fail("validation", EMPTY_IMPORT_MESSAGE);
       }
       if (batch.status !== "aplicando") {
         // Uma única instrução condicional: sem outro lote em andamento no semestre e ainda sobre a última versão.

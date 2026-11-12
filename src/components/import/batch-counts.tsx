@@ -7,9 +7,11 @@ import { STATUS_LABELS, STATUS_ORDER, STATUS_TONE, VERSION_STATUS_ORDER } from "
 export function BatchCounts({
   summary,
   spaces,
+  showEmptyNotice = true,
 }: {
   summary: ImportSummary;
   spaces?: readonly { id: string; name: string }[];
+  showEmptyNotice?: boolean;
 }) {
   const reasons = Object.entries(summary.notApplicable).sort((a, b) => b[1] - a[1]);
   const spaceNames = new Map((spaces ?? []).map((space) => [space.id, space.name]));
@@ -18,7 +20,8 @@ export function BatchCounts({
       <p className="text-sm text-muted-foreground">
         {summary.rows} {summary.rows === 1 ? "linha" : "linhas"} no lote.
       </p>
-      {summary.version === undefined &&
+      {showEmptyNotice &&
+        summary.version === undefined &&
         summary.rows > 0 &&
         summary.counts.aplicada === 0 &&
         summary.counts.pendente === 0 &&

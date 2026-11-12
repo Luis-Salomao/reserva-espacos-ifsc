@@ -294,7 +294,9 @@ describe("ImportFlow: nova versão da grade", () => {
     const { button } = await renderFlow();
     fireEvent.click(button);
     await openApplicationStep();
-    expect(await screen.findByText(/Nenhuma ocupação está pendente para aplicação/)).toBeTruthy();
+    expect(
+      await screen.findByRole("heading", { name: "Nenhuma ocupação está pronta para aplicação" }),
+    ).toBeTruthy();
     const apply = screen.getByRole("button", { name: "Aplicar importação" });
     expect((apply as HTMLButtonElement).disabled).toBe(true);
   });

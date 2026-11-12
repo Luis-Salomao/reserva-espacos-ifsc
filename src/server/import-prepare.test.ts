@@ -126,7 +126,7 @@ describe("POST de preparo do lote", () => {
     });
   }
 
-  test("prepara em passos e reconhece o mesmo arquivo depois", async () => {
+  test("prepara em passos, bloqueia lote vazio e refaz o rascunho", async () => {
     const query = `?semesterId=${ctx.semester.id}&maxCalls=1`;
     const response = await handlePrepareRequest(ctx.post(query, "hor"), ctx.deps);
     expect(response.headers.get("cache-control")).toBe("no-store");
@@ -138,11 +138,17 @@ describe("POST de preparo do lote", () => {
       { url: "https://reservas.ifsc.edu.br/x", headers: new Headers({ cookie: "sid=hor" }) },
       { batchId: (body.data as unknown as { batch: { id: string } }).batch.id },
     );
-    expect(applied.response.ok).toBe(true);
+    expect(applied.response).toMatchObject({
+      ok: false,
+      status: 400,
+      message:
+        "Nenhuma ocupação está pendente para aplicação. Corrija os dados e confira o lote novamente.",
+    });
     const again = (await (
       await handlePrepareRequest(ctx.post(query, "hor"), ctx.deps)
     ).json()) as Json;
-    expect(again.data.reused).toBe(true);
+    expect(again.data.done).toBe(true);
+    expect(again.data.reused).toBe(false);
   });
 
   test("entradas inválidas viram erro tipado, sem estourar", async () => {
@@ -201,7 +207,7 @@ describe("POST de atualizar responsáveis", () => {
     }
   });
 
-  test("devolve a contagem depois de aplicar o mesmo arquivo; sem semestre é inválido", async () => {
+  test("sem versão aplicada não atualiza responsáveis; sem semestre é inválido", async () => {
     const prepared = (await (
       await handlePrepareRequest(ctx.post(`?semesterId=${ctx.semester.id}`, "hor"), ctx.deps)
     ).json()) as { data: { batch: { id: string } } };
@@ -216,9 +222,10 @@ describe("POST de atualizar responsáveis", () => {
       ctx.deps,
     );
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(await response.json()).toEqual({
-      ok: true,
-      data: { changed: 0, withoutResponsible: 0 },
+    expect(await response.json()).toMatchObject({
+      ok: false,
+      status: 404,
+      message: "Este semestre não tem versão aplicada.",
     });
     const invalid = (await (
       await handleResponsiblesRequest(ctx.post("?semesterId=", "hor"), ctx.deps)

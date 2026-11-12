@@ -19,6 +19,7 @@ import type { PreviewView } from "#/server/import-preview-view";
 import { BatchCounts } from "./batch-counts";
 import { BatchRows } from "./batch-rows";
 import { ConflictNotice } from "./conflict-notice";
+import { EmptyImportGuidance } from "./empty-import-guidance";
 import {
   applySentence,
   BATCH_STATUS_LABELS,
@@ -386,6 +387,12 @@ export function ImportFlow({ view, file, timeZone, sessionId = 0, queryClient }:
     batch !== null && batch.status !== "aplicado" && batch.status !== "preparando";
   const pendingCount = batch === null ? 0 : pendingTotal(batch.summary.counts);
   const version = batch?.summary.version;
+  const noApplicableRows =
+    batch !== null &&
+    version === undefined &&
+    pendingCount === 0 &&
+    batch.summary.counts.aplicada === 0 &&
+    batch.summary.counts.nao_aplicavel > 0;
   const resumeOther = (batchId: string, total: number) => void runApply(batchId, total, false);
   const clearFailure = () => setFailure(null);
   const flowSteps = ["Semestre", "Salas", "Docentes", "Conferência", "Aplicação"];
@@ -624,7 +631,18 @@ export function ImportFlow({ view, file, timeZone, sessionId = 0, queryClient }:
                 onSelect={setVersionView}
               />
             )}
-            <BatchCounts summary={batch.summary} spaces={targets.spaces} />
+            <BatchCounts
+              summary={batch.summary}
+              spaces={targets.spaces}
+              showEmptyNotice={!noApplicableRows}
+            />
+            {noApplicableRows && activeStep === 4 && (
+              <EmptyImportGuidance
+                summary={batch.summary}
+                semesterId={semesterId}
+                onMapRooms={() => setActiveStep(2)}
+              />
+            )}
             <details
               className="grid gap-3 rounded-xl border bg-surface-2 p-3"
               onToggle={(event) => setReviewRowsOpen(event.currentTarget.open)}
@@ -655,11 +673,19 @@ export function ImportFlow({ view, file, timeZone, sessionId = 0, queryClient }:
             <>
               {version === undefined ? (
                 pendingCount === 0 ? (
-                  <p role="status" className="text-sm text-muted-foreground">
-                    Nenhuma ocupação está pendente para aplicação. Confira os motivos de não
-                    aplicabilidade na etapa de conferência; o sistema não gravará uma importação
-                    vazia.
-                  </p>
+                  noApplicableRows ? (
+                    <EmptyImportGuidance
+                      summary={batch.summary}
+                      semesterId={semesterId}
+                      onMapRooms={() => setActiveStep(2)}
+                      onReview={() => setActiveStep(4)}
+                    />
+                  ) : (
+                    <p role="status" className="text-sm text-muted-foreground">
+                      Nenhuma ocupação está pendente para aplicação. Confira o lote na etapa de
+                      conferência; o sistema não gravará uma importação vazia.
+                    </p>
+                  )
                 ) : (
                   <p className="text-sm text-muted-foreground">
                     Cria as ocupações das {pendingCount} linhas pendentes. Conflitos e linhas não
