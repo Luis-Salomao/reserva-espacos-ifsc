@@ -26,7 +26,7 @@ import {
 } from "#/domain/room-filter";
 import type { Space } from "#/domain/space";
 import { cn } from "#/lib/utils";
-import { getRoomsDayFn, getRoomsWeekFn } from "#/server/booking-fns";
+import { getRoomsDayFn } from "#/server/booking-fns";
 import { type OverviewPeriod, OverviewPeriods } from "./overview-periods";
 import { type RoomDraft, RoomsColumns } from "./rooms-columns";
 import { RoomsFilters } from "./rooms-filters";
@@ -74,12 +74,6 @@ type Props = {
   /** Disponibilidade do dia usada na escolha de sala da reserva; padrão `getRoomsDayFn`. */
   dayFn?: BookingSheetProps["availability"];
 };
-
-async function loadOverviewWeek(weekStart: string): Promise<RoomsWeek> {
-  const response = await getRoomsWeekFn({ data: { weekStart } });
-  if (!response.ok) throw new Error(response.message);
-  return response.data;
-}
 
 // Chrome Android em modo "Site para computador" pode expor viewport CSS perto de 980 px.
 const COMPACT_QUERY = "(max-width: 1023px)";
@@ -228,7 +222,6 @@ export function RoomsView({
   const [draft, setDraft] = useState<RoomDraft | null>(null);
   const [slot, setSlot] = useState<BookingSlotInit | null>(null);
   const [gateOpen, setGateOpen] = useState(false);
-  const [overviewAnchor, setOverviewAnchor] = useState(0);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: dados novos descartam o rascunho
   useEffect(() => {
@@ -249,7 +242,6 @@ export function RoomsView({
   }
 
   const goTo = (data: string) => {
-    setOverviewAnchor((value) => value + 1);
     onSearchChange((prev) => ({ ...prev, data }), false);
   };
   const setView = (visao: PageView) => onSearchChange((prev) => ({ ...prev, visao }), true);
@@ -386,8 +378,6 @@ export function RoomsView({
               <RoomsOverview
                 week={roomsWeek}
                 selectedPeriod={period}
-                loadWeek={loadOverviewWeek}
-                scrollResetKey={overviewAnchor}
                 rooms={weekResult.rooms}
                 isVisitor={isVisitor}
                 compact={compact}

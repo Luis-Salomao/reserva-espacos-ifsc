@@ -13,12 +13,9 @@ import { dayLabel, type LegendEntry, legendEntryOf, OverviewCell } from "./overv
 import { OverviewLegend } from "./overview-legend";
 import { type OverviewPeriod, OverviewPeriods } from "./overview-periods";
 import { type OverviewPick, OverviewSelection } from "./overview-selection";
-import { type LoadWeek, useContinuousWeeks } from "./use-continuous-weeks";
 
 type Props = {
   selectedPeriod?: OverviewPeriod;
-  loadWeek?: LoadWeek;
-  scrollResetKey?: number;
   week: RoomsWeek;
   /** Salas que passaram nos filtros, na ordem recebida. */
   rooms: RoomsWeek["rooms"];
@@ -69,15 +66,13 @@ function legendOf(rooms: Props["rooms"]): LegendEntry[] {
 }
 
 /**
- * Salas × (segunda a sexta × blocos do semestre), um quadradinho por bloco, com a legenda.
- * Arrastar com o mouse num dia ou clicar num bloco seleciona o trecho e abre o painel com as salas
- * livres e ocupadas. Mais semanas entram pela borda direita, sem trocar a p?gina.
+ * Um dia por seção (segunda a sexta, empilhados): salas nas linhas, blocos de horário nas colunas,
+ * um quadradinho por bloco, com a legenda. Arrastar com o mouse numa sala do dia ou clicar num bloco
+ * seleciona o trecho e abre o painel com as salas livres e ocupadas.
  */
 export function RoomsOverview({
   week: initialWeek,
   rooms: initialRooms,
-  loadWeek,
-  scrollResetKey,
   selectedPeriod,
   isVisitor,
   compact,
@@ -88,29 +83,9 @@ export function RoomsOverview({
   onNewBooking,
   spacesIndex = {},
 }: Props) {
-  const { week, loading, error, loadMore } = useContinuousWeeks(initialWeek, loadWeek);
+  const week = initialWeek;
   const allowedRooms = new Set(initialRooms.map((room) => room.space.id));
   const rooms = week.rooms.filter((room) => allowedRooms.has(room.space.id));
-  const viewport = useRef<HTMLDivElement>(null);
-  const endMarker = useRef<HTMLDivElement>(null);
-  useEffect(() => {
-    if (!loadWeek || loading || error || typeof IntersectionObserver === "undefined") return;
-    const marker = endMarker.current;
-    if (!marker) return;
-    const observer = new IntersectionObserver(
-      (entries) => {
-        if (entries.some((entry) => entry.isIntersecting)) void loadMore();
-      },
-      { root: viewport.current, rootMargin: "0px 320px 0px 0px" },
-    );
-    observer.observe(marker);
-    return () => observer.disconnect();
-  }, [loadWeek, loadMore, loading, error]);
-  useEffect(() => {
-    void initialWeek.weekStart;
-    void scrollResetKey;
-    if (viewport.current) viewport.current.scrollLeft = 0;
-  }, [initialWeek.weekStart, scrollResetKey]);
   const [localPeriod, setLocalPeriod] = useState<OverviewPeriod>("Todos");
   const period = selectedPeriod ?? localPeriod;
   const [collapsedBlocks, setCollapsedBlocks] = useState<Set<string>>(new Set());
@@ -119,10 +94,12 @@ export function RoomsOverview({
   const [pick, setPick] = useState<OverviewPick | null>(null);
   const [sweep, setSweep] = useState<Sweep | null>(null);
   const panelRef = useRef<HTMLElement>(null);
+  // Chave estável: um objeto de semana novo com os mesmos dias não reinicia a aba escolhida.
+  const dayKey = week.days.map((day) => day.date).join(",");
   useEffect(() => {
-    const selectedIndex = week.days.findIndex((day) => day.date === selectedDate);
+    const selectedIndex = dayKey.split(",").indexOf(selectedDate);
     if (selectedIndex >= 0) setTab(selectedIndex);
-  }, [selectedDate, week.days]);
+  }, [selectedDate, dayKey]);
   const single = compact || dayMode;
   const shownDays = (single ? week.days.slice(tab, tab + 1) : week.days).map((day) => ({
     ...day,
@@ -389,199 +366,208 @@ export function RoomsOverview({
         </section>
       )}
       <div
-        ref={viewport}
         data-testid="rooms-overview"
-        className={cn("w-full max-w-full overflow-x-auto", single && "hidden")}
-        onScroll={(event) => {
-          const el = event.currentTarget;
-          if (!error && el.scrollWidth - el.scrollLeft - el.clientWidth < 320) void loadMore();
-        }}
+        className={cn("grid gap-6 select-none", single && "hidden")}
       >
-        <div className="relative w-max min-w-full">
-          <div
-            className="grid w-max min-w-full items-center select-none"
-            style={{
-              gridTemplateColumns: `${compact ? "8rem" : "10rem"} repeat(${shownDays.length}, max-content)`,
-            }}
-          >
-            <div className="sticky left-0 z-20 self-stretch border-r bg-surface" />
-            {shownDays.map((day) => (
-              <div key={day.date} className="border-l border-border px-1.5 pb-2">
-                <p className="mb-2 text-center text-xs font-semibold capitalize">
-                  {dayLabel(day.date)}
-                </p>
-                <div className="flex gap-1">
-                  {day.blocks.map((block, index) => (
-                    <div
-                      key={`${block.short}-${block.start}`}
-                      title={`${periodOf(block.start)} ${block.start}–${block.end}`}
-                      className={cn(
-                        "shrink-0 text-center text-[9px] tabular-nums text-muted-foreground",
-                        compact ? "w-8" : "w-7",
-                        index > 0 &&
-                          periodOf(block.start) !== periodOf(day.blocks[index - 1]?.start ?? "") &&
-                          "ml-2 border-l border-dashed border-border",
-                      )}
-                    >
-                      <span className="block h-4 text-[8px] font-semibold">
-                        {index === 0 ||
-                        periodOf(block.start) !== periodOf(day.blocks[index - 1]?.start ?? "")
-                          ? periodOf(block.start)
-                          : ""}
-                      </span>
-                      <span className="block">{block.start}</span>
-                      <span className="block">{block.end}</span>
-                    </div>
-                  ))}
+        {!single &&
+          shownDays.map((day, dayIndex) => {
+            const label = dayLabel(day.date);
+            const today = day.date === week.now.slice(0, 10);
+            return (
+              <section
+                key={day.date}
+                aria-label={`Ocupação em ${label}`}
+                data-today={today ? "" : undefined}
+                className="grid gap-2"
+              >
+                <h3
+                  className={cn(
+                    "flex items-center gap-2 text-sm font-semibold capitalize",
+                    today && "text-primary",
+                  )}
+                >
+                  {label}
+                  {today && (
+                    <span className="rounded-full bg-primary/10 px-2 py-0.5 text-[11px] font-medium normal-case">
+                      Hoje
+                    </span>
+                  )}
+                </h3>
+                <div
+                  className={cn(
+                    "w-full max-w-full overflow-x-auto rounded-lg border lg:overflow-x-visible",
+                    today && "border-primary/40",
+                  )}
+                >
+                  <table
+                    aria-label={label}
+                    className="w-full min-w-max border-collapse lg:min-w-full"
+                  >
+                    <thead className="sticky top-0 z-30 bg-surface">
+                      <tr className="border-b">
+                        <th
+                          scope="col"
+                          className={cn(
+                            "sticky left-0 z-20 bg-surface px-2 py-1.5 text-left text-xs font-semibold text-muted-foreground",
+                            compact ? "w-32" : "w-44",
+                          )}
+                        >
+                          Sala
+                        </th>
+                        {day.blocks.map((block) => (
+                          <th
+                            key={`${block.short}-${block.start}`}
+                            scope="col"
+                            title={`${periodOf(block.start)} ${block.start}–${block.end}`}
+                            className="min-w-14 px-1 py-1.5 text-center text-[11px] font-normal tabular-nums text-muted-foreground"
+                          >
+                            <span className="block font-semibold text-foreground">
+                              {block.label}
+                            </span>
+                            <span className="block">{`${block.start}–${block.end}`}</span>
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {rows.map(({ room, days }, rowIndex) => {
+                        const block = blockOf(room.space.name) ?? "Outros";
+                        const first =
+                          rowIndex === 0 ||
+                          (blockOf(rows[rowIndex - 1]?.room.space.name ?? "") ?? "Outros") !==
+                            block;
+                        const collapsed = collapsedBlocks.has(block);
+                        if (collapsed && !first) return null;
+                        const dayOutside = days[dayIndex]?.outside ?? [];
+                        return (
+                          <Fragment key={room.space.id}>
+                            {first && (
+                              <tr className="border-b bg-surface-2">
+                                <td colSpan={day.blocks.length + 1} className="p-0">
+                                  <button
+                                    type="button"
+                                    aria-label={`${collapsed ? "Expandir" : "Recolher"} ${block === "Outros" ? "Outros espaços" : `Bloco ${block}`}`}
+                                    aria-expanded={!collapsed}
+                                    onClick={() =>
+                                      setCollapsedBlocks((current) => {
+                                        const next = new Set(current);
+                                        if (next.has(block)) next.delete(block);
+                                        else next.add(block);
+                                        return next;
+                                      })
+                                    }
+                                    className="sticky left-0 flex items-center gap-2 px-2 py-2 text-xs font-semibold"
+                                  >
+                                    {collapsed ? (
+                                      <ChevronRight className="size-3.5" aria-hidden="true" />
+                                    ) : (
+                                      <ChevronDown className="size-3.5" aria-hidden="true" />
+                                    )}
+                                    {block === "Outros" ? "Outros espaços" : `Bloco ${block}`}
+                                  </button>
+                                </td>
+                              </tr>
+                            )}
+                            {!collapsed && (
+                              <>
+                                {(rowIndex === 0 ||
+                                  place(rows[rowIndex - 1]?.room.space.name ?? "") !==
+                                    place(room.space.name)) &&
+                                  floorOf(room.space.name) !== null && (
+                                    <tr>
+                                      <td
+                                        colSpan={day.blocks.length + 1}
+                                        className="px-2 pt-2 pb-1 text-[11px] text-muted-foreground"
+                                      >
+                                        <span className="sticky left-2">{`Andar ${floorOf(room.space.name)}`}</span>
+                                      </td>
+                                    </tr>
+                                  )}
+                                <tr className="border-b last:border-b-0">
+                                  <th
+                                    scope="row"
+                                    className="sticky left-0 z-10 border-r bg-surface px-2 py-1 text-left font-normal"
+                                  >
+                                    <div className="flex min-w-0 flex-wrap items-center gap-1">
+                                      <span
+                                        className="truncate text-[13px] font-medium text-foreground"
+                                        title={room.space.name}
+                                      >
+                                        {room.space.name}
+                                      </span>
+                                      {dayOutside.length > 0 && (
+                                        <span
+                                          role="img"
+                                          data-outside={room.space.id}
+                                          aria-label={outsideLabel(dayOutside)}
+                                          title={outsideLabel(dayOutside)}
+                                          className="size-1.5 shrink-0 rounded-full bg-amber-500"
+                                        />
+                                      )}
+                                      {spacesIndex[room.space.id] && (
+                                        <SpaceDetails
+                                          space={spacesIndex[room.space.id] as Space}
+                                          compact
+                                        />
+                                      )}
+                                      <RoomDetailsButton
+                                        space={spacesIndex[room.space.id]}
+                                        roomName={room.space.name}
+                                      />
+                                    </div>
+                                  </th>
+                                  {days[dayIndex]?.cells.map((cell, blockIndex) => (
+                                    <td
+                                      key={`${cell.block.short}-${cell.block.start}`}
+                                      className="py-1 text-center"
+                                    >
+                                      <OverviewCell
+                                        cell={cell}
+                                        room={room.space}
+                                        date={day.date}
+                                        highlight={highlight}
+                                        isVisitor={isVisitor}
+                                        compact={compact}
+                                        selected={isSelected(
+                                          room.space.id,
+                                          day.date,
+                                          blockIndex,
+                                          cell.block,
+                                        )}
+                                        onSelect={() =>
+                                          setPick({
+                                            date: day.date,
+                                            start: cell.block.start,
+                                            end: cell.block.end,
+                                            suggested: room.space.id,
+                                            origin: { from: blockIndex, to: blockIndex },
+                                          })
+                                        }
+                                        onPointerDown={(event) =>
+                                          startSweep(event, {
+                                            date: day.date,
+                                            from: blockIndex,
+                                            to: blockIndex,
+                                            spaceId: room.space.id,
+                                          })
+                                        }
+                                        onPointerEnter={() => extendSweep(day.date, blockIndex)}
+                                      />
+                                    </td>
+                                  ))}
+                                </tr>
+                              </>
+                            )}
+                          </Fragment>
+                        );
+                      })}
+                    </tbody>
+                  </table>
                 </div>
-              </div>
-            ))}
-            {rows.map(({ room, days, outside }, rowIndex) => {
-              const block = blockOf(room.space.name) ?? "Outros";
-              const first =
-                rowIndex === 0 ||
-                (blockOf(rows[rowIndex - 1]?.room.space.name ?? "") ?? "Outros") !== block;
-              const collapsed = collapsedBlocks.has(block);
-              if (collapsed && !first) return null;
-              return (
-                <Fragment key={room.space.id}>
-                  {first && (
-                    <div className="col-span-full mt-3 mb-1 bg-surface-2">
-                      <button
-                        type="button"
-                        aria-label={`${collapsed ? "Expandir" : "Recolher"} ${block === "Outros" ? "Outros espa\u00e7os" : `Bloco ${block}`}`}
-                        aria-expanded={!collapsed}
-                        onClick={() =>
-                          setCollapsedBlocks((current) => {
-                            const next = new Set(current);
-                            if (next.has(block)) next.delete(block);
-                            else next.add(block);
-                            return next;
-                          })
-                        }
-                        className="sticky left-0 flex items-center gap-2 px-2 py-2 text-xs font-semibold"
-                      >
-                        {collapsed ? (
-                          <ChevronRight className="size-3.5" aria-hidden="true" />
-                        ) : (
-                          <ChevronDown className="size-3.5" aria-hidden="true" />
-                        )}
-                        {block === "Outros" ? "Outros espa\u00e7os" : `Bloco ${block}`}
-                      </button>
-                    </div>
-                  )}
-                  {!collapsed && (
-                    <>
-                      {(rowIndex === 0 ||
-                        place(rows[rowIndex - 1]?.room.space.name ?? "") !==
-                          place(room.space.name)) && (
-                        <div className="col-span-full pt-2 pb-1 text-[11px] text-muted-foreground">
-                          <span className="sticky left-2">
-                            {floorOf(room.space.name) === null
-                              ? ""
-                              : `Andar ${floorOf(room.space.name)}`}
-                          </span>
-                        </div>
-                      )}
-                      <div className="sticky left-0 z-10 flex min-w-0 flex-wrap self-stretch items-center gap-1 border-r bg-surface py-1 pr-2 shadow-[3px_0_0_var(--surface)]">
-                        <span
-                          className="truncate text-[13px] font-medium text-foreground"
-                          title={room.space.name}
-                        >
-                          {room.space.name}
-                        </span>
-                        {outside.length > 0 && (
-                          <span
-                            role="img"
-                            data-outside={room.space.id}
-                            aria-label={outsideLabel(outside)}
-                            title={outsideLabel(outside)}
-                            className="size-1.5 shrink-0 rounded-full bg-amber-500"
-                          />
-                        )}
-                        {spacesIndex[room.space.id] && (
-                          <SpaceDetails space={spacesIndex[room.space.id] as Space} compact />
-                        )}
-                        <RoomDetailsButton
-                          space={spacesIndex[room.space.id]}
-                          roomName={room.space.name}
-                        />
-                      </div>
-                      {shownDays.map((day, index) => (
-                        <div
-                          key={day.date}
-                          className={cn("flex border-l border-border py-[3px]", "gap-1 px-1.5")}
-                        >
-                          {days[index]?.cells.map((cell, blockIndex) => (
-                            <OverviewCell
-                              key={`${cell.block.short}-${cell.block.start}`}
-                              cell={cell}
-                              room={room.space}
-                              date={day.date}
-                              highlight={highlight}
-                              isVisitor={isVisitor}
-                              compact={compact}
-                              periodBreak={
-                                blockIndex > 0 &&
-                                periodOf(cell.block.start) !==
-                                  periodOf(day.blocks[blockIndex - 1]?.start ?? "")
-                              }
-                              selected={isSelected(room.space.id, day.date, blockIndex, cell.block)}
-                              onSelect={() =>
-                                setPick({
-                                  date: day.date,
-                                  start: cell.block.start,
-                                  end: cell.block.end,
-                                  suggested: room.space.id,
-                                  origin: { from: blockIndex, to: blockIndex },
-                                })
-                              }
-                              onPointerDown={(event) =>
-                                startSweep(event, {
-                                  date: day.date,
-                                  from: blockIndex,
-                                  to: blockIndex,
-                                  spaceId: room.space.id,
-                                })
-                              }
-                              onPointerEnter={() => extendSweep(day.date, blockIndex)}
-                            />
-                          ))}
-                        </div>
-                      ))}
-                    </>
-                  )}
-                </Fragment>
-              );
-            })}
-          </div>
-          {loadWeek && (
-            <div
-              ref={endMarker}
-              aria-hidden="true"
-              className="absolute top-0 right-0 h-full w-px"
-            />
-          )}
-        </div>
+              </section>
+            );
+          })}
       </div>
-      {loadWeek && (
-        <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span role="status">
-            {loading
-              ? "Carregando pr\u00f3ximas datas..."
-              : (error ?? `At\u00e9 ${dayLabel(week.days.at(-1)?.date ?? week.weekStart)}`)}
-          </span>
-          {!loading && (
-            <button
-              type="button"
-              onClick={() => void loadMore()}
-              className="rounded border px-2 py-1 hover:text-foreground"
-            >
-              {error ? "Tentar novamente" : "Mais datas"}
-            </button>
-          )}
-        </div>
-      )}
     </div>
   );
 }

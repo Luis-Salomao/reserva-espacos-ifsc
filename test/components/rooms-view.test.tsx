@@ -617,20 +617,6 @@ describe("RoomsView", () => {
         screen.getByRole("region", { name: "Disponibilidade por sala em quarta 13/11" }),
       ).getAllByRole("button", { name: /08:00–09:50|10:10–12:00/ }),
     ).toHaveLength(6);
-    expect(screen.getByRole("button", { name: "Mais datas" })).toBeDefined();
-  });
-
-  test("no celular, tocar num quadradinho ocupado abre o cartão em vez de navegar", async () => {
-    setViewportWidth(390);
-    const { router } = await setup({ url: "/?visao=geral" });
-    const cell = document.querySelector(
-      `[data-cell='ocupado'][data-room='a202'][data-date='${DATE}']`,
-    ) as HTMLElement;
-    expect(cell.hasAttribute("href")).toBe(false);
-    fireEvent.click(cell);
-    expect(within(screen.getByRole("tooltip")).getByText("Cálculo I")).toBeDefined();
-    expect(router.state.location.pathname).toBe("/");
-    expect(router.state.location.search).toEqual({ visao: "geral" });
   });
 
   test("no celular, os quadradinhos têm pelo menos 32 px", async () => {

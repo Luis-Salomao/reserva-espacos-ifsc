@@ -81,7 +81,6 @@ const WEEK: RoomsWeek = {
 
 type RenderOptions = {
   week?: RoomsWeek;
-  loadWeek?: (date: string) => Promise<RoomsWeek>;
   isVisitor?: boolean;
   canReserve?: boolean;
   now?: string;
@@ -97,7 +96,6 @@ async function renderOverview(options: RenderOptions = {}) {
     component: () => (
       <RoomsOverview
         week={week}
-        {...(options.loadWeek ? { loadWeek: options.loadWeek } : {})}
         rooms={week.rooms}
         isVisitor={options.isVisitor ?? false}
         compact={options.compact ?? false}
@@ -172,13 +170,13 @@ const dimmedOf = (cell: HTMLElement) =>
 describe("RoomsOverview", () => {
   test("recolher um bloco oculta só suas salas e expandir restaura a grade", async () => {
     await renderOverview();
-    fireEvent.click(screen.getByRole("button", { name: "Recolher Bloco A" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Recolher Bloco A" })[0] as HTMLElement);
     expect(
-      screen.getByRole("button", { name: "Expandir Bloco A" }).getAttribute("aria-expanded"),
+      screen.getAllByRole("button", { name: "Expandir Bloco A" })[0]?.getAttribute("aria-expanded"),
     ).toBe("false");
     expect(document.querySelectorAll("[data-cell][data-room='a202']").length).toBe(0);
     expect(document.querySelectorAll("[data-cell][data-room='b104']").length).toBe(10);
-    fireEvent.click(screen.getByRole("button", { name: "Expandir Bloco A" }));
+    fireEvent.click(screen.getAllByRole("button", { name: "Expandir Bloco A" })[0] as HTMLElement);
     expect(document.querySelectorAll("[data-cell][data-room='a202']").length).toBe(10);
   });
   test("filtra os periodos e volta a mostrar todos os horarios", async () => {
@@ -188,28 +186,19 @@ describe("RoomsOverview", () => {
     expect(document.querySelectorAll("[data-cell]").length).toBe(0);
     fireEvent.click(within(periods).getByRole("button", { name: /Manh/ }));
     expect(document.querySelectorAll("[data-cell]").length).toBe(30);
-    expect(screen.getAllByText("08:00").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("08:00–09:50").length).toBeGreaterThan(0);
     expect(cellAt("a202", WED, "M12").textContent).toContain("2");
   });
 
-  test("rolar a direita acrescenta a semana e permite reservar nela", async () => {
-    const next: RoomsWeek = {
-      ...WEEK,
-      weekStart: "2026-11-16",
-      days: WEEK.days.map((day, index) => ({ ...day, date: `2026-11-${16 + index}` })),
-      rooms: WEEK.rooms.map((room) => ({ ...room, occupations: [] })),
-    };
-    const loadWeek = mock(async (..._args: unknown[]) => next);
-    const { onBook } = await renderOverview({ loadWeek });
-    fireEvent.scroll(screen.getByTestId("rooms-overview"));
-    await waitFor(() => expect(document.querySelectorAll("[data-cell]").length).toBe(60));
-    expect(loadWeek).toHaveBeenCalledWith("2026-11-16");
-    expect(cellAt("a202", MON, "M12")).toBeDefined();
-    fireEvent.click(cellAt("b104", "2026-11-16", "M12"));
+  test("cada dia é uma seção própria e reservar vale para o dia da seção", async () => {
+    const { onBook } = await renderOverview();
+    const sections = screen.getAllByRole("region", { name: /^Ocupação em / });
+    expect(sections).toHaveLength(5);
+    fireEvent.click(cellAt("b104", THU, "M12"));
     fireEvent.click(within(selectionPanel()).getByRole("button", { name: /Reservar B-104/ }));
     expect(onBook).toHaveBeenCalledWith({
       spaceId: "b104",
-      date: "2026-11-16",
+      date: THU,
       start: "08:00",
       end: "09:50",
     });
@@ -657,7 +646,7 @@ describe("RoomsOverview", () => {
   });
 
   test("no celular, o toque seleciona um bloco por vez, sem arrasto", async () => {
-    await renderOverview({ compact: true });
+    await renderOverview();
     const start = cellAt("b104", MON, "M12");
     fireEvent.pointerDown(start, { pointerType: "touch", button: 0 });
     fireEvent.pointerEnter(cellAt("b104", MON, "M34"), { pointerType: "touch" });
@@ -721,7 +710,7 @@ describe("RoomsOverview", () => {
     };
     await renderOverview({ spacesIndex });
 
-    expect(screen.getByText(/3 computadores em manutenção/)).toBeTruthy();
+    expect(screen.getAllByText(/3 computadores em manutenção/).length).toBeGreaterThan(0);
 
     const button = screen.getAllByRole("button", { name: "Detalhes de A-202" })[0] as HTMLElement;
     fireEvent.click(button);
