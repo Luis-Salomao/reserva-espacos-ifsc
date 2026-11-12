@@ -26,6 +26,7 @@ Domínio final: https://reservas-ifsc.luissalomao.dev/
 | 14 | Alinhar ícones no menu | **Implementado:** ícones dos menus usam caixas centralizadas de tamanho uniforme. |
 | 15 | Fazer os cliques no calendário Sala > Semana funcionarem | **Coberto por teste de componente** que confirma a sala, data e intervalo; não houve conferência manual no navegador. |
 | 16 | Melhorar usabilidade mobile, possivelmente com modo próprio | **Implementado:** cartões por dia/sala e blocos de horário tocáveis na visão compacta, mantendo a matriz desktop. |
+| 17 | Evitar a grade semanal comprimida no celular quando o navegador solicita “Site para computador” | **Implementado:** o modo compacto ativa até 1023 px, incluindo viewport CSS próximo de 980 px. Teste de componente em 980 px; sem validação em aparelho físico. |
 
 ## Estado salvo
 
@@ -62,7 +63,7 @@ Snapshot local commitado em `codex/estado-deploy-2026-11-11` (`ce82b4d`). O comm
 - `bunx biome check` nos arquivos alterados: passou.
 - `bun run typecheck`: passou após corrigir a possibilidade de dia ausente no modo compacto.
 - Testes focados de agenda, formulário de reserva/recorrência, visão geral de salas, calendário Sala > Semana e Minhas reservas: **135 passaram, 0 falharam** (127 na rodada anterior e 8 na suíte focada de `rooms-columns`).
-- `bun run check`: **passou**. Biome, TypeScript, Knip, dependency-cruiser e Betterleaks sem achados; suíte completa com **1853 testes aprovados, 3 ignorados e 0 falhas** (1.856 no total).
+- `bun run check`: **passou após o ajuste mobile**. Biome, TypeScript, Knip, dependency-cruiser e Betterleaks sem achados; suíte completa com **1895 testes aprovados, 3 ignorados e 0 falhas** (1.898 no total).
 - Nenhum deploy foi feito; o comportamento em produção não foi verificado.
 
 ## Achado complementar — modo desktop do navegador em celular
