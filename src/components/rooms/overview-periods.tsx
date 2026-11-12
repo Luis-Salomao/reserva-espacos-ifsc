@@ -24,7 +24,7 @@ export function OverviewPeriods({ value, onChange }: Props) {
           aria-pressed={value === period}
           onClick={() => onChange(period)}
           className={cn(
-            "min-h-11 rounded-[5px] px-2.5 py-1 text-[12px] font-medium text-muted-foreground hover:text-foreground",
+            "h-8 rounded-[5px] px-2.5 text-[12px] font-medium text-muted-foreground hover:text-foreground",
             value === period && "bg-background text-foreground shadow-xs",
           )}
         >

@@ -96,13 +96,16 @@ export function navItems(user: SessionInfo["user"]): NavItem[] {
 const SYSTEM_NAME = "Sistema de Reserva de Espaços";
 const SYSTEM_TAGLINE = "Consulte a ocupação das salas e reserve espaços do IFSC Câmpus Garopaba.";
 
-/** Faixa fina vermelha (cor oficial do IFSC) usada só como detalhe decorativo no topo. */
+/**
+ * Faixa fina vermelha (cor oficial do IFSC), detalhe decorativo: uma só por tela, fixa no topo da
+ * janela e sobre a largura toda (lateral e conteúdo), então não sai do lugar ao rolar.
+ */
 export function IfscStripe() {
   return (
     <span
       aria-hidden="true"
       data-faixa-ifsc=""
-      className="pointer-events-none absolute inset-x-0 top-0 h-[3px] bg-brand-red"
+      className="pointer-events-none fixed inset-x-0 top-0 z-[60] h-[3px] bg-brand-red"
     />
   );
 }
@@ -191,11 +194,11 @@ export function AppShell({ children, wide = false }: Props) {
   if (user === null) {
     return (
       <div className="min-h-screen bg-background text-foreground">
+        <IfscStripe />
         <a href="#conteudo" className="sr-only focus:not-sr-only">
           Pular para o conteúdo
         </a>
-        <header className="relative flex min-h-14 items-center justify-between gap-3 border-b px-4 pt-[3px] sm:px-6">
-          <IfscStripe />
+        <header className="sticky top-0 z-30 flex min-h-14 items-center justify-between gap-3 border-b bg-background px-4 pt-[3px] sm:px-6">
           <Brand />
           <div className="flex items-center gap-2">
             <ThemeToggle />
@@ -219,6 +222,7 @@ export function AppShell({ children, wide = false }: Props) {
   }
   return (
     <div className="min-h-screen bg-background text-foreground">
+      <IfscStripe />
       <a
         href="#conteudo"
         className="sr-only z-50 rounded-md bg-background px-4 py-2 text-sm font-semibold focus:not-sr-only focus:fixed focus:top-2 focus:left-2"
@@ -231,7 +235,6 @@ export function AppShell({ children, wide = false }: Props) {
           collapsed ? "md:w-16 md:px-2" : "md:w-60",
         )}
       >
-        <IfscStripe />
         <div className="flex min-w-0 items-center gap-1">
           <div className={cn("min-w-0 flex-1", collapsed && "md:hidden")}>
             <Brand stacked />
@@ -310,7 +313,7 @@ export function AppShell({ children, wide = false }: Props) {
           id="conteudo"
           tabIndex={-1}
           className={cn(
-            "mx-auto w-full px-4 py-6 outline-none sm:px-6 md:py-8",
+            "mx-auto w-full px-4 py-6 outline-none sm:px-6 md:pt-4 md:pb-8",
             wide ? "max-w-[1440px]" : "max-w-3xl",
           )}
         >
@@ -339,9 +342,8 @@ function ScreenBar({ items }: { items: NavItem[] }) {
   return (
     <nav
       aria-label="Localização"
-      className="relative hidden min-h-14 items-center gap-x-2 border-b border-divider bg-surface px-6 pt-[3px] md:flex"
+      className="sticky top-0 z-40 hidden min-h-14 items-center gap-x-2 border-b border-divider bg-surface px-6 pt-[3px] md:flex"
     >
-      <IfscStripe />
       <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm">
         <span className="font-semibold">{SYSTEM_NAME}</span>
         {current !== undefined && (

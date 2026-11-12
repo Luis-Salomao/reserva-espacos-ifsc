@@ -68,7 +68,7 @@ describe("AppShell", () => {
     const banner = screen.getByRole("banner");
     expect(banner.textContent).toContain("Sistema de Reserva de Espaços");
     expect(banner.textContent).toContain("Consulte a ocupação das salas e reserve espaços");
-    expect(banner.querySelector("[data-faixa-ifsc]")).not.toBeNull();
+    expect(document.querySelectorAll("[data-faixa-ifsc]").length).toBe(1);
     expect(banner.textContent).not.toContain("…");
   });
   test("bordas do cabeçalho e da lateral são neutras (sem verde)", async () => {
@@ -80,11 +80,33 @@ describe("AppShell", () => {
     expect(classes).not.toContain("border-primary");
     expect(classes).toContain("md:border-r");
   });
+  test("a faixa vermelha é uma só, fixa no topo da janela e cobre a largura toda", async () => {
+    for (const session of [null, { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" }]) {
+      if (session === null) await renderShell(<p>x</p>);
+      else await renderShell("x", session);
+      const faixas = document.querySelectorAll("[data-faixa-ifsc]");
+      expect(faixas.length).toBe(1);
+      expect(faixas[0]?.className.split(" ")).toEqual(
+        expect.arrayContaining(["fixed", "inset-x-0", "top-0"]),
+      );
+      cleanup();
+    }
+  });
+  test("o topo não sai do lugar ao rolar: cabeçalho do visitante e barra superior do logado são sticky", async () => {
+    await renderShell(<p>x</p>);
+    expect(screen.getByRole("banner").className.split(" ")).toEqual(
+      expect.arrayContaining(["sticky", "top-0"]),
+    );
+    cleanup();
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    expect(screen.getByRole("navigation", { name: "Localização" }).className.split(" ")).toEqual(
+      expect.arrayContaining(["sticky", "top-0"]),
+    );
+  });
   test("cabeçalho do usuário logado também mostra o nome do sistema", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     const banner = screen.getByRole("banner");
     expect(banner.textContent).toContain("Sistema de Reserva de Espaços");
-    expect(banner.querySelector("[data-faixa-ifsc]")).not.toBeNull();
     expect(banner.querySelectorAll("h1").length).toBe(0);
   });
   test("lateral do computador não repete o texto do sistema; a barra superior mostra sistema e tela", async () => {

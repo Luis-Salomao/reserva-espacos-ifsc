@@ -402,9 +402,9 @@ export function RoomsOverview({
                 >
                   <table
                     aria-label={label}
-                    className="w-full min-w-max border-collapse lg:min-w-full"
+                    className="w-full min-w-[720px] table-fixed border-collapse"
                   >
-                    <thead className="sticky top-0 z-30 bg-surface">
+                    <thead className="sticky top-0 z-30 bg-surface md:top-14">
                       <tr className="border-b border-divider">
                         <th
                           scope="col"
@@ -520,7 +520,7 @@ export function RoomsOverview({
                                   {days[dayIndex]?.cells.map((cell, blockIndex) => (
                                     <td
                                       key={`${cell.block.short}-${cell.block.start}`}
-                                      className="py-1 text-center"
+                                      className="px-0.5 py-1"
                                     >
                                       <OverviewCell
                                         cell={cell}
