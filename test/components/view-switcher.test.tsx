@@ -30,4 +30,17 @@ describe("ViewSwitcher", () => {
       screen.getByText("Encontre apenas salas livres no intervalo selecionado."),
     ).toBeDefined();
   });
+
+  test("o botão (i) abre a explicação de todas as visualizações", async () => {
+    render(<ControlledSwitcher changes={[]} />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Sobre as visualizações" }));
+
+    const painel = await screen.findByRole("dialog", { name: "Sobre as visualizações" });
+    for (const nome of ["Sala", "Colunas", "Livres", "Visão geral"]) {
+      expect(painel.textContent).toContain(nome);
+    }
+    expect(painel.textContent).toContain("Compare a ocupação das salas em um dia.");
+    expect(painel.textContent).toContain("Confira a ocupação semanal dos espaços.");
+  });
 });
