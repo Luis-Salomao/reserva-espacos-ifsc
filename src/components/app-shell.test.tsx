@@ -117,7 +117,7 @@ describe("AppShell", () => {
     expect(form?.getAttribute("method")?.toLowerCase()).toBe("post");
     expect(form?.getAttribute("action")).toBe("/api/sair");
     expect(screen.queryByRole("link", { name: "Entrar" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Alternar tema" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Tema escuro" })).toBeDefined();
   });
 
   test("docente não vê Importar", async () => {
@@ -206,16 +206,22 @@ describe("AppShell", () => {
   test("alternar o tema muda data-theme e persiste a escolha", async () => {
     document.documentElement.dataset.theme = "light";
     await renderShell("x");
-    const toggle = screen.getByRole("button", { name: "Alternar tema" });
+    const toggle = screen.getByRole("button", { name: "Tema escuro" });
 
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(toggle.getAttribute("title")).toBe("Mudar para tema escuro");
 
     fireEvent.click(toggle);
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem("theme")).toBe("dark");
-    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Tema escuro" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Tema escuro" }).getAttribute("title")).toBe(
+      "Mudar para tema claro",
+    );
 
-    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Tema escuro" }));
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     expect(localStorage.getItem("theme")).toBe("light");
@@ -229,7 +235,7 @@ describe("AppShell", () => {
     };
     try {
       await renderShell("x");
-      fireEvent.click(screen.getByRole("button", { name: "Alternar tema" }));
+      fireEvent.click(screen.getByRole("button", { name: "Tema escuro" }));
       expect(document.documentElement.dataset.theme).toBe("dark");
     } finally {
       Storage.prototype.setItem = original;

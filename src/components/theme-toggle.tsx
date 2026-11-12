@@ -37,8 +37,9 @@ export function ThemeToggle() {
       type="button"
       variant="ghost"
       size="icon"
-      aria-label="Alternar tema"
+      aria-label="Tema escuro"
       aria-pressed={theme === "dark"}
+      title={theme === "dark" ? "Mudar para tema claro" : "Mudar para tema escuro"}
       onClick={toggle}
     >
       <Sun className="hidden dark:block" aria-hidden="true" />
