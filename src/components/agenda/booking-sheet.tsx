@@ -546,7 +546,7 @@ export function BookingSheet({
                     setErrorMessage(null);
                   }}
                   aria-invalid={Boolean(fieldErrors.spaceId)}
-                  className="h-10 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm text-foreground shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring dark:bg-input dark:[color-scheme:dark]"
+                  className="h-10 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm text-foreground shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring [color-scheme:light] dark:bg-input dark:[color-scheme:dark]"
                 >
                   {choices === null ? (
                     spaces.map((s) => (

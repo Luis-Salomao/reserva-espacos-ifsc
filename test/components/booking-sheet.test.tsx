@@ -176,6 +176,21 @@ describe("BookingSheet — Suíte de Testes (Milestone 2 Task 4)", () => {
     expect(endInput.value).toBe("16:00");
   });
 
+  test("Data vem antes de Sala e o seletor respeita o tema claro e escuro", async () => {
+    await renderBookingSheet({ open: true });
+
+    const dateInput = screen.getByLabelText("Data");
+    const select = roomSelect();
+    expect(dateInput.compareDocumentPosition(select) & Node.DOCUMENT_POSITION_FOLLOWING).toBe(
+      Node.DOCUMENT_POSITION_FOLLOWING,
+    );
+    expect(select.className).toContain("bg-background");
+    expect(select.className).toContain("text-foreground");
+    expect(select.className).toContain("[color-scheme:light]");
+    expect(select.className).toContain("dark:bg-input");
+    expect(select.className).toContain("dark:[color-scheme:dark]");
+  });
+
   test("3. Contador e limite do campo Finalidade", async () => {
     await renderBookingSheet({
       open: true,
