@@ -8,7 +8,6 @@ import { timeToMinutes } from "./layout-helpers";
 export type Draft = { date: string; start: string; end: string };
 
 const STEP = 15;
-const CLICK_LENGTH = 60;
 const DRAG_THRESHOLD = 4;
 
 const hhmm = (minutes: number) =>
@@ -121,7 +120,11 @@ export function useDraftGesture({
     }, 0);
     if (g.moved) return;
     if (g.mode === "create") {
-      emit(g.anchor, Math.min(g.anchor + CLICK_LENGTH, g.gap.end));
+      onOpenDraft({
+        date: day.date,
+        start: hhmm(g.gap.start),
+        end: hhmm(g.gap.end),
+      });
     } else if (draft !== null) {
       onOpenDraft(draft);
     }
