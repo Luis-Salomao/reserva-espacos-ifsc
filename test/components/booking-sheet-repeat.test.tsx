@@ -154,7 +154,9 @@ describe("BookingSheet: seção Repetir", () => {
     fireEvent.click(screen.getByRole("button", { name: "Quinta" }));
     expect(summary()).toBe("Toda terça e quinta, até 09/01/2031, 10 datas");
     expect(repeatToggle().textContent).toContain("Toda terça e quinta");
-    fireEvent.change(screen.getByLabelText("A cada quantas semanas"), { target: { value: "2" } });
+    fireEvent.change(screen.getByLabelText("Repetir a cada quantas semanas?"), {
+      target: { value: "2" },
+    });
     expect(summary()).toContain("A cada 2 semanas: terça e quinta");
   });
 

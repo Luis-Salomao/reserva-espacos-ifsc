@@ -31,16 +31,35 @@ export function dayLabel(date: string): string {
 type Tone = { light: string; dark: string };
 
 /** Item da legenda: a chave separa "Reserva" de uma matéria com o mesmo nome. */
-export type LegendEntry = { key: string; label: string; tone: Tone };
+export type LegendEntry = { key: string; label: string; tone: Tone; pattern: number };
+
+/** Textura complementar à cor: reduz a ambiguidade quando duas matérias caem no mesmo tom. */
+export function patternStyle(pattern: number): CSSProperties {
+  const patterns = [
+    "repeating-linear-gradient(135deg, transparent 0 4px, rgb(255 255 255 / 55%) 4px 6px)",
+    "repeating-linear-gradient(45deg, transparent 0 4px, rgb(255 255 255 / 55%) 4px 6px)",
+    "repeating-linear-gradient(0deg, transparent 0 4px, rgb(255 255 255 / 55%) 4px 6px)",
+    "repeating-linear-gradient(90deg, transparent 0 4px, rgb(255 255 255 / 55%) 4px 6px)",
+  ];
+  return { backgroundImage: patterns[pattern % patterns.length] };
+}
+
+function subjectPattern(subject: string): number {
+  let hash = 0;
+  for (const char of subject) hash = (hash * 17 + (char.codePointAt(0) ?? 0)) >>> 0;
+  return hash % 4;
+}
 
 /** Reserva avulsa tem a cor neutra; aula importada, a cor da matéria. */
 export function legendEntryOf(item: Pick<AgendaItem, "source" | "title">): LegendEntry {
-  if (item.source === "manual") return { key: "reserva", label: "Reserva", tone: RESERVA_TONE };
+  if (item.source === "manual")
+    return { key: "reserva", label: "Reserva", tone: RESERVA_TONE, pattern: 0 };
   const subject = subjectOf(item.title);
   return {
     key: `materia:${subject}`,
     label: subject,
     tone: SUBJECT_PALETTE[subjectTone(subject)] ?? RESERVA_TONE,
+    pattern: subjectPattern(subject),
   };
 }
 
@@ -271,6 +290,7 @@ export function OverviewCell({
               data-dimmed={dimmed ? "" : undefined}
               style={{
                 ...toneStyle(entry.tone),
+                ...patternStyle(entry.pattern),
                 top: `${((start - blockStart) / duration) * 100}%`,
                 height: `${((end - start) / duration) * 100}%`,
               }}

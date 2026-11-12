@@ -21,6 +21,9 @@
     "PUBLIC_READ": "true",
     "EMAIL_PROVIDER": "resend",
     "EMAIL_FROM": "Reservas IFSC <reservas@mail.luissalomao.dev>",
-    "PUBLIC_ORIGIN": "https://reservas-ifsc.luissalomao.dev"
+    // O proxy reescreve o Origin para o host do app; essa origem controla CSRF e cookies.
+    "PUBLIC_ORIGIN": "https://reserva-espacos-ifsc.luis-salomao.workers.dev",
+    // Links enviados por e-mail devem levar ao domínio público, não ao host upstream.
+    "PUBLIC_LINK_ORIGIN": "https://reservas-ifsc.luissalomao.dev"
   }
 }

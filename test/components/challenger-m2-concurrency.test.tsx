@@ -774,7 +774,7 @@ describe("Challenger M2 — Suite 5: UI Resilience & State Preservation", () => 
       conflict: {
         title: "Física I",
         spaceName: "Laboratório 10",
-        date: "2026-11-10",
+        date: "2026-11-20",
         start: "10:00",
         end: "12:00",
       },
@@ -785,7 +785,7 @@ describe("Challenger M2 — Suite 5: UI Resilience & State Preservation", () => 
         open={true}
         onOpenChange={() => {}}
         spaces={spaces}
-        initialSlot={{ spaceId: "s-1", date: "2026-11-10", start: "10:00", end: "11:00" }}
+        initialSlot={{ spaceId: "s-1", date: "2026-11-20", start: "10:00", end: "11:00" }}
         createFn={mockCreate}
       />,
     );

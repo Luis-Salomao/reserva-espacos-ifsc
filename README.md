@@ -72,7 +72,7 @@ O envio é opcional: `EMAIL_PROVIDER=disabled` é o padrão. Para habilitar Rese
 bun run cli init --target local --email-provider resend --email-from reservas@seu-dominio.edu.br --public-origin https://reservas.seu-dominio.edu.br --dry-run --yes
 ```
 
-Retire `--dry-run` para executar a instalação. Em uma instalação existente, edite a configuração pública em vez de recriar o banco ou sobrescrever `.env`. Use domínio próprio verificado no Resend, aplique os registros DNS exigidos pelo provedor e um remetente autorizado nesse domínio. `PUBLIC_ORIGIN` deve ser a origem pública confiável, sem caminho, credenciais ou parâmetros; HTTPS é obrigatório, com exceção de HTTP em localhost/127.0.0.1 no desenvolvimento. Essa origem também controla links de recuperação e CSRF. Configure `EMAIL_PROVIDER=resend`, `EMAIL_FROM` e `PUBLIC_ORIGIN` antes de iniciar o servidor.
+Retire `--dry-run` para executar a instalação. Em uma instalação existente, edite a configuração pública em vez de recriar o banco ou sobrescrever `.env`. Use domínio próprio verificado no Resend, aplique os registros DNS exigidos pelo provedor e um remetente autorizado nesse domínio. `PUBLIC_ORIGIN` define a origem aceita nos POST e o atributo `Secure` dos cookies. Em uma instalação atrás de proxy que reescreve o cabeçalho `Origin`, configure nela a origem que o app recebe após essa reescrita. `PUBLIC_LINK_ORIGIN` é opcional e define o domínio usado nos links de e-mail; quando omitida, os links usam `PUBLIC_ORIGIN`. Ambos devem ser origens sem caminho, credenciais ou parâmetros, e usar HTTPS (com exceção de HTTP em localhost/127.0.0.1 no desenvolvimento). Configure `EMAIL_PROVIDER=resend`, `EMAIL_FROM`, `PUBLIC_ORIGIN` e, quando houver proxy, `PUBLIC_LINK_ORIGIN` antes de iniciar o servidor.
 
 Forneça `RESEND_API_KEY` e `EMAIL_PAYLOAD_KEY` pelo ambiente protegido do processo. A segunda chave deve conter 32 bytes aleatórios criptograficamente seguros codificados em base64url. Crie e guarde a chave em um gerenciador de segredos; não a inclua em argumentos, logs, capturas de tela ou arquivos versionados. O instalador não solicita nem imprime essas chaves. Se usar `.env` local ou `.dev.vars` para desenvolvimento, proteja o arquivo, mantenha-o fora do Git e separe as credenciais de produção. O servidor e o processo agendado precisam das mesmas chaves e do mesmo banco. Preserve a chave da outbox no procedimento protegido de backup; a perda ou troca da chave impede ler mensagens pendentes antigas.
 
@@ -90,7 +90,7 @@ No Windows, crie uma tarefa no Agendador de Tarefas com repetição de um minuto
 
 ### Cloudflare Workers e D1
 
-Em produção, coloque somente `EMAIL_PROVIDER`, `EMAIL_FROM` e `PUBLIC_ORIGIN` em `vars` de `wrangler.jsonc`. `.dev.vars` vale somente no desenvolvimento e não configura produção. Cadastre os segredos interativamente, sem colocar valores na linha de comando:
+Em produção, coloque somente `EMAIL_PROVIDER`, `EMAIL_FROM`, `PUBLIC_ORIGIN` e, quando necessária, `PUBLIC_LINK_ORIGIN` em `vars` de `wrangler.jsonc`. `.dev.vars` vale somente no desenvolvimento e não configura produção. Em arquitetura com proxy separado, `PUBLIC_ORIGIN` deve corresponder ao `Origin` que o app recebe depois do encaminhamento; `PUBLIC_LINK_ORIGIN` deve apontar para o domínio público que as pessoas acessam. Cadastre os segredos interativamente, sem colocar valores na linha de comando:
 
 ```bash
 bunx wrangler secret put RESEND_API_KEY
@@ -117,7 +117,7 @@ O cookie de sessão (`sid`) é `HttpOnly; SameSite=Lax` e leva `Secure`, exceto 
 
 ### Atrás de proxy reverso com TLS
 
-O servidor não confia em `X-Forwarded-*`. Atrás de um proxy que termina o TLS (ele fala HTTP com o app), defina `PUBLIC_ORIGIN` com a origem pública, sem caminho: `PUBLIC_ORIGIN=https://reservas.campus.edu.br`. Com ela, o `Origin` aceito nos POST é exatamente essa origem (proteção CSRF) e o cookie de sessão leva `Secure` se e somente se ela for `https` (isso prevalece sobre `COOKIE_SECURE`). Sem `PUBLIC_ORIGIN`, vale o comportamento anterior (origem da própria requisição). Exemplos de proxy:
+O servidor não confia em `X-Forwarded-*`. Atrás de um proxy que termina o TLS (ele fala HTTP com o app), configure `PUBLIC_ORIGIN` conforme o cabeçalho `Origin` que chega ao app: se o proxy o preserva, use a origem pública, sem caminho, por exemplo `https://reservas.campus.edu.br`; se o proxy o reescreve para a origem upstream, use essa origem upstream. Nos dois casos, `PUBLIC_ORIGIN` define o valor exato aceito nos POST (proteção CSRF) e o cookie de sessão leva `Secure` quando a origem configurada usa `https` (isso prevalece sobre `COOKIE_SECURE`). Sem `PUBLIC_ORIGIN`, vale o comportamento anterior (origem da própria requisição). O proxy deste projeto valida o domínio público `https://reservas-ifsc.luissalomao.dev` e reescreve `Origin` para `https://reserva-espacos-ifsc.luis-salomao.workers.dev`; por isso o app usa o host upstream em `PUBLIC_ORIGIN` e o domínio público em `PUBLIC_LINK_ORIGIN`, para montar links de e-mail. A configuração de produção não foi verificada. Exemplos genéricos de proxy que preservam `Origin`:
 
 ```nginx
 server {

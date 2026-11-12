@@ -1,5 +1,6 @@
 import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { ArrowRight, CalendarDays } from "lucide-react";
+import { ArrowRight, CalendarDays, LoaderCircle } from "lucide-react";
+import { useState } from "react";
 import campusImage from "#/assets/campus-garopaba-login.webp";
 import { Field } from "#/components/ds";
 import { Notice } from "#/components/page";
@@ -33,6 +34,7 @@ export const Route = createFileRoute("/entrar")({
 function LoginPage() {
   const { erro, voltar } = Route.useSearch();
   const { session } = Route.useRouteContext();
+  const [submitting, setSubmitting] = useState(false);
   return (
     <main className="min-h-svh bg-background text-foreground">
       <div className="grid min-h-svh w-full bg-surface lg:grid-cols-2">
@@ -65,7 +67,12 @@ function LoginPage() {
             )}
             {/* Formulário HTML comum: funciona sem JavaScript e fica dentro da CSP (form-action 'self'). */}
 
-            <form method="post" action="/api/entrar" className="grid gap-5">
+            <form
+              method="post"
+              action="/api/entrar"
+              className="grid gap-5"
+              onSubmit={() => setSubmitting(true)}
+            >
               <input type="hidden" name="voltar" value={voltar ?? "/"} />
               <Field id="login-email" label="E-mail">
                 <Input
@@ -98,9 +105,21 @@ function LoginPage() {
                   aria-describedby={erro === undefined ? undefined : "login-error"}
                 />
               </Field>
-              <Button type="submit" className="mt-1 h-11 w-full">
-                Entrar <ArrowRight className="size-4" aria-hidden="true" />
+              <Button type="submit" className="mt-1 h-11 w-full" disabled={submitting}>
+                {submitting ? (
+                  <>
+                    <LoaderCircle className="size-4 animate-spin" aria-hidden="true" />
+                    Entrando…
+                  </>
+                ) : (
+                  <>
+                    Entrar <ArrowRight className="size-4" aria-hidden="true" />
+                  </>
+                )}
               </Button>
+              <p className="sr-only" aria-live="polite" role="status">
+                {submitting ? "Verificando seu acesso." : ""}
+              </p>
             </form>
             <Link to="/recuperar-senha" className="mt-4 inline-block text-sm underline">
               Esqueci minha senha

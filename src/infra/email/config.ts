@@ -23,7 +23,8 @@ export function getEmailConfig(source: Record<string, string | undefined>): Emai
     !/^[^<>]+<[^<>\s]+@[^<>\s]+\.[^<>\s]+>$/.test(from)
   )
     throw new Error("Configuração inválida: EMAIL_FROM");
-  const publicOrigin = required("PUBLIC_ORIGIN");
+  const linkOriginName = source.PUBLIC_LINK_ORIGIN?.trim() ? "PUBLIC_LINK_ORIGIN" : "PUBLIC_ORIGIN";
+  const publicOrigin = required(linkOriginName);
   try {
     const url = new URL(publicOrigin);
     const local = url.hostname === "localhost" || url.hostname === "127.0.0.1";
@@ -37,7 +38,7 @@ export function getEmailConfig(source: Record<string, string | undefined>): Emai
     )
       throw new Error("origin");
   } catch {
-    throw new Error("Configuração inválida: PUBLIC_ORIGIN");
+    throw new Error(`Configuração inválida: ${linkOriginName}`);
   }
   const payloadKey = required("EMAIL_PAYLOAD_KEY");
   if (!/^[A-Za-z0-9_-]{43}$/.test(payloadKey))

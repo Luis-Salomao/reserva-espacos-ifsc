@@ -108,105 +108,134 @@ export function MinhasReservasList({
     );
   }
 
+  const groups = new Map<string, MyBooking[]>();
+  for (const item of items) {
+    const key = item.date.slice(0, 7);
+    const group = groups.get(key) ?? [];
+    group.push(item);
+    groups.set(key, group);
+  }
+
   return (
     <div className="grid max-w-[760px] gap-3">
-      {items.map((item) => {
-        const isNew = newId === item.id;
-        const [, monthStr = "01", dayStr = "01"] = item.date.split("-");
-        const dayNumber = Number(dayStr);
-        const monthIdx = Number(monthStr) - 1;
-        const weekdayName = WEEKDAY_SHORT[weekdayOf(item.date)] ?? "";
-        const monthName = MONTH_SHORT[monthIdx] ?? "";
-        const isImported = item.source === "import";
-
+      {[...groups].map(([monthKey, monthItems], groupIndex) => {
+        const [year = "", month = "01"] = monthKey.split("-");
+        const monthTitle = `${MONTH_SHORT[Number(month) - 1] ?? month} ${year}`;
+        const containsNew = monthItems.some((item) => item.id === newId);
         return (
-          <article
-            key={item.id}
-            id={`booking-${item.id}`}
-            data-testid={`booking-card-${item.id}`}
-            className={cn(
-              "grid grid-cols-[56px_1fr] sm:grid-cols-[64px_1fr_auto] gap-3.5 sm:gap-4 p-4 border rounded-2xl bg-surface items-start sm:items-center transition-all",
-              isNew
-                ? "border-primary ring-3 ring-primary/25 shadow-sm item-new"
-                : "border-border hover:border-border/80 hover:shadow-xs",
-            )}
+          <details
+            key={monthKey}
+            open={groupIndex === 0 || containsNew}
+            className="group rounded-xl border border-border bg-surface"
           >
-            {/* Badge de Data */}
-            <div
-              aria-hidden="true"
-              className="grid w-14 sm:w-16 shrink-0 justify-items-center rounded-xl bg-surface-2 py-2 leading-none select-none"
-            >
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {monthName}
+            <summary className="flex cursor-pointer list-none items-center justify-between gap-3 rounded-xl px-4 py-3 text-sm font-semibold text-foreground marker:hidden hover:bg-surface-2 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring">
+              <span>{monthTitle}</span>
+              <span className="text-xs font-medium text-muted-foreground">
+                {monthItems.length} {monthItems.length === 1 ? "ocorrência" : "ocorrências"}
               </span>
-              <span className="my-0.5 text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                {dayNumber}
-              </span>
-              <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                {weekdayName}
-              </span>
-            </div>
+            </summary>
+            <div className="grid gap-2 border-t border-border p-2">
+              {monthItems.map((item) => {
+                const isNew = newId === item.id;
+                const [, monthStr = "01", dayStr = "01"] = item.date.split("-");
+                const dayNumber = Number(dayStr);
+                const monthIdx = Number(monthStr) - 1;
+                const weekdayName = WEEKDAY_SHORT[weekdayOf(item.date)] ?? "";
+                const monthName = MONTH_SHORT[monthIdx] ?? "";
+                const isImported = item.source === "import";
 
-            {/* Detalhes da Ocupação */}
-            <div className="min-w-0 flex-1 grid gap-1">
-              <div className="flex items-center gap-2">
-                <h3 className="text-base font-semibold tracking-tight text-foreground truncate">
-                  {item.title}
-                </h3>
-                {isNew && (
-                  <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                    Nova
-                  </span>
-                )}
-              </div>
-              <p className="text-sm text-muted-foreground">
-                {item.spaceName} · {item.start}–{item.end}
-              </p>
-              <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                {isImported ? (
-                  <span className="inline-flex items-center rounded-md border border-line-imported bg-occ-imported px-2 py-0.5 text-xs font-medium text-foreground">
-                    Aula importada · você é responsável
-                  </span>
-                ) : (
-                  <span className="inline-flex items-center rounded-md border border-line-booked bg-occ-booked px-2 py-0.5 text-xs font-medium text-foreground">
-                    Reserva manual
-                  </span>
-                )}
-                {item.inSeries && (
-                  <span
-                    data-testid="series-badge"
-                    className="inline-flex items-center rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs font-medium text-foreground"
+                return (
+                  <article
+                    key={item.id}
+                    id={`booking-${item.id}`}
+                    data-testid={`booking-card-${item.id}`}
+                    className={cn(
+                      "grid grid-cols-[56px_1fr] sm:grid-cols-[64px_1fr_auto] gap-3.5 sm:gap-4 p-4 border rounded-2xl bg-surface items-start sm:items-center transition-all",
+                      isNew
+                        ? "border-primary ring-3 ring-primary/25 shadow-sm item-new"
+                        : "border-border hover:border-border/80 hover:shadow-xs",
+                    )}
                   >
-                    Série
-                  </span>
-                )}
-              </div>
-            </div>
+                    {/* Badge de Data */}
+                    <div
+                      aria-hidden="true"
+                      className="grid w-14 sm:w-16 shrink-0 justify-items-center rounded-xl bg-surface-2 py-2 leading-none select-none"
+                    >
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {monthName}
+                      </span>
+                      <span className="my-0.5 text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+                        {dayNumber}
+                      </span>
+                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        {weekdayName}
+                      </span>
+                    </div>
 
-            {/* Ações */}
-            <div className="col-span-full sm:col-span-1 flex justify-end gap-2 sm:self-center">
-              {item.canEdit && item.source === "manual" && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSelectEdit?.(item)}
-                >
-                  Editar
-                </Button>
-              )}
-              {item.canCancel && (
-                <Button
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  onClick={() => onSelectCancel?.(item)}
-                >
-                  Cancelar…
-                </Button>
-              )}
+                    {/* Detalhes da Ocupação */}
+                    <div className="min-w-0 flex-1 grid gap-1">
+                      <div className="flex items-center gap-2">
+                        <h3 className="text-base font-semibold tracking-tight text-foreground truncate">
+                          {item.title}
+                        </h3>
+                        {isNew && (
+                          <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+                            Nova
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-sm text-muted-foreground">
+                        {item.spaceName} · {item.start}–{item.end}
+                      </p>
+                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+                        {isImported ? (
+                          <span className="inline-flex items-center rounded-md border border-line-imported bg-occ-imported px-2 py-0.5 text-xs font-medium text-foreground">
+                            Aula importada · você é responsável
+                          </span>
+                        ) : (
+                          <span className="inline-flex items-center rounded-md border border-line-booked bg-occ-booked px-2 py-0.5 text-xs font-medium text-foreground">
+                            Reserva manual
+                          </span>
+                        )}
+                        {item.inSeries && (
+                          <span
+                            data-testid="series-badge"
+                            className="inline-flex items-center rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs font-medium text-foreground"
+                          >
+                            Série
+                          </span>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Ações */}
+                    <div className="col-span-full sm:col-span-1 flex justify-end gap-2 sm:self-center">
+                      {item.canEdit && item.source === "manual" && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onSelectEdit?.(item)}
+                        >
+                          Editar
+                        </Button>
+                      )}
+                      {item.canCancel && (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          onClick={() => onSelectCancel?.(item)}
+                        >
+                          Cancelar…
+                        </Button>
+                      )}
+                    </div>
+                  </article>
+                );
+              })}
             </div>
-          </article>
+          </details>
         );
       })}
     </div>

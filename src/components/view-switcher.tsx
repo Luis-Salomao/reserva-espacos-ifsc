@@ -10,6 +10,13 @@ const VIEWS: ReadonlyArray<{ value: PageView; label: string }> = [
   { value: "geral", label: "Visão geral" },
 ];
 
+const VIEW_HELP: Record<PageView, string> = {
+  sala: "Veja a semana de uma sala. Use o seletor para trocar de ambiente.",
+  colunas: "Compare a ocupação das salas em um dia.",
+  livres: "Encontre apenas salas livres no intervalo selecionado.",
+  geral: "Confira a ocupação semanal dos espaços.",
+};
+
 type Props = {
   value: PageView;
   onChange: (view: PageView) => void;
@@ -19,24 +26,27 @@ type Props = {
 /** Botões de visualização; o escolhido fica marcado com `aria-pressed`. */
 export function ViewSwitcher({ value, onChange, className }: Props) {
   return (
-    <fieldset
-      aria-label="Visualização"
-      className={cn("flex rounded-md border bg-surface p-0.5", className)}
-    >
-      {VIEWS.map((view) => (
-        <button
-          key={view.value}
-          type="button"
-          aria-pressed={value === view.value}
-          onClick={() => onChange(view.value)}
-          className={cn(
-            "rounded-[5px] px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground",
-            value === view.value && "bg-background text-foreground shadow-xs",
-          )}
-        >
-          {view.label}
-        </button>
-      ))}
-    </fieldset>
+    <div className={cn("grid gap-1", className)}>
+      <fieldset aria-label="Visualização" className="flex w-fit rounded-md border bg-surface p-0.5">
+        {VIEWS.map((view) => (
+          <button
+            key={view.value}
+            type="button"
+            aria-pressed={value === view.value}
+            title={VIEW_HELP[view.value]}
+            onClick={() => onChange(view.value)}
+            className={cn(
+              "rounded-[5px] px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+              value === view.value && "bg-background text-foreground shadow-xs",
+            )}
+          >
+            {view.label}
+          </button>
+        ))}
+      </fieldset>
+      <p className="text-xs text-muted-foreground" aria-live="polite">
+        {VIEW_HELP[value]}
+      </p>
+    </div>
   );
 }

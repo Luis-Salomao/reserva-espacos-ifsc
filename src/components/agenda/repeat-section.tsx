@@ -169,7 +169,7 @@ export function RepeatSection({ id, date, value, onChange, error }: RepeatSectio
               id={`${id}-freq`}
               value={value.freq}
               onChange={(event) => chooseFreq(event.target.value as RepeatState["freq"])}
-              className="h-10 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring dark:bg-input/30"
+              className="h-10 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm text-foreground shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring dark:bg-input dark:[color-scheme:dark]"
             >
               {freqOptions(date).map((option) => (
                 <option key={option.value} value={option.value}>
@@ -204,7 +204,7 @@ export function RepeatSection({ id, date, value, onChange, error }: RepeatSectio
                   })}
                 </div>
               </fieldset>
-              <Field id={`${id}-interval`} label="A cada quantas semanas">
+              <Field id={`${id}-interval`} label="Repetir a cada quantas semanas?">
                 <Input
                   id={`${id}-interval`}
                   type="number"
@@ -214,6 +214,10 @@ export function RepeatSection({ id, date, value, onChange, error }: RepeatSectio
                   value={value.interval}
                   onChange={(event) => onChange({ ...value, interval: Number(event.target.value) })}
                 />
+                <p className="text-xs text-muted-foreground">
+                  1 repete toda semana; 2 repete semana sim, semana não; 3 repete a cada três
+                  semanas.
+                </p>
               </Field>
             </>
           )}

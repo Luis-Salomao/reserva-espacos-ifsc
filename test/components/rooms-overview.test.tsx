@@ -621,6 +621,20 @@ describe("RoomsOverview", () => {
     expect(panelTitle()).toBe("segunda 09/11 · 08:00–12:00");
   });
 
+  test("no modo móvel, a visão semanal vira cartões por sala e permite escolher um horário", async () => {
+    const { onBook } = await renderOverview({ compact: true });
+    expect(
+      screen.getByRole("region", { name: /Disponibilidade por sala em segunda 09\/11/i }),
+    ).toBeDefined();
+    expect(document.querySelector('[data-testid="rooms-overview"]')?.className).toContain("hidden");
+    const free = screen.getByRole("button", {
+      name: /B-104, Manhã 12, 08:00–09:50: livre/i,
+    });
+    fireEvent.click(free);
+    expect(selectionPanel()).toBeDefined();
+    expect(onBook).not.toHaveBeenCalled();
+  });
+
   test("ocupação fora de todos os blocos aparece no aviso da linha da sala", async () => {
     await renderOverview();
     const warning = document.querySelector("[data-outside='lab']") as HTMLElement | null;

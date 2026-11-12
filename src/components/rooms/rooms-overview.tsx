@@ -38,7 +38,7 @@ type Props = {
 const periodOf = (start: string) =>
   start < "12:00" ? "Manh\u00e3" : start < "18:00" ? "Tarde" : "Noite";
 
-const TAB_DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex"];
+const TAB_DAYS = ["Seg", "Ter", "Qua", "Qui", "Sex", "Sáb", "Dom"];
 
 /** Arrasto em andamento: índices dos blocos do dia onde começou e onde o ponteiro está. */
 type Sweep = { date: string; from: number; to: number; spaceId: string };
@@ -116,12 +116,14 @@ export function RoomsOverview({
   const [pick, setPick] = useState<OverviewPick | null>(null);
   const [sweep, setSweep] = useState<Sweep | null>(null);
   const panelRef = useRef<HTMLElement>(null);
-  const shownDays = (compact && !loadWeek ? week.days.slice(tab, tab + 1) : week.days).map(
-    (day) => ({
-      ...day,
-      blocks: day.blocks.filter((block) => period === "Todos" || periodOf(block.start) === period),
-    }),
-  );
+  useEffect(() => {
+    const selectedIndex = week.days.findIndex((day) => day.date === selectedDate);
+    if (selectedIndex >= 0) setTab(selectedIndex);
+  }, [selectedDate, week.days]);
+  const shownDays = (compact ? week.days.slice(tab, tab + 1) : week.days).map((day) => ({
+    ...day,
+    blocks: day.blocks.filter((block) => period === "Todos" || periodOf(block.start) === period),
+  }));
   useEffect(() => {
     void period;
     setPick(null);
@@ -225,6 +227,7 @@ export function RoomsOverview({
     });
     return { room, days, outside: days.flatMap((day) => day.outside) };
   });
+  const mobileDay = shownDays[0] ?? null;
   return (
     <div className="grid gap-3">
       {selectedPeriod === undefined && <OverviewPeriods value={period} onChange={setLocalPeriod} />}
@@ -243,7 +246,7 @@ export function RoomsOverview({
         {active === null ? (
           <details className="rounded-lg border px-3 py-2">
             <summary className="cursor-pointer text-xs font-medium text-muted-foreground">
-              Cores das disciplinas
+              Cores e padrões das disciplinas
             </summary>
             <OverviewLegend
               entries={legendOf(rooms)}
@@ -275,7 +278,7 @@ export function RoomsOverview({
           />
         )}
       </div>
-      {compact && !loadWeek && (
+      {compact && (
         <div
           role="tablist"
           aria-label="Dia da semana"
@@ -298,10 +301,82 @@ export function RoomsOverview({
           ))}
         </div>
       )}
+      {compact && mobileDay !== null && (
+        <section
+          aria-label={`Disponibilidade por sala em ${dayLabel(mobileDay.date)}`}
+          className="grid gap-3"
+        >
+          <p className="text-sm text-muted-foreground">
+            Toque em um horário para consultar a disponibilidade e escolher uma sala.
+          </p>
+          {rows.map(({ room, days }) => {
+            const day = mobileDay;
+            const cells = days[0]?.cells ?? [];
+            return (
+              <article
+                key={room.space.id}
+                className="grid gap-2 rounded-xl border border-border bg-surface p-3"
+              >
+                <header className="flex min-w-0 items-center justify-between gap-2">
+                  <div className="min-w-0">
+                    <h3 className="truncate font-semibold text-foreground">{room.space.name}</h3>
+                    <div className="mt-1 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
+                      {spacesIndex[room.space.id] ? (
+                        <SpaceDetails space={spacesIndex[room.space.id] as Space} compact />
+                      ) : null}
+                      <RoomDetailsButton
+                        space={spacesIndex[room.space.id]}
+                        roomName={room.space.name}
+                      />
+                    </div>
+                  </div>
+                </header>
+                <div className="grid grid-cols-2 gap-2">
+                  {cells.map((cell) => {
+                    const occupied = cell.items.length > 0;
+                    const labels = cell.items.map(({ item }) => item.title).join(", ");
+                    return (
+                      <button
+                        key={`${cell.block.short}-${cell.block.start}`}
+                        type="button"
+                        onClick={() =>
+                          setPick({
+                            date: day.date,
+                            start: cell.block.start,
+                            end: cell.block.end,
+                            suggested: room.space.id,
+                          })
+                        }
+                        aria-label={`${room.space.name}, ${cell.block.label}, ${cell.block.start}–${cell.block.end}: ${occupied ? labels : "livre"}`}
+                        className={cn(
+                          "grid min-h-14 content-center gap-0.5 rounded-lg border px-2 py-2 text-left focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring",
+                          occupied
+                            ? "border-line-imported bg-occ-imported text-foreground"
+                            : "border-border bg-background text-foreground hover:border-primary hover:bg-primary/5",
+                          active?.date === day.date &&
+                            active.suggested === room.space.id &&
+                            cell.block.start < active.end &&
+                            cell.block.end > active.start &&
+                            "ring-2 ring-primary",
+                        )}
+                      >
+                        <span className="text-xs font-semibold tabular-nums">
+                          {cell.block.start}–{cell.block.end}
+                        </span>
+                        <span className="truncate text-xs">{occupied ? labels : "Livre"}</span>
+                      </button>
+                    );
+                  })}
+                </div>
+              </article>
+            );
+          })}
+        </section>
+      )}
       <div
         ref={viewport}
         data-testid="rooms-overview"
-        className="w-full max-w-full overflow-x-auto"
+        className={cn("w-full max-w-full overflow-x-auto", compact && "hidden")}
         onScroll={(event) => {
           const el = event.currentTarget;
           if (!error && el.scrollWidth - el.scrollLeft - el.clientWidth < 320) void loadMore();
