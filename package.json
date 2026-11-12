@@ -18,7 +18,7 @@
     "build:local": "bunx --bun vite build && bun run scripts/copy-migrations.ts",
     "build:cf": "DEPLOY_TARGET=cloudflare vite build",
     "build": "bun run build:local",
-    "start:local": "bun run cli/check-env.ts && MIGRATIONS_DIR=.output/drizzle bun .output/server/index.mjs",
+    "start:local": "NODE_ENV=production bun run cli/check-env.ts && NODE_ENV=production MIGRATIONS_DIR=.output/drizzle bun .output/server/index.mjs",
     "dev:cf": "DEPLOY_TARGET=cloudflare CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false vite dev",
     "preview:cf": "bun run build:cf && CLOUDFLARE_LOAD_DEV_VARS_FROM_DOT_ENV=false wrangler dev",
     "deploy:cf": "bun run cf:check && bun run build:cf && wrangler deploy",

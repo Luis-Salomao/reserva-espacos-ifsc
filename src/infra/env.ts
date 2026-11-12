@@ -1,5 +1,6 @@
 import { createEnv } from "@t3-oss/env-core";
 import { z } from "zod";
+import { settings } from "#/infra/settings";
 
 export type AppEnv = {
   DEPLOY_TARGET: "local" | "cloudflare";
@@ -37,11 +38,33 @@ function parsePublicOrigin(value: string): string | null {
 type EnvSource = Record<string, string | undefined>;
 
 /**
+ * Prioridade: variável de ambiente (vazia conta como ausente) > settings.ts > padrão do esquema.
+ * DATABASE_PATH de settings.ts vale só no alvo local e fora de produção (NODE_ENV=production
+ * não tem padrão oculto).
+ */
+function withSettings(source: EnvSource): EnvSource {
+  const { DATABASE_PATH: defaultDatabasePath, ...common } = settings;
+  const merged: EnvSource = { ...common };
+  for (const [name, value] of Object.entries(source)) {
+    if (value !== undefined && value !== "") merged[name] = value;
+  }
+  if (
+    merged.DEPLOY_TARGET === "local" &&
+    merged.DATABASE_PATH === undefined &&
+    merged.NODE_ENV !== "production"
+  ) {
+    merged.DATABASE_PATH = defaultDatabasePath;
+  }
+  return merged;
+}
+
+/**
  * Valida o ambiente a partir de uma fonte explícita. Função pura (não uma
  * constante de módulo) porque em Cloudflare Workers o env só existe por requisição.
  * Erros listam apenas os nomes das variáveis inválidas, nunca os valores.
  */
-export function getEnv(source: EnvSource): AppEnv {
+export function getEnv(rawSource: EnvSource): AppEnv {
+  const source = withSettings(rawSource);
   const parsed = createEnv({
     server: {
       DEPLOY_TARGET: z.enum(["local", "cloudflare"]),

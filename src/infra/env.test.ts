@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { getEnv } from "#/infra/env";
+import { settings } from "#/infra/settings";
 
 describe("getEnv", () => {
   test("aplica padrões de fuso e leitura pública", () => {
@@ -10,7 +11,38 @@ describe("getEnv", () => {
   });
 
   test("exige DATABASE_PATH no alvo local", () => {
-    expect(() => getEnv({ DEPLOY_TARGET: "local" })).toThrow("DATABASE_PATH");
+    expect(() => getEnv({ DEPLOY_TARGET: "local", NODE_ENV: "production" })).toThrow(
+      "DATABASE_PATH",
+    );
+  });
+
+  test("em desenvolvimento local usa o padrão de settings.ts sem variáveis", () => {
+    const env = getEnv({});
+    expect(env.DEPLOY_TARGET).toBe("local");
+    expect(env.DATABASE_PATH).toBe(settings.DATABASE_PATH);
+    expect(env.DATABASE_PATH).toBe("./data/dev.sqlite");
+  });
+
+  test("variável de ambiente (vazia conta como ausente) tem prioridade sobre settings.ts", () => {
+    expect(getEnv({ DATABASE_PATH: "outro.sqlite" }).DATABASE_PATH).toBe("outro.sqlite");
+    expect(getEnv({ DATABASE_PATH: "" }).DATABASE_PATH).toBe("./data/dev.sqlite");
+    expect(getEnv({ TIMEZONE: "UTC" }).TIMEZONE).toBe("UTC");
+    expect(getEnv({ AGENDA_OPENS_AT: "07:00" }).AGENDA_OPENS_AT).toBe("07:00");
+  });
+
+  test("cloudflare não recebe DATABASE_PATH padrão", () => {
+    expect(getEnv({ DEPLOY_TARGET: "cloudflare" }).DATABASE_PATH).toBeUndefined();
+  });
+
+  test("settings.ts não contém segredos", () => {
+    for (const name of [
+      "PASSWORD_PEPPER",
+      "RESEND_API_KEY",
+      "EMAIL_PAYLOAD_KEY",
+      "PUBLIC_ORIGIN",
+    ]) {
+      expect(Object.keys(settings)).not.toContain(name);
+    }
   });
 
   test("aceita cloudflare sem DATABASE_PATH e lê PUBLIC_READ=false", () => {

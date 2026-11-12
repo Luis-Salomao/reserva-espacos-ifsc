@@ -50,9 +50,28 @@ describe("getDb sem DATABASE_PATH", () => {
     resetDbCache();
   });
 
-  test("falha nomeando a variável", () => {
+  test("em desenvolvimento usa ./data/dev.sqlite e cria data/", () => {
+    resetDbCache();
+    const cwd = process.cwd();
+    const dir = mkdtempSync(join(tmpdir(), "dev-default-"));
+    process.chdir(dir);
+    try {
+      process.env.DEPLOY_TARGET = "local";
+      process.env.NODE_ENV = "development";
+      Reflect.deleteProperty(process.env, "DATABASE_PATH");
+      getDb();
+      expect(existsSync(join(dir, "data", "dev.sqlite"))).toBe(true);
+    } finally {
+      resetDbCache();
+      process.chdir(cwd);
+      rmSync(dir, { recursive: true, force: true });
+    }
+  });
+
+  test("em produção falha nomeando a variável", () => {
     resetDbCache();
     process.env.DEPLOY_TARGET = "local";
+    process.env.NODE_ENV = "production";
     Reflect.deleteProperty(process.env, "DATABASE_PATH");
     expect(() => getDb()).toThrow("DATABASE_PATH");
   });
