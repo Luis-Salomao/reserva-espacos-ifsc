@@ -238,10 +238,12 @@ describe("contas fantasmas", () => {
     expect(screen.getAllByRole("button", { name: "Fundir" })).toHaveLength(1);
   });
 
-  test("filtro 'Só não ativadas' mostra só as fantasmas", async () => {
+  test("filtro de status 'Não ativadas' mostra só as fantasmas", async () => {
     await renderManager([me, other, ghost]);
     expect(screen.getByRole("heading", { name: "Contas (3)" })).toBeTruthy();
-    fireEvent.click(screen.getByLabelText("Só não ativadas"));
+    fireEvent.change(screen.getByLabelText("Filtrar por status"), {
+      target: { value: "placeholder" },
+    });
     expect(screen.getByRole("heading", { name: "Contas (1)" })).toBeTruthy();
     expect(screen.queryByText("Outro Docente")).toBeNull();
     expect(screen.getByText("Zeca Quintal")).toBeTruthy();
@@ -316,6 +318,71 @@ describe("contas fantasmas", () => {
     fireEvent.change(select, { target: { value: "outro" } });
     fireEvent.submit(select.closest("form") as HTMLFormElement);
     expect((await screen.findByRole("alert")).textContent).toMatch(/As contas mudaram/);
+  });
+});
+
+describe("consulta de contas", () => {
+  const horarios: User = {
+    ...other,
+    id: "horarios",
+    name: "María Soares",
+    email: "maria.soares@ifsc.edu.br",
+    code: "MS",
+    roles: ["horarios"],
+  };
+  const maintenance: User = {
+    ...other,
+    id: "maintenance",
+    name: "Pessoa Inativa",
+    email: "inativa@ifsc.edu.br",
+    code: "PI",
+    active: false,
+    roles: ["manutencao"],
+  };
+
+  test("busca por nome sem acento, e-mail e sigla e mostra a contagem filtrada", async () => {
+    await renderManager([me, other, ghost, horarios]);
+    const search = screen.getByRole("searchbox", { name: "Buscar por nome, e-mail ou sigla" });
+
+    fireEvent.change(search, { target: { value: "maria" } });
+    expect(screen.getByText("María Soares")).toBeTruthy();
+    expect(screen.queryByText("Outro Docente")).toBeNull();
+    expect(screen.getByText("Exibindo 1 de 4 contas")).toBeTruthy();
+
+    fireEvent.change(search, { target: { value: "zeca.quintal@" } });
+    expect(screen.getByText("Zeca Quintal")).toBeTruthy();
+    expect(screen.queryByText("María Soares")).toBeNull();
+
+    fireEvent.change(search, { target: { value: "zq" } });
+    expect(screen.getByText("Zeca Quintal")).toBeTruthy();
+    expect(screen.queryByText("Outro Docente")).toBeNull();
+  });
+
+  test("combina filtros de papel e status sem perder as ações da conta", async () => {
+    await renderManager([me, other, ghost, maintenance]);
+    fireEvent.change(screen.getByLabelText("Filtrar por papel"), {
+      target: { value: "manutencao" },
+    });
+    fireEvent.change(screen.getByLabelText("Filtrar por status"), {
+      target: { value: "inactive" },
+    });
+
+    expect(screen.getByRole("heading", { name: "Contas (1)" })).toBeTruthy();
+    expect(screen.getByText("Pessoa Inativa")).toBeTruthy();
+    expect(screen.queryByText("Outro Docente")).toBeNull();
+    expect(screen.getByRole("button", { name: "Reativar" })).toBeTruthy();
+  });
+
+  test("mostra estado vazio e oferece limpar os filtros", async () => {
+    await renderManager([me, other]);
+    fireEvent.change(screen.getByRole("searchbox", { name: "Buscar por nome, e-mail ou sigla" }), {
+      target: { value: "sem resultado" },
+    });
+
+    expect(screen.getByText("Nenhuma conta encontrada.")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
+    expect(screen.getByRole("heading", { name: "Contas (2)" })).toBeTruthy();
+    expect(screen.getByText("Outro Docente")).toBeTruthy();
   });
 });
 
@@ -827,6 +894,29 @@ describe("SemesterForm", () => {
     expect(start.getAttribute("aria-invalid")).toBe("true");
     expect(start.getAttribute("aria-describedby")).toBe(alert.id);
     expect(semesterCalls[0]).toMatchObject({ name: "2026.2", terms: expect.any(Array) });
+  });
+
+  test("editar o início limpa o erro de validação anterior desse campo", async () => {
+    semesterResponse = {
+      ok: false,
+      status: 400,
+      message: "Data de início inválida.",
+      field: "start",
+    };
+    renderForm();
+    const name = (await screen.findByLabelText("Nome")) as HTMLInputElement;
+    fireEvent.change(name, { target: { value: "2026.2" } });
+    fireEvent.submit(name.closest("form") as HTMLFormElement);
+    await screen.findByText("Data de início inválida.");
+
+    const start = screen.getAllByLabelText("Início")[0] as HTMLInputElement;
+    fireEvent.click(start);
+    fireEvent.click(await screen.findByText("15", { selector: "button" }));
+
+    await waitFor(() => {
+      expect(screen.queryByText("Data de início inválida.")).toBeNull();
+      expect(start.getAttribute("aria-invalid")).not.toBe("true");
+    });
   });
 
   test("erro em campo de bloco leva o foco ao campo do bloco certo", async () => {

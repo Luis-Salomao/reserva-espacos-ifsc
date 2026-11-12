@@ -52,9 +52,17 @@ function subjectPattern(subject: string): number {
   return hash % 4;
 }
 
-/** Reserva avulsa tem a cor neutra; aula importada, a cor da matéria. */
+/**
+ * Reserva avulsa mantém a cor neutra, exceto quando usa o título canônico da importação
+ * `MATÉRIA — TURMA`; nesse caso, compartilha a cor da matéria para indicar o vínculo escolhido.
+ */
 export function legendEntryOf(item: Pick<AgendaItem, "source" | "title">): LegendEntry {
-  if (item.source === "manual")
+  const hasImportedSubjectTitle =
+    item.source === "manual" &&
+    !isMaintenanceTitle(item.title) &&
+    item.title.includes(" — ") &&
+    item.title.slice(0, item.title.indexOf(" — ")).trim() !== "";
+  if (item.source === "manual" && !hasImportedSubjectTitle)
     return { key: "reserva", label: "Reserva", tone: RESERVA_TONE, pattern: 0 };
   const subject = subjectOf(item.title);
   return {

@@ -101,13 +101,17 @@ function CreateAccountForm() {
   const passwordError = fieldError(result, "password");
   return (
     <Card>
-      <form onSubmit={onSubmit} className="grid gap-4">
-        <h2 className="text-lg font-semibold tracking-tight">Nova conta</h2>
-        <GeneralError message={generalError(result)} />
+      <form onSubmit={onSubmit} className="grid gap-3 sm:grid-cols-2 sm:gap-x-4 sm:gap-y-3">
+        <h2 className="text-lg font-semibold tracking-tight sm:col-span-2">Nova conta</h2>
+        <div className="sm:col-span-2">
+          <GeneralError message={generalError(result)} />
+        </div>
         {result?.ok === true && (
-          <Notice tone="ok" role="status">
-            Conta criada.
-          </Notice>
+          <div className="sm:col-span-2">
+            <Notice tone="ok" role="status">
+              Conta criada.
+            </Notice>
+          </div>
         )}
         <div className="grid gap-2">
           <Label htmlFor={`${uid}-email`}>E-mail</Label>
@@ -153,12 +157,14 @@ function CreateAccountForm() {
           />
           <FieldError id={`${uid}-code-error`} message={codeError} />
         </div>
-        <RolesField
-          idPrefix={uid}
-          value={roles}
-          onChange={setRoles}
-          error={fieldError(result, "roles")}
-        />
+        <div className="sm:col-span-2">
+          <RolesField
+            idPrefix={uid}
+            value={roles}
+            onChange={setRoles}
+            error={fieldError(result, "roles")}
+          />
+        </div>
         <div className="grid gap-2">
           <Label htmlFor={`${uid}-password`}>Senha inicial (mínimo 10 caracteres)</Label>
           <Input
@@ -502,7 +508,7 @@ function AccountItem({
   const toView = () => setMode("view");
   return (
     <li>
-      <Card>
+      <Card compact>
         <div className="flex flex-wrap items-start justify-between gap-2">
           <div className="min-w-0">
             <p className="break-words font-medium">{user.name}</p>
@@ -517,7 +523,7 @@ function AccountItem({
             <Tag tone={user.active ? "free" : "conflict"}>{user.active ? "Ativa" : "Inativa"}</Tag>
           </div>
         </div>
-        <div className="mt-3 flex flex-wrap gap-2">
+        <div className="mt-2 flex flex-wrap gap-2">
           {user.placeholder && (
             <>
               <Button
@@ -590,36 +596,120 @@ export function AccountsManager({
   users: User[];
   currentUserId: string;
 }) {
-  const [onlyPlaceholders, setOnlyPlaceholders] = useState(false);
-  const visible = onlyPlaceholders ? users.filter((user) => user.placeholder) : users;
+  const [query, setQuery] = useState("");
+  const [roleFilter, setRoleFilter] = useState<Role | "all">("all");
+  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "inactive" | "placeholder">(
+    "all",
+  );
+  const normalizedQuery = normalizeAccountSearch(query);
+  const visible = users.filter((user) => {
+    const matchesQuery =
+      normalizedQuery === "" ||
+      [user.name, user.email, user.code ?? ""].some((value) =>
+        normalizeAccountSearch(value).includes(normalizedQuery),
+      );
+    const matchesRole = roleFilter === "all" || user.roles.includes(roleFilter);
+    const matchesStatus =
+      statusFilter === "all" ||
+      (statusFilter === "placeholder"
+        ? user.placeholder
+        : statusFilter === "active"
+          ? user.active && !user.placeholder
+          : !user.active && !user.placeholder);
+    return matchesQuery && matchesRole && matchesStatus;
+  });
+  const hasFilters = query !== "" || roleFilter !== "all" || statusFilter !== "all";
   const mergeTargets = users.filter((user) => !user.placeholder && user.active);
+
+  function clearFilters() {
+    setQuery("");
+    setRoleFilter("all");
+    setStatusFilter("all");
+  }
+
   return (
-    <div className="grid gap-6">
+    <div className="grid gap-4">
       <CreateAccountForm />
-      <section aria-labelledby="accounts-title" className="grid gap-3">
+      <section aria-labelledby="accounts-title" className="grid gap-2">
         <h2 id="accounts-title" className="text-lg font-semibold tracking-tight">
           Contas ({visible.length})
         </h2>
-        <label className="flex w-fit items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={onlyPlaceholders}
-            onChange={(event) => setOnlyPlaceholders(event.target.checked)}
-            className="size-4 accent-primary"
-          />
-          Só não ativadas
-        </label>
-        <ul className="grid gap-3">
-          {visible.map((user) => (
-            <AccountItem
-              key={user.id}
-              user={user}
-              isSelf={user.id === currentUserId}
-              mergeTargets={mergeTargets}
+        <div className="grid gap-2 md:grid-cols-[minmax(0,1fr)_minmax(10rem,14rem)_minmax(10rem,14rem)]">
+          <div className="grid min-w-0 gap-1">
+            <Label htmlFor="accounts-search">Buscar por nome, e-mail ou sigla</Label>
+            <Input
+              id="accounts-search"
+              type="search"
+              autoComplete="off"
+              placeholder="Nome, e-mail ou sigla"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
             />
-          ))}
-        </ul>
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="accounts-role">Filtrar por papel</Label>
+            <select
+              id="accounts-role"
+              value={roleFilter}
+              onChange={(event) => setRoleFilter(event.target.value as Role | "all")}
+              className="h-10 w-full rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring"
+            >
+              <option value="all">Todos os papéis</option>
+              {ROLE_OPTIONS.map((role) => (
+                <option key={role} value={role}>
+                  {ROLE_LABELS[role]}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="grid gap-1">
+            <Label htmlFor="accounts-status">Filtrar por status</Label>
+            <select
+              id="accounts-status"
+              value={statusFilter}
+              onChange={(event) => setStatusFilter(event.target.value as typeof statusFilter)}
+              className="h-10 w-full rounded-lg border bg-background px-3 text-sm outline-none focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring"
+            >
+              <option value="all">Todos os status</option>
+              <option value="active">Ativas</option>
+              <option value="inactive">Inativas</option>
+              <option value="placeholder">Não ativadas</option>
+            </select>
+          </div>
+        </div>
+        <div className="flex flex-wrap items-center justify-between gap-2">
+          <p role="status" aria-live="polite" className="text-sm text-muted-foreground">
+            Exibindo {visible.length} de {users.length} contas
+          </p>
+          {hasFilters && (
+            <Button type="button" size="sm" variant="outline" onClick={clearFilters}>
+              Limpar filtros
+            </Button>
+          )}
+        </div>
+        {visible.length === 0 ? (
+          <Notice>Nenhuma conta encontrada.</Notice>
+        ) : (
+          <ul className="grid gap-2 md:grid-cols-2">
+            {visible.map((user) => (
+              <AccountItem
+                key={user.id}
+                user={user}
+                isSelf={user.id === currentUserId}
+                mergeTargets={mergeTargets}
+              />
+            ))}
+          </ul>
+        )}
       </section>
     </div>
   );
+}
+
+function normalizeAccountSearch(value: string): string {
+  return value
+    .trim()
+    .normalize("NFD")
+    .replace(/\p{Diacritic}/gu, "")
+    .toLowerCase();
 }

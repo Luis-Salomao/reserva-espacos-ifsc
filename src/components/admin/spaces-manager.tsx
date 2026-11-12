@@ -39,7 +39,7 @@ export function SpacesManager({ spaces }: { spaces: Space[] }) {
   const visible = spaces.filter((space) => matchesRoomSearch(space.name, query));
   const groups = groupSpaces(visible);
   return (
-    <div className="grid gap-4">
+    <div className="grid gap-3">
       <div className="flex flex-wrap items-center gap-2">
         <div className="relative min-w-0 flex-1 basis-56">
           <Search
@@ -81,10 +81,10 @@ export function SpacesManager({ spaces }: { spaces: Space[] }) {
         </Callout>
       ) : (
         groups.map((block) => (
-          <section key={block.label} aria-label={block.label} className="grid min-w-0 gap-3">
+          <section key={block.label} aria-label={block.label} className="grid min-w-0 gap-2">
             <h2 className="text-lg font-semibold tracking-tight">{block.label}</h2>
             {block.floors.map((floor) => (
-              <div key={floor.label} className="grid min-w-0 gap-2">
+              <div key={floor.label} className="grid min-w-0 gap-1.5">
                 <h3 className="text-sm font-medium text-muted-foreground">{floor.label}</h3>
                 <ul className="grid gap-3 md:grid-cols-2">
                   {floor.spaces.map((space) => (

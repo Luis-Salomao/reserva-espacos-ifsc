@@ -51,6 +51,14 @@ const WEEK: RoomsWeek = {
           title: "Física — 2B",
           person: { name: "Ana Souza", code: "1234", placeholder: false },
         }),
+        item({
+          id: "manual-course",
+          date: FRI,
+          start: "10:10",
+          end: "12:00",
+          title: "Física — 2B",
+          source: "manual",
+        }),
         item({ id: "c2", date: WED, start: "08:00", end: "08:50" }),
         item({ id: "q1", date: WED, start: "09:00", end: "09:50", title: "Química — 3C" }),
         item({
@@ -238,6 +246,11 @@ describe("RoomsOverview", () => {
   test("reserva avulsa usa a cor neutra de 'Reserva'", async () => {
     await renderOverview();
     expect(stripesOf(cellAt("a202", THU, "M34"))).toEqual([RESERVA_TONE]);
+  });
+
+  test("reserva manual com título de matéria importada compartilha a cor da matéria", async () => {
+    await renderOverview();
+    expect(stripesOf(cellAt("a202", FRI, "M34"))).toEqual([toneOf("Física")]);
   });
 
   test("ocupação que não cobre o bloco inteiro marca o quadradinho como parcial", async () => {

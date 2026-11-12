@@ -46,7 +46,7 @@ export function SpaceCard({ space, onEdit, onDeleted }: Props) {
   const notes = space.equipment?.notes ?? null;
   return (
     <li className="min-w-0">
-      <Card className="flex h-full flex-col gap-3">
+      <Card compact className="flex h-full flex-col gap-2.5">
         <div className="min-w-0">
           <p className="font-medium wrap-anywhere">{space.name}</p>
           <p className="text-sm text-muted-foreground">

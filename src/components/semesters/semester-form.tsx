@@ -173,6 +173,13 @@ export function SemesterForm({ semester, onSaved, initialBlocks = [] }: Props) {
   const [saved, setSaved] = useState(false);
   useFocusInvalidField(result, uid);
 
+  function changeStart(value: string) {
+    setStart(value);
+    setResult((current) =>
+      current !== null && !current.ok && current.field === "start" ? null : current,
+    );
+  }
+
   function changeTerm(index: number, patch: Partial<TermDraft>) {
     setTerms(terms.map((term, i) => (i === index ? { ...term, ...patch } : term)));
   }
@@ -254,7 +261,7 @@ export function SemesterForm({ semester, onSaved, initialBlocks = [] }: Props) {
         <legend className="mb-1 text-base font-semibold">Vigência</legend>
         <div className="grid gap-3 sm:grid-cols-2">
           <Field id={`${uid}-start`} label="Início" error={fieldError(result, "start")}>
-            {(props) => <DatePicker {...props} required value={start} onChange={setStart} />}
+            {(props) => <DatePicker {...props} required value={start} onChange={changeStart} />}
           </Field>
           <Field id={`${uid}-end`} label="Fim" error={fieldError(result, "end")}>
             {(props) => <DatePicker {...props} required value={end} onChange={setEnd} />}
