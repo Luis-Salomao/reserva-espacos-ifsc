@@ -57,7 +57,6 @@ export function validateSalasSearch(search: Record<string, unknown>): SalasSearc
     search.visao === "colunas" || search.visao === "livres" || search.visao === "geral"
       ? search.visao
       : undefined;
-  const periodo = search.periodo === "dia" ? "dia" : undefined;
   const bloco = blocksFrom(search.bloco);
   const andar = floorsFrom(search.andar);
   const cap = capacityFrom(search.cap);
@@ -70,7 +69,6 @@ export function validateSalasSearch(search: Record<string, unknown>): SalasSearc
   return {
     ...(data !== undefined ? { data } : {}),
     ...(visao !== undefined ? { visao } : {}),
-    ...(periodo !== undefined ? { periodo } : {}),
     ...(bloco.length > 0 ? { bloco } : {}),
     ...(andar.length > 0 ? { andar } : {}),
     ...(cap !== undefined ? { cap } : {}),

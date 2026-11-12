@@ -85,7 +85,6 @@ type RenderOptions = {
   canReserve?: boolean;
   now?: string;
   compact?: boolean;
-  dayMode?: boolean;
   spacesIndex?: Record<string, Space>;
 };
 
@@ -99,7 +98,6 @@ async function renderOverview(options: RenderOptions = {}) {
         rooms={week.rooms}
         isVisitor={options.isVisitor ?? false}
         compact={options.compact ?? false}
-        dayMode={options.dayMode ?? false}
         selectedDate={MON}
         canReserve={options.canReserve ?? true}
         onBook={onBook}
@@ -669,17 +667,6 @@ describe("RoomsOverview", () => {
       name: /B-104, Manhã 12, 08:00–09:50: livre/i,
     });
     fireEvent.click(free);
-    expect(selectionPanel()).toBeDefined();
-    expect(onBook).not.toHaveBeenCalled();
-  });
-
-  test("modo dia em tela larga mostra só o dia selecionado em cartões, sem abas", async () => {
-    const { onBook } = await renderOverview({ dayMode: true });
-    expect(
-      screen.getByRole("region", { name: /Disponibilidade por sala em segunda 09\/11/i }),
-    ).toBeDefined();
-    expect(screen.queryByRole("tablist", { name: "Dia da semana" }) === null).toBe(true);
-    fireEvent.click(screen.getByRole("button", { name: /B-104, Manhã 12, 08:00–09:50: livre/i }));
     expect(selectionPanel()).toBeDefined();
     expect(onBook).not.toHaveBeenCalled();
   });

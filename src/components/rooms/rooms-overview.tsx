@@ -23,8 +23,6 @@ type Props = {
   isVisitor: boolean;
   /** Celular: um dia por vez, com abas de segunda a sexta. */
   compact: boolean;
-  /** Um dia por vez em qualquer largura (cartões por sala), sem as abas da semana. */
-  dayMode?: boolean;
   /** Dia escolhido: a aba aberta no celular. */
   selectedDate: string;
   /** Pode reservar ou é visitante (que recebe o convite para entrar): "Reservar" no painel. */
@@ -77,7 +75,6 @@ export function RoomsOverview({
   selectedPeriod,
   isVisitor,
   compact,
-  dayMode = false,
   selectedDate,
   canReserve,
   onBook,
@@ -101,8 +98,7 @@ export function RoomsOverview({
     const selectedIndex = dayKey.split(",").indexOf(selectedDate);
     if (selectedIndex >= 0) setTab(selectedIndex);
   }, [selectedDate, dayKey]);
-  const single = compact || dayMode;
-  const shownDays = (single ? week.days.slice(tab, tab + 1) : week.days).map((day) => ({
+  const shownDays = (compact ? week.days.slice(tab, tab + 1) : week.days).map((day) => ({
     ...day,
     blocks: day.blocks.filter((block) => period === "Todos" || periodOf(block.start) === period),
   }));
@@ -151,8 +147,8 @@ export function RoomsOverview({
   const pickStart = active?.start;
   // biome-ignore lint/correctness/useExhaustiveDependencies: rola até o painel a cada novo trecho
   useEffect(() => {
-    if (single && pickDate !== undefined) panelRef.current?.scrollIntoView?.({ block: "nearest" });
-  }, [single, pickDate, pickStart]);
+    if (compact && pickDate !== undefined) panelRef.current?.scrollIntoView?.({ block: "nearest" });
+  }, [compact, pickDate, pickStart]);
 
   function isSelected(
     spaceId: string,
@@ -175,7 +171,7 @@ export function RoomsOverview({
   }
 
   function startSweep(event: { button: number; pointerType: string }, next: Sweep) {
-    if (single || event.button !== 0 || event.pointerType === "touch") return;
+    if (compact || event.button !== 0 || event.pointerType === "touch") return;
     setSweep(next);
   }
 
@@ -266,7 +262,7 @@ export function RoomsOverview({
           />
         )}
       </div>
-      {compact && !dayMode && (
+      {compact && (
         <div
           role="tablist"
           aria-label="Dia da semana"
@@ -289,7 +285,7 @@ export function RoomsOverview({
           ))}
         </div>
       )}
-      {single && mobileDay !== null && (
+      {compact && mobileDay !== null && (
         <section
           aria-label={`Disponibilidade por sala em ${dayLabel(mobileDay.date)}`}
           className="grid gap-3"
@@ -319,12 +315,7 @@ export function RoomsOverview({
                     </div>
                   </div>
                 </header>
-                <div
-                  className={cn(
-                    "grid grid-cols-2 gap-2",
-                    dayMode && "sm:grid-cols-3 xl:grid-cols-4",
-                  )}
-                >
+                <div className={cn("grid grid-cols-2 gap-2")}>
                   {cells.map((cell) => {
                     const occupied = cell.items.length > 0;
                     const labels = cell.items.map(({ item }) => item.title).join(", ");
@@ -368,9 +359,9 @@ export function RoomsOverview({
       )}
       <div
         data-testid="rooms-overview"
-        className={cn("grid gap-6 select-none", single && "hidden")}
+        className={cn("grid gap-6 select-none", compact && "hidden")}
       >
-        {!single &&
+        {!compact &&
           shownDays.map((day, dayIndex) => {
             const label = dayLabel(day.date);
             const today = day.date === week.now.slice(0, 10);

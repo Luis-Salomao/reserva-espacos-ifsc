@@ -71,14 +71,18 @@ describe("AppShell", () => {
     expect(document.querySelectorAll("[data-faixa-ifsc]").length).toBe(1);
     expect(banner.textContent).not.toContain("…");
   });
-  test("bordas do cabeçalho e da lateral são neutras (sem verde)", async () => {
+  test("só a linha vertical da lateral é verde; o cabeçalho do visitante e a barra superior são neutros", async () => {
     await renderShell(<p>x</p>);
-    expect(screen.getByRole("banner").className).not.toContain("border-primary");
+    expect(screen.getByRole("banner").className).not.toContain("primary");
     cleanup();
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
-    const classes = screen.getByRole("banner").className;
-    expect(classes).not.toContain("border-primary");
+    const classes = screen.getByRole("banner").className.split(" ");
     expect(classes).toContain("md:border-r");
+    expect(classes).toContain("md:border-r-primary");
+    expect(classes).not.toContain("border-primary");
+    expect(screen.getByRole("navigation", { name: "Localização" }).className).not.toContain(
+      "primary",
+    );
   });
   test("a faixa vermelha é uma só, fixa no topo da janela e cobre a largura toda", async () => {
     for (const session of [null, { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" }]) {
