@@ -206,7 +206,7 @@ describe("Minhas Reservas — Suíte de Testes (Milestone 2 Task 4)", () => {
     test("agrupa recorrências e preserva a ação individual em cada ocorrência", async () => {
       await renderWithRouter(<MinhasReservasList items={[...MOCK_BOOKING_SERIES]} />);
 
-      const group = screen.getByTestId("booking-series-series-redes");
+      const group = screen.getByTestId("booking-series-series-redes") as HTMLDetailsElement;
       expect(group.open).toBe(false);
       expect(screen.getByTestId("booking-series-summary-series-redes").textContent).toContain(
         "Laboratório de Redes",
