@@ -8,12 +8,11 @@ import { ImportUpload } from "#/components/import/import-upload";
 import { OverlapList } from "#/components/import/overlap-list";
 import { RoomScheduleOverview } from "#/components/import/room-schedule-overview";
 import { ImportRoomsOverview } from "#/components/import/rooms-overview";
+
 import { SlotList } from "#/components/import/slot-list";
 import { TermsList } from "#/components/import/terms-list";
 import { WarningList } from "#/components/import/warning-list";
-import { WeeklyGrid } from "#/components/import/weekly-grid";
 import { Notice, PageHeader, PageSection } from "#/components/page";
-import { Label } from "#/components/ui/label";
 import type { PreviewImportResult } from "#/server/import-preview";
 import type { PreviewView } from "#/server/import-preview-view";
 
@@ -27,56 +26,26 @@ const IMPORT_DRAFT_KEY = ["import-session", "draft"] as const;
 type ImportDraftCache = { view: PreviewView; file: File; runId: number };
 
 function RoomGrid({ view }: { view: PreviewView }) {
-  const [roomId, setRoomId] = useState(view.rooms[0]?.id ?? "");
-  const [detailsOpen, setDetailsOpen] = useState(false);
-  const room = view.rooms.find((candidate) => candidate.id === roomId) ?? view.rooms[0];
-  if (room === undefined) {
+  if (view.rooms.length === 0) {
     return <p className="text-muted-foreground">Nenhuma sala encontrada no arquivo.</p>;
   }
   return (
-    <div className="grid gap-3">
+    <>
       <ImportRoomsOverview
         rooms={view.rooms}
         overlaps={view.overlapsDetail}
         truncated={view.overlapsTruncated}
-        onShowRoom={(id) => {
-          setRoomId(id);
-          setDetailsOpen(true);
-        }}
+        periods={view.periods}
       />
-      <RoomScheduleOverview rooms={view.rooms} />
-      <details
-        open={detailsOpen}
-        onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
-        className="grid gap-3 rounded-xl border bg-surface-2 p-3"
-      >
+      <details className="mt-3 rounded-lg border p-3">
         <summary className="cursor-pointer font-medium">
-          Grade detalhada por sala (opcional)
+          Comparar a grade semanal de todas as salas (opcional)
         </summary>
-        <div className="grid gap-3">
-          <div className="grid w-full min-w-0 max-w-xs gap-2">
-            <Label htmlFor="room-select">Sala</Label>
-            <select
-              id="room-select"
-              value={room.id}
-              onChange={(event) => setRoomId(event.target.value)}
-              className="h-10 w-full min-w-0 truncate rounded-lg border bg-background px-3 text-sm"
-            >
-              {view.rooms.map((candidate) => (
-                <option key={candidate.id} value={candidate.id}>
-                  {candidate.short}
-                  {candidate.name && candidate.name !== candidate.short
-                    ? ` – ${candidate.name}`
-                    : ""}{" "}
-                  ({candidate.slots.length})
-                </option>
-              ))}
-            </select>
-          </div>
-          <WeeklyGrid room={room} periods={view.periods} />
+        <div className="mt-3">
+          <RoomScheduleOverview rooms={view.rooms} />
         </div>
       </details>
-    </div>
+    </>
   );
 }
 
@@ -198,3 +167,4 @@ function ImportPage() {
     </AppShell>
   );
 }
+
