@@ -542,6 +542,33 @@ describe("RoomsView", () => {
     expect(router.state.location.search).toMatchObject({ visao: "geral" });
   });
 
+  test("visão geral em 'Dia': mostra só o dia, navega de dia em dia e volta para 'Semana'", async () => {
+    const { router } = await setup({ url: "/?visao=geral&periodo=dia" });
+    expect(screen.getByRole("heading", { level: 1 }).textContent).toBe(
+      "terça-feira, 12 de novembro",
+    );
+    expect(screen.getByRole("button", { name: "Dia" }).getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("region", { name: /Disponibilidade por sala em/ })).toBeDefined();
+    expect(screen.queryByRole("tablist", { name: "Dia da semana" }) === null).toBe(true);
+    fireEvent.click(screen.getByRole("button", { name: "Próximo dia" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ data: "2030-11-13" }));
+    fireEvent.click(screen.getByRole("button", { name: "Dia anterior" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ data: "2030-11-11" }));
+    fireEvent.click(screen.getByRole("button", { name: "Semana" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ visao: "geral", data: "2030-11-11" }),
+    );
+    expect(screen.getByRole("button", { name: "Próxima semana" })).toBeDefined();
+  });
+
+  test("visão geral: o botão 'Dia' grava periodo=dia na URL", async () => {
+    const { router } = await setup({ url: "/?visao=geral" });
+    fireEvent.click(screen.getByRole("button", { name: "Dia" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ visao: "geral", periodo: "dia" }),
+    );
+  });
+
   test("semana sem blocos avisa e oferece o atalho para 'Colunas'", async () => {
     const { router } = await setup({
       url: "/?visao=geral",

@@ -25,6 +25,7 @@ import {
   windowIssue,
 } from "#/domain/room-filter";
 import type { Space } from "#/domain/space";
+import { cn } from "#/lib/utils";
 import { getRoomsDayFn, getRoomsWeekFn } from "#/server/booking-fns";
 import { type OverviewPeriod, OverviewPeriods } from "./overview-periods";
 import { type RoomDraft, RoomsColumns } from "./rooms-columns";
@@ -38,6 +39,8 @@ type SalasView = Exclude<PageView, "sala">;
 export type SalasSearch = {
   data?: string;
   visao?: PageView;
+  /** Só na visão geral: `dia` mostra um dia por vez; ausente é a semana. */
+  periodo?: "dia";
   bloco?: string[];
   andar?: number[];
   cap?: number;
@@ -187,6 +190,7 @@ export function RoomsView({
           : "colunas"
         : search.visao;
   const geral = view === "geral";
+  const dayMode = geral && search.periodo === "dia";
   const now = (geral ? roomsWeek?.now : roomsDay?.now) ?? localNow(new Date(), timeZone);
   const today = now.slice(0, 10);
   const rooms = roomsDay?.rooms ?? [];
@@ -250,7 +254,12 @@ export function RoomsView({
   };
   const setView = (visao: PageView) => onSearchChange((prev) => ({ ...prev, visao }), true);
   const clearFilters = () => onSearchChange(withoutFilters, true);
-  const step = geral ? 7 : 1;
+  const step = geral && !dayMode ? 7 : 1;
+  const setPeriodo = (dia: boolean) =>
+    onSearchChange((prev) => {
+      const { periodo: _periodo, ...rest } = prev;
+      return dia ? { ...rest, periodo: "dia" } : rest;
+    }, true);
   const noRooms = (
     <div className="grid justify-items-center gap-3 rounded-2xl border border-dashed border-border p-10 text-center">
       <DoorOpen className="size-10 text-muted-foreground/60" aria-hidden="true" />
@@ -265,7 +274,9 @@ export function RoomsView({
     <div className="grid w-full max-w-full min-w-0 gap-4" data-testid="rooms-view">
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="text-lg font-semibold tracking-tight text-foreground first-letter:uppercase">
-          {geral ? "Agenda de salas" : dayTitle.format(new Date(`${selectedDate}T12:00:00Z`))}
+          {geral && !dayMode
+            ? "Agenda de salas"
+            : dayTitle.format(new Date(`${selectedDate}T12:00:00Z`))}
         </h1>
         <div className="flex-1" />
         <div className="flex flex-wrap items-center gap-1">
@@ -276,7 +287,7 @@ export function RoomsView({
             variant="ghost"
             size="icon"
             className="size-8"
-            aria-label={geral ? "Semana anterior" : "Dia anterior"}
+            aria-label={geral && !dayMode ? "Semana anterior" : "Dia anterior"}
             onClick={() => goTo(addDays(selectedDate, -step))}
           >
             <ChevronLeft className="size-4" />
@@ -285,7 +296,7 @@ export function RoomsView({
             variant="ghost"
             size="icon"
             className="size-8"
-            aria-label={geral ? "Próxima semana" : "Próximo dia"}
+            aria-label={geral && !dayMode ? "Próxima semana" : "Próximo dia"}
             onClick={() => goTo(addDays(selectedDate, step))}
           >
             <ChevronRight className="size-4" />
@@ -296,6 +307,27 @@ export function RoomsView({
             onChange={(value) => value !== "" && goTo(value)}
             className="w-36"
           />
+          {geral && (
+            <fieldset
+              aria-label="Dia ou semana"
+              className="ml-1 flex rounded-md border bg-surface p-0.5"
+            >
+              {(["dia", "semana"] as const).map((value) => (
+                <button
+                  key={value}
+                  type="button"
+                  aria-pressed={(value === "dia") === dayMode}
+                  onClick={() => setPeriodo(value === "dia")}
+                  className={cn(
+                    "rounded-[5px] px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+                    (value === "dia") === dayMode && "bg-background text-foreground shadow-xs",
+                  )}
+                >
+                  {value === "dia" ? "Dia" : "Semana"}
+                </button>
+              ))}
+            </fieldset>
+          )}
           <ViewSwitcher value={view} onChange={setView} className="ml-1" />
         </div>
       </div>
@@ -359,6 +391,7 @@ export function RoomsView({
                 rooms={weekResult.rooms}
                 isVisitor={isVisitor}
                 compact={compact}
+                dayMode={dayMode}
                 selectedDate={selectedDate}
                 canReserve={canBook || isVisitor}
                 onBook={book}

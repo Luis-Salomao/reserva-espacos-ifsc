@@ -45,6 +45,19 @@ describe("validateAgendaSearch", () => {
     }
   });
 
+  test("'periodo=dia' vale só para dia; ausente ou inválido é semana (descartado)", () => {
+    expect(validateAgendaSearch({ visao: "geral", periodo: "dia" })).toEqual({
+      visao: "geral",
+      periodo: "dia",
+    });
+    expect(validateAgendaSearch({ visao: "geral", periodo: "semana" })).toEqual({ visao: "geral" });
+    expect(validateAgendaSearch({ visao: "geral", periodo: "x" })).toEqual({ visao: "geral" });
+    expect(validateAgendaSearch({ data: "2026-11-10", visao: "geral" })).toEqual({
+      data: "2026-11-10",
+      visao: "geral",
+    });
+  });
+
   test("visão e filtros inválidos são descartados", () => {
     expect(
       validateAgendaSearch({
