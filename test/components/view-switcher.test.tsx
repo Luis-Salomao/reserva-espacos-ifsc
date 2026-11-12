@@ -24,7 +24,7 @@ describe("ViewSwitcher", () => {
     expect(
       screen.getByText("Veja a semana de uma sala. Use o seletor para trocar de ambiente."),
     ).toBeDefined();
-    fireEvent.click(screen.getByRole("button", { name: "Livres" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salas livres" }));
     expect(changes).toEqual(["livres"]);
     expect(
       screen.getByText("Encontre apenas salas livres no intervalo selecionado."),
@@ -37,7 +37,7 @@ describe("ViewSwitcher", () => {
     fireEvent.click(screen.getByRole("button", { name: "Sobre as visualizações" }));
 
     const painel = await screen.findByRole("dialog", { name: "Sobre as visualizações" });
-    for (const nome of ["Sala", "Colunas", "Livres", "Visão geral"]) {
+    for (const nome of ["Uma sala", "Salas por horário", "Salas livres", "Visão geral"]) {
       expect(painel.textContent).toContain(nome);
     }
     expect(painel.textContent).toContain("Compare a ocupação das salas em um dia.");

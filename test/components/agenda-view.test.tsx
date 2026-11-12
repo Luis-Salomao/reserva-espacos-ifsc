@@ -815,9 +815,9 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
           .getAllByRole("button")
           .map((button) => [button.textContent, button.getAttribute("aria-pressed")]),
       ).toEqual([
-        ["Sala", "true"],
-        ["Colunas", "false"],
-        ["Livres", "false"],
+        ["Uma sala", "true"],
+        ["Salas por horário", "false"],
+        ["Salas livres", "false"],
         ["Visão geral", "false"],
       ]);
       cleanup();
@@ -837,7 +837,9 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
         onSelectSpace: () => {},
       });
       fireEvent.click(screen.getByText("Mais opções"));
-      const label = { colunas: "Colunas", livres: "Livres", geral: "Visão geral" }[visao];
+      const label = { colunas: "Salas por horário", livres: "Salas livres", geral: "Visão geral" }[
+        visao
+      ];
       const options = screen.getByText("Mais opções").closest("details");
       fireEvent.click(within(options as HTMLElement).getByRole("button", { name: label }));
       await waitFor(() =>

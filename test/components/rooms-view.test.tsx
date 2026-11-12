@@ -209,9 +209,9 @@ describe("RoomsView", () => {
   });
   test("a visao Colunas mostra uma coluna por sala", async () => {
     await setup();
-    expect(screen.getByRole("button", { name: "Colunas" }).getAttribute("aria-pressed")).toBe(
-      "true",
-    );
+    expect(
+      screen.getByRole("button", { name: "Salas por horário" }).getAttribute("aria-pressed"),
+    ).toBe("true");
     expect(columnOf("a202")).not.toBeNull();
     expect(columnOf("lab")).not.toBeNull();
     expect(screen.getByText("3 de 3 salas")).toBeDefined();
@@ -297,7 +297,7 @@ describe("RoomsView", () => {
 
   test("trocar de visão vai para a URL", async () => {
     const { router } = await setup();
-    fireEvent.click(screen.getByRole("button", { name: "Livres" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salas livres" }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ visao: "livres" }));
     expect(screen.getAllByRole("listitem").length).toBeGreaterThan(0);
   });
@@ -310,16 +310,16 @@ describe("RoomsView", () => {
         .getAllByRole("button")
         .map((button) => [button.textContent, button.getAttribute("aria-pressed")]),
     ).toEqual([
-      ["Sala", "false"],
-      ["Colunas", "false"],
-      ["Livres", "true"],
+      ["Uma sala", "false"],
+      ["Salas por horário", "false"],
+      ["Salas livres", "true"],
       ["Visão geral", "false"],
     ]);
     fireEvent.click(within(views).getByRole("button", { name: "Visão geral" }));
     await waitFor(() =>
       expect(router.state.location.search).toEqual({ visao: "geral", data: DATE, espaco: "b104" }),
     );
-    fireEvent.click(within(views).getByRole("button", { name: "Sala" }));
+    fireEvent.click(within(views).getByRole("button", { name: "Uma sala" }));
     await waitFor(() =>
       expect(router.state.location.search).toEqual({ visao: "sala", data: DATE, espaco: "b104" }),
     );
@@ -456,7 +456,7 @@ describe("RoomsView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Agora não" }));
     await waitFor(() => expect(screen.queryByText("Entre para reservar")).toBeNull());
 
-    fireEvent.click(screen.getByRole("button", { name: "Livres" }));
+    fireEvent.click(screen.getByRole("button", { name: "Salas livres" }));
     await waitFor(() => expect(screen.getAllByRole("listitem").length).toBeGreaterThan(0));
     expect(screen.queryByRole("button", { name: /^Reservar/ })).toBeNull();
   });

@@ -7,9 +7,9 @@ import { cn } from "#/lib/utils";
 export type PageView = "sala" | "colunas" | "livres" | "geral";
 
 const VIEWS: ReadonlyArray<{ value: PageView; label: string }> = [
-  { value: "sala", label: "Sala" },
-  { value: "colunas", label: "Colunas" },
-  { value: "livres", label: "Livres" },
+  { value: "sala", label: "Uma sala" },
+  { value: "colunas", label: "Salas por horário" },
+  { value: "livres", label: "Salas livres" },
   { value: "geral", label: "Visão geral" },
 ];
 
