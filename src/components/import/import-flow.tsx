@@ -649,7 +649,7 @@ export function ImportFlow({ view, file, timeZone, sessionId = 0, queryClient }:
         )}
       </Step>
 
-      {batch !== null && activeStep === 5 && (
+      {batch !== null && (
         <Step number={5} title="Aplicação" hidden={activeStep !== 5}>
           {readyToApply ? (
             <>
@@ -715,8 +715,8 @@ export function ImportFlow({ view, file, timeZone, sessionId = 0, queryClient }:
         </Step>
       )}
 
-      {batch !== null && (
-        <section hidden={activeStep !== 5} className="mt-8 grid gap-3" aria-labelledby="resultado">
+      {batch !== null && activeStep === 5 && (
+        <section className="mt-8 grid gap-3" aria-labelledby="resultado">
           <h2 id="resultado" className="text-lg font-semibold tracking-tight">
             Resultado por linha
           </h2>
