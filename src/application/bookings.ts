@@ -132,6 +132,8 @@ export type MyBooking = AgendaItem & {
   spaceId: string;
   spaceName: string;
   inSeries: boolean;
+  /** Para aulas importadas, distingue o docente responsável de quem apenas importou o arquivo. */
+  responsible: boolean;
   /** Identificador interno da série; só acompanha a lista autenticada de reservas próprias. */
   seriesId?: string | null;
   canEdit?: boolean;
@@ -788,6 +790,7 @@ export function createBookingsService(deps: BookingsDeps) {
         spaceName: row.spaceName,
         inSeries: row.seriesId !== null,
         seriesId: row.seriesId,
+        responsible: row.source === "import" && row.responsibleUserId === user.id,
         canEdit:
           canBook(user) &&
           row.source === "manual" &&

@@ -82,6 +82,127 @@ export type MinhasReservasListProps = {
   onSelectEdit?: (item: MyBooking) => void;
 };
 
+type BookingGroup = { key: string; seriesId: string | null; items: MyBooking[] };
+
+function groupMonthBookings(items: MyBooking[]): BookingGroup[] {
+  const groups = new Map<string, BookingGroup>();
+  for (const item of items) {
+    const seriesId = item.inSeries ? (item.seriesId ?? null) : null;
+    const key = seriesId === null ? `booking:${item.id}` : `series:${seriesId}`;
+    const group = groups.get(key) ?? { key, seriesId, items: [] };
+    group.items.push(item);
+    groups.set(key, group);
+  }
+  return [...groups.values()]
+    .map((group) => ({
+      ...group,
+      items: [...group.items].sort((a, b) =>
+        `${a.date}T${a.start}`.localeCompare(`${b.date}T${b.start}`),
+      ),
+    }))
+    .sort((a, b) => {
+      const firstA = a.items[0];
+      const firstB = b.items[0];
+      if (firstA === undefined || firstB === undefined) return 0;
+      return `${firstA.date}T${firstA.start}`.localeCompare(`${firstB.date}T${firstB.start}`);
+    });
+}
+
+function BookingOccurrence({
+  item,
+  isNew,
+  onSelectCancel,
+  onSelectEdit,
+}: {
+  item: MyBooking;
+  isNew: boolean;
+  onSelectCancel?: ((item: MyBooking) => void) | undefined;
+  onSelectEdit?: ((item: MyBooking) => void) | undefined;
+}) {
+  const [, monthStr = "01", dayStr = "01"] = item.date.split("-");
+  const dayNumber = Number(dayStr);
+  const monthIdx = Number(monthStr) - 1;
+  const weekdayName = WEEKDAY_SHORT[weekdayOf(item.date)] ?? "";
+  const monthName = MONTH_SHORT[monthIdx] ?? "";
+  const isImported = item.source === "import";
+
+  return (
+    <article
+      id={`booking-${item.id}`}
+      data-testid={`booking-card-${item.id}`}
+      className={cn(
+        "grid grid-cols-[56px_1fr] sm:grid-cols-[64px_1fr_auto] gap-3.5 sm:gap-4 p-4 border rounded-2xl bg-surface items-start sm:items-center transition-all",
+        isNew
+          ? "border-primary ring-3 ring-primary/25 shadow-sm item-new"
+          : "border-border hover:border-border/80 hover:shadow-xs",
+      )}
+    >
+      <div
+        aria-hidden="true"
+        className="grid w-14 sm:w-16 shrink-0 justify-items-center rounded-xl bg-surface-2 py-2 leading-none select-none"
+      >
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {monthName}
+        </span>
+        <span className="my-0.5 text-xl sm:text-2xl font-bold tracking-tight text-foreground">
+          {dayNumber}
+        </span>
+        <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
+          {weekdayName}
+        </span>
+      </div>
+
+      <div className="min-w-0 flex-1 grid gap-1">
+        <div className="flex items-center gap-2">
+          <h3 className="text-base font-semibold tracking-tight text-foreground truncate">
+            {item.title}
+          </h3>
+          {isNew && (
+            <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
+              Nova
+            </span>
+          )}
+        </div>
+        <p className="text-sm text-muted-foreground">
+          {item.spaceName} · {item.start}–{item.end}
+        </p>
+        <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
+          {isImported ? (
+            <span className="inline-flex items-center rounded-md border border-line-imported bg-occ-imported px-2 py-0.5 text-xs font-medium text-foreground">
+              {item.responsible ? "Aula importada · você é responsável" : "Aula importada"}
+            </span>
+          ) : (
+            <span className="inline-flex items-center rounded-md border border-line-booked bg-occ-booked px-2 py-0.5 text-xs font-medium text-foreground">
+              Reserva manual
+            </span>
+          )}
+          {item.inSeries && (
+            <span
+              data-testid="series-badge"
+              className="inline-flex items-center rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs font-medium text-foreground"
+            >
+              Série
+            </span>
+          )}
+        </div>
+      </div>
+
+      <div className="col-span-full sm:col-span-1 flex justify-end gap-2 sm:self-center">
+        {item.canEdit && item.source === "manual" && (
+          <Button type="button" variant="outline" size="sm" onClick={() => onSelectEdit?.(item)}>
+            Editar
+          </Button>
+        )}
+        {item.canCancel && (
+          <Button type="button" variant="outline" size="sm" onClick={() => onSelectCancel?.(item)}>
+            Cancelar…
+          </Button>
+        )}
+      </div>
+    </article>
+  );
+}
+
 export function MinhasReservasList({
   items,
   newId,
@@ -122,6 +243,7 @@ export function MinhasReservasList({
         const [year = "", month = "01"] = monthKey.split("-");
         const monthTitle = `${MONTH_SHORT[Number(month) - 1] ?? month} ${year}`;
         const containsNew = monthItems.some((item) => item.id === newId);
+        const bookingGroups = groupMonthBookings(monthItems);
         return (
           <details
             key={monthKey}
@@ -135,103 +257,103 @@ export function MinhasReservasList({
               </span>
             </summary>
             <div className="grid gap-2 border-t border-border p-2">
-              {monthItems.map((item) => {
-                const isNew = newId === item.id;
-                const [, monthStr = "01", dayStr = "01"] = item.date.split("-");
-                const dayNumber = Number(dayStr);
-                const monthIdx = Number(monthStr) - 1;
-                const weekdayName = WEEKDAY_SHORT[weekdayOf(item.date)] ?? "";
-                const monthName = MONTH_SHORT[monthIdx] ?? "";
-                const isImported = item.source === "import";
+              {bookingGroups.map((bookingGroup) => {
+                if (bookingGroup.seriesId === null) {
+                  const item = bookingGroup.items[0];
+                  return item ? (
+                    <BookingOccurrence
+                      key={bookingGroup.key}
+                      item={item}
+                      isNew={newId === item.id}
+                      onSelectCancel={onSelectCancel}
+                      onSelectEdit={onSelectEdit}
+                    />
+                  ) : null;
+                }
+
+                const first = bookingGroup.items[0];
+                if (first === undefined) return null;
+                const [, monthStr = "01", dayStr = "01"] = first.date.split("-");
+                const monthName = MONTH_SHORT[Number(monthStr) - 1] ?? monthStr;
+                const weekdayName = WEEKDAY_SHORT[weekdayOf(first.date)] ?? "";
+                const count = bookingGroup.items.length;
+                const editable = bookingGroup.items.find(
+                  (item) => item.canEdit && item.source === "manual",
+                );
+                const cancellable = bookingGroup.items.find((item) => item.canCancel);
 
                 return (
-                  <article
-                    key={item.id}
-                    id={`booking-${item.id}`}
-                    data-testid={`booking-card-${item.id}`}
-                    className={cn(
-                      "grid grid-cols-[56px_1fr] sm:grid-cols-[64px_1fr_auto] gap-3.5 sm:gap-4 p-4 border rounded-2xl bg-surface items-start sm:items-center transition-all",
-                      isNew
-                        ? "border-primary ring-3 ring-primary/25 shadow-sm item-new"
-                        : "border-border hover:border-border/80 hover:shadow-xs",
-                    )}
+                  <div
+                    key={bookingGroup.key}
+                    data-testid={`booking-series-${bookingGroup.seriesId}`}
+                    className="rounded-xl border border-border bg-surface-2"
                   >
-                    {/* Badge de Data */}
-                    <div
-                      aria-hidden="true"
-                      className="grid w-14 sm:w-16 shrink-0 justify-items-center rounded-xl bg-surface-2 py-2 leading-none select-none"
-                    >
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {monthName}
-                      </span>
-                      <span className="my-0.5 text-xl sm:text-2xl font-bold tracking-tight text-foreground">
-                        {dayNumber}
-                      </span>
-                      <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
-                        {weekdayName}
-                      </span>
-                    </div>
-
-                    {/* Detalhes da Ocupação */}
-                    <div className="min-w-0 flex-1 grid gap-1">
-                      <div className="flex items-center gap-2">
-                        <h3 className="text-base font-semibold tracking-tight text-foreground truncate">
-                          {item.title}
-                        </h3>
-                        {isNew && (
-                          <span className="inline-flex items-center rounded-md bg-primary/10 px-2 py-0.5 text-xs font-semibold text-primary">
-                            Nova
+                    <div className="flex flex-wrap items-start gap-2 p-2">
+                      <details
+                        open={bookingGroup.items.some((item) => item.id === newId)}
+                        className="min-w-0 flex-1"
+                      >
+                        <summary
+                          data-testid={`booking-series-summary-${bookingGroup.seriesId}`}
+                          className="flex cursor-pointer flex-wrap items-center justify-between gap-x-3 gap-y-1 rounded-xl px-2 py-1 text-sm hover:bg-surface focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                        >
+                          <span className="min-w-0 flex-1 font-semibold text-foreground">
+                            {first.title}
+                            <span className="ml-2 text-xs font-medium text-muted-foreground">
+                              Série
+                            </span>
                           </span>
-                        )}
-                      </div>
-                      <p className="text-sm text-muted-foreground">
-                        {item.spaceName} · {item.start}–{item.end}
-                      </p>
-                      <div className="mt-0.5 flex flex-wrap items-center gap-1.5">
-                        {isImported ? (
-                          <span className="inline-flex items-center rounded-md border border-line-imported bg-occ-imported px-2 py-0.5 text-xs font-medium text-foreground">
-                            Aula importada · você é responsável
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center rounded-md border border-line-booked bg-occ-booked px-2 py-0.5 text-xs font-medium text-foreground">
-                            Reserva manual
-                          </span>
-                        )}
-                        {item.inSeries && (
                           <span
-                            data-testid="series-badge"
-                            className="inline-flex items-center rounded-md border border-border bg-surface-2 px-2 py-0.5 text-xs font-medium text-foreground"
+                            data-testid={`booking-series-count-${bookingGroup.seriesId}`}
+                            className="shrink-0 text-xs font-medium text-muted-foreground"
                           >
-                            Série
+                            {count} {count === 1 ? "ocorrência" : "ocorrências"}
                           </span>
+                          <span className="w-full text-xs text-muted-foreground sm:w-auto">
+                            Próxima: {weekdayName} {Number(dayStr)} {monthName} · {first.start}–
+                            {first.end} · {first.spaceName}
+                          </span>
+                        </summary>
+                        <div className="grid gap-2 border-t border-border p-2">
+                          {bookingGroup.items.map((item) => (
+                            <BookingOccurrence
+                              key={item.id}
+                              item={item}
+                              isNew={newId === item.id}
+                              onSelectCancel={onSelectCancel}
+                              onSelectEdit={onSelectEdit}
+                            />
+                          ))}
+                        </div>
+                      </details>
+                      <div className="flex shrink-0 flex-wrap gap-2">
+                        {editable && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            data-testid={`booking-series-edit-${bookingGroup.seriesId}`}
+                            onClick={() => onSelectEdit?.(editable)}
+                          >
+                            Editar próxima
+                          </Button>
+                        )}
+                        {cancellable && (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            size="sm"
+                            data-testid={`booking-series-cancel-${bookingGroup.seriesId}`}
+                            aria-label="Opções de cancelamento da série"
+                            title="Escolher se cancela uma data ou esta e as próximas"
+                            onClick={() => onSelectCancel?.(cancellable)}
+                          >
+                            Cancelar…
+                          </Button>
                         )}
                       </div>
                     </div>
-
-                    {/* Ações */}
-                    <div className="col-span-full sm:col-span-1 flex justify-end gap-2 sm:self-center">
-                      {item.canEdit && item.source === "manual" && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onSelectEdit?.(item)}
-                        >
-                          Editar
-                        </Button>
-                      )}
-                      {item.canCancel && (
-                        <Button
-                          type="button"
-                          variant="outline"
-                          size="sm"
-                          onClick={() => onSelectCancel?.(item)}
-                        >
-                          Cancelar…
-                        </Button>
-                      )}
-                    </div>
-                  </article>
+                  </div>
                 );
               })}
             </div>

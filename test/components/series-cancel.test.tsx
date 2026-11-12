@@ -23,6 +23,7 @@ const booking = (id: string, inSeries: boolean): MyBooking => ({
   status: "ativa",
   canCancel: true,
   mine: true,
+  responsible: false,
   person: null,
   inSeries,
 });

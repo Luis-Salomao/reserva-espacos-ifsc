@@ -6,6 +6,7 @@ import { ImportFlow } from "#/components/import/import-flow";
 import { ImportSummary } from "#/components/import/import-summary";
 import { ImportUpload } from "#/components/import/import-upload";
 import { OverlapList } from "#/components/import/overlap-list";
+import { RoomScheduleOverview } from "#/components/import/room-schedule-overview";
 import { ImportRoomsOverview } from "#/components/import/rooms-overview";
 import { SlotList } from "#/components/import/slot-list";
 import { TermsList } from "#/components/import/terms-list";
@@ -43,6 +44,7 @@ function RoomGrid({ view }: { view: PreviewView }) {
           setDetailsOpen(true);
         }}
       />
+      <RoomScheduleOverview rooms={view.rooms} />
       <details
         open={detailsOpen}
         onToggle={(event) => setDetailsOpen(event.currentTarget.open)}

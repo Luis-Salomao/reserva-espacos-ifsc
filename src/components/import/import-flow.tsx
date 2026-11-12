@@ -213,6 +213,7 @@ export function ImportFlow({ view, file, timeZone, sessionId = 0, queryClient }:
   const [versionView, setVersionView] = useState<VersionView | "">(cached?.versionView ?? "");
   const [rowsBatch, setRowsBatch] = useState<BatchView | null>(cached?.rowsBatch ?? null);
   const [refreshKey, setRefreshKey] = useState(cached?.refreshKey ?? 0);
+  const [reviewRowsOpen, setReviewRowsOpen] = useState(false);
 
   const running = useRef(false);
   const abort = useRef<AbortController | null>(null);
@@ -623,7 +624,27 @@ export function ImportFlow({ view, file, timeZone, sessionId = 0, queryClient }:
                 onSelect={setVersionView}
               />
             )}
-            <BatchCounts summary={batch.summary} />
+            <BatchCounts summary={batch.summary} spaces={targets.spaces} />
+            <details
+              className="grid gap-3 rounded-xl border bg-surface-2 p-3"
+              onToggle={(event) => setReviewRowsOpen(event.currentTarget.open)}
+            >
+              <summary className="cursor-pointer font-medium">Revisar linhas do lote</summary>
+              <p className="text-sm text-muted-foreground">
+                Filtre por estado, motivo ou busque aula, turma e sala. Use “Pendente” para revisar
+                o que pode ser aplicado, “Duração sem datas no semestre” para ajustar o calendário
+                do semestre e os filtros de conflito para conferir sobreposições.
+              </p>
+              {reviewRowsOpen && (
+                <BatchRows
+                  batchId={batch.id}
+                  load={loadImportRows}
+                  refreshKey={refreshKey}
+                  view={versionView}
+                  onBatchLoaded={setRowsBatch}
+                />
+              )}
+            </details>
           </div>
         )}
       </Step>
@@ -694,8 +715,8 @@ export function ImportFlow({ view, file, timeZone, sessionId = 0, queryClient }:
         </Step>
       )}
 
-      {batch !== null && (
-        <section hidden={activeStep !== 5} className="mt-8 grid gap-3" aria-labelledby="resultado">
+      {batch !== null && activeStep === 5 && (
+        <section className="mt-8 grid gap-3" aria-labelledby="resultado">
           <h2 id="resultado" className="text-lg font-semibold tracking-tight">
             Resultado por linha
           </h2>

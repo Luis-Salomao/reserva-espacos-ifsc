@@ -45,15 +45,30 @@ async function renderShell(children: ReactNode, session: SessionInfo = anonymous
   await screen.findByRole("banner");
 }
 
+function expectAlignedNavigationIcons(links: Iterable<Element>) {
+  for (const link of links) {
+    const slot = link.querySelector(":scope > span[aria-hidden='true']");
+    const icon = slot?.querySelector("svg");
+    expect(slot?.classList.contains("size-5")).toBe(true);
+    expect(slot?.classList.contains("place-items-center")).toBe(true);
+    expect(slot?.classList.contains("shrink-0")).toBe(true);
+    expect(icon?.classList.contains("size-4")).toBe(true);
+    expect(icon?.classList.contains("shrink-0")).toBe(true);
+  }
+}
+
 describe("AppShell", () => {
   test("recolhe e expande a lateral, preservando links e a preferência", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    const nav = screen.getByRole("navigation", { name: "Principal" });
+    expectAlignedNavigationIcons(nav.querySelectorAll("a"));
     fireEvent.click(screen.getByRole("button", { name: "Recolher menu lateral" }));
     expect(
       screen.getByRole("button", { name: "Expandir menu lateral" }).getAttribute("aria-expanded"),
     ).toBe("false");
     expect(localStorage.getItem("sidebar-collapsed")).toBe("true");
     expect(screen.getByRole("link", { name: "Importar" }).getAttribute("href")).toBe("/importar");
+    expectAlignedNavigationIcons(nav.querySelectorAll("a"));
     fireEvent.click(screen.getByRole("button", { name: "Expandir menu lateral" }));
     expect(localStorage.getItem("sidebar-collapsed")).toBe("false");
   });
@@ -117,7 +132,7 @@ describe("AppShell", () => {
     expect(form?.getAttribute("method")?.toLowerCase()).toBe("post");
     expect(form?.getAttribute("action")).toBe("/api/sair");
     expect(screen.queryByRole("link", { name: "Entrar" })).toBeNull();
-    expect(screen.getByRole("button", { name: "Alternar tema" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Tema escuro" })).toBeDefined();
   });
 
   test("docente não vê Importar", async () => {
@@ -206,16 +221,22 @@ describe("AppShell", () => {
   test("alternar o tema muda data-theme e persiste a escolha", async () => {
     document.documentElement.dataset.theme = "light";
     await renderShell("x");
-    const toggle = screen.getByRole("button", { name: "Alternar tema" });
+    const toggle = screen.getByRole("button", { name: "Tema escuro" });
 
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
+    expect(toggle.getAttribute("title")).toBe("Mudar para tema escuro");
 
     fireEvent.click(toggle);
     expect(document.documentElement.dataset.theme).toBe("dark");
     expect(localStorage.getItem("theme")).toBe("dark");
-    expect(toggle.getAttribute("aria-pressed")).toBe("true");
+    expect(screen.getByRole("button", { name: "Tema escuro" }).getAttribute("aria-pressed")).toBe(
+      "true",
+    );
+    expect(screen.getByRole("button", { name: "Tema escuro" }).getAttribute("title")).toBe(
+      "Mudar para tema claro",
+    );
 
-    fireEvent.click(toggle);
+    fireEvent.click(screen.getByRole("button", { name: "Tema escuro" }));
     expect(document.documentElement.dataset.theme).toBe("light");
     expect(toggle.getAttribute("aria-pressed")).toBe("false");
     expect(localStorage.getItem("theme")).toBe("light");
@@ -229,7 +250,7 @@ describe("AppShell", () => {
     };
     try {
       await renderShell("x");
-      fireEvent.click(screen.getByRole("button", { name: "Alternar tema" }));
+      fireEvent.click(screen.getByRole("button", { name: "Tema escuro" }));
       expect(document.documentElement.dataset.theme).toBe("dark");
     } finally {
       Storage.prototype.setItem = original;
@@ -261,6 +282,7 @@ describe("AppShell, estilo agenda", () => {
     const panel = document.getElementById(trigger.getAttribute("aria-controls") ?? "");
     expect(panel).not.toBeNull();
     expect(panel?.querySelectorAll("a")).toHaveLength(3);
+    expectAlignedNavigationIcons(panel?.querySelectorAll("a") ?? []);
     expect(panel?.querySelector("a[href='/salas']") === null).toBe(true);
     expect(panel?.querySelector("form[action='/api/sair']")).toBeNull();
   });

@@ -155,10 +155,12 @@ describe("BookingSheet: seção Repetir", () => {
       "false",
     );
     expect(summary()).toBe("Toda terça, até 11/02/2031, 10 datas");
+    expect(screen.getByLabelText("Intervalo entre repetições (semanas)")).toBeDefined();
+    expect(screen.getByText("1 = toda semana; 2 = semana sim, semana não.")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Quinta" }));
     expect(summary()).toBe("Toda terça e quinta, até 09/01/2031, 10 datas");
     expect(repeatToggle().textContent).toContain("Toda terça e quinta");
-    fireEvent.change(screen.getByLabelText("Repetir a cada quantas semanas?"), {
+    fireEvent.change(screen.getByLabelText("Intervalo entre repetições (semanas)"), {
       target: { value: "2" },
     });
     expect(summary()).toContain("A cada 2 semanas: terça e quinta");

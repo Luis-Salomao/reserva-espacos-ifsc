@@ -204,7 +204,11 @@ export function RepeatSection({ id, date, value, onChange, error }: RepeatSectio
                   })}
                 </div>
               </fieldset>
-              <Field id={`${id}-interval`} label="Repetir a cada quantas semanas?">
+              <Field
+                id={`${id}-interval`}
+                label="Intervalo entre repetições (semanas)"
+                hint="1 = toda semana; 2 = semana sim, semana não."
+              >
                 <Input
                   id={`${id}-interval`}
                   type="number"
@@ -212,12 +216,9 @@ export function RepeatSection({ id, date, value, onChange, error }: RepeatSectio
                   min={1}
                   max={MAX_INTERVAL}
                   value={value.interval}
+                  aria-describedby={`${id}-interval-hint`}
                   onChange={(event) => onChange({ ...value, interval: Number(event.target.value) })}
                 />
-                <p className="text-xs text-muted-foreground">
-                  1 repete toda semana; 2 repete semana sim, semana não; 3 repete a cada três
-                  semanas.
-                </p>
               </Field>
             </>
           )}

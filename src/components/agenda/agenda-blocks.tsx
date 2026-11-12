@@ -5,6 +5,7 @@ import { Tag } from "#/components/ds";
 import { isMaintenanceTitle, MAINTENANCE_PREFIX } from "#/domain/booking-kind";
 import { cn } from "#/lib/utils";
 import { formatHourAxis, type PositionedEvent, timeToMinutes } from "./layout-helpers";
+import { SubjectMark } from "./subject-mark";
 
 /** Folga acima da primeira e abaixo da última hora, para os rótulos do eixo não serem cortados. */
 const GRID_PAD = 10;
@@ -173,6 +174,9 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
       type="button"
       data-occupation
       onClick={onOpen}
+      aria-label={[displayTitle, `${ev.start}–${ev.end}`, ev.person?.name, tag]
+        .filter(Boolean)
+        .join(" · ")}
       title={[displayTitle, `${ev.start}–${ev.end}`, ev.person?.name, tag]
         .filter(Boolean)
         .join(" · ")}
@@ -192,10 +196,16 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
         aria-hidden="true"
         className={cn("absolute inset-y-1 left-1 w-[3px] rounded-full", BARS[state])}
       />
-      <span className="flex min-w-0 items-center gap-1">
+      <span className="flex min-w-0 items-start gap-1">
+        {ev.source === "import" && !isMaintenance && <SubjectMark title={displayTitle} />}
         {!showPerson && ev.person !== null && <Avatar name={ev.person.name} size="xs" />}
         {isMaintenance && <Wrench aria-hidden="true" className="size-3 shrink-0 text-warn-text" />}
-        <b className="block min-w-0 truncate text-[12px] font-semibold text-foreground">
+        <b
+          className={cn(
+            "block min-w-0 text-[12px] font-semibold text-foreground",
+            height >= (showPerson ? 100 : 76) ? "line-clamp-2 break-words" : "truncate",
+          )}
+        >
           {displayTitle}
         </b>
       </span>
