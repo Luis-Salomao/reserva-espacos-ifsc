@@ -1,5 +1,6 @@
 import { Wrench } from "lucide-react";
 import { cn } from "#/lib/utils";
+import { SubjectMark } from "./subject-mark";
 
 const STATES = [
   { label: "Aula importada", swatch: "bg-occ-imported", bar: "bg-line-imported" },
@@ -27,6 +28,10 @@ export function AgendaLegend({ className }: { className?: string }) {
           {state.label}
         </span>
       ))}
+      <span className="flex items-center gap-1.5">
+        <SubjectMark title="ALG" />
+        <span>Sigla da disciplina · consulte o título. As cores indicam o estado.</span>
+      </span>
       <span className="flex items-center gap-1.5">
         <span
           aria-hidden="true"
