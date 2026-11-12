@@ -129,6 +129,8 @@ export type MyBooking = AgendaItem & {
   spaceId: string;
   spaceName: string;
   inSeries: boolean;
+  /** Identificador interno da série; só acompanha a lista autenticada de reservas próprias. */
+  seriesId?: string | null;
   canEdit?: boolean;
 };
 
@@ -726,6 +728,7 @@ export function createBookingsService(deps: BookingsDeps) {
         spaceId: row.spaceId,
         spaceName: row.spaceName,
         inSeries: row.seriesId !== null,
+        seriesId: row.seriesId,
         canEdit:
           canBook(user) &&
           row.source === "manual" &&

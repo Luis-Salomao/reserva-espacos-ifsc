@@ -19,7 +19,7 @@ export function emailConfigurationReport(source: Record<string, string | undefin
       lines: [
         "Configuração de e-mail válida. Provedor: Resend.",
         `Remetente: ${config.from}`,
-        `Origem pública: ${config.publicOrigin}`,
+        `Origem usada nos links: ${config.publicOrigin}`,
         source.DEPLOY_TARGET === "cloudflare"
           ? "No Worker, configure os secrets em produção e habilite o cron para processar a outbox. .dev.vars não configura produção."
           : "Agende bun run cli email:drain --once a cada minuto, com o mesmo banco e ambiente do servidor.",

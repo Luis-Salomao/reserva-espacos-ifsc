@@ -1,5 +1,5 @@
 import { cn } from "#/lib/utils";
-import { type LegendEntry, toneStyle } from "./overview-cell";
+import { type LegendEntry, patternStyle, toneStyle } from "./overview-cell";
 
 type Props = {
   entries: readonly LegendEntry[];
@@ -29,7 +29,7 @@ export function OverviewLegend({ entries, active, onToggle, className }: Props) 
         >
           <span
             aria-hidden="true"
-            style={toneStyle(entry.tone)}
+            style={{ ...toneStyle(entry.tone), ...patternStyle(entry.pattern) }}
             className="size-2.5 rounded-[2px] bg-[var(--tone-light)] dark:bg-[var(--tone-dark)]"
           />
           {entry.label}

@@ -1,5 +1,6 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
 import {
+  Building2,
   CalendarDays,
   CalendarRange,
   ChevronsUpDown,
@@ -85,9 +86,16 @@ function Brand() {
   return (
     <Link
       to="/"
-      className="min-w-0 truncate rounded-md text-[14px] font-semibold tracking-tight md:px-2 md:py-1.5"
+      aria-label="IFSC Câmpus Garopaba — Reserva de espaços"
+      className="flex min-w-0 items-center gap-2 rounded-md px-1 py-1.5 md:px-2"
     >
-      Reserva de Espaços
+      <Building2 className="block size-5 shrink-0 text-primary" aria-hidden="true" />
+      <span className="grid min-w-0 leading-tight">
+        <span className="truncate text-[13px] font-semibold tracking-tight">
+          IFSC Câmpus Garopaba
+        </span>
+        <span className="truncate text-[11px] text-muted-foreground">Reserva de espaços</span>
+      </span>
     </Link>
   );
 }
@@ -201,7 +209,9 @@ export function AppShell({ children, wide = false }: Props) {
                   ),
                 }}
               >
-                <Icon className="size-4 shrink-0" aria-hidden="true" />
+                <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
+                  <Icon className="block size-4" />
+                </span>
                 <span className={cn(collapsed && "md:sr-only")}>{item.label}</span>
               </Link>
             );
@@ -210,7 +220,10 @@ export function AppShell({ children, wide = false }: Props) {
         <div className="flex-1" />
         <div className="flex items-center gap-1 md:border-t md:pt-3">
           {user !== null ? (
-            <AccountMenu user={user} collapsed={collapsed} />
+            <>
+              <AccountMenu user={user} collapsed={collapsed} />
+              <ThemeToggle />
+            </>
           ) : (
             <>
               <Button asChild size="sm" className="hidden flex-1 md:inline-flex">
@@ -315,7 +328,9 @@ function MobileMenu({ items, user }: { items: NavItem[]; user: SessionInfo["user
                 activeProps={{ className: cn(itemClass, "bg-surface-2") }}
                 onClick={() => setOpen(false)}
               >
-                <Icon className="size-4 text-muted-foreground" aria-hidden="true" />
+                <span className="grid size-5 shrink-0 place-items-center" aria-hidden="true">
+                  <Icon className="block size-4 text-muted-foreground" />
+                </span>
                 {item.label}
               </Link>
             );
@@ -374,10 +389,6 @@ function AccountMenu({
         <div className="flex items-center gap-2 px-2 pt-3 pb-1 text-xs font-medium text-muted-foreground">
           <Settings className="size-3.5" aria-hidden="true" />
           Configurações
-        </div>
-        <div className="flex items-center justify-between px-2 py-1">
-          <span className="text-sm">Aparência</span>
-          <ThemeToggle />
         </div>
         <form method="post" action="/api/sair" className="mt-1 border-t pt-1">
           <Button type="submit" variant="ghost" className="w-full justify-start">

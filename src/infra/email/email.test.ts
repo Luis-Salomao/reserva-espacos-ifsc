@@ -35,6 +35,20 @@ test("config desabilitada dispensa segredos e rejeita origens e chaves inválida
   );
 });
 
+test("PUBLIC_LINK_ORIGIN define os links sem mudar a origem confiável do proxy", () => {
+  expect(
+    getEmailConfig({
+      ...source,
+      PUBLIC_ORIGIN: "https://reserva-espacos-ifsc.luis-salomao.workers.dev",
+      PUBLIC_LINK_ORIGIN: "https://reservas-ifsc.luissalomao.dev",
+    }),
+  ).toMatchObject({ publicOrigin: "https://reservas-ifsc.luissalomao.dev" });
+  expect(() =>
+    getEmailConfig({ ...source, PUBLIC_LINK_ORIGIN: "https://example.org/path" }),
+  ).toThrow("PUBLIC_LINK_ORIGIN");
+  expect(getEmailConfig(source)).toMatchObject({ publicOrigin: source.PUBLIC_ORIGIN });
+});
+
 test("AES-GCM usa nonce aleatório, autentica payload e não guarda token legível", async () => {
   const codec = createEmailPayloadCodec(key);
   const a = await codec.seal(message);

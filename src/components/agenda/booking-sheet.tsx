@@ -511,7 +511,22 @@ export function BookingSheet({
                 </Notice>
               )}
 
-              {/* Seletor de Sala */}
+              {/* Data */}
+              <Field id={`${uid}-date`} label="Data" error={fieldErrors.date}>
+                <Input
+                  id={`${uid}-date`}
+                  type="date"
+                  value={date}
+                  onChange={(e) => {
+                    setDate(e.target.value);
+                    setFieldErrors((prev) => ({ ...prev, date: undefined }));
+                    setErrorMessage(null);
+                  }}
+                  aria-invalid={Boolean(fieldErrors.date)}
+                />
+              </Field>
+
+              {/* Seletor de Sala: a disponibilidade depende primeiro da data escolhida. */}
               <Field id={`${uid}-room`} label="Sala" error={fieldErrors.spaceId}>
                 <select
                   id={`${uid}-room`}
@@ -522,7 +537,7 @@ export function BookingSheet({
                     setErrorMessage(null);
                   }}
                   aria-invalid={Boolean(fieldErrors.spaceId)}
-                  className="h-10 w-full rounded-lg border border-input bg-transparent px-3 py-1 text-sm shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring dark:bg-input/30"
+                  className="h-10 w-full rounded-lg border border-input bg-background px-3 py-1 text-sm text-foreground shadow-xs focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring dark:bg-input dark:[color-scheme:dark]"
                 >
                   {choices === null ? (
                     spaces.map((s) => (
@@ -553,21 +568,6 @@ export function BookingSheet({
                     </>
                   )}
                 </select>
-              </Field>
-
-              {/* Data */}
-              <Field id={`${uid}-date`} label="Data" error={fieldErrors.date}>
-                <Input
-                  id={`${uid}-date`}
-                  type="date"
-                  value={date}
-                  onChange={(e) => {
-                    setDate(e.target.value);
-                    setFieldErrors((prev) => ({ ...prev, date: undefined }));
-                    setErrorMessage(null);
-                  }}
-                  aria-invalid={Boolean(fieldErrors.date)}
-                />
               </Field>
 
               {/* Horários: Início e Fim */}

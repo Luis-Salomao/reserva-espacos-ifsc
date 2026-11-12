@@ -548,9 +548,22 @@ describe("RoomsView", () => {
   test("no celular, a visao geral permite percorrer as datas lado a lado", async () => {
     setCompact(true);
     await setup({ url: "/?visao=geral" });
-    expect(screen.queryAllByRole("tab")).toHaveLength(0);
-    expect(cellsOn(DATE).length).toBe(6);
-    expect(cellsOn("2030-11-13").length).toBe(6);
+    const tabs = screen.getAllByRole("tab");
+    expect(tabs).toHaveLength(WEEK_DAYS.length);
+    expect(tabs[1]?.getAttribute("aria-selected")).toBe("true");
+    expect(
+      within(
+        screen.getByRole("region", { name: "Disponibilidade por sala em terça 12/11" }),
+      ).getAllByRole("button", { name: /08:00–09:50|10:10–12:00/ }),
+    ).toHaveLength(6);
+
+    fireEvent.click(screen.getByRole("tab", { name: "Qua 13" }));
+    expect(screen.getByRole("tab", { name: "Qua 13" }).getAttribute("aria-selected")).toBe("true");
+    expect(
+      within(
+        screen.getByRole("region", { name: "Disponibilidade por sala em quarta 13/11" }),
+      ).getAllByRole("button", { name: /08:00–09:50|10:10–12:00/ }),
+    ).toHaveLength(6);
     expect(screen.getByRole("button", { name: "Mais datas" })).toBeDefined();
   });
 

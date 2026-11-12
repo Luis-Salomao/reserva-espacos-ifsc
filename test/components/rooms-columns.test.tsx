@@ -132,6 +132,22 @@ describe("RoomsColumns", () => {
     expect(within(column("b104")).queryByRole("button", { name: /^Rascunho/ })).toBeNull();
   });
 
+  test("clicar em horário livre na visão Sala > Semana abre a reserva da sala e do intervalo", async () => {
+    const { column, onSelectSlot } = await renderColumns();
+    const freeSlot = within(column("b104")).getByRole("button", {
+      name: /Livre.*06:00.*23:00.*Reservar/i,
+    });
+
+    fireEvent.click(freeSlot);
+
+    expect(onSelectSlot).toHaveBeenCalledWith({
+      spaceId: "b104",
+      date: DATE,
+      start: "06:00",
+      end: "23:00",
+    });
+  });
+
   test("clicar no rascunho entrega sala, data e horário", async () => {
     const { column, drag, onSelectSlot } = await renderColumns();
     drag(column("b104"), column("b104"), "14:00", "15:30");

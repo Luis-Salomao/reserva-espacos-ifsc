@@ -59,7 +59,10 @@ describe("AppShell", () => {
   });
   test("mostra o nome do sistema e o conteúdo", async () => {
     await renderShell(<p>conteúdo</p>);
-    expect(screen.getByRole("banner").textContent).toContain("Reserva de Espaços");
+    expect(
+      screen.getByRole("link", { name: "IFSC Câmpus Garopaba — Reserva de espaços" }),
+    ).toBeDefined();
+    expect(screen.getByRole("banner").textContent).toContain("IFSC Câmpus Garopaba");
     expect(screen.getByRole("main").textContent).toBe("conteúdo");
   });
 
@@ -112,6 +115,7 @@ describe("AppShell", () => {
     expect(form?.getAttribute("method")?.toLowerCase()).toBe("post");
     expect(form?.getAttribute("action")).toBe("/api/sair");
     expect(screen.queryByRole("link", { name: "Entrar" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Alternar tema" })).toBeDefined();
   });
 
   test("docente não vê Importar", async () => {
@@ -234,7 +238,11 @@ describe("AppShell", () => {
 describe("AppShell, estilo agenda", () => {
   test("marca só com o nome do sistema e link ativo com aria-current", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
-    expect(screen.getByRole("link", { name: "Reserva de Espaços" }).getAttribute("href")).toBe("/");
+    expect(
+      screen
+        .getByRole("link", { name: "IFSC Câmpus Garopaba — Reserva de espaços" })
+        .getAttribute("href"),
+    ).toBe("/");
     expect(screen.getByRole("link", { name: "Agenda" }).getAttribute("aria-current")).toBe("page");
     expect(screen.getByRole("link", { name: "Importar" }).getAttribute("aria-current")).toBeNull();
   });
