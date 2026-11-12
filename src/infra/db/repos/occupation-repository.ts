@@ -117,6 +117,124 @@ export function createOccupationRepository(
       return changed > 0;
     },
 
+    async updateManualSeriesIfFree(input) {
+      if (input.expected.length === 0 || input.expected.length !== input.updates.length)
+        return false;
+      const expectedById = new Map(input.expected.map((item) => [item.id, item]));
+      if (input.updates.some((item) => !expectedById.has(item.id))) return false;
+      const updateById = new Map(input.updates.map((item) => [item.id, item]));
+      if (input.expected.some((item) => !updateById.has(item.id))) return false;
+      const payload = JSON.stringify(
+        input.expected.map((old) => {
+          const next = updateById.get(old.id);
+          return {
+            id: old.id,
+            oldSpaceId: old.spaceId,
+            oldStartsAt: old.startsAt,
+            oldEndsAt: old.endsAt,
+            oldTitle: old.title,
+            newSpaceId: next?.spaceId,
+            newStartsAt: next?.startsAt,
+            newEndsAt: next?.endsAt,
+            newTitle: next?.title,
+          };
+        }),
+      );
+      const eligibleScope =
+        input.scope === "future" ? sql`AND s.starts_at >= ${input.anchorStartsAt}` : sql``;
+      const eligibleCount = sql`(
+        SELECT count(*) FROM occupations s
+        WHERE s.series_id = ${input.seriesId}
+          AND s.source = 'manual'
+          AND s.created_by = ${input.createdBy}
+          AND s.status = 'ativa'
+          AND s.starts_at > ${input.nowLocal}
+          ${eligibleScope}
+      ) = ${input.expected.length}`;
+      const exactSnapshotCount = sql`(
+        SELECT count(*) FROM occupations s
+        JOIN json_each(${payload}) j ON json_extract(j.value, '$.id') = s.id
+        WHERE s.series_id = ${input.seriesId}
+          AND s.source = 'manual'
+          AND s.created_by = ${input.createdBy}
+          AND s.status = 'ativa'
+          AND s.starts_at > ${input.nowLocal}
+          ${eligibleScope}
+          AND s.space_id = json_extract(j.value, '$.oldSpaceId')
+          AND s.starts_at = json_extract(j.value, '$.oldStartsAt')
+          AND s.ends_at = json_extract(j.value, '$.oldEndsAt')
+          AND s.title = json_extract(j.value, '$.oldTitle')
+      ) = ${input.expected.length}`;
+      const noConflicts = sql`NOT EXISTS (
+        SELECT 1 FROM json_each(${payload}) p
+        JOIN occupations o
+          ON o.space_id = json_extract(p.value, '$.newSpaceId')
+          AND o.status = 'ativa'
+          AND o.id NOT IN (SELECT json_extract(value, '$.id') FROM json_each(${payload}))
+          AND o.starts_at < json_extract(p.value, '$.newEndsAt')
+          AND o.ends_at > json_extract(p.value, '$.newStartsAt')
+      )`;
+      const newValue = (key: string) =>
+        sql`(SELECT json_extract(j.value, ${`$.${key}`}) FROM json_each(${payload}) j
+             WHERE json_extract(j.value, '$.id') = ${occupations.id})`;
+      const job =
+        (await email?.prepare({
+          kind: "updated",
+          userId: input.createdBy,
+          spaceId: input.updates[0]?.spaceId ?? "",
+          title: input.updates[0]?.title ?? "",
+          slots: input.updates,
+          series: true,
+        })) ?? null;
+      const counts = await runAtomicWrites(db, (x) => [
+        x
+          .update(occupations)
+          .set({
+            spaceId: newValue("newSpaceId"),
+            startsAt: newValue("newStartsAt"),
+            endsAt: newValue("newEndsAt"),
+            title: newValue("newTitle"),
+          })
+          .where(
+            and(
+              sql`EXISTS (
+                SELECT 1 FROM json_each(${payload}) j
+                WHERE json_extract(j.value, '$.id') = ${occupations.id}
+              )`,
+              eq(occupations.seriesId, input.seriesId),
+              eq(occupations.source, "manual"),
+              eq(occupations.createdBy, input.createdBy),
+              eq(occupations.status, "ativa"),
+              gt(occupations.startsAt, input.nowLocal),
+              ...(input.scope === "future"
+                ? [gte(occupations.startsAt, input.anchorStartsAt)]
+                : []),
+              eligibleCount,
+              exactSnapshotCount,
+              noConflicts,
+            ),
+          ),
+        ...(job === null ? [] : [outboxWrite(x, job)]),
+      ]);
+      return counts[0] === input.expected.length;
+    },
+
+    async listManualSeriesForUpdate(seriesId, createdBy, fromLocal) {
+      return db
+        .select(columns)
+        .from(occupations)
+        .where(
+          and(
+            eq(occupations.seriesId, seriesId),
+            eq(occupations.source, "manual"),
+            eq(occupations.createdBy, createdBy),
+            eq(occupations.status, "ativa"),
+            gt(occupations.startsAt, fromLocal),
+          ),
+        )
+        .orderBy(asc(occupations.startsAt), asc(occupations.id));
+    },
+
     async listActiveInRange(spaceId, from, to) {
       return db
         .select(columns)

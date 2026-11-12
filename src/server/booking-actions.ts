@@ -7,6 +7,8 @@ import type {
   RecurringPreview,
   RoomsDay,
   RoomsWeek,
+  SeriesUpdateInput,
+  SeriesUpdatePreview,
   WeekAgenda,
 } from "#/application/bookings";
 import {
@@ -173,6 +175,68 @@ export function updateBookingAction(deps: BookingDeps, request: RequestLike, dat
       await deps.bookings.updateBooking(user, { occupationId, spaceId, date, start, end, purpose }),
     );
   });
+}
+
+function seriesUpdateFrom(data: unknown): SeriesUpdateInput | null {
+  const body = record(data);
+  const occupationId = body && text(body, "occupationId");
+  const spaceId = body && text(body, "spaceId");
+  const date = body && text(body, "date");
+  const start = body && text(body, "start");
+  const end = body && text(body, "end");
+  const purpose = body && text(body, "purpose");
+  const scope = body?.scope;
+  if (
+    occupationId == null ||
+    spaceId == null ||
+    date == null ||
+    start == null ||
+    end == null ||
+    purpose == null ||
+    (scope !== "future" && scope !== "serie")
+  ) {
+    return null;
+  }
+  return { occupationId, spaceId, date, start, end, purpose, scope };
+}
+
+/** Prévia das alterações das ocorrências futuras já materializadas (`future` ou `serie`). */
+export function previewSeriesUpdateAction(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asRoles<SeriesUpdatePreview>(BOOKING_ROLES, deps, request, async (user) => {
+    const input = seriesUpdateFrom(data);
+    if (input === null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.bookings.previewSeriesUpdate(user, input));
+  });
+}
+
+/** Confirma a edição após a prévia; quantidade e revisão impedem aplicar uma lista desatualizada. */
+export function updateSeriesBookingAction(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asRoles<{ updated: number; dates: string[] }>(
+    BOOKING_ROLES,
+    deps,
+    request,
+    async (user) => {
+      const body = record(data);
+      const input = seriesUpdateFrom(data);
+      const expectedCount = body && boundedInt(body.expectedCount, 1, MAX_OCCURRENCES);
+      const expectedRevision = body && text(body, "expectedRevision");
+      if (
+        input === null ||
+        typeof expectedCount !== "number" ||
+        expectedRevision == null ||
+        !/^[a-f0-9]{64}$/.test(expectedRevision)
+      ) {
+        return reject(400, BAD_REQUEST);
+      }
+      return fromResult(
+        await deps.bookings.updateSeriesBooking(user, {
+          ...input,
+          expectedCount,
+          expectedRevision,
+        }),
+      );
+    },
+  );
 }
 
 /** Teto só de formato; os limites de verdade ficam na regra do domínio (mensagem no campo). */

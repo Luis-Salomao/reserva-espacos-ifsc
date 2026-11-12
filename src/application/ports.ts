@@ -342,6 +342,11 @@ export type OccupationRecord = {
 
 export type OccupationWithSpace = OccupationRecord & { spaceName: string };
 
+export type ManualSeriesSlotUpdate = Pick<
+  OccupationRecord,
+  "id" | "spaceId" | "startsAt" | "endsAt" | "title"
+>;
+
 /** Ocupação que impediu uma reserva (só título e horários). */
 type BlockingOccupation = { title: string; startsAt: string; endsAt: string };
 
@@ -378,6 +383,26 @@ export interface OccupationRepository {
     endsAt: string;
     title: string;
   }): Promise<boolean>;
+  /**
+   * Atualiza em uma instrução uma série manual própria. `expected` são os snapshots ativos que o
+   * usuário revisou; se algum mudar, a contagem não corresponder ou houver conflito externo,
+   * nenhuma linha é alterada. Exceções canceladas não entram na seleção e permanecem intactas.
+   */
+  updateManualSeriesIfFree(input: {
+    seriesId: string;
+    createdBy: string;
+    nowLocal: string;
+    scope: "future" | "serie";
+    anchorStartsAt: string;
+    expected: readonly ManualSeriesSlotUpdate[];
+    updates: readonly ManualSeriesSlotUpdate[];
+  }): Promise<boolean>;
+  /** Próximas ocorrências ativas de uma série manual própria, ordenadas pela data. */
+  listManualSeriesForUpdate(
+    seriesId: string,
+    createdBy: string,
+    fromLocal: string,
+  ): Promise<OccupationRecord[]>;
   /** Ocupações ativas do espaço que tocam `[from, to)`, por início. */
   listActiveInRange(spaceId: string, from: string, to: string): Promise<OccupationRecord[]>;
   /** Ocupações ativas de todos os espaços que tocam `[from, to)`, por espaço, início e id. */

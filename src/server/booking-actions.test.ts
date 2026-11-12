@@ -12,7 +12,9 @@ import {
   getWeekAgenda,
   myBookingsAction,
   previewSeriesAction,
+  previewSeriesUpdateAction,
   updateBookingAction,
+  updateSeriesBookingAction,
 } from "./booking-actions.ts";
 
 async function setup(publicRead = true) {
@@ -79,6 +81,58 @@ test("edição exige sessão, corpo válido e autoria mesmo para admin", async (
     ok: true,
     data: { id: made.value.id, title: "Editada" },
   });
+});
+
+test("edição agrupada exige sessão, valida o escopo e confirma a série do criador", async () => {
+  const { s, deps, req } = await setup();
+  const input = {
+    ...body(s),
+    rule: {
+      freq: "weekly" as const,
+      interval: 1,
+      weekdays: [1],
+      end: { kind: "count" as const, count: 2 },
+    },
+  };
+  const checked = await deps.bookings.previewRecurring(s.docA, input);
+  if (!checked.ok) throw new Error("prévia de série falhou");
+  const created = await deps.bookings.createRecurring(s.docA, {
+    ...input,
+    confirmed: checked.value.dates.filter((item) => item.free).map((item) => item.date),
+  });
+  if (!created.ok || !created.value.created) throw new Error("criação de série falhou");
+  const list = await deps.bookings.myBookings(s.docA, {});
+  if (!list.ok || !list.value.items[0]) throw new Error("série não apareceu em minhas reservas");
+  const anchor = list.value.items[0];
+  const update = {
+    occupationId: anchor.id,
+    spaceId: s.sala2.id,
+    date: "2026-11-11",
+    start: "13:00",
+    end: "14:00",
+    purpose: "Série editada",
+    scope: "future",
+  };
+  expect((await previewSeriesUpdateAction(deps, req(null), update)).response).toMatchObject({
+    ok: false,
+    status: 401,
+  });
+  expect(
+    (await previewSeriesUpdateAction(deps, req("doca"), { ...update, scope: "data" })).response,
+  ).toMatchObject({ ok: false, status: 400 });
+  expect((await previewSeriesUpdateAction(deps, req("docb"), update)).response).toMatchObject({
+    ok: false,
+    status: 403,
+  });
+  const preview = await previewSeriesUpdateAction(deps, req("doca"), update);
+  expect(preview.response).toMatchObject({ ok: true, data: { count: 2 } });
+  if (!preview.response.ok) throw new Error("prévia da série falhou");
+  const saved = await updateSeriesBookingAction(deps, req("doca"), {
+    ...update,
+    expectedCount: 2,
+    expectedRevision: preview.response.data.revision,
+  });
+  expect(saved.response).toMatchObject({ ok: true, data: { updated: 2 } });
 });
 
 describe("agenda: leitura", () => {

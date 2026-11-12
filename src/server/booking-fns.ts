@@ -12,7 +12,9 @@ import {
   myBookingsAction,
   previewRecurringAction,
   previewSeriesAction,
+  previewSeriesUpdateAction,
   updateBookingAction,
+  updateSeriesBookingAction,
 } from "./booking-actions.ts";
 import { getBookingDeps } from "./booking-deps.ts";
 import { finish } from "./finish.ts";
@@ -22,6 +24,16 @@ export const updateBookingFn = createServerFn({ method: "POST" })
   .validator(passthrough)
   .handler(async ({ data }) =>
     finish(await updateBookingAction(getBookingDeps(), getRequest(), data)),
+  );
+export const previewSeriesUpdateFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await previewSeriesUpdateAction(getBookingDeps(), getRequest(), data)),
+  );
+export const updateSeriesBookingFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await updateSeriesBookingAction(getBookingDeps(), getRequest(), data)),
   );
 export const getSubjectsFn = createServerFn({ method: "POST" })
   .validator(passthrough)

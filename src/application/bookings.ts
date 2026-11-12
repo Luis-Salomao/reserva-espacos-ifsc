@@ -1,5 +1,6 @@
 import type {
   Clock,
+  ManualSeriesSlotUpdate,
   OccupationRecord,
   OccupationRepository,
   OccupationWithSpace,
@@ -19,7 +20,12 @@ import {
 import { addDays, weekdayOf } from "#/domain/calendar";
 import { CANCEL_REASONS } from "#/domain/cancel-reasons";
 import { equipmentForViewer, type SpaceEquipment } from "#/domain/equipment";
-import { expandRecurrence, type Recurrence, recurrenceSummary } from "#/domain/recurrence";
+import {
+  expandRecurrence,
+  MAX_OCCURRENCES,
+  type Recurrence,
+  recurrenceSummary,
+} from "#/domain/recurrence";
 import { isValidDate, type Semester } from "#/domain/semester";
 import type { User } from "#/domain/user";
 
@@ -37,6 +43,8 @@ const FORBIDDEN_CANCEL = "Sem permissão para cancelar esta ocupação.";
 const ENDED = "Esta ocupação já terminou e não pode ser cancelada.";
 const ALREADY_CANCELLED = "Esta ocupação já foi cancelada.";
 const SERIES_CHANGED = "A série mudou desde a confirmação. Revise as datas e confirme de novo.";
+const SERIES_UPDATE_CHANGED =
+  "A série ou a disponibilidade mudou desde a prévia. Revise as alterações antes de confirmar.";
 const RACE_LOST = "O horário foi ocupado por outra reserva. Atualize a agenda e escolha outro.";
 const NONE_FREE = "Nenhuma data da série está livre; nada foi reservado.";
 const PREVIEW_CHANGED =
@@ -126,6 +134,51 @@ type ConflictInfo = {
 /** Falha de conflito carrega a ocupação que bloqueou (título e horários, sem pessoas). */
 type BookingFailure = Failure & { conflict?: ConflictInfo };
 export type BookingResult = { ok: true; value: BookingView } | BookingFailure;
+
+export type SeriesUpdateScope = "future" | "serie";
+export type SeriesUpdateInput = {
+  occupationId: string;
+  spaceId: string;
+  date: string;
+  start: string;
+  end: string;
+  purpose: string;
+  scope: SeriesUpdateScope;
+};
+export type SeriesUpdatePreview = {
+  scope: SeriesUpdateScope;
+  count: number;
+  revision: string;
+  changes: Array<{ from: string; to: string }>;
+};
+
+async function seriesRevision(
+  rows: readonly ManualSeriesSlotUpdate[],
+  input: SeriesUpdateInput,
+): Promise<string> {
+  const bytes = new TextEncoder().encode(
+    JSON.stringify({
+      rows,
+      occupationId: input.occupationId,
+      scope: input.scope,
+      spaceId: input.spaceId,
+      date: input.date,
+      start: input.start,
+      end: input.end,
+      purpose: input.purpose,
+    }),
+  );
+  const digest = new Uint8Array(await crypto.subtle.digest("SHA-256", bytes));
+  return [...digest].map((value) => value.toString(16).padStart(2, "0")).join("");
+}
+
+function dateOffset(from: string, to: string): number {
+  const dayNumber = (date: string) => {
+    const [year = "1970", month = "01", day = "01"] = date.split("-");
+    return Date.UTC(Number(year), Number(month) - 1, Number(day)) / 86_400_000;
+  };
+  return dayNumber(to) - dayNumber(from);
+}
 
 /** `inSeries`: faz parte de uma série de reservas recorrentes. */
 export type MyBooking = AgendaItem & {
@@ -319,6 +372,136 @@ export function createBookingsService(deps: BookingsDeps) {
     return found?.name ?? null;
   }
 
+  async function planSeriesUpdate(
+    user: User,
+    input: SeriesUpdateInput,
+  ): Promise<
+    Result<{
+      seriesId: string;
+      anchorStartsAt: string;
+      expected: ManualSeriesSlotUpdate[];
+      updates: ManualSeriesSlotUpdate[];
+      preview: SeriesUpdatePreview;
+    }>
+  > {
+    if (!canBook(user)) return fail("forbidden", "Sem permissão para editar esta reserva.");
+    const anchor = await occupations.findById(input.occupationId);
+    if (anchor === null) return fail("not_found", "Reserva não encontrada.");
+    if (anchor.source !== "manual" || anchor.createdBy !== user.id || anchor.seriesId === null) {
+      return fail("forbidden", "Sem permissão para editar esta série.");
+    }
+    const now = nowLocal();
+    if (anchor.status !== "ativa") return fail("conflict", ALREADY_CANCELLED);
+    if (anchor.startsAt <= now) {
+      return fail("validation", "Escolha uma ocorrência futura da série.", "occupationId");
+    }
+
+    const purpose = parseText(input.purpose, MAX_PURPOSE, "A finalidade", "purpose");
+    if (!purpose.ok) return purpose;
+    if ((await spaceName(input.spaceId)) === null) {
+      return fail("not_found", "Espaço não encontrado.", "spaceId");
+    }
+
+    const allFuture = await occupations.listManualSeriesForUpdate(anchor.seriesId, user.id, now);
+    const rows =
+      input.scope === "future"
+        ? allFuture.filter((item) => item.startsAt >= anchor.startsAt)
+        : allFuture;
+    if (rows.length === 0 || !rows.some((item) => item.id === anchor.id)) {
+      return fail("conflict", SERIES_CHANGED);
+    }
+
+    const offset = dateOffset(anchor.startsAt.slice(0, 10), input.date);
+    const expected = rows.map(({ id, spaceId, startsAt, endsAt, title }) => ({
+      id,
+      spaceId,
+      startsAt,
+      endsAt,
+      title,
+    }));
+    const updates = rows.map((item): ManualSeriesSlotUpdate => {
+      const date = addDays(item.startsAt.slice(0, 10), offset);
+      return {
+        id: item.id,
+        spaceId: input.spaceId,
+        startsAt: `${date}T${input.start}`,
+        endsAt: `${date}T${input.end}`,
+        title: purpose.value,
+      };
+    });
+
+    for (const update of updates) {
+      const issue = validateBookingWhen(
+        {
+          date: update.startsAt.slice(0, 10),
+          start: update.startsAt.slice(11, 16),
+          end: update.endsAt.slice(11, 16),
+        },
+        hours,
+        now,
+      );
+      if (issue !== null) return validationFrom(issue);
+    }
+
+    const targetIds = new Set(updates.map((item) => item.id));
+    for (let left = 0; left < updates.length; left++) {
+      const current = updates[left];
+      if (current === undefined) continue;
+      for (let right = left + 1; right < updates.length; right++) {
+        const other = updates[right];
+        if (
+          other !== undefined &&
+          current.spaceId === other.spaceId &&
+          current.startsAt < other.endsAt &&
+          current.endsAt > other.startsAt
+        ) {
+          return fail("conflict", "As novas datas da série se sobrepõem entre si.");
+        }
+      }
+    }
+
+    const firstDate = updates[0]?.startsAt.slice(0, 10);
+    const lastDate = updates.at(-1)?.startsAt.slice(0, 10);
+    if (firstDate === undefined || lastDate === undefined) {
+      return fail("conflict", SERIES_CHANGED);
+    }
+    const existing = await occupations.listActiveInRangeAll(
+      `${firstDate}T00:00`,
+      `${addDays(lastDate, 1)}T00:00`,
+    );
+    for (const update of updates) {
+      const conflict = existing.find(
+        (item) =>
+          !targetIds.has(item.id) &&
+          item.spaceId === update.spaceId &&
+          item.startsAt < update.endsAt &&
+          item.endsAt > update.startsAt,
+      );
+      if (conflict !== undefined) {
+        return fail(
+          "conflict",
+          `Há conflito em ${update.startsAt.slice(0, 10)} (${conflict.startsAt.slice(11, 16)}–${conflict.endsAt.slice(11, 16)}).`,
+        );
+      }
+    }
+
+    return ok({
+      seriesId: anchor.seriesId,
+      anchorStartsAt: anchor.startsAt,
+      expected,
+      updates,
+      preview: {
+        scope: input.scope,
+        count: updates.length,
+        revision: await seriesRevision(expected, input),
+        changes: rows.map((item, index) => ({
+          from: item.startsAt.slice(0, 10),
+          to: updates[index]?.startsAt.slice(0, 10) ?? item.startsAt.slice(0, 10),
+        })),
+      },
+    });
+  }
+
   /** Âncora autorizada para cancelar (ou ver a série): existe, está ativa e é do usuário (ou admin). */
   async function loadCancellable(
     user: User,
@@ -423,6 +606,55 @@ export function createBookingsService(deps: BookingsDeps) {
         start: input.start,
         end: input.end,
         title: purpose.value,
+      });
+    },
+
+    /** Prévia das datas afetadas pela edição de uma série manual. */
+    async previewSeriesUpdate(
+      user: User,
+      input: SeriesUpdateInput,
+    ): Promise<Result<SeriesUpdatePreview>> {
+      const plan = await planSeriesUpdate(user, input);
+      return plan.ok ? ok(plan.value.preview) : plan;
+    },
+
+    /**
+     * Atualiza as ocorrências futuras materializadas. A nova data desloca as demais pelo mesmo
+     * número de dias; a relação entre datas é preservada e exceções canceladas permanecem intactas.
+     */
+    async updateSeriesBooking(
+      user: User,
+      input: SeriesUpdateInput & { expectedCount: number; expectedRevision: string },
+    ): Promise<Result<{ updated: number; dates: string[] }>> {
+      if (
+        !Number.isInteger(input.expectedCount) ||
+        input.expectedCount < 1 ||
+        input.expectedCount > MAX_OCCURRENCES ||
+        !/^[a-f0-9]{64}$/.test(input.expectedRevision)
+      ) {
+        return fail("validation", "Revise a prévia da série antes de confirmar.");
+      }
+      const plan = await planSeriesUpdate(user, input);
+      if (!plan.ok) return plan;
+      if (
+        plan.value.preview.count !== input.expectedCount ||
+        plan.value.preview.revision !== input.expectedRevision
+      ) {
+        return fail("conflict", SERIES_CHANGED);
+      }
+      const updated = await occupations.updateManualSeriesIfFree({
+        seriesId: plan.value.seriesId,
+        createdBy: user.id,
+        nowLocal: nowLocal(),
+        scope: input.scope,
+        anchorStartsAt: plan.value.anchorStartsAt,
+        expected: plan.value.expected,
+        updates: plan.value.updates,
+      });
+      if (!updated) return fail("conflict", SERIES_UPDATE_CHANGED);
+      return ok({
+        updated: plan.value.preview.count,
+        dates: plan.value.preview.changes.map((change) => change.to),
       });
     },
 

@@ -2,6 +2,7 @@ import { describe, expect, test } from "bun:test";
 import { mkdtempSync, readdirSync, readFileSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/d1";
 import { createBookingsService } from "#/application/bookings";
 import type { Role } from "#/domain/user";
@@ -176,6 +177,84 @@ describe("reservas no D1 local", () => {
         expect(
           await service.cancelOccupation(docA, { occupationId: "s0", scope: "serie" }),
         ).toEqual({ ok: true, value: { cancelled: 2 } });
+
+        const recurringInput = {
+          spaceId: space.id,
+          date: "2026-12-08",
+          start: "10:00",
+          end: "11:00",
+          purpose: "Série para edição",
+          rule: {
+            freq: "weekly" as const,
+            interval: 1,
+            weekdays: [1],
+            end: { kind: "count" as const, count: 3 },
+          },
+        };
+        const recurrencePreview = await service.previewRecurring(docA, recurringInput);
+        if (!recurrencePreview.ok) throw new Error("prévia de edição D1 falhou");
+        const recurrence = await service.createRecurring(docA, {
+          ...recurringInput,
+          confirmed: recurrencePreview.value.dates
+            .filter((item) => item.free)
+            .map((item) => item.date),
+        });
+        if (!recurrence.ok || !recurrence.value.created) throw new Error("série D1 falhou");
+        const seriesRows = (
+          await db
+            .select()
+            .from(schema.occupations)
+            .where(eq(schema.occupations.seriesId, recurrence.value.seriesId))
+        ).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+        const [first, exception, last] = seriesRows;
+        if (!first || !exception || !last) throw new Error("série D1 incompleta");
+        await service.cancelOccupation(docA, { occupationId: exception.id, scope: "data" });
+        const seriesUpdate = {
+          occupationId: last.id,
+          spaceId: space.id,
+          date: "2026-12-23",
+          start: "16:00",
+          end: "17:00",
+          purpose: "Série editada no D1",
+          scope: "serie" as const,
+        };
+        const updatePreview = await service.previewSeriesUpdate(docA, seriesUpdate);
+        expect(updatePreview).toMatchObject({
+          ok: true,
+          value: {
+            count: 2,
+            changes: [
+              { from: "2026-12-08", to: "2026-12-09" },
+              { from: "2026-12-22", to: "2026-12-23" },
+            ],
+          },
+        });
+        if (!updatePreview.ok) throw new Error("prévia da edição da série D1 falhou");
+        expect(
+          await service.updateSeriesBooking(docA, {
+            ...seriesUpdate,
+            expectedCount: 2,
+            expectedRevision: updatePreview.value.revision,
+          }),
+        ).toMatchObject({ ok: true, value: { updated: 2 } });
+        const afterSeriesUpdate = (
+          await db
+            .select()
+            .from(schema.occupations)
+            .where(eq(schema.occupations.seriesId, recurrence.value.seriesId))
+        ).sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+        expect(afterSeriesUpdate[0]).toMatchObject({
+          startsAt: "2026-12-09T16:00",
+          status: "ativa",
+        });
+        expect(afterSeriesUpdate[1]).toMatchObject({
+          startsAt: "2026-12-15T10:00",
+          status: "cancelada",
+        });
+        expect(afterSeriesUpdate[2]).toMatchObject({
+          startsAt: "2026-12-23T16:00",
+          status: "ativa",
+        });
       } finally {
         await proxy.dispose();
         await new Promise((resolve) => nativeSetTimeout(resolve, 50));
