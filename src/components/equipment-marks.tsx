@@ -39,16 +39,27 @@ export function EquipmentMarks({ equipment, showNotes = false }: Props) {
           const quantity = equipment?.items[item.kind];
           const described = describeEquipment(item.kind, quantity);
           const Icon = ICONS[item.kind];
+          const estado = !described.known ? "nao-informado" : quantity === 0 ? "sem" : "tem";
           return (
             <span
               key={item.kind}
+              data-estado={estado}
               className={cn(
-                "inline-flex size-6 items-center justify-center rounded border border-border text-foreground",
-                !described.known && "border-dashed text-muted-foreground",
-                described.known && quantity === 0 && "opacity-40",
+                "relative inline-flex size-6 items-center justify-center rounded border",
+                estado === "tem" &&
+                  "border-(--accent-text)/40 bg-(--accent-text)/10 text-(--accent-text)",
+                estado === "sem" && "border-border text-muted-foreground",
+                estado === "nao-informado" && "border-dashed border-border text-muted-foreground",
               )}
             >
               <Icon className="size-3.5" aria-hidden={true} />
+              {estado === "sem" && (
+                <span
+                  data-corte=""
+                  aria-hidden="true"
+                  className="pointer-events-none absolute h-0.5 w-6 -rotate-45 rounded-full bg-destructive"
+                />
+              )}
               <span className="sr-only">{described.text}</span>
             </span>
           );

@@ -35,4 +35,32 @@ describe("EquipmentMarks", () => {
     rerender(<EquipmentMarks equipment={equipment} showNotes />);
     expect(screen.getByText("Lousa digital")).toBeDefined();
   });
+
+  test("tem = verde do IFSC; não tem = ícone cortado; não informado = tracejado", () => {
+    const { container } = render(
+      <EquipmentMarks equipment={{ items: { projetor: 1, computadores: 0 }, notes: null }} />,
+    );
+    const marca = (texto: string) => {
+      const marcaEl = within(screen.getByRole("group", { name: "Equipamentos" }))
+        .getByText(texto)
+        .closest("[data-estado]");
+      if (marcaEl === null) throw new Error(`sem data-estado: ${texto}`);
+      return marcaEl;
+    };
+
+    const tem = marca("Projetor");
+    expect(tem.getAttribute("data-estado")).toBe("tem");
+    expect(tem.className).toContain("text-(--accent-text)");
+    expect(tem.querySelector("[data-corte]") === null).toBe(true);
+
+    const sem = marca("Sem computadores");
+    expect(sem.getAttribute("data-estado")).toBe("sem");
+    expect(sem.querySelector("[data-corte]") === null).toBe(false);
+
+    const desconhecido = marca("Aparelho de som não informado");
+    expect(desconhecido.getAttribute("data-estado")).toBe("nao-informado");
+    expect(desconhecido.className).toContain("border-dashed");
+    expect(desconhecido.querySelector("[data-corte]") === null).toBe(true);
+    expect(container.querySelectorAll("[data-corte]").length).toBe(1);
+  });
 });
