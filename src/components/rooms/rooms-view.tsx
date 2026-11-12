@@ -12,7 +12,7 @@ import { Notice } from "#/components/page";
 import { SpaceDetailsLegend } from "#/components/spaces/space-details";
 import { Button } from "#/components/ui/button";
 import { DatePicker } from "#/components/ui/date-picker";
-import { type PageView, ViewSwitcher } from "#/components/view-switcher";
+import { type PageView, ViewTabsBar } from "#/components/view-switcher";
 import { localNow, type TimeRange } from "#/domain/availability";
 import { addDays } from "#/domain/calendar";
 import {
@@ -263,14 +263,14 @@ export function RoomsView({
   );
 
   return (
-    <div className="grid w-full max-w-full min-w-0 gap-4" data-testid="rooms-view">
+    <div className="grid w-full max-w-full min-w-0 gap-3" data-testid="rooms-view">
+      <ViewTabsBar value={view} onChange={setView} />
       <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
         <h1 className="text-lg font-semibold tracking-tight text-foreground first-letter:uppercase">
           {geral && !dayMode
             ? "Agenda de salas"
             : dayTitle.format(new Date(`${selectedDate}T12:00:00Z`))}
         </h1>
-        <div className="flex-1" />
         <div className="flex flex-wrap items-center gap-1">
           <Button variant="outline" size="sm" onClick={() => goTo(today)}>
             Hoje
@@ -320,7 +320,6 @@ export function RoomsView({
               ))}
             </fieldset>
           )}
-          <ViewSwitcher value={view} onChange={setView} className="ml-1" />
         </div>
       </div>
 

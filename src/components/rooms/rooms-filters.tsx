@@ -114,13 +114,15 @@ function SearchField({ filter, onChange }: FieldsProps) {
   const id = useId();
   const [query, setQuery] = useFieldText(filter.query, (text) => text.trim());
   return (
-    <div className="grid gap-1.5">
-      <Label htmlFor={`${id}-busca`}>Buscar sala</Label>
+    <div>
+      <Label htmlFor={`${id}-busca`} className="sr-only">
+        Buscar sala
+      </Label>
       <Input
         id={`${id}-busca`}
         type="search"
         className="h-9 w-48"
-        placeholder="Nome da sala"
+        placeholder="Buscar sala"
         value={query}
         onChange={(event) => {
           setQuery(event.target.value);
@@ -278,8 +280,8 @@ export function RoomsFilters(props: RoomsFiltersProps) {
   const { blocks, floors, filter, total, shown, hiddenNoCapacity, view, onChange } = props;
   const count = hiddenCount(filter, props);
   return (
-    <section aria-label="Filtros das salas" className="grid gap-3">
-      <div className="flex flex-wrap items-end gap-3">
+    <section aria-label="Filtros das salas" className="grid gap-1.5">
+      <div className="flex flex-wrap items-end gap-x-3 gap-y-2">
         {view === "livres" && <WindowFields filter={filter} onChange={onChange} />}
         <SearchField filter={filter} onChange={onChange} />
         <Popover>
@@ -304,16 +306,16 @@ export function RoomsFilters(props: RoomsFiltersProps) {
           </PopoverContent>
         </Popover>
         {props.extra}
-      </div>
-      <div className="grid gap-0.5 text-[13px]" aria-live="polite">
-        <p className="text-muted-foreground">{`${shown} de ${total} ${total === 1 ? "sala" : "salas"}`}</p>
-        {hiddenNoCapacity > 0 && (
-          <p>
-            {hiddenNoCapacity === 1
-              ? "1 sala sem capacidade cadastrada ficou de fora"
-              : `${hiddenNoCapacity} salas sem capacidade cadastrada ficaram de fora`}
-          </p>
-        )}
+        <div className="flex h-9 flex-wrap items-center gap-x-3 text-[13px]" aria-live="polite">
+          <p className="text-muted-foreground">{`${shown} de ${total} ${total === 1 ? "sala" : "salas"}`}</p>
+          {hiddenNoCapacity > 0 && (
+            <p>
+              {hiddenNoCapacity === 1
+                ? "1 sala sem capacidade cadastrada ficou de fora"
+                : `${hiddenNoCapacity} salas sem capacidade cadastrada ficaram de fora`}
+            </p>
+          )}
+        </div>
       </div>
     </section>
   );

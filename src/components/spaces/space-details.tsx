@@ -134,18 +134,16 @@ export function SpaceDetails({ space, compact = false }: SpaceDetailsProps) {
 /** Legenda dos ícones usados em `SpaceDetails` (texto sempre presente, ícones decorativos). */
 export function SpaceDetailsLegend() {
   return (
-    <ul className="grid gap-2 text-sm">
+    <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-muted-foreground">
       <li className="inline-flex items-center gap-2">
         <Monitor aria-hidden="true" className="size-4" />
         computadores cadastrados
       </li>
       <li className="inline-flex items-center gap-2">
         <MaintenanceBadge label="N em manutenção" />
-        amarelo com chave: em manutenção
+        em manutenção
       </li>
-      <li className="inline-flex items-center gap-2 text-muted-foreground">
-        {NOT_INFORMED}: sem cadastro
-      </li>
+      <li className="inline-flex items-center gap-2">{NOT_INFORMED}: sem cadastro</li>
     </ul>
   );
 }

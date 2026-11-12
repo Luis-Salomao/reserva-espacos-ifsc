@@ -54,6 +54,16 @@ const NAV_ICONS: Record<NavItem["to"], LucideIcon> = {
   "/manutencao/espacos": Wrench,
 };
 
+/** Frase curta (até ~60 caracteres) que explica cada tela, mostrada na barra superior. */
+export const SCREEN_HINTS: Record<NavItem["to"], string> = {
+  "/": "Veja os horários e a disponibilidade das salas",
+  "/minhas-reservas": "Veja e gerencie as suas reservas",
+  "/importar": "Importe a grade de horários do aSc",
+  "/semestres": "Configure semestres e durações",
+  "/admin/contas": "Gerencie contas e espaços",
+  "/manutencao/espacos": "Atualize as informações das salas",
+};
+
 const ROLE_LABELS: Record<string, string> = {
   admin: "Administração",
   horarios: "Horários",
@@ -320,8 +330,8 @@ function activeItem(items: NavItem[], pathname: string): NavItem | undefined {
 }
 
 /**
- * Barra no topo da área de conteúdo (só no computador, usuário logado): nome do sistema e da tela
- * atual. Não é título (h1): cada página tem o seu.
+ * Barra no topo da área de conteúdo (só no computador, usuário logado): nome do sistema e frase
+ * curta sobre a tela atual. Não é título (h1): cada página tem o seu.
  */
 function ScreenBar({ items }: { items: NavItem[] }) {
   const pathname = useRouterState({ select: (state) => state.location.pathname });
@@ -337,13 +347,10 @@ function ScreenBar({ items }: { items: NavItem[] }) {
         {current !== undefined && (
           <>
             <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span aria-current="page" className="font-medium text-muted-foreground">
-              {current.label}
-            </span>
+            <span className="text-muted-foreground">{SCREEN_HINTS[current.to]}</span>
           </>
         )}
       </p>
-      <p className="ml-3 hidden min-w-0 text-xs text-muted-foreground xl:block">{SYSTEM_TAGLINE}</p>
     </nav>
   );
 }

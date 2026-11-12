@@ -5,7 +5,7 @@ import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
 import { EquipmentMarks } from "#/components/equipment-marks";
 import { SpaceDetails } from "#/components/spaces/space-details";
 import { Button } from "#/components/ui/button";
-import { type PageView, ViewSwitcher } from "#/components/view-switcher";
+import { type PageView, ViewTabsBar } from "#/components/view-switcher";
 import { addDays } from "#/domain/calendar";
 import type { Space } from "#/domain/space";
 import { cn } from "#/lib/utils";
@@ -136,6 +136,7 @@ export function AgendaView({
 
   return (
     <div className="w-full max-w-full" data-testid="agenda-view-root">
+      <ViewTabsBar value="sala" onChange={selectView} className="mb-3" />
       <div className="layout grid gap-0 pb-24 lg:pb-6 xl:grid-cols-[248px_1fr] xl:gap-8">
         {/* Lateral em telas largas; abaixo disso, seletor de sala acima da grade. */}
         <aside
@@ -162,73 +163,73 @@ export function AgendaView({
         </aside>
 
         <div id="agenda-main" className="main min-w-0">
-          <div className="mb-3 flex flex-wrap items-center gap-x-3 gap-y-2">
-            <h1 className="text-lg font-semibold tracking-tight text-foreground">
-              {/* Abaixo de lg só existe a linha do tempo de um dia. */}
-              <span className="block first-letter:uppercase lg:hidden">
-                {formatDayHeader(selectedDate)}
-              </span>
-              <span className="hidden first-letter:uppercase lg:block">
-                {mode === "week"
-                  ? formatWeekHeader(weekAgenda.weekStart)
-                  : formatDayHeader(selectedDate)}
-              </span>
-            </h1>
-            <div className="min-w-0 max-w-64">
-              <RoomSelector
-                spaces={spaces}
-                selectedSpaceId={selectedSpaceId}
-                onSelectSpace={onSelectSpace}
-                variant="chips"
-                showNotes={!isVisitor}
-                onSeeAllRooms={seeAllRooms}
-              />
-            </div>
-            {currentSpace !== undefined && (
-              <EquipmentMarks equipment={currentSpace.equipment} showNotes={!isVisitor} />
-            )}
-            <div className="flex-1" />
-            <div className="toolbar hidden items-center gap-1 lg:flex">
-              <Button variant="outline" size="sm" onClick={() => onSelectDate(todayIso)}>
-                Hoje
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label="Anterior"
-                onClick={() => handleStep(mode === "week" ? -7 : -1)}
-              >
-                <ChevronLeft className="size-4" />
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon"
-                className="size-8"
-                aria-label="Próximo"
-                onClick={() => handleStep(mode === "week" ? 7 : 1)}
-              >
-                <ChevronRight className="size-4" />
-              </Button>
-              <div className="seg ml-1 flex rounded-md border bg-surface p-0.5">
-                {(["day", "week"] as const).map((value) => (
-                  <button
-                    key={value}
-                    type="button"
-                    aria-pressed={mode === value}
-                    onClick={() => setMode(value)}
-                    className={cn(
-                      "rounded-[5px] px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground",
-                      mode === value && "bg-background text-foreground shadow-xs",
-                    )}
-                  >
-                    {value === "day" ? "Dia" : "Semana"}
-                  </button>
-                ))}
+          <div className="mb-3 grid gap-2">
+            <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
+              <h1 className="text-lg font-semibold tracking-tight text-foreground">
+                {/* Abaixo de lg só existe a linha do tempo de um dia. */}
+                <span className="block first-letter:uppercase lg:hidden">
+                  {formatDayHeader(selectedDate)}
+                </span>
+                <span className="hidden first-letter:uppercase lg:block">
+                  {mode === "week"
+                    ? formatWeekHeader(weekAgenda.weekStart)
+                    : formatDayHeader(selectedDate)}
+                </span>
+              </h1>
+              <div className="toolbar hidden items-center gap-1 lg:flex">
+                <Button variant="outline" size="sm" onClick={() => onSelectDate(todayIso)}>
+                  Hoje
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label="Anterior"
+                  onClick={() => handleStep(mode === "week" ? -7 : -1)}
+                >
+                  <ChevronLeft className="size-4" />
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="size-8"
+                  aria-label="Próximo"
+                  onClick={() => handleStep(mode === "week" ? 7 : 1)}
+                >
+                  <ChevronRight className="size-4" />
+                </Button>
+                <div className="seg ml-1 flex rounded-md border bg-surface p-0.5">
+                  {(["day", "week"] as const).map((value) => (
+                    <button
+                      key={value}
+                      type="button"
+                      aria-pressed={mode === value}
+                      onClick={() => setMode(value)}
+                      className={cn(
+                        "rounded-[5px] px-2.5 py-1 text-[12px] font-medium text-muted-foreground transition-colors hover:text-foreground",
+                        mode === value && "bg-background text-foreground shadow-xs",
+                      )}
+                    >
+                      {value === "day" ? "Dia" : "Semana"}
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
-            <div className="hidden lg:block">
-              <ViewSwitcher value="sala" onChange={selectView} />
+            <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-2">
+              <div className="min-w-0 max-w-64">
+                <RoomSelector
+                  spaces={spaces}
+                  selectedSpaceId={selectedSpaceId}
+                  onSelectSpace={onSelectSpace}
+                  variant="chips"
+                  showNotes={!isVisitor}
+                  onSeeAllRooms={seeAllRooms}
+                />
+              </div>
+              {currentSpace !== undefined && (
+                <EquipmentMarks equipment={currentSpace.equipment} showNotes={!isVisitor} />
+              )}
             </div>
           </div>
 
@@ -237,9 +238,6 @@ export function AgendaView({
               Mais opções
             </summary>
             <div className="mt-2 grid gap-4">
-              <div className="lg:hidden">
-                <ViewSwitcher value="sala" onChange={selectView} className="w-full" />
-              </div>
               {currentSpace ? (
                 <SpaceDetails space={currentSpace} />
               ) : (

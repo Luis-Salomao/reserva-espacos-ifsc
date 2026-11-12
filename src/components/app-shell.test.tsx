@@ -10,7 +10,7 @@ import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import type { User } from "#/domain/user";
 import type { SessionInfo } from "#/server/session";
-import { AppShell } from "./app-shell";
+import { AppShell, SCREEN_HINTS } from "./app-shell";
 
 const ana: User = {
   id: "u1",
@@ -97,20 +97,27 @@ describe("AppShell", () => {
     expect(text?.parentElement?.className).toContain("md:hidden");
     const bar = screen.getByRole("navigation", { name: "Localização" });
     expect(bar.textContent).toContain("Sistema de Reserva de Espaços");
-    expect(bar.textContent).toContain("Agenda");
+    expect(bar.textContent).toContain(SCREEN_HINTS["/"]);
     expect(bar.querySelectorAll("h1").length).toBe(0);
-    expect(bar.querySelector("[aria-current='page']")?.textContent).toBe("Agenda");
+    expect(bar.textContent).not.toContain("…");
     expect(bar.className).not.toContain("border-primary");
     expect(bar.className).not.toContain("bg-primary");
   });
-  test("barra superior mostra o nome da tela atual (Minhas reservas)", async () => {
+  test("toda frase de tela é curta (até 60 caracteres) e sem reticências", () => {
+    for (const hint of Object.values(SCREEN_HINTS)) {
+      expect(hint.length).toBeLessThanOrEqual(60);
+      expect(hint).not.toContain("…");
+    }
+  });
+  test("barra superior mostra a frase da tela atual (Minhas reservas)", async () => {
     await renderShell(
       "x",
       { user: { ...ana, roles: ["admin"] }, publicRead: true, timeZone: "America/Sao_Paulo" },
       "/minhas-reservas",
     );
     const bar = screen.getByRole("navigation", { name: "Localização" });
-    expect(bar.querySelector("[aria-current='page']")?.textContent).toBe("Minhas reservas");
+    expect(bar.textContent).toContain("Veja e gerencie as suas reservas");
+    expect(bar.textContent).not.toContain(SCREEN_HINTS["/"]);
   });
   test("visitante não tem a barra de localização", async () => {
     await renderShell("x");

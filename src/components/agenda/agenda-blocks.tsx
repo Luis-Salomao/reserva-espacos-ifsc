@@ -66,10 +66,10 @@ export function NowLine({ scale, now }: { scale: Scale; now: string }) {
   return (
     <div
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-primary"
+      className="pointer-events-none absolute inset-x-0 z-20 border-t-2 border-brand-red"
       style={{ top: yOf(scale, minutes) }}
     >
-      <span className="absolute -top-[5px] -left-[5px] size-2 rounded-full bg-primary" />
+      <span className="absolute -top-[5px] -left-[5px] size-2 rounded-full bg-brand-red" />
     </div>
   );
 }

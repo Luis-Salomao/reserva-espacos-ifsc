@@ -53,11 +53,14 @@ export function EquipmentMarks({ equipment, showNotes = false }: Props) {
               )}
             >
               <Icon className="size-3.5" aria-hidden={true} />
-              {estado === "sem" && (
+              {estado !== "tem" && (
                 <span
-                  data-corte=""
+                  data-corte={estado}
                   aria-hidden="true"
-                  className="pointer-events-none absolute h-0.5 w-6 -rotate-45 rounded-full bg-destructive"
+                  className={cn(
+                    "pointer-events-none absolute w-6 -rotate-45 rounded-full",
+                    estado === "sem" ? "h-0.5 bg-destructive" : "h-px bg-muted-foreground/50",
+                  )}
                 />
               )}
               <span className="sr-only">{described.text}</span>
