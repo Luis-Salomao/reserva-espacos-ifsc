@@ -72,6 +72,25 @@ const MOCK_BOOKING_UNCANCELLABLE: MyBooking = {
   inSeries: false,
 };
 
+const MOCK_BOOKING_SERIES: MyBooking[] = [
+  {
+    ...MOCK_BOOKING_MANUAL,
+    id: "b-series-1",
+    date: "2026-11-12",
+    title: "Laboratório de Redes",
+    inSeries: true,
+    seriesId: "series-redes",
+  },
+  {
+    ...MOCK_BOOKING_MANUAL,
+    id: "b-series-2",
+    date: "2026-11-19",
+    title: "Laboratório de Redes",
+    inSeries: true,
+    seriesId: "series-redes",
+  },
+];
+
 async function renderWithRouter(ui: React.ReactElement) {
   const root = createRootRoute({ component: () => ui });
   const home = createRoute({
@@ -182,6 +201,25 @@ describe("Minhas Reservas — Suíte de Testes (Milestone 2 Task 4)", () => {
       expect(screen.getByText("10")).toBeDefined();
       expect(screen.getByText("17")).toBeDefined();
       expect(screen.getAllByText("Nov").length).toBe(2);
+    });
+
+    test("agrupa recorrências e preserva a ação individual em cada ocorrência", async () => {
+      await renderWithRouter(<MinhasReservasList items={[...MOCK_BOOKING_SERIES]} />);
+
+      const group = screen.getByTestId("booking-series-series-redes");
+      expect(group.open).toBe(false);
+      expect(screen.getByTestId("booking-series-summary-series-redes").textContent).toContain(
+        "Laboratório de Redes",
+      );
+      expect(screen.getByTestId("booking-series-count-series-redes").textContent).toContain(
+        "2 ocorrências",
+      );
+
+      fireEvent.click(screen.getByTestId("booking-series-summary-series-redes"));
+
+      expect(group.open).toBe(true);
+      expect(screen.getAllByTestId(/^booking-card-b-series-/)).toHaveLength(2);
+      expect(screen.getAllByRole("button", { name: "Cancelar…" })).toHaveLength(2);
     });
 
     test("destaca visualmente reserva recém-criada quando coincide com newId", async () => {
