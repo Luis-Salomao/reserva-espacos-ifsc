@@ -215,7 +215,7 @@ export function RoomsOverview({
   return (
     <div className="grid gap-3">
       {selectedPeriod === undefined && <OverviewPeriods value={period} onChange={setLocalPeriod} />}
-      <div className="flex items-center justify-between gap-3 rounded-lg border border-primary/20 bg-primary/5 px-4 py-3">
+      <div className="flex items-center justify-between gap-3 rounded-lg border bg-surface-2 px-4 py-3">
         <p className="min-w-0 text-sm font-medium text-foreground">
           Para reservar, clique ou arraste nos quadradinhos livres da sala desejada.
         </p>
@@ -395,7 +395,7 @@ export function RoomsOverview({
                 </h3>
                 <div
                   className={cn(
-                    "w-full max-w-full overflow-x-auto rounded-lg border lg:overflow-x-visible",
+                    "w-full max-w-full overflow-x-auto rounded-lg border border-divider lg:overflow-x-visible",
                     today && "border-primary/40",
                   )}
                 >
@@ -404,7 +404,7 @@ export function RoomsOverview({
                     className="w-full min-w-max border-collapse lg:min-w-full"
                   >
                     <thead className="sticky top-0 z-30 bg-surface">
-                      <tr className="border-b">
+                      <tr className="border-b border-divider">
                         <th
                           scope="col"
                           className={cn(
@@ -442,7 +442,7 @@ export function RoomsOverview({
                         return (
                           <Fragment key={room.space.id}>
                             {first && (
-                              <tr className="border-b bg-surface-2">
+                              <tr className="border-b border-divider bg-surface-2">
                                 <td colSpan={day.blocks.length + 1} className="p-0">
                                   <button
                                     type="button"
@@ -483,10 +483,10 @@ export function RoomsOverview({
                                       </td>
                                     </tr>
                                   )}
-                                <tr className="border-b last:border-b-0">
+                                <tr className="border-b border-divider last:border-b-0">
                                   <th
                                     scope="row"
-                                    className="sticky left-0 z-10 border-r bg-surface px-2 py-1 text-left font-normal"
+                                    className="sticky left-0 z-10 border-r border-divider bg-surface px-2 py-1 text-left font-normal"
                                   >
                                     <div className="flex min-w-0 flex-wrap items-center gap-1">
                                       <span

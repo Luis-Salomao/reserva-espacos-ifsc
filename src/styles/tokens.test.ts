@@ -54,6 +54,7 @@ const REQUIRED = [
   "--surface",
   "--surface-2",
   "--border",
+  "--divider",
   "--text",
   "--text-muted",
   "--accent",
@@ -129,6 +130,18 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
 
   test("texto de aviso (manutenção) sobre o fundo de aviso >= 4.5", () => {
     expect(contrast(t["--warn-text"] as string, t["--warn"] as string)).toBeGreaterThanOrEqual(4.5);
+  });
+
+  // Razões medidas: borda de controle 2.06 (claro) e 2.20 (escuro) sobre o fundo; divisor de grade 1.29 e 1.37.
+  test("borda de controles (campos, botões outline, segmentos) perceptível: >= 2 sobre fundo e superfície", () => {
+    expect(contrast(t["--border"] as string, t["--bg"] as string)).toBeGreaterThanOrEqual(2);
+    expect(contrast(t["--border"] as string, t["--surface"] as string)).toBeGreaterThanOrEqual(1.9);
+  });
+
+  test("divisor de grades e tabelas é mais suave que a borda de controles, mas visível (>= 1.2)", () => {
+    const divider = contrast(t["--divider"] as string, t["--bg"] as string);
+    expect(divider).toBeGreaterThanOrEqual(1.2);
+    expect(divider).toBeLessThan(contrast(t["--border"] as string, t["--bg"] as string));
   });
 
   test("estados de ocupação são todos distintos", () => {

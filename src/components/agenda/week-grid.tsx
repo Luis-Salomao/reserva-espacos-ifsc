@@ -42,11 +42,11 @@ export function WeekGrid({
 
   return (
     <div
-      className="w-full overflow-hidden rounded-lg border border-border bg-background select-none"
+      className="w-full overflow-hidden rounded-lg border border-divider bg-background select-none"
       data-testid="week-grid"
     >
-      <div className={cn("grid border-b border-border bg-surface", AXIS)}>
-        <div className="border-r border-border" />
+      <div className={cn("grid border-b border-divider bg-surface", AXIS)}>
+        <div className="border-r border-divider" />
         <div className="grid auto-cols-fr grid-flow-col">
           {displayDays.map((day, idx) => {
             const isSelected = day.date === selectedDate;
@@ -58,7 +58,7 @@ export function WeekGrid({
                 onClick={() => onSelectDate(day.date)}
                 aria-pressed={isSelected}
                 className={cn(
-                  "flex h-10 items-center justify-center gap-1.5 border-l border-border text-[12px] text-muted-foreground transition-colors first:border-l-0 hover:bg-surface-2 hover:text-foreground",
+                  "flex h-10 items-center justify-center gap-1.5 border-l border-divider text-[12px] text-muted-foreground transition-colors first:border-l-0 hover:bg-surface-2 hover:text-foreground",
                   isSelected && "bg-background text-foreground",
                 )}
               >
@@ -87,7 +87,7 @@ export function WeekGrid({
               scale={scale}
               now={day.date === todayIso ? nowTime : null}
               className={cn(
-                "border-l border-border first:border-l-0",
+                "border-l border-divider first:border-l-0",
                 day.date === todayIso && "bg-surface/60",
               )}
               onSelectSlot={onSelectSlot}

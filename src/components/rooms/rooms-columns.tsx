@@ -52,7 +52,7 @@ export function RoomsColumns({
   return (
     <div
       data-testid="rooms-columns"
-      className="max-h-[calc(100dvh-14rem)] min-h-80 w-full max-w-full overflow-auto overscroll-x-contain rounded-lg border border-border bg-background select-none"
+      className="max-h-[calc(100dvh-14rem)] min-h-80 w-full max-w-full overflow-auto overscroll-x-contain rounded-lg border border-divider bg-background select-none"
     >
       <div
         className="grid w-max min-w-full"
@@ -60,13 +60,13 @@ export function RoomsColumns({
           gridTemplateColumns: `${AXIS_WIDTH}px repeat(${rooms.length}, minmax(${MIN_COLUMN}px, 1fr))`,
         }}
       >
-        <div className="sticky top-0 left-0 z-40 border-r border-b border-border bg-surface" />
+        <div className="sticky top-0 left-0 z-40 border-r border-b border-divider bg-surface" />
         {rooms.map((room) => {
           const space = spacesIndex[room.spaceId];
           return (
             <div
               key={room.spaceId}
-              className="sticky top-0 z-30 flex h-auto min-h-10 min-w-0 flex-wrap items-center justify-center gap-1.5 border-b border-l border-border bg-surface px-2 py-1"
+              className="sticky top-0 z-30 flex h-auto min-h-10 min-w-0 flex-wrap items-center justify-center gap-1.5 border-b border-l border-divider bg-surface px-2 py-1"
             >
               <Link
                 to="/"
@@ -89,7 +89,7 @@ export function RoomsColumns({
           <div
             key={room.spaceId}
             data-room-column={room.spaceId}
-            className="border-l border-border"
+            className="border-l border-divider"
           >
             <DayColumn
               day={room}

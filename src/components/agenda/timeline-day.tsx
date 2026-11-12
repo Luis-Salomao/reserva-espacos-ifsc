@@ -26,7 +26,7 @@ export function TimelineDay({
 
   return (
     <div className="w-full max-w-full overflow-x-hidden select-none" data-testid="timeline-day">
-      <div className="grid grid-cols-[52px_1fr] overflow-hidden rounded-lg border border-border bg-background">
+      <div className="grid grid-cols-[52px_1fr] overflow-hidden rounded-lg border border-divider bg-background">
         <HourAxis scale={scale} />
         <DayColumn
           day={dayAgenda}

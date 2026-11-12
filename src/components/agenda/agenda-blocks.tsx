@@ -34,7 +34,7 @@ function hourMarks(scale: Scale): number[] {
 
 export function HourAxis({ scale }: { scale: Scale }) {
   return (
-    <div className="relative border-r border-border" style={{ height: gridHeight(scale) }}>
+    <div className="relative border-r border-divider" style={{ height: gridHeight(scale) }}>
       {hourMarks(scale).map((m) => (
         <span
           key={m}
@@ -53,7 +53,7 @@ export function HourLines({ scale }: { scale: Scale }) {
     <div
       key={`hl-${m}`}
       aria-hidden="true"
-      className="pointer-events-none absolute inset-x-0 border-t border-border/70"
+      className="pointer-events-none absolute inset-x-0 border-t border-divider"
       style={{ top: yOf(scale, m) }}
     />
   ));

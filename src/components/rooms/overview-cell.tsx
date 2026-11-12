@@ -245,7 +245,7 @@ export function OverviewCell({
         className={cn(
           SQUARE,
           size,
-          "block border border-border outline-offset-2 hover:border-primary hover:bg-primary/15",
+          "block border border-divider outline-offset-2 hover:border-primary hover:bg-primary/15",
           selected && "border-primary bg-primary/30 hover:bg-primary/30",
         )}
       />
@@ -284,7 +284,7 @@ export function OverviewCell({
     className: cn(
       SQUARE,
       size,
-      "flex gap-px overflow-hidden border border-border bg-background outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
+      "flex gap-px overflow-hidden border border-divider bg-background outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
       anchor !== null && "z-10 scale-160 motion-reduce:scale-100",
       selected && "ring-2 ring-primary",
     ),

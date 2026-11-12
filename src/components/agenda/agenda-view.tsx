@@ -14,7 +14,6 @@ import { AgendaLegend } from "./agenda-legend";
 import type { Draft } from "./draft-booking";
 import { GateDialog } from "./gate-dialog";
 import { MiniCalendar } from "./mini-calendar";
-import { PublicBanner } from "./public-banner";
 import { RoomSelector } from "./room-selector";
 import { TimelineDay, TimelineDayStrip } from "./timeline-day";
 import { WeekGrid } from "./week-grid";
@@ -47,7 +46,6 @@ export function AgendaView({
   selectedDate,
   weekAgenda,
   user: directUser,
-  publicRead: directPublicRead,
   session,
   onSelectSpace,
   onSelectDate,
@@ -68,7 +66,6 @@ export function AgendaView({
   const [draft, setDraft] = useState<Draft | null>(null);
 
   const user = session ? session.user : (directUser ?? null);
-  const publicRead = session ? session.publicRead : (directPublicRead ?? true);
 
   const isVisitor = user === null;
   const canBook =
@@ -139,9 +136,6 @@ export function AgendaView({
 
   return (
     <div className="w-full max-w-full" data-testid="agenda-view-root">
-      {/* 1. Banner para visitante em leitura pública */}
-      {isVisitor && publicRead && <PublicBanner />}
-
       <div className="layout grid gap-0 pb-24 lg:pb-6 xl:grid-cols-[248px_1fr] xl:gap-8">
         {/* Lateral em telas largas; abaixo disso, seletor de sala acima da grade. */}
         <aside

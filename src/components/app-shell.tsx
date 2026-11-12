@@ -1,7 +1,8 @@
-import { Link, useRouteContext } from "@tanstack/react-router";
+import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import {
   CalendarDays,
   CalendarRange,
+  ChevronRight,
   ChevronsUpDown,
   FileUp,
   ListChecks,
@@ -106,16 +107,10 @@ function Brand({ stacked = false }: { stacked?: boolean }) {
       )}
     >
       <BrandLogo />
-      <div className="min-w-0 leading-tight">
+      {/* Na lateral do computador o nome do sistema vai para a barra superior da área de conteúdo. */}
+      <div className={cn("min-w-0 leading-tight", stacked && "md:hidden")}>
         <p className="text-[11px] font-semibold sm:text-sm">{SYSTEM_NAME}</p>
-        <p
-          className={cn(
-            "mt-0.5 hidden text-xs text-muted-foreground",
-            stacked ? "md:block" : "sm:block",
-          )}
-        >
-          {SYSTEM_TAGLINE}
-        </p>
+        <p className="mt-0.5 hidden text-xs text-muted-foreground sm:block">{SYSTEM_TAGLINE}</p>
       </div>
     </div>
   );
@@ -189,7 +184,7 @@ export function AppShell({ children, wide = false }: Props) {
         <a href="#conteudo" className="sr-only focus:not-sr-only">
           Pular para o conteúdo
         </a>
-        <header className="relative flex min-h-14 items-center justify-between gap-3 border-b border-primary px-4 pt-[3px] sm:px-6">
+        <header className="relative flex min-h-14 items-center justify-between gap-3 border-b px-4 pt-[3px] sm:px-6">
           <IfscStripe />
           <Brand />
           <div className="flex items-center gap-2">
@@ -222,7 +217,7 @@ export function AppShell({ children, wide = false }: Props) {
       </a>
       <header
         className={cn(
-          "sticky top-0 z-30 flex min-h-14 items-center gap-1 pt-[3px] border-b border-primary bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:bg-surface md:px-3 md:py-3 md:backdrop-blur-none",
+          "sticky top-0 z-30 flex min-h-14 items-center gap-1 pt-[3px] border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r md:border-b-0 md:bg-surface md:px-3 md:py-3 md:backdrop-blur-none",
           collapsed ? "md:w-16 md:px-2" : "md:w-60",
         )}
       >
@@ -300,6 +295,7 @@ export function AppShell({ children, wide = false }: Props) {
         </div>
       </header>
       <div className={collapsed ? "md:pl-16" : "md:pl-60"}>
+        <ScreenBar items={items} />
         <main
           id="conteudo"
           tabIndex={-1}
@@ -312,6 +308,43 @@ export function AppShell({ children, wide = false }: Props) {
         </main>
       </div>
     </div>
+  );
+}
+
+/** Item de navegação da tela atual (pelo primeiro trecho do caminho); `undefined` fora do menu. */
+function activeItem(items: NavItem[], pathname: string): NavItem | undefined {
+  const segment = (path: string) => path.split("/")[1] ?? "";
+  return items.find((item) =>
+    item.exact === true ? pathname === item.to : segment(pathname) === segment(item.to),
+  );
+}
+
+/**
+ * Barra no topo da área de conteúdo (só no computador, usuário logado): nome do sistema e da tela
+ * atual. Não é título (h1): cada página tem o seu.
+ */
+function ScreenBar({ items }: { items: NavItem[] }) {
+  const pathname = useRouterState({ select: (state) => state.location.pathname });
+  const current = activeItem(items, pathname);
+  return (
+    <nav
+      aria-label="Localização"
+      className="relative hidden min-h-14 items-center gap-x-2 border-b border-divider bg-surface px-6 pt-[3px] md:flex"
+    >
+      <IfscStripe />
+      <p className="flex min-w-0 flex-wrap items-center gap-x-2 text-sm">
+        <span className="font-semibold">{SYSTEM_NAME}</span>
+        {current !== undefined && (
+          <>
+            <ChevronRight className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
+            <span aria-current="page" className="font-medium text-muted-foreground">
+              {current.label}
+            </span>
+          </>
+        )}
+      </p>
+      <p className="ml-3 hidden min-w-0 text-xs text-muted-foreground xl:block">{SYSTEM_TAGLINE}</p>
+    </nav>
   );
 }
 

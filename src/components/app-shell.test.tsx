@@ -29,16 +29,21 @@ beforeEach(() => {
 });
 
 /** Renderiza o AppShell dentro de um roteador em memória (os links precisam do contexto). */
-async function renderShell(children: ReactNode, session: SessionInfo = anonymous) {
+async function renderShell(children: ReactNode, session: SessionInfo = anonymous, initial = "/") {
   const root = createRootRouteWithContext<{ session: SessionInfo }>()({
     component: () => <AppShell>{children}</AppShell>,
   });
-  const routes = ["/", "/importar", "/entrar", "/semestres", "/manutencao/espacos"].map((path) =>
-    createRoute({ getParentRoute: () => root, path }),
-  );
+  const routes = [
+    "/",
+    "/minhas-reservas",
+    "/importar",
+    "/entrar",
+    "/semestres",
+    "/manutencao/espacos",
+  ].map((path) => createRoute({ getParentRoute: () => root, path }));
   const router = createRouter({
     routeTree: root.addChildren(routes),
-    history: createMemoryHistory({ initialEntries: ["/"] }),
+    history: createMemoryHistory({ initialEntries: [initial] }),
     context: { session },
   });
   render(<RouterProvider router={router} />);
@@ -66,13 +71,13 @@ describe("AppShell", () => {
     expect(banner.querySelector("[data-faixa-ifsc]")).not.toBeNull();
     expect(banner.textContent).not.toContain("…");
   });
-  test("bordas do cabeçalho e da lateral usam o verde do IFSC", async () => {
+  test("bordas do cabeçalho e da lateral são neutras (sem verde)", async () => {
     await renderShell(<p>x</p>);
-    expect(screen.getByRole("banner").className).toContain("border-primary");
+    expect(screen.getByRole("banner").className).not.toContain("border-primary");
     cleanup();
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     const classes = screen.getByRole("banner").className;
-    expect(classes).toContain("border-primary");
+    expect(classes).not.toContain("border-primary");
     expect(classes).toContain("md:border-r");
   });
   test("cabeçalho do usuário logado também mostra o nome do sistema", async () => {
@@ -81,6 +86,35 @@ describe("AppShell", () => {
     expect(banner.textContent).toContain("Sistema de Reserva de Espaços");
     expect(banner.querySelector("[data-faixa-ifsc]")).not.toBeNull();
     expect(banner.querySelectorAll("h1").length).toBe(0);
+  });
+  test("lateral do computador não repete o texto do sistema; a barra superior mostra sistema e tela", async () => {
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    const sidebar = screen.getByRole("banner");
+    // O texto do sistema fica na lateral só no celular (md:hidden).
+    const text = [...sidebar.querySelectorAll("p")].find((p) =>
+      p.textContent?.includes("Sistema de Reserva de Espaços"),
+    );
+    expect(text?.parentElement?.className).toContain("md:hidden");
+    const bar = screen.getByRole("navigation", { name: "Localização" });
+    expect(bar.textContent).toContain("Sistema de Reserva de Espaços");
+    expect(bar.textContent).toContain("Agenda");
+    expect(bar.querySelectorAll("h1").length).toBe(0);
+    expect(bar.querySelector("[aria-current='page']")?.textContent).toBe("Agenda");
+    expect(bar.className).not.toContain("border-primary");
+    expect(bar.className).not.toContain("bg-primary");
+  });
+  test("barra superior mostra o nome da tela atual (Minhas reservas)", async () => {
+    await renderShell(
+      "x",
+      { user: { ...ana, roles: ["admin"] }, publicRead: true, timeZone: "America/Sao_Paulo" },
+      "/minhas-reservas",
+    );
+    const bar = screen.getByRole("navigation", { name: "Localização" });
+    expect(bar.querySelector("[aria-current='page']")?.textContent).toBe("Minhas reservas");
+  });
+  test("visitante não tem a barra de localização", async () => {
+    await renderShell("x");
+    expect(screen.queryByRole("navigation", { name: "Localização" })).toBeNull();
   });
   test("recolhe e expande a lateral, preservando links e a preferência", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
