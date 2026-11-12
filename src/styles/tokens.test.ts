@@ -53,6 +53,7 @@ const REQUIRED = [
   "--bg",
   "--surface",
   "--surface-2",
+  "--sidebar-bg",
   "--border",
   "--divider",
   "--text",
@@ -100,6 +101,21 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
 
   test("o destaque é o verde oficial do IFSC (Manual da Marca 2017, RGB 50 160 65)", () => {
     expect((t["--accent"] as string).toLowerCase()).toBe("#32a041");
+  });
+
+  test("a lateral é um verde suave do IFSC e o texto fica legível sobre ela", () => {
+    const fundo = t["--sidebar-bg"] as string;
+    expect(fundo).not.toBe(t["--surface"]);
+    expect(contrast(t["--text"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(t["--text-muted"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(t["--accent-text"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
+    const [r, g, b] = [1, 3, 5].map((i) => Number.parseInt(fundo.slice(i, i + 2), 16)) as [
+      number,
+      number,
+      number,
+    ];
+    expect(g).toBeGreaterThan(r);
+    expect(g).toBeGreaterThan(b);
   });
 
   test("texto sobre o destaque >= 4.5", () => {
