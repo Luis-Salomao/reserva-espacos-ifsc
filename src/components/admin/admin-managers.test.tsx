@@ -144,6 +144,21 @@ beforeEach(() => {
   spaceCalls.length = 0;
 });
 
+/** Abre o menu "Mais ações" da linha e devolve o menu. */
+async function openRowMenu(name: string): Promise<HTMLElement> {
+  fireEvent.pointerDown(screen.getByRole("button", { name: `Mais ações de ${name}` }), {
+    button: 0,
+    ctrlKey: false,
+  });
+  return screen.findByRole("menu");
+}
+
+/** Abre o menu da linha e escolhe a ação. */
+async function chooseAction(name: string, action: string) {
+  const menu = await openRowMenu(name);
+  fireEvent.click(within(menu).getByRole("menuitem", { name: action }));
+}
+
 /** Segura as respostas de espaço até `release()`, para ver estados de andamento. */
 function holdSpaceResponses() {
   let release = () => {};
@@ -192,7 +207,7 @@ describe("erros de campo acessíveis", () => {
 describe("ações sobre a própria conta", () => {
   test("redefinir a própria senha leva ao login", async () => {
     const router = await renderManager();
-    fireEvent.click(screen.getAllByRole("button", { name: "Redefinir senha" })[0] as HTMLElement);
+    await chooseAction("Eu Admin", "Redefinir senha");
     const field = await screen.findByLabelText(/Nova senha/);
     fireEvent.change(field, { target: { value: "senha-falsa-nova-9" } }); // betterleaks:allow
     fireEvent.submit(field.closest("form") as HTMLFormElement);
@@ -202,21 +217,21 @@ describe("ações sobre a própria conta", () => {
 
   test("desativar a própria conta leva ao login", async () => {
     const router = await renderManager();
-    fireEvent.click(screen.getAllByRole("button", { name: "Desativar" })[0] as HTMLElement);
+    await chooseAction("Eu Admin", "Desativar");
     await waitFor(() => expect(router.state.location.pathname).toBe("/entrar"));
     expect(calls).toEqual(["active:me"]);
   });
 
   test("desativar outra conta não sai da página", async () => {
     const router = await renderManager();
-    fireEvent.click(screen.getAllByRole("button", { name: "Desativar" })[1] as HTMLElement);
+    await chooseAction("Outro Docente", "Desativar");
     await waitFor(() => expect(calls).toEqual(["active:outro"]));
     expect(router.state.location.pathname).toBe("/");
   });
 
   test("redefinir a senha de outra conta não sai da página", async () => {
     const router = await renderManager();
-    fireEvent.click(screen.getAllByRole("button", { name: "Redefinir senha" })[1] as HTMLElement);
+    await chooseAction("Outro Docente", "Redefinir senha");
     const field = await screen.findByLabelText(/Nova senha/);
     fireEvent.change(field, { target: { value: "senha-falsa-nova-9" } }); // betterleaks:allow
     fireEvent.submit(field.closest("form") as HTMLFormElement);
@@ -229,13 +244,21 @@ describe("contas fantasmas", () => {
   const otherGhost: User = { ...ghost, id: "g2", email: "lua.sol@ifsc.edu.br", name: "Lua Sol" };
   const inactive: User = { ...other, id: "off", email: "off@ifsc.edu.br", active: false };
 
-  test("só a fantasma tem o selo 'Não ativada' e os botões Ativar e Fundir", async () => {
+  test("só a fantasma tem o selo 'Não ativada' e as ações Ativar e Fundir no menu", async () => {
     await renderManager([me, other, ghost]);
     expect(screen.getAllByText("Não ativada")).toHaveLength(1);
-    const card = screen.getByText("Zeca Quintal").closest("li") as HTMLElement;
-    expect(within(card).getByText("Não ativada")).toBeTruthy();
-    expect(screen.getAllByRole("button", { name: "Ativar" })).toHaveLength(1);
-    expect(screen.getAllByRole("button", { name: "Fundir" })).toHaveLength(1);
+    const row = screen.getByText("Zeca Quintal").closest("tr") as HTMLElement;
+    expect(within(row).getByText("Não ativada")).toBeTruthy();
+    const ghostItems = within(await openRowMenu("Zeca Quintal"))
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent);
+    expect(ghostItems).toEqual(["Ativar", "Fundir", "Redefinir senha", "Desativar"]);
+    fireEvent.keyDown(screen.getByRole("menu"), { key: "Escape" });
+    await waitFor(() => expect(screen.queryByRole("menu") === null).toBe(true));
+    const otherItems = within(await openRowMenu("Outro Docente"))
+      .getAllByRole("menuitem")
+      .map((item) => item.textContent);
+    expect(otherItems).toEqual(["Redefinir senha", "Desativar"]);
   });
 
   test("filtro de status 'Não ativadas' mostra só as fantasmas", async () => {
@@ -251,7 +274,7 @@ describe("contas fantasmas", () => {
 
   test("Ativar envia e-mail e senha da fantasma (o e-mail presumido vem preenchido)", async () => {
     await renderManager([me, other, ghost]);
-    fireEvent.click(screen.getByRole("button", { name: "Ativar" }));
+    await chooseAction("Zeca Quintal", "Ativar");
     const email = (await screen.findByLabelText("E-mail da pessoa")) as HTMLInputElement;
     expect(email.value).toBe("zeca.quintal@ifsc.edu.br");
     fireEvent.change(email, { target: { value: "zeca@ifsc.edu.br" } });
@@ -279,7 +302,7 @@ describe("contas fantasmas", () => {
       field: "email",
     };
     await renderManager([me, other, ghost]);
-    fireEvent.click(screen.getByRole("button", { name: "Ativar" }));
+    await chooseAction("Zeca Quintal", "Ativar");
     const email = (await screen.findByLabelText("E-mail da pessoa")) as HTMLInputElement;
     fireEvent.submit(email.closest("form") as HTMLFormElement);
     const alert = await screen.findByRole("alert");
@@ -289,7 +312,7 @@ describe("contas fantasmas", () => {
 
   test("Fundir oferece só contas ativadas e ativas e envia a escolhida", async () => {
     await renderManager([me, other, ghost, otherGhost, inactive]);
-    fireEvent.click(screen.getAllByRole("button", { name: "Fundir" })[0] as HTMLElement);
+    await chooseAction("Zeca Quintal", "Fundir");
     const select = (await screen.findByLabelText("Conta que recebe as aulas")) as HTMLElement;
     const options = within(select)
       .getAllByRole("option")
@@ -313,7 +336,7 @@ describe("contas fantasmas", () => {
       message: "As contas mudaram enquanto a fusão rodava. Recarregue e tente de novo.",
     };
     await renderManager([me, other, ghost]);
-    fireEvent.click(screen.getByRole("button", { name: "Fundir" }));
+    await chooseAction("Zeca Quintal", "Fundir");
     const select = (await screen.findByLabelText("Conta que recebe as aulas")) as HTMLElement;
     fireEvent.change(select, { target: { value: "outro" } });
     fireEvent.submit(select.closest("form") as HTMLFormElement);
@@ -370,7 +393,8 @@ describe("consulta de contas", () => {
     expect(screen.getByRole("heading", { name: "Contas (1)" })).toBeTruthy();
     expect(screen.getByText("Pessoa Inativa")).toBeTruthy();
     expect(screen.queryByText("Outro Docente")).toBeNull();
-    expect(screen.getByRole("button", { name: "Reativar" })).toBeTruthy();
+    const items = within(await openRowMenu("Pessoa Inativa")).getAllByRole("menuitem");
+    expect(items.map((item) => item.textContent)).toEqual(["Redefinir senha", "Reativar"]);
   });
 
   test("mostra estado vazio e oferece limpar os filtros", async () => {
@@ -383,6 +407,112 @@ describe("consulta de contas", () => {
     fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
     expect(screen.getByRole("heading", { name: "Contas (2)" })).toBeTruthy();
     expect(screen.getByText("Outro Docente")).toBeTruthy();
+  });
+});
+
+describe("tabela de contas", () => {
+  const sigla: User = {
+    ...other,
+    id: "sg",
+    name: "Ana Silva",
+    email: "ana@ifsc.edu.br",
+    code: "AS",
+  };
+
+  test("é uma tabela com as colunas pedidas e uma linha por conta", async () => {
+    await renderManager([me, other, ghost]);
+    const table = screen.getByRole("table", { name: "Contas" });
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((th) => th.textContent),
+    ).toEqual(["Nome", "E-mail", "Sigla", "Papéis", "Status", "Ações"]);
+    const rows = within(table).getAllByRole("row").slice(1);
+    expect(rows).toHaveLength(3);
+    const cells = within(rows[2] as HTMLElement)
+      .getAllByRole("cell")
+      .map((cell) => cell.textContent);
+    expect(cells.slice(0, 5)).toEqual([
+      "Zeca Quintal",
+      "zeca.quintal@ifsc.edu.br",
+      "Sigla ZQ",
+      "Docente",
+      "Não ativada",
+    ]);
+    expect(within(rows[0] as HTMLElement).getAllByRole("cell")[4]?.textContent).toBe("Ativa");
+    expect(screen.getByText("Exibindo 3 de 3 contas")).toBeTruthy();
+  });
+
+  test("conta inativa mostra o selo 'Inativa'", async () => {
+    await renderManager([me, { ...other, active: false }]);
+    expect(screen.getByText("Inativa")).toBeTruthy();
+  });
+
+  test("os botões de ação são ícones com nome acessível da conta", async () => {
+    await renderManager([me, other]);
+    const pencil = screen.getByRole("button", { name: "Editar Outro Docente" });
+    expect(pencil.getAttribute("title")).toBe("Editar");
+    expect(pencil.textContent).toBe("");
+    const more = screen.getByRole("button", { name: "Mais ações de Outro Docente" });
+    expect(more.textContent).toBe("");
+  });
+
+  test("o lápis abre a edição num diálogo; salvar fecha e devolve o foco ao lápis", async () => {
+    await renderManager([me, other]);
+    const pencil = screen.getByRole("button", { name: "Editar Outro Docente" });
+    pencil.focus();
+    fireEvent.click(pencil);
+    const dialog = await screen.findByRole("dialog", { name: "Editar conta" });
+    const name = within(dialog).getByLabelText("Nome") as HTMLInputElement;
+    expect(name.value).toBe("Outro Docente");
+    await waitFor(() => expect(document.activeElement === name).toBe(true));
+    fireEvent.submit(name.closest("form") as HTMLFormElement);
+    await waitFor(() => expect(screen.queryByRole("dialog") === null).toBe(true));
+    await waitFor(() => expect(document.activeElement === pencil).toBe(true));
+  });
+
+  test("Cancelar fecha a edição e devolve o foco ao lápis", async () => {
+    await renderManager([me, other]);
+    const pencil = screen.getByRole("button", { name: "Editar Outro Docente" });
+    fireEvent.click(pencil);
+    const dialog = await screen.findByRole("dialog");
+    fireEvent.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() => expect(screen.queryByRole("dialog") === null).toBe(true));
+    await waitFor(() => expect(document.activeElement === pencil).toBe(true));
+  });
+
+  test("ação do menu abre o formulário correspondente num diálogo", async () => {
+    await renderManager([me, other]);
+    await chooseAction("Outro Docente", "Redefinir senha");
+    const dialog = await screen.findByRole("dialog", { name: "Redefinir senha" });
+    expect(within(dialog).getByLabelText(/Nova senha/)).toBeTruthy();
+  });
+
+  test("clicar em 'Nome' ordena crescente e depois decrescente", async () => {
+    await renderManager([other, me, sigla]);
+    const names = () =>
+      within(screen.getByRole("table", { name: "Contas" }))
+        .getAllByRole("row")
+        .slice(1)
+        .map((row) => within(row).getAllByRole("cell")[0]?.textContent);
+    expect(names()).toEqual(["Outro Docente", "Eu Admin", "Ana Silva"]);
+    const sort = () =>
+      within(screen.getByRole("columnheader", { name: /Nome/ })).getByRole("button");
+    fireEvent.click(sort());
+    expect(names()).toEqual(["Ana Silva", "Eu Admin", "Outro Docente"]);
+    fireEvent.click(sort());
+    expect(names()).toEqual(["Outro Docente", "Eu Admin", "Ana Silva"]);
+  });
+
+  test("falha ao desativar é anunciada acima da tabela", async () => {
+    activeResponse = {
+      ok: false,
+      status: 409,
+      message: "Não é possível desativar a última conta.",
+    };
+    await renderManager([me, other]);
+    await chooseAction("Eu Admin", "Desativar");
+    expect((await screen.findByRole("alert")).textContent).toMatch(/última conta/);
   });
 });
 

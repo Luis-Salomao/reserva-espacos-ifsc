@@ -1,6 +1,6 @@
 import { useRouter } from "@tanstack/react-router";
-import { type FormEvent, useId, useState } from "react";
-import { ChoiceCard, Tag } from "#/components/ds";
+import { type FormEvent, type ReactNode, useId, useState } from "react";
+import { ChoiceCard } from "#/components/ds";
 import { Card, Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -15,7 +15,10 @@ import {
   updateAccountFn,
 } from "#/server/admin";
 import type { AdminResponse } from "#/server/admin-actions";
+import { AdminDialog } from "./admin-dialog";
+import { AdminTable, type Column, nextSort, type SortState, sortRows } from "./admin-table";
 import { FieldError } from "./field-error";
+import { type RowAction, RowActions, rowActionIds, StatusTag } from "./row-actions";
 import {
   fieldError,
   generalError,
@@ -216,7 +219,7 @@ function EditAccountForm({ user, onDone }: { user: User; onDone: () => void }) {
   const nameError = fieldError(result, "name");
   const codeError = fieldError(result, "code");
   return (
-    <form onSubmit={onSubmit} className="mt-3 grid gap-3 border-t pt-3">
+    <form onSubmit={onSubmit} className="grid gap-3 overflow-y-auto p-4">
       <GeneralError message={generalError(result)} />
       <div className="grid gap-2">
         <Label htmlFor={`${uid}-name`}>Nome</Label>
@@ -300,7 +303,7 @@ function ResetPasswordForm({
 
   const passwordError = fieldError(result, "password");
   return (
-    <form onSubmit={onSubmit} className="mt-3 grid gap-3 border-t pt-3">
+    <form onSubmit={onSubmit} className="grid gap-3 overflow-y-auto p-4">
       <GeneralError message={generalError(result)} />
       <div className="grid gap-2">
         <Label htmlFor={`${uid}-password`}>Nova senha (mínimo 10 caracteres)</Label>
@@ -360,7 +363,7 @@ function ActivateAccountForm({ user, onDone }: { user: User; onDone: () => void 
   const emailError = fieldError(result, "email");
   const passwordError = fieldError(result, "password");
   return (
-    <form onSubmit={onSubmit} className="mt-3 grid gap-3 border-t pt-3">
+    <form onSubmit={onSubmit} className="grid gap-3 overflow-y-auto p-4">
       <GeneralError message={generalError(result)} />
       <div className="grid gap-2">
         <Label htmlFor={`${uid}-email`}>E-mail da pessoa</Label>
@@ -437,7 +440,7 @@ function MergeAccountForm({
 
   const targetError = fieldError(result, "targetId");
   return (
-    <form onSubmit={onSubmit} className="mt-3 grid gap-3 border-t pt-3">
+    <form onSubmit={onSubmit} className="grid gap-3 overflow-y-auto p-4">
       <GeneralError message={generalError(result)} />
       <div className="grid gap-2">
         <Label htmlFor={`${uid}-targetId`}>Conta que recebe as aulas</Label>
@@ -475,117 +478,194 @@ function MergeAccountForm({
   );
 }
 
-type Mode = "view" | "edit" | "password" | "activate" | "merge";
+type Mode = "edit" | "reset" | "activate" | "merge";
 
-function AccountItem({
-  user,
-  isSelf,
+const DIALOG_TITLES: Record<Mode, string> = {
+  edit: "Editar conta",
+  reset: "Redefinir senha",
+  activate: "Ativar conta",
+  merge: "Fundir conta",
+};
+
+type OpenDialog = { user: User; mode: Mode };
+
+function statusTags(user: User) {
+  return (
+    <div className="flex flex-wrap gap-1">
+      {user.placeholder && <StatusTag dashed>Não ativada</StatusTag>}
+      {!user.placeholder && user.active && <StatusTag tone="free">Ativa</StatusTag>}
+      {!user.active && <StatusTag>Inativa</StatusTag>}
+    </div>
+  );
+}
+
+/** Colunas da tabela; no celular as células empilham e a coluna de ações fica ao lado do nome. */
+function accountColumns(actionsFor: (user: User) => ReactNode): Column<User>[] {
+  return [
+    {
+      key: "name",
+      header: "Nome",
+      sortValue: (user) => user.name,
+      headerClassName: "md:w-[22%]",
+      cell: (user) => (
+        <span className="block font-medium wrap-anywhere md:truncate" title={user.name}>
+          {user.name}
+        </span>
+      ),
+    },
+    {
+      key: "email",
+      header: "E-mail",
+      headerClassName: "md:w-[26%]",
+      cell: (user) => (
+        <span className="block text-muted-foreground wrap-anywhere md:truncate" title={user.email}>
+          {user.email}
+        </span>
+      ),
+    },
+    {
+      key: "code",
+      header: "Sigla",
+      headerClassName: "md:w-[8%]",
+      cellClassName: (user) => (user.code === null ? "max-md:hidden" : ""),
+      cell: (user) => (
+        <>
+          <span className="text-muted-foreground md:hidden">Sigla </span>
+          {user.code ?? <span aria-hidden="true">—</span>}
+        </>
+      ),
+    },
+    {
+      key: "roles",
+      header: "Papéis",
+      headerClassName: "md:w-[22%]",
+      cell: (user) => {
+        const text = user.roles.map((role) => ROLE_LABELS[role]).join(", ");
+        return (
+          <span className="block wrap-anywhere md:truncate" title={text}>
+            {text}
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      header: "Status",
+      headerClassName: "md:w-[12%]",
+      cellClassName: "mt-1 md:mt-0",
+      cell: statusTags,
+    },
+    {
+      key: "actions",
+      header: "Ações",
+      headerClassName: "text-right md:w-24",
+      cellClassName: "col-start-2 row-start-1 row-span-5 self-start md:self-auto",
+      cell: actionsFor,
+    },
+  ];
+}
+
+function AccountsTable({
+  users,
+  currentUserId,
   mergeTargets,
 }: {
-  user: User;
-  isSelf: boolean;
+  users: readonly User[];
+  currentUserId: string;
   /** Contas ativadas e ativas que podem receber as aulas de uma fantasma. */
   mergeTargets: readonly User[];
 }) {
   const router = useRouter();
-  const [mode, setMode] = useState<Mode>("view");
-  const [pending, setPending] = useState(false);
-  const [result, setResult] = useState<AdminResponse<User> | null>(null);
+  const [dialog, setDialog] = useState<OpenDialog | null>(null);
+  const [pendingId, setPendingId] = useState<string | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const [sort, setSort] = useState<SortState | null>(null);
 
-  async function toggleActive() {
-    setPending(true);
+  async function toggleActive(user: User) {
+    setPendingId(user.id);
+    setError(null);
     const response = await runAdminAction(() =>
       setAccountActiveFn({ data: { id: user.id, active: !user.active } }),
     );
-    setPending(false);
-    setResult(response);
-    if (!response.ok) return;
+    setPendingId(null);
+    if (!response.ok) {
+      setError(response.message);
+      return;
+    }
     // Desativar a si mesmo encerra a sessão atual: vai ao login em vez de recarregar.
-    if (isSelf && user.active) await router.navigate({ to: "/entrar" });
+    if (user.id === currentUserId && user.active) await router.navigate({ to: "/entrar" });
     else await router.invalidate();
   }
 
-  const toView = () => setMode("view");
+  const open = (user: User, mode: Mode) => () => setDialog({ user, mode });
+  const columns = accountColumns((user) => {
+    const actions: RowAction[] = [
+      ...(user.placeholder
+        ? [
+            { label: "Ativar", onSelect: open(user, "activate") },
+            { label: "Fundir", onSelect: open(user, "merge") },
+          ]
+        : []),
+      { label: "Redefinir senha", onSelect: open(user, "reset") },
+      {
+        label: user.active ? "Desativar" : "Reativar",
+        disabled: pendingId === user.id,
+        onSelect: () => void toggleActive(user),
+      },
+    ];
+    return (
+      <RowActions rowId={user.id} name={user.name} onEdit={open(user, "edit")} actions={actions} />
+    );
+  });
+
+  const toView = () => setDialog(null);
+  const ids = dialog === null ? null : rowActionIds(dialog.user.id);
   return (
-    <li>
-      <Card compact>
-        <div className="flex flex-wrap items-start justify-between gap-2">
-          <div className="min-w-0">
-            <p className="break-words font-medium">{user.name}</p>
-            <p className="break-all text-sm text-muted-foreground">{user.email}</p>
-            <p className="mt-1 text-sm">
-              {user.roles.map((role) => ROLE_LABELS[role]).join(", ")}
-              {user.code !== null && ` · Sigla ${user.code}`}
-            </p>
-          </div>
-          <div className="flex flex-wrap gap-1.5">
-            {user.placeholder && <Tag tone="neutral">Não ativada</Tag>}
-            <Tag tone={user.active ? "free" : "conflict"}>{user.active ? "Ativa" : "Inativa"}</Tag>
-          </div>
-        </div>
-        <div className="mt-2 flex flex-wrap gap-2">
-          {user.placeholder && (
-            <>
-              <Button
-                type="button"
-                size="sm"
-                aria-expanded={mode === "activate"}
-                onClick={() => setMode(mode === "activate" ? "view" : "activate")}
-              >
-                Ativar
-              </Button>
-              <Button
-                type="button"
-                size="sm"
-                variant="outline"
-                aria-expanded={mode === "merge"}
-                onClick={() => setMode(mode === "merge" ? "view" : "merge")}
-              >
-                Fundir
-              </Button>
-            </>
-          )}
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            aria-expanded={mode === "edit"}
-            onClick={() => setMode(mode === "edit" ? "view" : "edit")}
-          >
-            Editar
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            aria-expanded={mode === "password"}
-            onClick={() => setMode(mode === "password" ? "view" : "password")}
-          >
-            Redefinir senha
-          </Button>
-          <Button
-            type="button"
-            size="sm"
-            variant="outline"
-            disabled={pending}
-            onClick={toggleActive}
-          >
-            {user.active ? "Desativar" : "Reativar"}
-          </Button>
-        </div>
-        {result !== null && !result.ok && (
-          <Notice tone="error" role="alert" className="mt-3">
-            {result.message}
-          </Notice>
+    <>
+      {error !== null && (
+        <Notice tone="error" role="alert">
+          {error}
+        </Notice>
+      )}
+      <AdminTable
+        caption="Contas"
+        rows={sortRows(users, columns, sort)}
+        columns={columns}
+        rowKey={(user) => user.id}
+        sort={sort}
+        onSort={(key) => setSort((current) => nextSort(current, key))}
+      />
+      <AdminDialog
+        open={dialog !== null}
+        title={dialog === null ? "" : DIALOG_TITLES[dialog.mode]}
+        description={dialog === null ? undefined : `${dialog.user.name} (${dialog.user.email})`}
+        onClose={toView}
+        returnFocusId={dialog?.mode === "edit" ? ids?.edit : ids?.more}
+      >
+        {dialog?.mode === "edit" && (
+          <EditAccountForm key={dialog.user.id} user={dialog.user} onDone={toView} />
         )}
-        {mode === "edit" && <EditAccountForm user={user} onDone={toView} />}
-        {mode === "password" && <ResetPasswordForm user={user} isSelf={isSelf} onDone={toView} />}
-        {mode === "activate" && <ActivateAccountForm user={user} onDone={toView} />}
-        {mode === "merge" && (
-          <MergeAccountForm user={user} targets={mergeTargets} onDone={toView} />
+        {dialog?.mode === "reset" && (
+          <ResetPasswordForm
+            key={dialog.user.id}
+            user={dialog.user}
+            isSelf={dialog.user.id === currentUserId}
+            onDone={toView}
+          />
         )}
-      </Card>
-    </li>
+        {dialog?.mode === "activate" && (
+          <ActivateAccountForm key={dialog.user.id} user={dialog.user} onDone={toView} />
+        )}
+        {dialog?.mode === "merge" && (
+          <MergeAccountForm
+            key={dialog.user.id}
+            user={dialog.user}
+            targets={mergeTargets}
+            onDone={toView}
+          />
+        )}
+      </AdminDialog>
+    </>
   );
 }
 
@@ -690,16 +770,11 @@ export function AccountsManager({
         {visible.length === 0 ? (
           <Notice>Nenhuma conta encontrada.</Notice>
         ) : (
-          <ul className="grid gap-2 md:grid-cols-2">
-            {visible.map((user) => (
-              <AccountItem
-                key={user.id}
-                user={user}
-                isSelf={user.id === currentUserId}
-                mergeTargets={mergeTargets}
-              />
-            ))}
-          </ul>
+          <AccountsTable
+            users={visible}
+            currentUserId={currentUserId}
+            mergeTargets={mergeTargets}
+          />
         )}
       </section>
     </div>
