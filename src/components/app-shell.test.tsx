@@ -76,11 +76,15 @@ describe("AppShell", () => {
     cleanup();
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     const lateral = screen.getByRole("banner").className.split(" ");
-    expect(lateral).toContain("md:border-r-primary");
-    expect(lateral).toContain("md:bg-sidebar");
+    expect(lateral).toContain("menu-forte");
+    expect(lateral).toContain("md:bg-primary");
+    expect(lateral).not.toContain("md:bg-sidebar");
     const barra = screen.getByRole("navigation", { name: "Localização" }).className.split(" ");
-    expect(barra).toContain("bg-primary");
-    expect(barra).toContain("text-primary-foreground");
+    expect(barra).toContain("bg-menu-soft");
+    expect(barra).toContain("text-foreground");
+    expect(barra).toContain("border-divider");
+    expect(barra).not.toContain("bg-primary");
+    expect(barra).not.toContain("border-primary");
   });
   test("não há faixa vermelha no topo em nenhum layout", async () => {
     await renderShell(<p>x</p>);
@@ -119,7 +123,7 @@ describe("AppShell", () => {
     expect(bar.textContent).toContain(SCREEN_HINTS["/"]);
     expect(bar.querySelectorAll("h1").length).toBe(0);
     expect(bar.textContent).not.toContain("…");
-    expect(bar.className).toContain("bg-primary");
+    expect(bar.className).toContain("bg-menu-soft");
   });
   test("toda frase de tela é curta (até 60 caracteres) e sem reticências", () => {
     for (const hint of Object.values(SCREEN_HINTS)) {
@@ -174,6 +178,17 @@ describe("AppShell", () => {
     expect(clara?.className).not.toContain("bg-");
     expect(escura?.className).not.toContain("bg-");
     expect(screen.getByRole("main").textContent).toBe("conteúdo");
+  });
+
+  test("na lateral o logo fica numa placa branca e usa sempre a versão clara; o celular troca por tema", async () => {
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    const link = screen.getByRole("link", { name: "IFSC Câmpus Garopaba — Reserva de espaços" });
+    expect(link.className).toContain("md:bg-white");
+    expect(link.className).toContain("md:rounded-lg");
+    const [clara, escura] = [...link.querySelectorAll("img")];
+    expect(clara?.className).toContain("md:dark:block");
+    expect(escura?.className).toContain("md:dark:hidden");
+    expect(escura?.className).toContain("md:hidden");
   });
 
   test("navegação leva à agenda, importação e semestres", async () => {

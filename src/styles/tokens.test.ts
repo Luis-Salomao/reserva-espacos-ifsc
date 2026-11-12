@@ -53,7 +53,9 @@ const REQUIRED = [
   "--bg",
   "--surface",
   "--surface-2",
-  "--sidebar-bg",
+  "--menu-soft",
+  "--menu-text",
+  "--menu-text-muted",
   "--border",
   "--divider",
   "--text",
@@ -103,8 +105,8 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     expect((t["--accent"] as string).toLowerCase()).toBe("#32a041");
   });
 
-  test("a lateral é um verde suave do IFSC e o texto fica legível sobre ela", () => {
-    const fundo = t["--sidebar-bg"] as string;
+  test("a barra superior usa um verde suave do IFSC e o texto do tema fica legível sobre ela", () => {
+    const fundo = t["--menu-soft"] as string;
     expect(fundo).not.toBe(t["--surface"]);
     expect(contrast(t["--text"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
     expect(contrast(t["--text-muted"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
@@ -115,6 +117,14 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     ];
     expect(g).toBeGreaterThan(r);
     expect(g).toBeGreaterThan(b);
+  });
+
+  // Razões medidas: #111111 sobre #32A041 = 5,61; #0F2615 sobre #32A041 = 4,77.
+  test("a lateral é o verde forte oficial e texto e texto secundário escuros ficam legíveis sobre ela", () => {
+    const fundo = t["--accent"] as string;
+    expect(contrast(t["--menu-text"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(t["--menu-text-muted"] as string, fundo)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(t["--menu-text"] as string, "#ffffff")).toBeGreaterThanOrEqual(4.5);
   });
 
   test("texto sobre o destaque >= 4.5", () => {
