@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
+import { QueryClient } from "@tanstack/react-query";
 import {
   createMemoryHistory,
   createRootRoute,
@@ -65,11 +66,12 @@ mock.module("#/server/import-fns", () => ({
 }));
 
 const { ImportFlow } = await import("./import-flow");
-const { TeacherMappingStep } = await import("./mapping-steps");
+const { RoomMappingStep, TeacherMappingStep } = await import("./mapping-steps");
 
 const view = {
   rooms: [],
   teachers: [],
+  periods: [],
   termsUsed: [],
   partial: false,
 } as unknown as PreviewView;
@@ -102,10 +104,16 @@ afterEach(() => {
   globalThis.fetch = realFetch;
 });
 
-async function renderFlow() {
+async function renderFlow(queryClient = new QueryClient(), navigateToReview = true) {
   const root = createRootRoute({
     component: () => (
-      <ImportFlow view={view} file={new File(["<x/>"], "a.xml")} timeZone="America/Sao_Paulo" />
+      <ImportFlow
+        view={view}
+        file={new File(["<x/>"], "a.xml")}
+        timeZone="America/Sao_Paulo"
+        sessionId={7}
+        queryClient={queryClient}
+      />
     ),
   });
   const router = createRouter({
@@ -113,15 +121,42 @@ async function renderFlow() {
     history: createMemoryHistory({ initialEntries: ["/"] }),
   });
   const utils = render(<RouterProvider router={router} />);
-  const button = await screen.findByRole("button", { name: "Conferir importação" });
-  return { ...utils, button };
+  if (navigateToReview) {
+    for (let step = 0; step < 3; step++) {
+      fireEvent.click(await screen.findByRole("button", { name: "Continuar" }));
+    }
+  }
+  const button = await screen.findByRole("button", {
+    name: navigateToReview ? "Conferir importação" : "Continuar",
+  });
+  return { ...utils, button, queryClient };
+}
+
+async function openApplicationStep() {
+  const next = await screen.findByRole("button", { name: "Ir para aplicação" });
+  await waitFor(() => expect((next as HTMLButtonElement).disabled).toBe(false));
+  fireEvent.click(next);
 }
 
 describe("ImportFlow: reentrada", () => {
+  test("exibe uma etapa por vez e restaura a etapa pelo cache do TanStack Query", async () => {
+    const { unmount, queryClient } = await renderFlow(new QueryClient(), false);
+    expect(screen.getByRole("heading", { name: "1 Semestre" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "2 Salas" })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Continuar" }));
+    expect(screen.getByRole("heading", { name: "2 Salas" })).toBeTruthy();
+    unmount();
+
+    await renderFlow(queryClient, false);
+    expect(screen.getByRole("heading", { name: "2 Salas" })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "1 Semestre" })).toBeNull();
+  });
+
   test("clique duplo em Conferir dispara um único preparo", async () => {
     const { button } = await renderFlow();
     fireEvent.click(button);
     fireEvent.click(button);
+    await openApplicationStep();
     await screen.findByRole("button", { name: "Aplicar importação" });
     expect(prepareCalls).toBe(1);
   });
@@ -129,6 +164,7 @@ describe("ImportFlow: reentrada", () => {
   test("clique duplo em Aplicar dispara uma única aplicação", async () => {
     const { button } = await renderFlow();
     fireEvent.click(button);
+    await openApplicationStep();
     const apply = await screen.findByRole("button", { name: "Aplicar importação" });
     fireEvent.click(apply);
     fireEvent.click(apply);
@@ -227,6 +263,31 @@ function prepareReturns(body: unknown, status = 200) {
 }
 
 describe("ImportFlow: nova versão da grade", () => {
+  test("não permite aplicar um lote com zero ocupações pendentes", async () => {
+    prepareReturns({
+      ok: true,
+      data: {
+        batch: {
+          ...batch("rascunho"),
+          summary: {
+            rows: 195,
+            counts: { ...EMPTY_COUNTS, nao_aplicavel: 195 },
+            notApplicable: { room_unmapped: 155, term_without_dates: 40 },
+          },
+        },
+        reused: false,
+        done: true,
+        remaining: 0,
+      },
+    });
+    const { button } = await renderFlow();
+    fireEvent.click(button);
+    await openApplicationStep();
+    expect(await screen.findByText(/Nenhuma ocupação está pendente para aplicação/)).toBeTruthy();
+    const apply = screen.getByRole("button", { name: "Aplicar importação" });
+    expect((apply as HTMLButtonElement).disabled).toBe(true);
+  });
+
   test("mostra o resumo por tipo, os responsáveis afetados e confirma com Aplicar mudanças", async () => {
     prepareReturns({
       ok: true,
@@ -261,6 +322,7 @@ describe("ImportFlow: nova versão da grade", () => {
     // Os nomes chegam junto do lote, sem esperar a tabela de linhas.
     expect(screen.getByText("Beltrana Teste, Fulano Teste")).toBeTruthy();
     expect(screen.getByText("Serão canceladas 3 ocupações e criadas 5.")).toBeTruthy();
+    await openApplicationStep();
     expect(screen.getByRole("button", { name: "Aplicar mudanças" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Aplicar importação" })).toBeNull();
   });
@@ -268,6 +330,7 @@ describe("ImportFlow: nova versão da grade", () => {
   test("primeira versão mantém a interface da fase anterior", async () => {
     const { button } = await renderFlow();
     fireEvent.click(button);
+    await openApplicationStep();
     await screen.findByRole("button", { name: "Aplicar importação" });
     expect(screen.queryByRole("heading", { name: "Nova versão da grade" })).toBeNull();
   });
@@ -414,5 +477,52 @@ describe("TeacherMappingStep: conta fantasma", () => {
         ],
       },
     ]);
+  });
+});
+
+describe("RoomMappingStep: visão geral de vínculos", () => {
+  test("mostra em tabela destino e estado de cada sala e filtra as pendentes", async () => {
+    const rooms = [
+      { id: "R1", short: "A-202", name: "Sala A-202", slotCount: 1, slots: [{}] },
+      { id: "R2", short: "A-203", name: "Sala A-203", slotCount: 2, slots: [{}, {}] },
+    ];
+    const suggestions = [
+      {
+        sourceId: "R1",
+        short: "A-202",
+        name: "Sala A-202",
+        saved: null,
+        suggestion: { target: { spaceId: "S1", ignored: false }, origin: "nome" as const },
+      },
+      {
+        sourceId: "R2",
+        short: "A-203",
+        name: "Sala A-203",
+        saved: null,
+        suggestion: null,
+      },
+    ];
+    render(
+      <RoomMappingStep
+        rooms={rooms}
+        suggestions={suggestions}
+        spaces={[{ id: "S1", name: "Sala A-202" }]}
+        onSpacesCreated={() => {}}
+        onSaved={() => {}}
+        onDirtyChange={() => {}}
+      />,
+    );
+
+    const table = screen.getByRole("table", { name: "Vínculos das salas do arquivo" });
+    expect(within(table).getByText("A-202")).toBeTruthy();
+    expect(within(table).getByText("A-203")).toBeTruthy();
+    expect(within(table).getByText("1 ocorrência")).toBeTruthy();
+    expect(within(table).getByText("2 ocorrências")).toBeTruthy();
+    expect(within(table).getByText("Sugestão: confirme salvando")).toBeTruthy();
+    expect(screen.getByRole("button", { name: /Sem vínculo 1/ })).toBeTruthy();
+
+    fireEvent.click(screen.getByRole("button", { name: /Sem vínculo 1/ }));
+    expect(within(screen.getByRole("table")).queryByText("A-202")).toBeNull();
+    expect(within(screen.getByRole("table")).getByText("A-203")).toBeTruthy();
   });
 });

@@ -45,6 +45,14 @@ describe("toPreviewView", () => {
     });
   });
 
+  test("conta ocorrências de sala incluindo aulas com várias salas, separadas da grade individual", () => {
+    const room = view.rooms.find((r) => r.id === "R1");
+    if (room === undefined) throw new Error("fixture sem R1");
+    const occurrences = preview.slots.filter((slot) => slot.classroomIds.includes(room.id)).length;
+    expect(room.slotCount).toBe(occurrences);
+    expect(room.slotCount).toBeGreaterThan(room.slots.length);
+  });
+
   test("slot com várias salas fica fora da grade e vai para lista própria", () => {
     expect(view.multipleRooms).toHaveLength(preview.slotsByStatus.multiple_rooms);
     expect(view.multipleRooms[0]?.rooms.sort()).toEqual(["101", "LAB"]);
@@ -118,6 +126,7 @@ describe("sobreposições na visão", () => {
     for (const overlap of view.overlapsDetail) {
       expect(overlap.a.classes).toBeDefined();
       expect(overlap.b.classes).toBeDefined();
+      expect(overlap.roomId).not.toBe("");
     }
     const keys = view.overlapsDetail.map((overlap) => overlap.key);
     expect(new Set(keys).size).toBe(keys.length);

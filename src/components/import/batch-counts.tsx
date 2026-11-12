@@ -11,6 +11,20 @@ export function BatchCounts({ summary }: { summary: ImportSummary }) {
       <p className="text-sm text-muted-foreground">
         {summary.rows} {summary.rows === 1 ? "linha" : "linhas"} no lote.
       </p>
+      {summary.version === undefined &&
+        summary.rows > 0 &&
+        summary.counts.aplicada === 0 &&
+        summary.counts.pendente === 0 &&
+        summary.counts.nao_aplicavel > 0 && (
+          <p
+            role="status"
+            className="rounded-lg border border-line-conflict bg-occ-conflict p-3 text-sm"
+          >
+            Nenhuma ocupação pode ser aplicada neste lote. Confira os motivos abaixo, especialmente
+            salas sem vínculo e durações sem datas. A prévia do XML conta horários encontrados no
+            arquivo; ela não confirma, por si só, o vínculo com espaços do IFSC.
+          </p>
+        )}
       <dl className="grid grid-cols-2 gap-2 sm:grid-cols-3">
         {[...STATUS_ORDER, ...(summary.version === undefined ? [] : VERSION_STATUS_ORDER)].map(
           (status) => (

@@ -1,3 +1,4 @@
+import type { QueryClient } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { useState } from "react";
 import { AppShell } from "#/components/app-shell";
@@ -5,6 +6,7 @@ import { ImportFlow } from "#/components/import/import-flow";
 import { ImportSummary } from "#/components/import/import-summary";
 import { ImportUpload } from "#/components/import/import-upload";
 import { OverlapList } from "#/components/import/overlap-list";
+import { ImportRoomsOverview } from "#/components/import/rooms-overview";
 import { SlotList } from "#/components/import/slot-list";
 import { TermsList } from "#/components/import/terms-list";
 import { WarningList } from "#/components/import/warning-list";
@@ -19,33 +21,59 @@ export const Route = createFileRoute("/importar/")({
 });
 
 const SEND_ERROR = "Não foi possível enviar o arquivo. Tente novamente em instantes.";
+const IMPORT_DRAFT_KEY = ["import-session", "draft"] as const;
+
+type ImportDraftCache = { view: PreviewView; file: File; runId: number };
 
 function RoomGrid({ view }: { view: PreviewView }) {
   const [roomId, setRoomId] = useState(view.rooms[0]?.id ?? "");
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const room = view.rooms.find((candidate) => candidate.id === roomId) ?? view.rooms[0];
   if (room === undefined) {
     return <p className="text-muted-foreground">Nenhuma sala encontrada no arquivo.</p>;
   }
   return (
     <div className="grid gap-3">
-      <div className="grid w-full min-w-0 max-w-xs gap-2">
-        <Label htmlFor="room-select">Sala</Label>
-        <select
-          id="room-select"
-          value={room.id}
-          onChange={(event) => setRoomId(event.target.value)}
-          className="h-10 w-full min-w-0 truncate rounded-lg border bg-background px-3 text-sm"
-        >
-          {view.rooms.map((candidate) => (
-            <option key={candidate.id} value={candidate.id}>
-              {candidate.short}
-              {candidate.name && candidate.name !== candidate.short ? ` – ${candidate.name}` : ""} (
-              {candidate.slots.length})
-            </option>
-          ))}
-        </select>
-      </div>
-      <WeeklyGrid room={room} periods={view.periods} />
+      <ImportRoomsOverview
+        rooms={view.rooms}
+        overlaps={view.overlapsDetail}
+        truncated={view.overlapsTruncated}
+        onShowRoom={(id) => {
+          setRoomId(id);
+          setDetailsOpen(true);
+        }}
+      />
+      <details
+        open={detailsOpen}
+        onToggle={(event) => setDetailsOpen(event.currentTarget.open)}
+        className="grid gap-3 rounded-xl border bg-surface-2 p-3"
+      >
+        <summary className="cursor-pointer font-medium">
+          Grade detalhada por sala (opcional)
+        </summary>
+        <div className="grid gap-3">
+          <div className="grid w-full min-w-0 max-w-xs gap-2">
+            <Label htmlFor="room-select">Sala</Label>
+            <select
+              id="room-select"
+              value={room.id}
+              onChange={(event) => setRoomId(event.target.value)}
+              className="h-10 w-full min-w-0 truncate rounded-lg border bg-background px-3 text-sm"
+            >
+              {view.rooms.map((candidate) => (
+                <option key={candidate.id} value={candidate.id}>
+                  {candidate.short}
+                  {candidate.name && candidate.name !== candidate.short
+                    ? ` – ${candidate.name}`
+                    : ""}{" "}
+                  ({candidate.slots.length})
+                </option>
+              ))}
+            </select>
+          </div>
+          <WeeklyGrid room={room} periods={view.periods} />
+        </div>
+      </details>
     </div>
   );
 }
@@ -71,7 +99,7 @@ function PreviewResult({ view }: { view: PreviewView }) {
           truncated={view.overlapsTruncated}
         />
       </PageSection>
-      <PageSection title="Grade por sala">
+      <PageSection title="Salas no arquivo">
         <RoomGrid view={view} />
       </PageSection>
       <PageSection title="Aulas sem sala">
@@ -88,12 +116,13 @@ function PreviewResult({ view }: { view: PreviewView }) {
 }
 
 function ImportPage() {
+  const { session, queryClient } = Route.useRouteContext();
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [view, setView] = useState<PreviewView | null>(null);
-  const [file, setFile] = useState<File | null>(null);
-  const [runId, setRunId] = useState(0);
-  const { session } = Route.useRouteContext();
+  const cached = queryClient.getQueryData<ImportDraftCache>(IMPORT_DRAFT_KEY);
+  const [view, setView] = useState<PreviewView | null>(cached?.view ?? null);
+  const [file, setFile] = useState<File | null>(cached?.file ?? null);
+  const [runId, setRunId] = useState(cached?.runId ?? 0);
 
   async function handleSubmit(upload: File) {
     setPending(true);
@@ -107,15 +136,23 @@ function ImportPage() {
       });
       const result = (await response.json()) as PreviewImportResult;
       if (result.ok) {
+        const nextRunId = runId + 1;
+        const draft = { view: result.preview, file: upload, runId: nextRunId };
+        queryClient.setQueryData(IMPORT_DRAFT_KEY, draft);
+        queryClient.removeQueries({ queryKey: ["import-session", "flow"] });
         setView(result.preview);
         setFile(upload);
-        setRunId((id) => id + 1);
+        setRunId(nextRunId);
       } else {
+        queryClient.removeQueries({ queryKey: IMPORT_DRAFT_KEY, exact: true });
         setView(null);
+        setFile(null);
         setError(result.message);
       }
     } catch {
+      queryClient.removeQueries({ queryKey: IMPORT_DRAFT_KEY, exact: true });
       setView(null);
+      setFile(null);
       setError(SEND_ERROR);
     } finally {
       setPending(false);
@@ -147,7 +184,14 @@ function ImportPage() {
       )}
       {view !== null && <PreviewResult view={view} />}
       {view !== null && file !== null && !view.partial && (
-        <ImportFlow key={runId} view={view} file={file} timeZone={session.timeZone} />
+        <ImportFlow
+          key={runId}
+          view={view}
+          file={file}
+          timeZone={session.timeZone}
+          sessionId={runId}
+          queryClient={queryClient as QueryClient}
+        />
       )}
     </AppShell>
   );
