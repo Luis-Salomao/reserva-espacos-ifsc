@@ -67,6 +67,7 @@
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-surface: var(--surface);
+  --color-brand-red: var(--brand-red);
   --color-surface-2: var(--surface-2);
   --color-occ-free: var(--occ-free);
   --color-occ-booked: var(--occ-booked);
