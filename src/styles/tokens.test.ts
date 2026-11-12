@@ -96,13 +96,17 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     ).toBeGreaterThanOrEqual(4.5);
   });
 
+  test("o destaque é o verde oficial do IFSC (Manual da Marca 2017, RGB 50 160 65)", () => {
+    expect((t["--accent"] as string).toLowerCase()).toBe("#32a041");
+  });
+
   test("texto sobre o destaque >= 4.5", () => {
     expect(
       contrast(t["--accent-contrast"] as string, t["--accent"] as string),
     ).toBeGreaterThanOrEqual(4.5);
   });
 
-  test("texto laranja (links) sobre fundo e superfícies >= 4.5", () => {
+  test("texto de destaque (links) sobre fundo e superfícies >= 4.5", () => {
     for (const base of ["--bg", "--surface", "--surface-2"]) {
       expect(contrast(t["--accent-text"] as string, t[base] as string)).toBeGreaterThanOrEqual(4.5);
     }
