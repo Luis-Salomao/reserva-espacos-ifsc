@@ -135,7 +135,7 @@ type ConflictInfo = {
 type BookingFailure = Failure & { conflict?: ConflictInfo };
 export type BookingResult = { ok: true; value: BookingView } | BookingFailure;
 
-export type SeriesUpdateScope = "future" | "serie";
+type SeriesUpdateScope = "future" | "serie";
 export type SeriesUpdateInput = {
   occupationId: string;
   spaceId: string;
