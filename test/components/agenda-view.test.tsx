@@ -708,14 +708,12 @@ describe("AgendaView — Suíte 5: Intervalos Livres Clicáveis", () => {
     fireEvent.pointerUp(nightSlot, { pointerType: "mouse", button: 0, clientY: 775 });
     fireEvent.click(nightSlot);
 
-    expect(onSelectSlot).toHaveBeenCalledTimes(1);
-    expect(onSelectSlot).toHaveBeenCalledWith({
-      spaceId: "space-adm",
-      date: MOCK_DATE_TUESDAY,
-      start: "20:10",
-      end: "22:00",
-    });
-    expect(screen.queryByRole("button", { name: /Rascunho/ })).toBeNull();
+    expect(onSelectSlot).not.toHaveBeenCalled();
+    const responsiveDrafts = screen.getAllByRole("button", { name: /Rascunho/ });
+    expect(responsiveDrafts).toHaveLength(2);
+    expect(responsiveDrafts[0]?.getAttribute("aria-label")).toBe(
+      responsiveDrafts[1]?.getAttribute("aria-label"),
+    );
   });
 
   test("um toque em um horário livre noturno abre somente uma reserva", async () => {

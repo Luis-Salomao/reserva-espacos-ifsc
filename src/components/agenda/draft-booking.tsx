@@ -120,11 +120,7 @@ export function useDraftGesture({
     }, 0);
     if (g.moved) return;
     if (g.mode === "create") {
-      onOpenDraft({
-        date: day.date,
-        start: hhmm(g.gap.start),
-        end: hhmm(g.gap.end),
-      });
+      emit(g.anchor, Math.min(g.anchor + 60, g.gap.end));
     } else if (draft !== null) {
       onOpenDraft(draft);
     }
