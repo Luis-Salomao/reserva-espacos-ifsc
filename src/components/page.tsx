@@ -94,7 +94,7 @@ type NoticeProps = ComponentProps<"p"> & { tone?: "error" | "ok" | "info" | "neu
 
 const NOTICE_TONE = {
   error: "border-line-conflict bg-occ-conflict font-medium",
-  ok: "border-line-free bg-occ-free",
+  ok: "border-border bg-surface-2 text-foreground",
   info: "border-line-imported bg-occ-imported",
   neutral: "bg-surface text-center",
 } as const;

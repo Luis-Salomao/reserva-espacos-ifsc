@@ -201,7 +201,7 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
     const radios = screen.getAllByRole("radio");
     fireEvent.click(radios[1] as HTMLElement);
 
-    expect(screen.getByText("Buscando datas futuras da série...")).toBeDefined();
+    expect(screen.getByText("Buscando datas futuras da série…")).toBeDefined();
     const submitBtn = screen.getByRole("button", { name: /Cancelar toda a série/i });
     expect(submitBtn.hasAttribute("disabled")).toBe(true);
 
@@ -384,7 +384,7 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
     expect(alert.textContent).toContain("Esta ocupação já foi cancelada.");
   });
 
-  test("17. Estado de envio desabilita botões de ação e exibe 'Cancelando...'", async () => {
+  test("17. Estado de envio desabilita botões de ação e exibe 'Cancelando…'", async () => {
     let resolveCancel!: (val: unknown) => void;
     const pendingPromise = new Promise((resolve) => {
       resolveCancel = resolve;
@@ -402,7 +402,7 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
     const confirmBtn = screen.getByRole("button", { name: "Cancelar reserva" });
     fireEvent.click(confirmBtn);
 
-    expect(screen.getByRole("button", { name: "Cancelando..." })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Cancelando…" })).toBeDefined();
     expect(screen.getByRole("button", { name: "Voltar" }).hasAttribute("disabled")).toBe(true);
 
     resolveCancel({ ok: true as const, data: { cancelled: 1 } });

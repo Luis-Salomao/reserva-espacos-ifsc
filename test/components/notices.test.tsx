@@ -52,6 +52,24 @@ describe("NoticesSection", () => {
     fireEvent.click(screen.getByRole("button", { name: "Aceitar pedido de Ana Souza para A-202" }));
     await waitFor(() => expect(onChanged).toHaveBeenCalledTimes(1));
     expect(acceptFn.mock.calls[0]?.[0]).toEqual({ data: { requestId: "r1" } });
+    expect(screen.getByRole("status").textContent).toBe(
+      "Você cedeu A-202 (qui 12/11 · 13:30–15:20) para Ana Souza.",
+    );
+  });
+
+  test("a confirmação continua visível quando a seção esvazia depois de aceitar", async () => {
+    const acceptFn = mock(ok);
+    const { rerender } = render(
+      <NoticesSection
+        overview={{ ...empty, incoming: [incoming] }}
+        onChanged={() => {}}
+        acceptFn={acceptFn}
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: /Aceitar pedido/ }));
+    await waitFor(() => expect(screen.getByRole("status")).toBeDefined());
+    rerender(<NoticesSection overview={empty} onChanged={() => {}} acceptFn={acceptFn} />);
+    expect(screen.getByRole("status").textContent).toContain("Você cedeu A-202");
   });
 
   test("recusar abre diálogo com motivo opcional e envia o motivo", async () => {

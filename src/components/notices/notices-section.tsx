@@ -36,7 +36,7 @@ const STATUS_LABEL: Record<EffectiveStatus, string> = {
 
 const STATUS_TONE: Record<EffectiveStatus, TagTone> = {
   pendente: "booked",
-  aceito: "free",
+  aceito: "neutral",
   recusado: "conflict",
   cancelado: "neutral",
   encerrado: "neutral",
@@ -157,7 +157,7 @@ function DeclineDialog({
             disabled={busy}
             onClick={() => onConfirm(note)}
           >
-            {busy ? "Recusando..." : "Recusar pedido"}
+            {busy ? "Recusando…" : "Recusar pedido"}
           </Button>
         </AlertDialogFooter>
       </AlertDialogContent>
@@ -179,16 +179,23 @@ export function NoticesSection({
   const [busy, setBusy] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [declining, setDeclining] = useState<RequestView | null>(null);
+  // Confirmação da última ação: fica visível mesmo quando a seção esvazia (ex.: o único pedido aceito).
+  const [done, setDone] = useState<string | null>(null);
   const { notices, incoming, outgoing } = overview;
-  if (notices.length === 0 && incoming.length === 0 && outgoing.length === 0) return null;
+  if (notices.length === 0 && incoming.length === 0 && outgoing.length === 0 && done === null)
+    return null;
 
-  async function run(id: string, call: () => Promise<AdminResponse<unknown>>) {
+  async function run(id: string, call: () => Promise<AdminResponse<unknown>>, success: string) {
     setBusy(id);
     setError(null);
+    setDone(null);
     const result = await runAdminAction(call);
     setBusy(null);
     if (!result.ok) setError(result.message);
-    else setDeclining(null);
+    else {
+      setDeclining(null);
+      setDone(success);
+    }
     // Mesmo em falha (ex.: pedido que mudou): recarrega para mostrar a situação atual.
     onChanged();
   }
@@ -201,6 +208,11 @@ export function NoticesSection({
       {error !== null && (
         <Notice tone="error" role="alert">
           {error}
+        </Notice>
+      )}
+      {done !== null && (
+        <Notice tone="ok" role="status">
+          {done}
         </Notice>
       )}
 
@@ -240,10 +252,14 @@ export function NoticesSection({
                     disabled={busy !== null}
                     aria-label={`Aceitar pedido de ${item.requesterName} para ${item.spaceName}`}
                     onClick={() =>
-                      void run(item.id, () => acceptFn({ data: { requestId: item.id } }))
+                      void run(
+                        item.id,
+                        () => acceptFn({ data: { requestId: item.id } }),
+                        `Você cedeu ${item.spaceName} (${slotText(item)}) para ${item.requesterName}.`,
+                      )
                     }
                   >
-                    {busy === item.id ? "Aceitando..." : "Aceitar"}
+                    {busy === item.id ? "Aceitando…" : "Aceitar"}
                   </Button>
                 </div>
               </Card>
@@ -291,7 +307,11 @@ export function NoticesSection({
                       disabled={busy !== null}
                       aria-label={`Desistir do pedido de ${item.spaceName}`}
                       onClick={() =>
-                        void run(item.id, () => withdrawFn({ data: { requestId: item.id } }))
+                        void run(
+                          item.id,
+                          () => withdrawFn({ data: { requestId: item.id } }),
+                          "Pedido retirado.",
+                        )
                       }
                     >
                       Desistir
@@ -312,8 +332,11 @@ export function NoticesSection({
         onConfirm={(note) => {
           if (declining === null) return;
           const requestId = declining.id;
-          void run(requestId, () =>
-            declineFn({ data: { requestId, ...(note.trim() === "" ? {} : { note }) } }),
+          const name = declining.requesterName;
+          void run(
+            requestId,
+            () => declineFn({ data: { requestId, ...(note.trim() === "" ? {} : { note }) } }),
+            `Pedido de ${name} recusado.`,
           );
         }}
       />

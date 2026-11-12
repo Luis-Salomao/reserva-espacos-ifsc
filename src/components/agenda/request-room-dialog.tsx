@@ -129,7 +129,7 @@ export function RequestRoomDialog({
               Voltar
             </Button>
             <Button type="submit" disabled={busy}>
-              {busy ? "Enviando..." : "Enviar pedido"}
+              {busy ? "Enviando…" : "Enviar pedido"}
             </Button>
           </div>
         </form>
