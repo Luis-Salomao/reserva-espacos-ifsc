@@ -56,7 +56,9 @@ export function RoomSelector({
           aria-label={`Escolher sala: ${selected?.name ?? "nenhuma selecionada"}`}
           className={cn(
             "h-10 min-w-0 justify-start gap-2",
-            variant === "vertical" ? "w-full" : "w-full sm:max-w-sm",
+            variant === "vertical"
+              ? "w-full"
+              : "w-full border-primary bg-primary/10 font-semibold text-foreground hover:bg-primary/20 sm:max-w-sm",
           )}
           disabled={spaces.length === 0}
         >

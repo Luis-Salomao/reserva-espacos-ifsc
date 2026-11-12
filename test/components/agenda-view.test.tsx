@@ -554,7 +554,9 @@ describe("AgendaView — Suíte 4: Seletor de Espaços (Desktop e Mobile)", () =
     });
 
     const aside = screen.getByLabelText("Filtros da agenda");
-    fireEvent.click(within(aside).getByRole("button", { name: /Escolher sala/i }));
+    // O seletor de sala fica no topo, à vista, e não mais na lateral.
+    expect(within(aside).queryByRole("button", { name: /Escolher sala/i })).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: /Escolher sala/i }));
     const btnAdm = screen.getByRole("button", { name: /ADM 2/i, pressed: true });
     const btnLab = screen.getByRole("button", { name: /LAB 1/i, pressed: false });
 
@@ -595,8 +597,7 @@ describe("AgendaView — Suíte 4: Seletor de Espaços (Desktop e Mobile)", () =
       onSelectSpace: onSelectSpace,
     });
 
-    const aside = screen.getByLabelText("Filtros da agenda");
-    fireEvent.click(within(aside).getByRole("button", { name: /Escolher sala/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Escolher sala/i }));
     const btnLab = screen.getByRole("button", { name: /LAB 1/i });
     fireEvent.click(btnLab);
 
@@ -862,8 +863,7 @@ describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", ()
       onSelectDate: () => {},
       onSelectSpace: () => {},
     });
-    const aside = screen.getByLabelText("Filtros da agenda");
-    fireEvent.click(within(aside).getByRole("button", { name: /Escolher sala/i }));
+    fireEvent.click(screen.getByRole("button", { name: /Escolher sala/i }));
     fireEvent.click(screen.getByRole("button", { name: /Ver todas as salas/ }));
     await waitFor(() =>
       expect(router.state.location.search).toEqual({

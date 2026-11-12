@@ -160,18 +160,6 @@ export function AgendaView({
             onSelectDate={onSelectDate}
           />
 
-          <div>
-            <h2 className="mb-1.5 px-2 text-[11px] font-medium text-muted-foreground">Salas</h2>
-            <RoomSelector
-              spaces={spaces}
-              selectedSpaceId={selectedSpaceId}
-              onSelectSpace={onSelectSpace}
-              variant="vertical"
-              onSeeAllRooms={seeAllRooms}
-              showNotes={!isVisitor}
-            />
-          </div>
-
           {currentSpace ? (
             <SpaceDetails space={currentSpace} />
           ) : (
@@ -192,13 +180,7 @@ export function AgendaView({
                   : formatDayHeader(selectedDate)}
               </span>
             </h1>
-            <span className="hidden rounded-md border px-2 py-0.5 text-[12px] font-medium text-muted-foreground xl:inline">
-              {currentSpace?.name ?? ""}
-            </span>
-            {currentSpace !== undefined && (
-              <EquipmentMarks equipment={currentSpace.equipment} showNotes={!isVisitor} />
-            )}
-            <div className="min-w-0 max-w-56 xl:hidden">
+            <div className="min-w-0 max-w-64">
               <RoomSelector
                 spaces={spaces}
                 selectedSpaceId={selectedSpaceId}
@@ -208,6 +190,9 @@ export function AgendaView({
                 onSeeAllRooms={seeAllRooms}
               />
             </div>
+            {currentSpace !== undefined && (
+              <EquipmentMarks equipment={currentSpace.equipment} showNotes={!isVisitor} />
+            )}
             <div className="flex-1" />
             <div className="toolbar hidden items-center gap-1 lg:flex">
               <Button variant="outline" size="sm" onClick={() => onSelectDate(todayIso)}>
