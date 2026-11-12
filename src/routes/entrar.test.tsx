@@ -30,4 +30,6 @@ test("login apresenta a marca IFSC com nome acessível", async () => {
   render(<RouterProvider router={router} />);
 
   expect(await screen.findByRole("img", { name: "Marca do IFSC" })).toBeDefined();
+  expect(screen.getByText("Sistema de Reserva de Espaços")).toBeDefined();
+  expect(document.querySelector("[data-faixa-ifsc]")).not.toBeNull();
 });
