@@ -64,3 +64,9 @@ Snapshot local commitado em `codex/estado-deploy-2026-11-11` (`ce82b4d`). O comm
 - Testes focados de agenda, formulário de reserva/recorrência, visão geral de salas, calendário Sala > Semana e Minhas reservas: **135 passaram, 0 falharam** (127 na rodada anterior e 8 na suíte focada de `rooms-columns`).
 - `bun run check`: **passou**. Biome, TypeScript, Knip, dependency-cruiser e Betterleaks sem achados; suíte completa com **1853 testes aprovados, 3 ignorados e 0 falhas** (1.856 no total).
 - Nenhum deploy foi feito; o comportamento em produção não foi verificado.
+
+## Achado complementar — modo desktop do navegador em celular
+
+A captura da grade semanal comprimida é compatível com o Chrome Android usando “Site para computador”: nesse modo, o viewport CSS pode ficar próximo de 980 px, acima do breakpoint anterior de 767 px. Assim, `useCompact()` mantinha a matriz larga visível apesar de a tela física ser de celular. O breakpoint foi ampliado para 1023 px; abaixo dele, a visão geral usa cartões por sala e horários tocáveis. Um teste em viewport de 980 px confirma a ativação dos cartões, a navegação entre dias e a quantidade de opções por sala. Essa alteração não modifica rotas nem o fluxo de reserva.
+
+Verificação focada deste achado: Biome aprovado; `bun test test/components/rooms-view.test.tsx test/components/rooms-overview.test.tsx` — **85 testes passaram, 0 falharam**. Sem validação manual em aparelho físico e sem deploy.
