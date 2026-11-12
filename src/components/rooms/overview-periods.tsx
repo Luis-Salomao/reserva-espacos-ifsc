@@ -1,28 +1,31 @@
-﻿import { cn } from "#/lib/utils";
+import { cn } from "#/lib/utils";
 
+/** Faixa da grade: todos os blocos ou só manhã, tarde ou noite. */
 export type OverviewPeriod = "Todos" | "Manhã" | "Tarde" | "Noite";
 
-export function OverviewPeriods({
-  value,
-  onChange,
-}: {
+const PERIODS: readonly OverviewPeriod[] = ["Todos", "Manhã", "Tarde", "Noite"];
+
+type Props = {
   value: OverviewPeriod;
-  onChange: (value: OverviewPeriod) => void;
-}) {
+  onChange: (period: OverviewPeriod) => void;
+};
+
+/** Manhã, tarde ou noite da visão geral. O botão marcado usa `aria-pressed`. */
+export function OverviewPeriods({ value, onChange }: Props) {
   return (
     <fieldset
       aria-label="Período"
-      className="flex h-9 items-center gap-0.5 rounded-md border bg-surface p-0.5"
+      className="flex min-w-0 flex-wrap rounded-md border bg-surface p-0.5"
     >
-      {(["Todos", "Manhã", "Tarde", "Noite"] as const).map((period) => (
+      {PERIODS.map((period) => (
         <button
           key={period}
           type="button"
           aria-pressed={value === period}
           onClick={() => onChange(period)}
           className={cn(
-            "rounded px-2.5 py-1 text-xs font-medium text-muted-foreground hover:text-foreground",
-            value === period && "bg-surface-2 text-foreground",
+            "min-h-11 rounded-[5px] px-2.5 py-1 text-[12px] font-medium text-muted-foreground hover:text-foreground",
+            value === period && "bg-background text-foreground shadow-xs",
           )}
         >
           {period}

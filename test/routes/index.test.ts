@@ -80,7 +80,16 @@ describe("Route.loaderDeps", () => {
     expect(deps({})?.fonte).toBe("semana");
   });
   const base = { data: "2026-11-10", espaco: "a202" };
-  const filters = { ini: "14:00", fim: "16:00", bloco: ["A"], cap: 30, q: "lab", livres: true };
+  const filters = {
+    ini: "14:00",
+    fim: "16:00",
+    bloco: ["A"],
+    cap: 30,
+    q: "lab",
+    livres: true,
+    projetor: true,
+    pcs: 8,
+  };
 
   test("sem visão vale 'Sala': a fonte é a agenda da sala", () => {
     expect(deps(base)).toEqual({ data: "2026-11-10", espaco: "a202", fonte: "sala" });

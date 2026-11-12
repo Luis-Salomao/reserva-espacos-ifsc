@@ -382,6 +382,15 @@ export interface OccupationRepository {
   listActiveInRange(spaceId: string, from: string, to: string): Promise<OccupationRecord[]>;
   /** Ocupações ativas de todos os espaços que tocam `[from, to)`, por espaço, início e id. */
   listActiveInRangeAll(from: string, to: string): Promise<OccupationRecord[]>;
+  /**
+   * Pares distintos `(title, responsibleUserId)` das ocupações importadas ativas que tocam
+   * `[from, to)`. Avulsa, cancelada e fora do intervalo não entram. `responsibleUserId` null é
+   * um par próprio (aula sem responsável).
+   */
+  listImportedTitles(
+    from: string,
+    to: string,
+  ): Promise<Array<{ title: string; responsibleUserId: string | null }>>;
   findById(id: string): Promise<OccupationRecord | null>;
   /**
    * Insere a reserva avulsa só se nenhuma ocupação ativa do espaço se sobrepõe, numa única

@@ -8,6 +8,7 @@ Na "Nova reserva" o docente digita o título à mão, embora as matérias e turm
 
 - [ ] O docente escolhe o título da reserva numa lista, com as matérias dele primeiro.
 - [ ] Continua possível digitar outro título quando a reserva não é de uma matéria (reunião, evento).
+- [ ] O título escolhido (da lista ou livre) vale tanto para a reserva simples quanto para a série recorrente.
 
 ## Out of Scope
 
@@ -27,7 +28,15 @@ Na "Nova reserva" o docente digita o título à mão, embora as matérias e turm
 | De onde vêm "minhas matérias" | Títulos das ocupações importadas ativas em que o usuário logado é responsável | Depende de `docentes-do-xml`; sem responsável, a seção fica vazia | y |
 | Período considerado | Ocupações importadas do semestre que contém a data da reserva; fora de semestre, o semestre mais recente | Matérias mudam a cada semestre | n |
 | Título livre | Opção "Usar “texto” como título" quando o texto digitado não bate com nenhum item | O usuário quer lista, mas reservas de evento precisam de título livre | y |
-| Ordem | "Minhas matérias" primeiro, depois "Todas as matérias", cada grupo em ordem alfabética | Escolha do usuário | y |
+| Ordem | "Minhas matérias" primeiro, depois "Todas as matérias", cada grupo em ordem alfabética (`localeCompare` pt-BR, sem ordem numérica) | Escolha do usuário | y |
+| Onde o campo fica | No lugar de "Finalidade", depois da seção "Repetir", na folha "Nova reserva" da página `/` | A folha ganhou repetição, salas livres/ocupadas e a visão geral depois desta spec | y |
+| Título da série | O mesmo texto do campo segue na prévia e na confirmação da série | Pedido desta entrega: o título da lista vale para a recorrente | y |
+| Recarga da lista | Nova chamada a cada mudança da data. O servidor escolhe o semestre | O cliente não conhece o início e o fim do semestre; o desenho falava em recarregar só na troca de semestre | n |
+| Lista no celular | Lista inline logo abaixo do campo, `w-full` (a largura da folha) e alvos `min-h-11` (44 px). A página sem rolagem horizontal em 360 px se confere no navegador: o happy-dom não mede scroll | L-005 | n |
+| Atalhos | Com a lista aberta: Seta baixo e Seta cima movem o destaque; Enter escolhe a opção destacada e não envia o formulário; Esc fecha a lista e mantém o título já escolhido | L-024 | y |
+| Texto do campo | O que está no campo é o título. Escolher um item troca pelo texto do catálogo. A opção livre só aparece com texto aparado não vazio que não coincide com nenhum item e, ao ser escolhida, grava o texto aparado | A opção confirma o título fora da lista; digitar já preenche o campo, como a finalidade fazia | y |
+| Mensagens | Vazio: "Informe a matéria ou o título". Acima de 120: "A finalidade deve ter no máximo 120 caracteres." (a mensagem de hoje). O campo não usa `maxLength`, senão a mensagem de tamanho não aparece | O servidor continua validando 120 | y |
+| Falha de carga | O aviso "Não foi possível carregar as matérias" aparece e a lista (o elemento) não é montada; o campo segue como título livre | Ausência se afirma no elemento | y |
 
 **Open questions:** none - all resolved or logged above.
 
@@ -47,8 +56,12 @@ Na "Nova reserva" o docente digita o título à mão, embora as matérias e turm
 2. WHEN o docente digita no campo THEN o sistema SHALL filtrar os dois grupos pelo texto, sem diferenciar maiúsculas nem acentos.
 3. WHEN o docente escolhe um item THEN o sistema SHALL usar o texto do item como título da reserva.
 4. THE sistema SHALL NOT repetir em "Todas as matérias" um título que já aparece em "Minhas matérias".
-5. WHEN o docente não tem nenhuma aula como responsável THEN o sistema SHALL esconder o grupo "Minhas matérias".
-6. WHILE a largura da tela for menor que 768 px the sistema SHALL abrir a lista logo abaixo do campo, na largura total da folha de reserva, com alvos de toque de pelo menos 44 px.
+5. WHEN o docente não tem nenhuma aula como responsável, ou o filtro esvazia o grupo, THEN o sistema SHALL esconder o grupo "Minhas matérias" (o elemento do grupo não existe).
+6. WHEN a lista está aberta THEN o sistema SHALL mostrá-la logo abaixo do campo, com a classe `w-full` (largura da folha) e cada opção com `min-h-11` (44 px). A página em 360 px não rola na horizontal; isso se confere no navegador.
+7. WHEN a lista está aberta e o docente pressiona Seta baixo ou Seta cima THEN o sistema SHALL mover o destaque entre as opções.
+8. WHEN uma opção está destacada e o docente pressiona Enter THEN o sistema SHALL escolher essa opção e SHALL NOT enviar o formulário.
+9. WHEN a lista está aberta e o docente pressiona Esc THEN o sistema SHALL fechar a lista e manter o título já escolhido.
+10. WHEN o docente escolhe um item ou a opção de título livre e pede a série recorrente THEN o sistema SHALL enviar esse mesmo texto como finalidade da prévia e da confirmação.
 
 **Independent Test**: Logado como Fabiana, abrir "Nova reserva" e ver as matérias dela no topo; escolher uma e criar a reserva com esse título.
 
@@ -62,8 +75,8 @@ Na "Nova reserva" o docente digita o título à mão, embora as matérias e turm
 
 **Acceptance Criteria**:
 
-1. WHEN o texto digitado não bate exatamente com nenhum item THEN o sistema SHALL oferecer a opção "Usar “texto” como título".
-2. WHEN o docente escolhe essa opção THEN o sistema SHALL usar o texto digitado, sem espaços nas pontas, como título.
+1. WHEN o texto aparado não está vazio e não coincide com nenhum item (igualdade depois de normalizar: sem acento, sem diferença de maiúsculas, sem espaços nas pontas) THEN o sistema SHALL oferecer a opção "Usar “texto” como título", com o texto já aparado.
+2. WHEN o docente escolhe essa opção THEN o sistema SHALL gravar no campo o texto aparado e usá-lo como título.
 3. IF o título passar do limite atual de tamanho THEN o sistema SHALL mostrar a mesma mensagem de validação de hoje e SHALL NOT enviar a reserva.
 4. IF o título ficar vazio THEN o sistema SHALL mostrar "Informe a matéria ou o título" e SHALL NOT enviar a reserva.
 
@@ -74,8 +87,9 @@ Na "Nova reserva" o docente digita o título à mão, embora as matérias e turm
 ## Edge Cases
 
 - WHEN não há nenhuma ocupação importada no período THEN o sistema SHALL mostrar só a opção de título livre.
-- IF a lista de matérias não carregar THEN o sistema SHALL manter o campo funcionando como título livre e mostrar "Não foi possível carregar as matérias".
-- WHILE o usuário for visitante the sistema SHALL NOT expor a lista de matérias, porque visitante não reserva.
+- IF a lista de matérias não carregar THEN o sistema SHALL manter o campo funcionando como título livre, mostrar "Não foi possível carregar as matérias" e SHALL NOT montar a lista.
+- WHILE o usuário for visitante (sem sessão) the sistema SHALL NOT expor a lista de matérias: a ação responde 401 "É preciso entrar.". Conta que não pode reservar recebe recusa no serviço, sem a lista.
+- WHEN a data muda THEN o sistema SHALL pedir de novo as matérias dessa data. O servidor usa o semestre que contém a data; fora de qualquer semestre, o mais recente (`semesters.list()` já vem do mais recente para o mais antigo).
 
 ---
 
@@ -83,13 +97,14 @@ Na "Nova reserva" o docente digita o título à mão, embora as matérias e turm
 
 | Requirement ID | Story | Phase | Status |
 | -------------- | ----- | ----- | ------ |
-| MAT-01 | P1: Escolher matéria (AC 1, 3) | - | Pending |
-| MAT-02 | P1: Escolher matéria (AC 2, 4, 5) | - | Pending |
-| MAT-03 | P1: Escolher matéria (AC 6) | - | Pending |
-| MAT-04 | P1: Título livre (AC 1, 2) | - | Pending |
-| MAT-05 | P1: Título livre (AC 3, 4) | - | Pending |
+| MAT-01 | P1: Escolher matéria (AC 1, 3) | T1–T3, T5, T6 | Done |
+| MAT-02 | P1: Escolher matéria (AC 2, 4, 5) | T2, T4, T5 | Done |
+| MAT-03 | P1: Escolher matéria (AC 6–9, atalhos e largura) | T5, T6 | Done |
+| MAT-04 | P1: Título livre (AC 1, 2) | T4, T5, T6 | Done |
+| MAT-05 | P1: Título livre (AC 3, 4) | T6 | Done |
+| MAT-06 | P1: Escolher matéria (AC 10, série recorrente) | T6 | Done |
 
-**Coverage:** 5 total, 0 mapped to tasks, 5 unmapped ⚠️
+**Coverage:** 6 total, 6 mapped to tasks, 0 unmapped.
 
 ---
 

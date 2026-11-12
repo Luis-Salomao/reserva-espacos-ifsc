@@ -77,6 +77,16 @@ async function asAccount<T>(
   return { response: await run(user), setCookie };
 }
 
+/** Matérias importadas do semestre da data (`{ date }`): exige sessão com papel de reserva. */
+export function getSubjects(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asRoles<{ mine: string[]; all: string[] }>(BOOKING_ROLES, deps, request, async (user) => {
+    const body = record(data);
+    const date = body && text(body, "date");
+    if (date == null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.bookings.subjects(user, { date }));
+  });
+}
+
 /** Agenda de um dia de um espaço (`{ spaceId, date }`); pública conforme `PUBLIC_READ`. */
 export function getDayAgenda(deps: BookingDeps, request: RequestLike, data: unknown) {
   return asReader<DayAgenda>(deps, request, async (viewer) => {

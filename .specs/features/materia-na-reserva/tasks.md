@@ -9,7 +9,20 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 ---
 
 **Design**: `.specs/features/materia-na-reserva/design.md`
-**Status**: Draft
+**Status**: Em execução
+
+## Desvios (reconciliação com o código de 2026-11-05)
+
+A spec foi escrita antes da página única `/`, da seção "Repetir" e da administração de espaços. Ajustes, sem mudar a ordem T1–T6:
+
+- A habilidade `tlc-spec-driven` citada no protocolo não está disponível neste ambiente. As tarefas seguem o fluxo do repositório: spec, testes, um commit por tarefa e as lições de `.specs/LESSONS.md`.
+- O campo continua depois de "Repetir" (onde estava "Finalidade"). A ordem entre "Repetir" e "Matéria ou título", e entre os dois grupos, se afirma com `compareDocumentPosition`.
+- A lista é inline (`w-full`, `min-h-11`), não um Popover de largura fixa: o AC pede a lista logo abaixo do campo, na largura da folha. O desenho citava Popover.
+- A recarga é por mudança de data, não só por mudança de semestre: o cliente não conhece os limites do semestre. O servidor continua escolhendo o semestre como `blocksFor`.
+- O texto do campo já é o título (como a finalidade era). A opção "Usar “texto” como título" grava o texto aparado. O `maxLength` sai para a mensagem de 120 caracteres poder aparecer.
+- MAT-06: o mesmo título segue na prévia e na confirmação da série. Não há campo de finalidade separado.
+- Atalhos (Seta baixo, Seta cima, Enter, Esc) entram no AC 7–9 e no teste do combobox.
+- "Minhas matérias" some também quando o filtro esvazia o grupo. A ausência é do elemento, não só do texto.
 
 ---
 
@@ -65,8 +78,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Teste: exclui avulsas, canceladas e fora do intervalo; sem duplicatas
-- [ ] Gate check passes: `bun test`
+- [x] Teste: exclui avulsas, canceladas e fora do intervalo; sem duplicatas
+- [x] Gate check passes: `bun test src/infra/db/flow/occupation-repository.test.ts`
 
 **Tests**: integration
 **Gate**: full
@@ -85,8 +98,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Testes: `all` sem itens de `mine`; sem aulas → `mine` vazio; data fora de semestre usa o mais recente; visitante `forbidden`
-- [ ] Gate check passes: `bun test src/application`
+- [x] Testes: `all` sem itens de `mine`; sem aulas → `mine` vazio; data fora de semestre usa o mais recente; visitante `forbidden`
+- [x] Gate check passes: `bun test src/application/bookings.test.ts`
 
 **Tests**: unit
 **Gate**: quick
@@ -105,8 +118,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Teste de ação: sem sessão recusa; data inválida; caminho feliz
-- [ ] Gate check passes: `bun test src/server`
+- [x] Teste de ação: sem sessão recusa; data inválida; caminho feliz (afirma a data enviada ao serviço)
+- [x] Gate check passes: `bun test src/server/booking-actions.test.ts`
 
 **Tests**: unit
 **Gate**: quick
@@ -125,8 +138,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Testes: acentos, caixa, espaços nas pontas, `exact` só com igualdade após normalizar
-- [ ] Gate check passes: `bun test src/domain`
+- [x] Testes: acentos, caixa, espaços nas pontas, `exact` só com igualdade após normalizar
+- [x] Gate check passes: `bun test src/domain/text-match.test.ts`
 
 **Tests**: unit
 **Gate**: quick
@@ -145,8 +158,8 @@ T5 → T6
 
 **Done when**:
 
-- [ ] Testes: grupos e ocultação de "Minhas", filtro, escolha, título livre, falha de carga
-- [ ] Gate check passes: `bun test test/components`
+- [x] Testes: grupos e ocultação de "Minhas" (elemento ausente), filtro, escolha, título livre, falha de carga (lista ausente), atalhos, ordem dos grupos, `min-h-11` e `w-full`, argumento enviado ao `loadFn`
+- [x] Gate check passes: `bun test test/components/subject-combobox.test.tsx`
 
 **Tests**: unit
 **Gate**: quick
@@ -157,16 +170,16 @@ T5 → T6
 
 ### T6: Combobox no `BookingSheet`
 
-**What**: Troca o input de `purpose` pelo combobox, rótulo "Matéria ou título", mensagem de vazio; ajusta testes existentes.
+**What**: Troca o input de `purpose` pelo combobox, rótulo "Matéria ou título", mensagem de vazio; o mesmo título vai na série; ajusta testes existentes.
 **Where**: `src/components/agenda/booking-sheet.tsx`
 **Depends on**: T5
-**Reuses**: validação atual de `purpose`
-**Requirement**: MAT-01, MAT-05
+**Reuses**: validação atual de `purpose` (mensagem de tamanho) e a seção "Repetir"
+**Requirement**: MAT-01, MAT-05, MAT-06
 
 **Done when**:
 
-- [ ] Testes: reserva com matéria escolhida; com título livre; vazio bloqueia; longo mostra a mensagem atual
-- [ ] Gate check passes: `bun run check`
+- [x] Testes: reserva com matéria escolhida; com título livre; vazio bloqueia com "Informe a matéria ou o título"; longo mostra "A finalidade deve ter no máximo 120 caracteres."; a série recebe o mesmo título; "Matéria ou título" vem depois de "Repetir"
+- [x] Gate check passes: `bun test test/components/booking-sheet.test.tsx test/components/booking-sheet-repeat.test.tsx test/components/rooms-view.test.tsx`
 
 **Tests**: unit
 **Gate**: build

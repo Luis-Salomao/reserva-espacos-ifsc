@@ -146,6 +146,23 @@ export function createOccupationRepository(
         .orderBy(asc(occupations.spaceId), asc(occupations.startsAt), asc(occupations.id));
     },
 
+    async listImportedTitles(from, to) {
+      return db
+        .selectDistinct({
+          title: occupations.title,
+          responsibleUserId: occupations.responsibleUserId,
+        })
+        .from(occupations)
+        .where(
+          and(
+            eq(occupations.source, "import"),
+            eq(occupations.status, "ativa"),
+            lt(occupations.startsAt, to),
+            gt(occupations.endsAt, from),
+          ),
+        );
+    },
+
     async findById(id) {
       const [row] = await db.select(columns).from(occupations).where(eq(occupations.id, id));
       return row ?? null;

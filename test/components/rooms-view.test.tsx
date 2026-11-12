@@ -187,7 +187,10 @@ const namesIn = (list: string) => {
     ? []
     : within(element)
         .getAllByRole("listitem")
-        .map((item) => within(item).getByRole("heading").textContent);
+        .flatMap((item) => {
+          const heading = within(item).queryByRole("heading");
+          return heading === null ? [] : [heading.textContent];
+        });
 };
 const freeNames = () => namesIn("Salas livres");
 
@@ -212,6 +215,29 @@ describe("RoomsView", () => {
     expect(columnOf("a202")).not.toBeNull();
     expect(columnOf("lab")).not.toBeNull();
     expect(screen.getByText("3 de 3 salas")).toBeDefined();
+  });
+
+  test("projetor e computadores vão para a URL e tiram as salas que não atendem", async () => {
+    const equipment = { items: { projetor: 1, computadores: 12 }, notes: null };
+    const roomsDay: RoomsDay = {
+      ...DAY,
+      rooms: DAY.rooms.map((room) =>
+        room.space.id === "b104" ? { ...room, space: { ...room.space, equipment } } : room,
+      ),
+    };
+    const { router } = await setup({ roomsDay });
+    fireEvent.click(screen.getByRole("button", { name: "Filtros" }));
+    const panel = await screen.findByRole("dialog", { name: "Filtros" });
+    fireEvent.click(within(panel).getByRole("switch", { name: "Com projetor" }));
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ projetor: true }));
+    expect(screen.getByText("1 de 3 salas")).toBeDefined();
+    expect(columnOf("b104")).not.toBeNull();
+    expect(columnOf("a202")).toBeNull();
+    fireEvent.change(within(panel).getByLabelText("Mínimo de computadores"), {
+      target: { value: "20" },
+    });
+    await waitFor(() => expect(router.state.location.search).toMatchObject({ pcs: 20 }));
+    expect(screen.getByText("0 de 3 salas")).toBeDefined();
   });
 
   test("filtros mudam a URL e o resultado", async () => {
@@ -373,7 +399,7 @@ describe("RoomsView", () => {
     expect(requireSelect(within(dialog).getByLabelText("Sala")).value).toBe("lab");
     expect((within(dialog).getByLabelText("Início") as HTMLInputElement).value).toBe("14:00");
     expect((within(dialog).getByLabelText("Fim") as HTMLInputElement).value).toBe("16:00");
-    fireEvent.change(within(dialog).getByLabelText(/Finalidade/), {
+    fireEvent.change(within(dialog).getByLabelText(/Matéria ou título/), {
       target: { value: "Reunião" },
     });
     fireEvent.click(within(dialog).getByRole("button", { name: "Reservar" }));
@@ -617,7 +643,9 @@ describe("RoomsView", () => {
     expect((within(dialog).getByLabelText("Fim") as HTMLInputElement).value).toBe("12:00");
     expect(sala.disabled).toBe(false);
     fireEvent.change(sala, { target: { value: "lab" } });
-    fireEvent.change(within(dialog).getByLabelText(/Finalidade/), { target: { value: "Reunião" } });
+    fireEvent.change(within(dialog).getByLabelText(/Matéria ou título/), {
+      target: { value: "Reunião" },
+    });
     fireEvent.click(within(dialog).getByRole("button", { name: "Reservar" }));
     await screen.findByTestId("booking-success-view");
     expect(createFn.mock.calls[0]?.[0].data).toMatchObject({
@@ -639,6 +667,47 @@ describe("RoomsView", () => {
     );
     expect(await screen.findByText("Entre para reservar")).toBeDefined();
     expect(screen.queryByRole("dialog", { name: "Nova reserva" }) === null).toBe(true);
+  });
+
+  test("as colunas mostram os equipamentos e as observações de quem está logado", async () => {
+    const equipment = { items: { computadores: 4 }, notes: "Lousa do lab" };
+    const roomsDay: RoomsDay = {
+      ...DAY,
+      rooms: DAY.rooms.map((room) =>
+        room.space.id === "lab" ? { ...room, space: { ...room.space, equipment } } : room,
+      ),
+    };
+    await setup({ roomsDay });
+    expect(screen.getByText("4 computadores")).toBeDefined();
+    expect(screen.getByText("Lousa do lab")).toBeDefined();
+  });
+
+  test("em Livres, o visitante vê os equipamentos e não as observações", async () => {
+    const equipment = { items: { computadores: 4 }, notes: "Lousa do lab" };
+    const roomsDay: RoomsDay = {
+      ...DAY,
+      rooms: DAY.rooms.map((room) =>
+        room.space.id === "lab" ? { ...room, space: { ...room.space, equipment } } : room,
+      ),
+    };
+    await setup({ url: "/?visao=livres&ini=14:00&fim=16:00", roomsDay, isVisitor: true });
+    expect(screen.getByText("4 computadores")).toBeDefined();
+    expect(screen.queryByText("Lousa do lab") === null).toBe(true);
+  });
+
+  test("o cartão da visão geral mostra os equipamentos e as observações", async () => {
+    const equipment = { items: { projetor: 1 }, notes: "Lousa da A-202" };
+    const roomsWeek: RoomsWeek = {
+      ...WEEK,
+      rooms: WEEK.rooms.map((room) =>
+        room.space.id === "a202" ? { ...room, space: { ...room.space, equipment } } : room,
+      ),
+    };
+    await setup({ url: "/?visao=geral", roomsWeek });
+    fireEvent.focus(screen.getByRole("link", { name: /A-202, terça 12\/11, Manhã 12/ }));
+    const card = screen.getByRole("tooltip");
+    expect(within(card).getByText("Projetor")).toBeDefined();
+    expect(within(card).getByText("Lousa da A-202")).toBeDefined();
   });
 
   test("sem salas cadastradas, quem não é admin não recebe o atalho", async () => {

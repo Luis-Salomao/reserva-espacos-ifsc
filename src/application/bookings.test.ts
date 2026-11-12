@@ -5,6 +5,8 @@ import {
   bookingDeps,
   insertBatch,
   insertImported,
+  insertSemester,
+  insertUser,
   makeService,
   openDb,
   rawAll,
@@ -817,6 +819,27 @@ describe("roomsDay", () => {
     }
   });
 
+  test("traz os equipamentos; visitante não recebe as observações", async () => {
+    const ctx = await setup();
+    const { spaces } = bookingDeps(ctx.db);
+    await spaces.create({
+      name: "A-202",
+      capacity: 40,
+      equipment: { items: { projetor: 1, computadores: 12 }, notes: "Lousa digital" },
+    });
+    const logged = await ctx.svc.roomsDay(ctx.s.docA, { date: "2026-11-10" });
+    const visitor = await ctx.svc.roomsDay(null, { date: "2026-11-10" });
+    if (!logged.ok || !visitor.ok) throw new Error("consulta falhou");
+    const of = (result: typeof logged) =>
+      result.value.rooms.find((room) => room.space.name === "A-202")?.space.equipment;
+    expect(of(logged)).toEqual({
+      items: { projetor: 1, computadores: 12 },
+      notes: "Lousa digital",
+    });
+    expect(of(visitor)?.items).toEqual({ projetor: 1, computadores: 12 });
+    expect(JSON.stringify(visitor)).not.toContain("Lousa digital");
+  });
+
   test("busca as ocupações de todas as salas numa única consulta", async () => {
     const { db, s } = await withRooms();
     const deps = bookingDeps(db);
@@ -902,11 +925,12 @@ describe("roomsWeek", () => {
       "2026-11-12",
       "2026-11-13",
     ]);
+    const equipment = { items: {}, notes: null };
     expect(result.value.rooms.map((room) => room.space)).toEqual([
-      { id: expect.any(String), name: "A-202", capacity: 40 },
-      { id: expect.any(String), name: "A-1000", capacity: null },
-      { id: s.sala1.id, name: "ADM 2", capacity: 30 },
-      { id: s.sala2.id, name: "LAB 1", capacity: 20 },
+      { id: expect.any(String), name: "A-202", capacity: 40, equipment },
+      { id: expect.any(String), name: "A-1000", capacity: null, equipment },
+      { id: s.sala1.id, name: "ADM 2", capacity: 30, equipment },
+      { id: s.sala2.id, name: "LAB 1", capacity: 20, equipment },
     ]);
   });
 
@@ -989,6 +1013,24 @@ describe("roomsWeek", () => {
     for (const needle of [s.docA.id, s.docB.id, "Pessoa", "DOCA", "DOCB", "doca@"]) {
       expect(json).not.toContain(needle);
     }
+  });
+
+  test("a semana traz os equipamentos e omite as observações do visitante", async () => {
+    const ctx = await setup();
+    const { spaces } = bookingDeps(ctx.db);
+    await spaces.create({
+      name: "B-104",
+      capacity: 25,
+      equipment: { items: { som: 1 }, notes: "Caixa no fundo" },
+    });
+    const logged = await ctx.svc.roomsWeek(ctx.s.horarios, { weekStart: MONDAY });
+    const visitor = await ctx.svc.roomsWeek(null, { weekStart: MONDAY });
+    if (!logged.ok || !visitor.ok) throw new Error("consulta falhou");
+    const of = (result: typeof logged) =>
+      result.value.rooms.find((room) => room.space.name === "B-104")?.space.equipment;
+    expect(of(logged)).toEqual({ items: { som: 1 }, notes: "Caixa no fundo" });
+    expect(of(visitor)).toEqual({ items: { som: 1 }, notes: null });
+    expect(JSON.stringify(visitor)).not.toContain("Caixa no fundo");
   });
 
   test("busca as ocupações da semana inteira numa única consulta, de segunda a sábado 00:00", async () => {
@@ -1099,6 +1141,131 @@ describe("myBookings", () => {
     expect(await svc.myBookings(s.docA, { offset: -1 })).toMatchObject({
       ok: false,
       field: "offset",
+    });
+  });
+});
+
+describe("subjects", () => {
+  test("separa as do docente, sem repetir, em ordem pt-BR", async () => {
+    const { db, s, svc } = await setup();
+    const at = (id: string, title: string, responsibleUserId: string | null, start = "08:00") =>
+      insertImported(db, {
+        id,
+        spaceId: s.sala1.id,
+        date: "2026-11-10",
+        start,
+        end: "09:00",
+        title,
+        responsibleUserId,
+      });
+    at("z", "Zebra — 2B", s.docA.id, "08:00");
+    at("a", "Álgebra — 1A", s.docA.id, "10:00");
+    at("a-outro", "Álgebra — 1A", s.docB.id, "13:00");
+    at("q", "Química — 3C", s.docB.id, "14:00");
+    at("n10", "aula 10", null, "15:00");
+    at("n2", "aula 2", null, "16:00");
+    insertImported(db, {
+      id: "velha-data",
+      spaceId: s.sala1.id,
+      date: "2025-09-01",
+      start: "08:00",
+      end: "09:00",
+      title: "Fora do semestre",
+      responsibleUserId: s.docA.id,
+    });
+
+    const mine = await svc.subjects(s.docA, { date: "2026-11-10" });
+    expect(mine).toEqual({
+      ok: true,
+      value: {
+        mine: ["Álgebra — 1A", "Zebra — 2B"],
+        all: ["aula 10", "aula 2", "Química — 3C"],
+      },
+    });
+    const other = await svc.subjects(s.docB, { date: "2026-11-10" });
+    expect(other.ok && other.value.mine).toEqual(["Álgebra — 1A", "Química — 3C"]);
+    expect(other.ok && other.value.all).toEqual(["aula 10", "aula 2", "Zebra — 2B"]);
+    const none = await svc.subjects(s.horarios, { date: "2026-11-10" });
+    expect(none.ok && none.value.mine).toEqual([]);
+    expect(none.ok && none.value.all).toEqual([
+      "Álgebra — 1A",
+      "aula 10",
+      "aula 2",
+      "Química — 3C",
+      "Zebra — 2B",
+    ]);
+  });
+
+  test("fora de semestre usa o mais recente; dentro do antigo, só o antigo", async () => {
+    const { db, s, svc } = await setup();
+    await insertSemester(db, {
+      name: "2025/2",
+      start: "2025-08-01",
+      end: "2025-12-15",
+      terms: [],
+      blocks: [],
+    });
+    insertImported(db, {
+      id: "antiga",
+      spaceId: s.sala1.id,
+      date: "2025-09-01",
+      start: "08:00",
+      end: "09:00",
+      title: "Antiga — 1A",
+      responsibleUserId: s.docA.id,
+    });
+    insertImported(db, {
+      id: "nova",
+      spaceId: s.sala1.id,
+      date: "2026-11-10",
+      start: "08:00",
+      end: "09:00",
+      title: "Nova — 1A",
+      responsibleUserId: s.docA.id,
+    });
+    const insideOld = await svc.subjects(s.docA, { date: "2025-09-10" });
+    expect(insideOld).toEqual({ ok: true, value: { mine: ["Antiga — 1A"], all: [] } });
+    const insideNew = await svc.subjects(s.docA, { date: "2026-11-10" });
+    expect(insideNew).toEqual({ ok: true, value: { mine: ["Nova — 1A"], all: [] } });
+    const outside = await svc.subjects(s.docA, { date: "2027-03-01" });
+    expect(outside).toEqual({ ok: true, value: { mine: ["Nova — 1A"], all: [] } });
+  });
+
+  test("sem semestre e sem aulas, os dois grupos vêm vazios", async () => {
+    const { db } = openDb();
+    const doc = await insertUser(db, {
+      email: "so@x.org",
+      name: "Pessoa so",
+      code: "SO",
+      roles: ["docente"],
+      passwordHash: "x",
+    });
+    const empty = await makeService(db).subjects(doc, { date: "2026-11-10" });
+    expect(empty).toEqual({ ok: true, value: { mine: [], all: [] } });
+
+    const { s, svc } = await setup();
+    expect(await svc.subjects(s.docA, { date: "2026-11-10" })).toEqual({
+      ok: true,
+      value: { mine: [], all: [] },
+    });
+  });
+
+  test("quem não pode reservar é recusado; data inválida também, para quem pode", async () => {
+    const { s, svc } = await setup();
+    expect(await svc.subjects(guest([]), { date: "2026-11-10" })).toMatchObject({
+      ok: false,
+      kind: "forbidden",
+      message: "Sem permissão para reservar.",
+    });
+    expect(await svc.subjects(guest(["docente"], false), { date: "2026-02-30" })).toMatchObject({
+      ok: false,
+      kind: "forbidden",
+    });
+    expect(await svc.subjects(s.docA, { date: "2026-02-30" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "date",
+      message: "Informe uma data válida.",
     });
   });
 });

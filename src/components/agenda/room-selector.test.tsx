@@ -44,7 +44,7 @@ describe("Seletor agrupado de salas", () => {
     fireEvent.change(screen.getByRole("textbox", { name: "Buscar sala ou bloco" }), {
       target: { value: "auditorio" },
     });
-    expect(screen.getByRole("button", { name: "Auditório" })).toBeDefined();
+    expect(screen.getByRole("button", { name: /^Auditório/ })).toBeDefined();
     expect(screen.queryByRole("group", { name: /Bloco A/ }) === null).toBe(true);
   });
 
@@ -93,5 +93,40 @@ describe("Seletor agrupado de salas", () => {
     fireEvent.click(screen.getByRole("button", { name: /Ver todas as salas/ }));
     expect(seeAll).toHaveBeenCalledTimes(1);
     expect(trigger.getAttribute("aria-expanded")).toBe("false");
+  });
+
+  test("mostra os equipamentos da sala e só as observações quando pedido", () => {
+    const equipped = [
+      {
+        id: "a",
+        name: "A-202",
+        capacity: 30,
+        equipment: { items: { projetor: 1 }, notes: "Lousa digital" },
+      },
+    ];
+    const { unmount } = render(
+      <RoomSelector
+        spaces={equipped}
+        selectedSpaceId="a"
+        onSelectSpace={() => {}}
+        variant="chips"
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Escolher sala: A-202" }));
+    expect(screen.getByRole("group", { name: "Equipamentos" })).toBeDefined();
+    expect(screen.getByText("Projetor")).toBeDefined();
+    expect(screen.queryByText("Lousa digital") === null).toBe(true);
+    unmount();
+    render(
+      <RoomSelector
+        spaces={equipped}
+        selectedSpaceId="a"
+        onSelectSpace={() => {}}
+        variant="chips"
+        showNotes
+      />,
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Escolher sala: A-202" }));
+    expect(screen.getByText("Lousa digital")).toBeDefined();
   });
 });

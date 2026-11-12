@@ -3,6 +3,7 @@ import type { RoomDay } from "#/application/bookings";
 import { HourAxis, makeScale } from "#/components/agenda/agenda-blocks";
 import { DayColumn } from "#/components/agenda/day-column";
 import type { Draft } from "#/components/agenda/draft-booking";
+import { EquipmentMarks } from "#/components/equipment-marks";
 import { RoomDetailsButton } from "#/components/rooms/room-details-popover";
 import { SpaceDetails } from "#/components/spaces/space-details";
 import type { Space } from "#/domain/space";
@@ -23,6 +24,8 @@ type Props = {
   onSelectSlot: (slot: Slot) => void;
   /** Espaços por id (capacidade/equipamentos) para o badge compacto e o botão "Detalhes". */
   spacesIndex?: Record<string, Space>;
+  /** Observações livres. Visitante não as vê. */
+  showNotes?: boolean;
 };
 
 const AXIS_WIDTH = 52;
@@ -41,6 +44,7 @@ export function RoomsColumns({
   onDraftChange,
   onSelectSlot,
   spacesIndex = {},
+  showNotes = false,
 }: Props) {
   const hours = rooms[0]?.hours ?? { opens: "06:00", closes: "23:00" };
   const scale = makeScale(hours.opens, hours.closes, 0.9);
@@ -72,6 +76,7 @@ export function RoomsColumns({
               >
                 {room.space.name}
               </Link>
+              <EquipmentMarks equipment={room.space.equipment} showNotes={showNotes} />
               {space && <SpaceDetails space={space} compact />}
               <RoomDetailsButton space={space} roomName={room.space.name} />
             </div>

@@ -18,7 +18,9 @@ import {
   ruleOf,
 } from "#/components/agenda/repeat-section";
 import { SeriesPreview } from "#/components/agenda/series-preview";
+import { SubjectCombobox, type SubjectsLoad } from "#/components/agenda/subject-combobox";
 import { ChoiceCard, Field } from "#/components/ds";
+import { EquipmentMarks } from "#/components/equipment-marks";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -75,6 +77,8 @@ export type BookingSheetProps = {
   onSeriesSuccess?: () => void;
   /** Papel `manutencao`: mostra a escolha de tipo (aula/evento ou manutenção). */
   canMaintenance?: boolean;
+  /** Carga das matérias do dia; sem ela, o campo busca no servidor. */
+  subjectsFn?: SubjectsLoad;
 };
 
 type SeriesDone = { created: number; skipped: number };
@@ -174,6 +178,7 @@ export function BookingSheet({
   createRecurring,
   onSeriesSuccess,
   canMaintenance = false,
+  subjectsFn,
 }: BookingSheetProps) {
   const uid = useId();
   const router = useRouter();
@@ -260,7 +265,7 @@ export function BookingSheet({
 
     const composedTitle = buildBookingTitle(kind, purpose);
     if (purpose.trim().length === 0) {
-      errors.purpose = "Informe a finalidade da reserva.";
+      errors.purpose = "Informe a matéria ou o título";
     } else if (composedTitle.length > 120) {
       errors.purpose = "A finalidade deve ter no máximo 120 caracteres.";
     }
@@ -380,6 +385,10 @@ export function BookingSheet({
         <DialogPrimitive.Overlay className="fixed inset-0 z-50 bg-black/50 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
         <DialogPrimitive.Content
           aria-describedby={undefined}
+          onEscapeKeyDown={(event) => {
+            const field = document.getElementById(`${uid}-purpose`);
+            if (field?.getAttribute("aria-expanded") === "true") event.preventDefault();
+          }}
           className={cn(
             "fixed z-50 grid w-full gap-4 border bg-background shadow-lg duration-200 outline-none",
             // Mobile: Bottom sheet
@@ -569,6 +578,9 @@ export function BookingSheet({
                   )}
                 </select>
               </Field>
+              {activeSpace !== undefined && (
+                <EquipmentMarks equipment={activeSpace.equipment} showNotes />
+              )}
 
               {/* Horários: Início e Fim */}
               <div className="grid grid-cols-2 gap-3">
@@ -670,24 +682,22 @@ export function BookingSheet({
               {/* Finalidade */}
               <Field
                 id={`${uid}-purpose`}
-                label={kind === "manutencao" ? "Descrição da manutenção" : "Finalidade"}
+                label={kind === "manutencao" ? "Descrição da manutenção" : "Matéria ou título"}
                 hint={`${purpose.length}/120`}
                 error={fieldErrors.purpose}
               >
-                <Input
+                <SubjectCombobox
                   id={`${uid}-purpose`}
-                  type="text"
                   maxLength={120}
-                  placeholder={
-                    kind === "manutencao" ? "Ex.: Troca de lâmpada" : "Ex.: Reunião pedagógica"
-                  }
                   value={purpose}
-                  onChange={(e) => {
-                    setPurpose(e.target.value);
+                  date={date}
+                  invalid={Boolean(fieldErrors.purpose)}
+                  onChange={(next) => {
+                    setPurpose(next);
                     setFieldErrors((prev) => ({ ...prev, purpose: undefined }));
                     setErrorMessage(null);
                   }}
-                  aria-invalid={Boolean(fieldErrors.purpose)}
+                  {...(subjectsFn !== undefined ? { loadFn: subjectsFn } : {})}
                 />
               </Field>
 

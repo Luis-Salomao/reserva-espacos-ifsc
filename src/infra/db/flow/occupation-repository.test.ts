@@ -1,5 +1,6 @@
 import { describe, expect, test } from "bun:test";
 import { createOccupationRepository } from "#/infra/db/repos/occupation-repository";
+import * as schema from "#/infra/db/schema";
 import {
   insertBatch,
   insertImported,
@@ -159,6 +160,76 @@ describe("occupation repository", () => {
     expect(found).toHaveLength(4);
     const [first = "", second = ""] = [s.sala1.id, s.sala2.id].sort();
     expect(found.map((item) => item.spaceId)).toEqual([first, first, second, second]);
+  });
+
+  test("listImportedTitles devolve pares distintos das importadas ativas que tocam o intervalo", async () => {
+    const { db, s, repo } = await setup();
+    const none = null;
+    const at = (id: string, over: Partial<Parameters<typeof insertImported>[1]> = {}) =>
+      insertImported(db, {
+        id,
+        spaceId: s.sala1.id,
+        date: "2026-11-10",
+        start: "08:00",
+        end: "09:00",
+        title: "Cálculo — 1A",
+        responsibleUserId: s.docA.id,
+        ...over,
+      });
+    at("a1");
+    at("a2", { lessonId: "outra-aula", start: "10:00", end: "11:00" });
+    at("b", { title: "Cálculo — 1A", responsibleUserId: s.docB.id, start: "13:00", end: "14:00" });
+    at("sem", {
+      title: "Reunião de colegiado",
+      responsibleUserId: none,
+      start: "16:00",
+      end: "17:00",
+    });
+    at("cancelada", { status: "cancelada", start: "18:00", end: "19:00" });
+    at("fora", { date: "2026-11-12" });
+    at("no-fim", { date: "2026-11-11", start: "00:00", end: "01:00", title: "No fim" });
+    // Começa antes e termina dentro; e uma que termina exatamente em `from` (não toca).
+    const span = (id: string, endsAt: string, title: string) =>
+      (
+        db.insert(schema.occupations).values({
+          id,
+          spaceId: s.sala1.id,
+          startsAt: "2026-11-09T22:00",
+          endsAt,
+          source: "import",
+          batchId: "batch-1",
+          lessonId: `L-${id}`,
+          responsibleUserId: none,
+          title,
+          status: "ativa",
+          createdAt: "2026-08-01T00:00:00.000Z",
+        }) as unknown as { run(): void }
+      ).run();
+    span("cruza", "2026-11-10T08:00", "Cruza");
+    span("limite", "2026-11-10T00:00", "No limite");
+    await repo.insertManualIfFree({
+      id: "manual",
+      spaceId: s.sala1.id,
+      startsAt: "2026-11-10T15:00",
+      endsAt: "2026-11-10T16:00",
+      title: "Cálculo — 1A",
+      createdBy: s.docA.id,
+      createdAt: "2026-11-03T12:00:00.000Z",
+    });
+    const found = await repo.listImportedTitles("2026-11-10T00:00", "2026-11-11T00:00");
+    const key = (item: { title: string; responsibleUserId: string | null }) =>
+      `${item.title}\0${item.responsibleUserId ?? ""}`;
+    expect(found.map(key).sort()).toEqual(
+      [
+        { title: "Cruza", responsibleUserId: null },
+        { title: "Cálculo — 1A", responsibleUserId: s.docA.id },
+        { title: "Cálculo — 1A", responsibleUserId: s.docB.id },
+        { title: "Reunião de colegiado", responsibleUserId: null },
+      ]
+        .map(key)
+        .sort(),
+    );
+    expect(found).toHaveLength(4);
   });
 
   test("listActiveInRangeAll inclui ocupação que começa antes e termina dentro da janela", async () => {
