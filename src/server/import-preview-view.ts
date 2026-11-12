@@ -21,13 +21,24 @@ export type SlotView = {
   rooms: string[];
 };
 
-export type RoomView = { id: string; short: string; name: string; slots: SlotView[] };
+export type RoomView = {
+  id: string;
+  short: string;
+  name: string;
+  /** Ocorrências no XML, incluindo aulas atribuídas a várias salas. */
+  slotCount: number;
+  /** Dias da semana em que a sala aparece no XML, incluindo atribuições múltiplas. */
+  weekdays: number[];
+  /** Horários atribuíveis a esta sala sem ambiguidade (apenas slots de sala única). */
+  slots: SlotView[];
+};
 
 /** Um lado de uma sobreposição: sigla da disciplina e siglas das turmas. */
 export type OverlapSide = { label: string; classes: string; start: string; end: string };
 
 export type OverlapView = {
   key: string;
+  roomId: string;
   room: string;
   weekday: number;
   kind: "certain" | "possible";
@@ -105,11 +116,21 @@ export function toPreviewView(preview: ImportPreview): PreviewView {
   });
 
   const slotsByRoom = new Map<string, SlotView[]>();
+  const slotCountsByRoom = new Map<string, number>();
+  const weekdaysByRoom = new Map<string, Set<number>>();
   preview.slots.forEach((slot, index) => {
     const view = slotViews[index];
-    if (view === undefined || slot.status !== "applicable") return;
-    const [roomId = ""] = slot.classroomIds;
-    slotsByRoom.set(roomId, [...(slotsByRoom.get(roomId) ?? []), view]);
+    if (view === undefined) return;
+    for (const roomId of slot.classroomIds) {
+      slotCountsByRoom.set(roomId, (slotCountsByRoom.get(roomId) ?? 0) + 1);
+      const weekdays = weekdaysByRoom.get(roomId) ?? new Set<number>();
+      weekdays.add(slot.weekday);
+      weekdaysByRoom.set(roomId, weekdays);
+    }
+    if (slot.status === "applicable") {
+      const [roomId = ""] = slot.classroomIds;
+      slotsByRoom.set(roomId, [...(slotsByRoom.get(roomId) ?? []), view]);
+    }
   });
   const sideOf = (slot: ImportPreview["slots"][number]): OverlapSide => ({
     label: lessonLabel(slot.lessonId),
@@ -127,6 +148,7 @@ export function toPreviewView(preview: ImportPreview): PreviewView {
     partial: preview.partial,
     overlapsDetail: preview.overlapsDetail.map((overlap, index) => ({
       key: `${index}:${overlap.classroomId}:${overlap.weekday}:${overlap.a.lessonId}:${overlap.b.lessonId}`,
+      roomId: overlap.classroomId,
       room: roomName(overlap.classroomId),
       weekday: overlap.weekday,
       kind: overlap.kind,
@@ -144,6 +166,8 @@ export function toPreviewView(preview: ImportPreview): PreviewView {
       id: room.id,
       short: room.short || room.id,
       name: room.name,
+      slotCount: slotCountsByRoom.get(room.id) ?? 0,
+      weekdays: [...(weekdaysByRoom.get(room.id) ?? [])].sort((a, b) => a - b),
       slots: (slotsByRoom.get(room.id) ?? []).sort(compareSlotViews),
     })),
     withoutRoom: slotViews.filter((slot) => slot.status === "no_room").sort(compareSlotViews),

@@ -1,6 +1,7 @@
 import { useEffect, useId, useState } from "react";
 import type { RoomSuggestion, TeacherSuggestion } from "#/application/import-mappings";
 import { runAdminAction } from "#/components/admin/use-admin-action";
+import { DataTable, TABLE } from "#/components/ds";
 import { Card } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import {
@@ -24,16 +25,26 @@ import {
 const SELECT_CLASS =
   "h-10 w-full min-w-0 rounded-lg border bg-background px-3 text-sm focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring outline-none";
 
+type RoomFilter = "todas" | "pendentes" | "sugestoes" | "salvas";
+
 type Space = { id: string; name: string };
 type Account = { id: string; name: string; code: string | null };
 
 type RoomProps = {
-  rooms: ReadonlyArray<{ id: string; short: string; name: string; slots: unknown[] }>;
+  rooms: ReadonlyArray<{
+    id: string;
+    short: string;
+    name: string;
+    slotCount: number;
+    slots: unknown[];
+  }>;
   suggestions: readonly RoomSuggestion[];
   spaces: readonly Space[];
+  initialChoices?: Record<string, string>;
   onSpacesCreated: (created: Space[]) => void;
   onSaved: () => void;
   onDirtyChange: (dirty: boolean) => void;
+  onChoicesChange?: (choices: Record<string, string>) => void;
 };
 
 function baselineOf(suggestions: readonly RoomSuggestion[]): Record<string, string> {
@@ -59,20 +70,29 @@ export function RoomMappingStep({
   rooms,
   suggestions,
   spaces,
+  initialChoices,
   onSpacesCreated,
   onSaved,
   onDirtyChange,
+  onChoicesChange,
 }: RoomProps) {
   const uid = useId();
   const [baseline, setBaseline] = useState(() => baselineOf(suggestions));
   const [choices, setChoices] = useState<Record<string, string>>(() =>
-    Object.fromEntries(suggestions.map((item) => [item.sourceId, roomChoiceOf(item)])),
+    Object.fromEntries(
+      suggestions.map((item) => [
+        item.sourceId,
+        initialChoices?.[item.sourceId] ?? roomChoiceOf(item),
+      ]),
+    ),
   );
   const [pending, setPending] = useState(false);
+  const [filter, setFilter] = useState<RoomFilter>("todas");
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const dirty = !sameChoices(choices, baseline);
 
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+  useEffect(() => onChoicesChange?.(choices), [choices, onChoicesChange]);
 
   async function save() {
     setPending(true);
@@ -117,53 +137,160 @@ export function RoomMappingStep({
       item.saved === null ? item.suggestion?.origin : undefined,
     ]),
   );
+  const suggestionById = new Map(suggestions.map((item) => [item.sourceId, item]));
+  const statusOf = (roomId: string) => {
+    const choice = choices[roomId] ?? "";
+    if (choice === "") return "pendentes" as const;
+    if (choice === IGNORE_VALUE || choice === CREATE_VALUE) return "outra" as const;
+    if (baseline[roomId] === choice) return "salvas" as const;
+    const item = suggestionById.get(roomId);
+    return item?.saved === null && item?.suggestion !== null && choice === roomChoiceOf(item)
+      ? ("sugestoes" as const)
+      : ("outra" as const);
+  };
+  const counts = {
+    todas: rooms.length,
+    pendentes: rooms.filter((room) => statusOf(room.id) === "pendentes").length,
+    sugestoes: rooms.filter((room) => statusOf(room.id) === "sugestoes").length,
+    salvas: rooms.filter((room) => statusOf(room.id) === "salvas").length,
+  };
+  const visibleRooms = rooms.filter((room) => filter === "todas" || statusOf(room.id) === filter);
+
+  const destinationOf = (roomId: string): string => {
+    const choice = choices[roomId] ?? "";
+    if (choice === "") return "Sem vínculo";
+    if (choice === IGNORE_VALUE) return "Ignorar esta sala";
+    if (choice === CREATE_VALUE) {
+      const room = rooms.find((item) => item.id === roomId);
+      return `Criar espaço: ${room?.name || room?.short || "sala"}`;
+    }
+    const id = choice.startsWith("space:") ? choice.slice("space:".length) : "";
+    return spaces.find((space) => space.id === id)?.name ?? "Espaço selecionado";
+  };
+
+  const statusLabelOf = (roomId: string): string => {
+    const status = statusOf(roomId);
+    if (status === "pendentes") return "Sem vínculo: os horários não serão aplicáveis";
+    if (status === "sugestoes") return "Sugestão: confirme salvando";
+    if (status === "salvas") return "Vínculo salvo";
+    const choice = choices[roomId] ?? "";
+    if (choice === IGNORE_VALUE) return "Ignorada: os horários não serão aplicáveis";
+    if (choice === CREATE_VALUE) return "Novo espaço: salve para criar";
+    return "Alteração não salva";
+  };
 
   return (
     <div className="grid gap-3">
-      <ul className="grid gap-2">
-        {rooms.map((room) => {
-          const id = `${uid}-${room.id}`;
-          const origin = origins.get(room.id);
-          return (
-            <li key={room.id}>
-              <Card
-                compact
-                className="grid gap-2 sm:grid-cols-[minmax(0,1fr)_minmax(0,20rem)] sm:items-center shadow-none"
-              >
-                <label htmlFor={id} className="grid min-w-0 gap-0.5">
-                  <span className="break-words font-medium">
+      <fieldset className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+        <legend className="sr-only">Resumo dos vínculos de salas</legend>
+        {(
+          [
+            ["Todas", counts.todas, "todas"],
+            ["Sem vínculo", counts.pendentes, "pendentes"],
+            ["Sugestões", counts.sugestoes, "sugestoes"],
+            ["Vínculos salvos", counts.salvas, "salvas"],
+          ] as const
+        ).map(([label, count, value]) => (
+          <button
+            key={value}
+            type="button"
+            aria-pressed={filter === value}
+            onClick={() => setFilter(value)}
+            className={`rounded-xl border p-2 text-left focus-visible:ring-[3px] focus-visible:ring-ring ${
+              filter === value ? "border-primary bg-occ-imported" : "bg-surface-2"
+            }`}
+          >
+            <span className="block text-xs text-muted-foreground">{label}</span>
+            <span className="text-lg font-semibold">{count}</span>
+          </button>
+        ))}
+      </fieldset>
+      <p className="text-sm text-muted-foreground">
+        A sala do XML só vira ocupação do IFSC depois que o destino é salvo. Sugestões precisam de
+        confirmação; “Sem vínculo” e “Ignorar” deixam os horários não aplicáveis. A contagem inclui
+        aulas que listam mais de uma sala.
+      </p>
+      <DataTable label="Vínculos das salas do arquivo">
+        <table className={TABLE.table}>
+          <caption className="sr-only">Vínculos das salas do arquivo</caption>
+          <thead>
+            <tr className={TABLE.head}>
+              <th scope="col" className={TABLE.th}>
+                Sala no XML
+              </th>
+              <th scope="col" className={TABLE.th}>
+                Ocorrências no XML
+              </th>
+              <th scope="col" className={TABLE.th}>
+                Espaço do IFSC
+              </th>
+              <th scope="col" className={TABLE.th}>
+                Situação
+              </th>
+            </tr>
+          </thead>
+          <tbody>
+            {visibleRooms.map((room) => {
+              const id = `${uid}-${room.id}`;
+              const origin = origins.get(room.id);
+              return (
+                <tr key={room.id} className="border-b last:border-0">
+                  <th scope="row" className="px-3 py-2 text-left font-medium">
                     {room.short}
-                    {room.name && room.name !== room.short ? ` – ${room.name}` : ""}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {room.slots.length} {room.slots.length === 1 ? "horário" : "horários"}
-                    {origin !== undefined && choices[room.id] !== "" && baseline[room.id] === ""
-                      ? " · sugestão, confirme salvando"
-                      : ""}
-                  </span>
-                </label>
-                <select
-                  id={id}
-                  value={choices[room.id] ?? ""}
-                  onChange={(event) => setChoices({ ...choices, [room.id]: event.target.value })}
-                  className={SELECT_CLASS}
-                >
-                  <option value="">Sem vínculo (aulas não aplicáveis)</option>
-                  <option value={CREATE_VALUE}>Criar espaço com este nome</option>
-                  <option value={IGNORE_VALUE}>Ignorar esta sala</option>
-                  <optgroup label="Espaços existentes">
-                    {spaces.map((space) => (
-                      <option key={space.id} value={spaceValue(space.id)}>
-                        {space.name}
-                      </option>
-                    ))}
-                  </optgroup>
-                </select>
-              </Card>
-            </li>
-          );
-        })}
-      </ul>
+                    {room.name && room.name !== room.short && (
+                      <span className="block text-xs font-normal text-muted-foreground">
+                        {room.name}
+                      </span>
+                    )}
+                  </th>
+                  <td className="px-3 py-2 text-sm">
+                    {room.slotCount} {room.slotCount === 1 ? "ocorrência" : "ocorrências"}
+                  </td>
+                  <td className="min-w-56 px-3 py-2">
+                    <label htmlFor={id} className="sr-only">
+                      Espaço do IFSC para {room.short}
+                    </label>
+                    <select
+                      id={id}
+                      value={choices[room.id] ?? ""}
+                      disabled={pending}
+                      onChange={(event) =>
+                        setChoices({ ...choices, [room.id]: event.target.value })
+                      }
+                      className={SELECT_CLASS}
+                    >
+                      <option value="">Sem vínculo</option>
+                      <option value={CREATE_VALUE}>Criar espaço com este nome</option>
+                      <option value={IGNORE_VALUE}>Ignorar esta sala</option>
+                      <optgroup label="Espaços existentes">
+                        {spaces.map((space) => (
+                          <option key={space.id} value={spaceValue(space.id)}>
+                            {space.name}
+                          </option>
+                        ))}
+                      </optgroup>
+                    </select>
+                    <span className="mt-1 block text-xs text-muted-foreground">
+                      {destinationOf(room.id)}
+                    </span>
+                  </td>
+                  <td className="px-3 py-2 text-sm">
+                    {statusLabelOf(room.id)}
+                    {origin !== undefined && statusOf(room.id) === "sugestoes" && (
+                      <span className="block text-xs text-muted-foreground">
+                        Sugestão por {origin}
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </DataTable>
+      {visibleRooms.length === 0 && (
+        <p className="text-sm text-muted-foreground">Nenhuma sala neste filtro.</p>
+      )}
       <div className="flex flex-wrap items-center gap-3">
         <Button onClick={() => void save()} disabled={pending || !dirty}>
           {pending ? "Salvando…" : "Salvar vínculos de salas"}
@@ -185,8 +312,10 @@ type TeacherProps = {
   teachers: ReadonlyArray<{ id: string; short: string; name: string }>;
   suggestions: readonly TeacherSuggestion[];
   accounts: readonly Account[];
+  initialChoices?: Record<string, string>;
   onSaved: () => void;
   onDirtyChange: (dirty: boolean) => void;
+  onChoicesChange?: (choices: Record<string, string>) => void;
 };
 
 /**
@@ -197,8 +326,10 @@ export function TeacherMappingStep({
   teachers,
   suggestions,
   accounts,
+  initialChoices,
   onSaved,
   onDirtyChange,
+  onChoicesChange,
 }: TeacherProps) {
   const uid = useId();
   const [baseline, setBaseline] = useState<Record<string, string>>(() =>
@@ -210,13 +341,19 @@ export function TeacherMappingStep({
     ),
   );
   const [choices, setChoices] = useState<Record<string, string>>(() =>
-    Object.fromEntries(suggestions.map((item) => [item.sourceId, teacherChoiceOf(item)])),
+    Object.fromEntries(
+      suggestions.map((item) => [
+        item.sourceId,
+        initialChoices?.[item.sourceId] ?? teacherChoiceOf(item),
+      ]),
+    ),
   );
   const [pending, setPending] = useState(false);
   const [message, setMessage] = useState<{ kind: "ok" | "error"; text: string } | null>(null);
   const dirty = !sameChoices(choices, baseline);
 
   useEffect(() => onDirtyChange(dirty), [dirty, onDirtyChange]);
+  useEffect(() => onChoicesChange?.(choices), [choices, onChoicesChange]);
 
   async function save() {
     setPending(true);

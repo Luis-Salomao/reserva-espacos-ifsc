@@ -152,16 +152,22 @@ function XmlLoader({ onBlocks }: XmlLoaderProps) {
   );
 }
 
-type Props = { semester: Semester | null; onSaved?: (semester: Semester) => void };
+type Props = {
+  semester: Semester | null;
+  onSaved?: (semester: Semester) => void;
+  initialBlocks?: Semester["blocks"];
+};
 
-export function SemesterForm({ semester, onSaved }: Props) {
+export function SemesterForm({ semester, onSaved, initialBlocks = [] }: Props) {
   const router = useRouter();
   const uid = useId();
   const [name, setName] = useState(semester?.name ?? "");
   const [start, setStart] = useState(semester?.start ?? "");
   const [end, setEnd] = useState(semester?.end ?? "");
   const [terms, setTerms] = useState<TermDraft[]>(toTermDrafts(semester?.terms ?? []));
-  const [blocks, setBlocks] = useState<BlockDraft[]>(toBlockDrafts(semester?.blocks ?? []));
+  const [blocks, setBlocks] = useState<BlockDraft[]>(
+    toBlockDrafts(semester?.blocks ?? initialBlocks),
+  );
   const [pending, setPending] = useState(false);
   const [result, setResult] = useState<AdminResponse<Semester> | null>(null);
   const [saved, setSaved] = useState(false);

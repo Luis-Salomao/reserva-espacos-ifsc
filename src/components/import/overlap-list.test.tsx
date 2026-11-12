@@ -9,6 +9,7 @@ test("explica o que é sobreposição possível e lista os detalhes", () => {
       detail={[
         {
           key: "0:R1:0:L1:L2",
+          roomId: "R1",
           room: "101",
           weekday: 0,
           kind: "certain",

@@ -24,7 +24,14 @@ const slot: SlotView = {
   rooms: ["101"],
 };
 
-const room: RoomView = { id: "R1", short: "101", name: "Sala 101", slots: [slot] };
+const room: RoomView = {
+  id: "R1",
+  short: "101",
+  name: "Sala 101",
+  slotCount: 1,
+  weekdays: [0],
+  slots: [slot],
+};
 
 describe("WeeklyGrid", () => {
   test("mostra disciplina, horário e texto de status do slot", () => {
