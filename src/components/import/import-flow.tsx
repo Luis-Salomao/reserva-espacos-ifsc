@@ -649,7 +649,7 @@ export function ImportFlow({ view, file, timeZone, sessionId = 0, queryClient }:
         )}
       </Step>
 
-      {batch !== null && (
+      {batch !== null && activeStep === 5 && (
         <Step number={5} title="Aplicação" hidden={activeStep !== 5}>
           {readyToApply ? (
             <>
