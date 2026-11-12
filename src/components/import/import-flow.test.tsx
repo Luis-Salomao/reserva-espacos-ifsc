@@ -334,8 +334,8 @@ describe("ImportFlow: nova versão da grade", () => {
     expect(screen.getByText("Responsáveis afetados: 2")).toBeTruthy();
     // Os nomes chegam junto do lote, sem esperar a tabela de linhas.
     expect(screen.getByText("Beltrana Teste, Fulano Teste")).toBeTruthy();
-    expect(screen.getByText("Serão canceladas 3 ocupações e criadas 5.")).toBeTruthy();
     await openApplicationStep();
+    expect(screen.getByText("Serão canceladas 3 ocupações e criadas 5.")).toBeTruthy();
     expect(screen.getByRole("button", { name: "Aplicar mudanças" })).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Aplicar importação" })).toBeNull();
   });
