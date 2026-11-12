@@ -202,6 +202,10 @@ describe("prepare + apply", () => {
     expect(prepared.value.batch.status).toBe("rascunho");
     expect(prepared.value.batch.summary.counts.pendente).toBe(3);
     expect(prepared.value.batch.summary.notApplicable).toEqual({ room_unmapped: 1 });
+    expect(prepared.value.batch.summary.bySpace).toEqual([
+      { spaceId: env.spaceId, rows: 3 },
+      { spaceId: null, rows: 1 },
+    ]);
     expect(await occupationCount(env.db)).toBe(0);
 
     const applied = await env.service.apply(prepared.value.batch.id);

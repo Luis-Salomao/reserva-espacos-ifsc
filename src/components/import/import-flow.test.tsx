@@ -161,6 +161,17 @@ describe("ImportFlow: reentrada", () => {
     expect(prepareCalls).toBe(1);
   });
 
+  test("a conferência permite abrir as linhas e filtrar por estado ou motivo", async () => {
+    const { button } = await renderFlow();
+    fireEvent.click(button);
+    await screen.findByText(/Importação do arquivo/);
+    fireEvent.click(screen.getByText("Revisar linhas do lote"));
+
+    expect(await screen.findByLabelText("Estado")).toBeTruthy();
+    expect(screen.getByLabelText("Motivo")).toBeTruthy();
+    expect(screen.getByLabelText("Buscar por aula, turma ou sala")).toBeTruthy();
+  });
+
   test("clique duplo em Aplicar dispara uma única aplicação", async () => {
     const { button } = await renderFlow();
     fireEvent.click(button);
