@@ -218,7 +218,8 @@ describe("Empirical Challenger — Suite 1: RNF-01 360px Viewport & Layout Stres
     const titleEl = screen.getByText(longUnbrokenTitle);
     expect(titleEl).toBeTruthy();
     expect(titleEl.tagName.toLowerCase()).toBe("b");
-    expect(titleEl.className).toContain("truncate");
+    expect(titleEl.className).toContain("line-clamp-2");
+    expect(titleEl.className).toContain("break-words");
   });
 
   test("Extreme concurrency stress: 8 overlapping events in the same slot divide width proportionally with overflow protection", () => {
