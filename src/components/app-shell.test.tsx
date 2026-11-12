@@ -192,6 +192,15 @@ describe("AppShell", () => {
     expect(negativa?.className.split(" ")).toContain("md:block");
   });
 
+  test("recolhida, a lateral mostra o símbolo do IFSC no topo e o botão de expandir logo abaixo", async () => {
+    await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
+    fireEvent.click(screen.getByRole("button", { name: "Recolher menu lateral" }));
+    const simbolo = document.querySelector("[data-logo='simbolo']");
+    expect(simbolo).not.toBeNull();
+    const expandir = screen.getByRole("button", { name: "Expandir menu lateral" });
+    expect(simbolo?.compareDocumentPosition(expandir)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
   test("o visitante não recebe o logo negativo (o cabeçalho dele é neutro)", async () => {
     await renderShell(<p>x</p>);
     const link = screen.getByRole("link", { name: "IFSC Câmpus Garopaba — Reserva de espaços" });

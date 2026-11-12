@@ -19,6 +19,7 @@ import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import ifscGaropabaLogoClaro from "#/assets/ifsc-garopaba-horizontal.png";
 import ifscGaropabaLogoEscuro from "#/assets/ifsc-garopaba-horizontal-escuro.png";
 import ifscGaropabaLogoNegativo from "#/assets/ifsc-garopaba-horizontal-negativo.png";
+import ifscSimboloNegativo from "#/assets/ifsc-symbol-negativo.svg";
 import { Avatar } from "#/components/avatar";
 import { ThemeToggle } from "#/components/theme-toggle";
 import { Button } from "#/components/ui/button";
@@ -232,31 +233,42 @@ export function AppShell({ children, wide = false }: Props) {
       </a>
       <header
         className={cn(
-          "menu-forte sticky top-0 z-30 flex min-h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r-0 md:border-b-0 md:bg-sidebar md:px-3 md:py-3 md:backdrop-blur-none",
+          "menu-forte sticky top-0 z-30 flex min-h-14 items-center gap-1 border-b bg-background/90 px-3 backdrop-blur md:fixed md:inset-y-0 md:left-0 md:min-h-0 md:flex-col md:items-stretch md:gap-0 md:border-r-0 md:border-b-0 md:bg-sidebar md:px-3 md:pt-0 md:pb-3 md:backdrop-blur-none",
           collapsed ? "md:w-16 md:px-2" : "md:w-60",
         )}
       >
-        <div className="flex min-w-0 items-center gap-1">
+        {/* Topo da lateral com a altura da barra superior: as duas linhas de baixo se alinham. */}
+        <div
+          className={cn(
+            "flex min-w-0 items-center gap-1 md:-mx-3 md:h-14 md:shrink-0 md:border-b md:px-3",
+            collapsed && "md:-mx-2 md:justify-center md:px-2",
+          )}
+        >
           <div className={cn("min-w-0 flex-1", collapsed && "md:hidden")}>
             <Brand stacked />
           </div>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="hidden shrink-0 md:inline-flex"
-            aria-label={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
-            aria-expanded={!collapsed}
-            onClick={toggleSidebar}
-            title={collapsed ? "Expandir menu lateral" : "Recolher menu lateral"}
-          >
-            {collapsed ? (
-              <PanelLeftOpen aria-hidden="true" />
-            ) : (
-              <PanelLeftClose aria-hidden="true" />
-            )}
-          </Button>
+          {collapsed && (
+            <Link
+              to="/"
+              aria-label="IFSC Câmpus Garopaba — Reserva de espaços"
+              className="hidden rounded-md p-1 md:block"
+            >
+              <img
+                src={ifscSimboloNegativo}
+                alt=""
+                aria-hidden="true"
+                data-logo="simbolo"
+                className="block h-8 w-auto"
+              />
+            </Link>
+          )}
+          {!collapsed && <SidebarToggle collapsed={collapsed} onToggle={toggleSidebar} />}
         </div>
+        {collapsed && (
+          <div className="mt-3 hidden justify-center md:flex">
+            <SidebarToggle collapsed={collapsed} onToggle={toggleSidebar} />
+          </div>
+        )}
         <nav aria-label="Principal" className="mt-5 hidden flex-col gap-0.5 md:flex">
           {items.map((item) => {
             const Icon = NAV_ICONS[item.to];
@@ -322,6 +334,24 @@ export function AppShell({ children, wide = false }: Props) {
         </main>
       </div>
     </div>
+  );
+}
+
+function SidebarToggle({ collapsed, onToggle }: { collapsed: boolean; onToggle: () => void }) {
+  const label = collapsed ? "Expandir menu lateral" : "Recolher menu lateral";
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon"
+      className="hidden shrink-0 md:inline-flex"
+      aria-label={label}
+      aria-expanded={!collapsed}
+      onClick={onToggle}
+      title={label}
+    >
+      {collapsed ? <PanelLeftOpen aria-hidden="true" /> : <PanelLeftClose aria-hidden="true" />}
+    </Button>
   );
 }
 

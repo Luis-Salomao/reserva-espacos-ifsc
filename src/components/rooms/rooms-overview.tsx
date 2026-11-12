@@ -86,6 +86,14 @@ function MaintenanceBadge({ count }: { count: number | null | undefined }) {
  * um quadradinho por bloco, com a legenda. Arrastar com o mouse numa sala do dia ou clicar num bloco
  * seleciona o trecho e abre o painel com as salas livres e ocupadas.
  */
+/** "segunda 09/11" ou "segunda 09/11 a quarta 11/11". */
+function pastRange(days: Array<{ date: string }>): string {
+  const first = days[0];
+  const last = days[days.length - 1];
+  if (first === undefined || last === undefined) return "";
+  return first === last ? dayLabel(first.date) : `${dayLabel(first.date)} a ${dayLabel(last.date)}`;
+}
+
 export function RoomsOverview({
   week: initialWeek,
   rooms: initialRooms,
@@ -115,7 +123,22 @@ export function RoomsOverview({
     const selectedIndex = dayKey.split(",").indexOf(selectedDate);
     if (selectedIndex >= 0) setTab(selectedIndex);
   }, [selectedDate, dayKey]);
-  const shownDays = (compact ? week.days.slice(tab, tab + 1) : week.days).map((day) => ({
+  // Tela larga: a grade começa no dia escolhido (hoje, por padrão); os dias anteriores da semana
+  // ficam recolhidos atrás de um botão. Se o dia escolhido não estiver na semana, mostra todos.
+  const [showPast, setShowPast] = useState(false);
+  useEffect(() => {
+    void selectedDate;
+    setShowPast(false);
+  }, [selectedDate]);
+  const fromSelected = week.days.filter((day) => day.date >= selectedDate);
+  const pastDays =
+    compact || fromSelected.length === 0 ? [] : week.days.filter((day) => day.date < selectedDate);
+  const visibleDays = compact
+    ? week.days.slice(tab, tab + 1)
+    : showPast || pastDays.length === 0
+      ? week.days
+      : fromSelected;
+  const shownDays = visibleDays.map((day) => ({
     ...day,
     blocks: day.blocks.filter((block) => period === "Todos" || periodOf(block.start) === period),
   }));
@@ -303,6 +326,19 @@ export function RoomsOverview({
           />
         )}
       </div>
+      {pastDays.length > 0 && (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          aria-expanded={showPast}
+          onClick={() => setShowPast((current) => !current)}
+          className="w-fit"
+        >
+          {showPast ? <ChevronDown aria-hidden="true" /> : <ChevronRight aria-hidden="true" />}
+          {`${showPast ? "Ocultar" : "Mostrar"} dias anteriores (${pastRange(pastDays)})`}
+        </Button>
+      )}
       {compact && (
         <div
           role="tablist"

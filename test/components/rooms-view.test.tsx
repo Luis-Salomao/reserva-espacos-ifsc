@@ -275,7 +275,8 @@ describe("RoomsView", () => {
 
   test("na visão geral, 'andar' da URL filtra as linhas", async () => {
     await setup({ url: "/?visao=geral&andar=1" });
-    expect(document.querySelectorAll("[data-cell][data-room='b104']").length).toBe(10);
+    // A grade começa hoje (terça): 4 dias x 2 blocos.
+    expect(document.querySelectorAll("[data-cell][data-room='b104']").length).toBe(8);
     expect(document.querySelectorAll("[data-cell][data-room='a202']").length).toBe(0);
     expect(document.querySelectorAll("[data-cell][data-room='lab']").length).toBe(0);
   });
@@ -529,6 +530,9 @@ describe("RoomsView", () => {
   test("na visão geral, a grade mostra a semana com o título e o contador", async () => {
     await setup({ url: "/?visao=geral" });
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Agenda de salas");
+    // A grade começa hoje (terça); segunda fica atrás de "Mostrar dias anteriores".
+    expect(document.querySelectorAll("[data-cell]").length).toBe(3 * 4 * 2);
+    fireEvent.click(screen.getByRole("button", { name: /Mostrar dias anteriores/ }));
     expect(document.querySelectorAll("[data-cell]").length).toBe(3 * 5 * 2);
     expect(screen.getByText("3 de 3 salas")).toBeDefined();
   });
@@ -569,7 +573,7 @@ describe("RoomsView", () => {
     expect(screen.getByText("Nenhuma sala com esses filtros")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
     await waitFor(() => expect(router.state.location.search).toEqual({ visao: "geral" }));
-    expect(document.querySelectorAll("[data-cell]").length).toBe(30);
+    expect(document.querySelectorAll("[data-cell]").length).toBe(24);
   });
 
   test("na visão geral, falha ao carregar a semana mostra o aviso e 'Tentar de novo'", async () => {

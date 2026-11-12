@@ -77,6 +77,7 @@ describe("RoomsOverview — salas nas colunas, horários nas linhas", () => {
     const week = makeWeek();
     renderWithRouter(() => <RoomsOverview {...baseProps(week)} />);
     const table = await screen.findByRole("table", { name: /salas nas colunas/i });
+    fireEvent.click(screen.getByRole("button", { name: /Mostrar dias anteriores/ }));
     const colunas = within(table)
       .getAllByRole("columnheader")
       .map((header) => header.textContent ?? "");
@@ -94,13 +95,25 @@ describe("RoomsOverview — salas nas colunas, horários nas linhas", () => {
     expect(table.querySelectorAll("[data-cell='ocupado']")).toHaveLength(1);
   });
 
-  test("destaca o dia de hoje na faixa do dia", async () => {
+  test("a grade começa no dia de hoje (destacado); os dias anteriores ficam atrás de um botão", async () => {
     renderWithRouter(() => <RoomsOverview {...baseProps(makeWeek())} />);
     const table = await screen.findByRole("table", { name: /salas nas colunas/i });
-    const faixas = table.querySelectorAll("tr[aria-label^='Ocupação em ']");
-    expect(faixas[1]?.getAttribute("data-today")).toBe("");
+    let faixas = table.querySelectorAll("tr[aria-label^='Ocupação em ']");
+    expect(faixas).toHaveLength(4);
+    expect(faixas[0]?.getAttribute("data-today")).toBe("");
+    expect(within(faixas[0] as HTMLElement).getByText("Hoje")).toBeDefined();
+    const botao = screen.getByRole("button", {
+      name: "Mostrar dias anteriores (segunda 09/11)",
+    });
+    expect(botao.getAttribute("aria-expanded")).toBe("false");
+    fireEvent.click(botao);
+    faixas = table.querySelectorAll("tr[aria-label^='Ocupação em ']");
+    expect(faixas).toHaveLength(5);
     expect(faixas[0]?.getAttribute("data-today")).toBeNull();
-    expect(within(faixas[1] as HTMLElement).getByText("Hoje")).toBeDefined();
+    expect(faixas[1]?.getAttribute("data-today")).toBe("");
+    expect(
+      screen.getByRole("button", { name: /Ocultar dias anteriores/ }).getAttribute("aria-expanded"),
+    ).toBe("true");
   });
 
   test("clicar num bloco livre abre o painel de seleção", async () => {
