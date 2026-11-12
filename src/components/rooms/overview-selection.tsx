@@ -21,7 +21,12 @@ import { dayLabel } from "./overview-cell";
 import { PlaceChips, WindowFields } from "./rooms-filters";
 
 /** Trecho escolhido na visão geral: dia, horário e a sala da linha onde a seleção começou. */
-export type OverviewPick = TimeRange & { date: string; suggested: string | null };
+export type OverviewPick = TimeRange & {
+  date: string;
+  suggested: string | null;
+  /** Quadrados clicados ou arrastados (índices dos blocos do dia); some se o horário for ajustado no painel. */
+  origin?: { from: number; to: number };
+};
 
 type Props = {
   selection: OverviewPick;

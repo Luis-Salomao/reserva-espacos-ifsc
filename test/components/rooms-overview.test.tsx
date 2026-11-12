@@ -619,6 +619,20 @@ describe("RoomsOverview", () => {
     expect(selectedCells()).toEqual([["b104", TUE, "N12"]]);
   });
 
+  test("blocos sobrepostos no tempo: o clique destaca só o quadrado clicado", async () => {
+    const noite = [
+      { label: "Noite 12", short: "N12", start: "18:00", end: "19:50" },
+      { label: "Noite 34", short: "N34", start: "20:10", end: "22:00" },
+      { label: "Noite 345", short: "N345", start: "19:00", end: "22:00" },
+    ];
+    const week = { ...WEEK, days: WEEK.days.map((day) => ({ ...day, blocks: noite })) };
+    await renderOverview({ week });
+
+    fireEvent.click(cellAt("b104", TUE, "N345"));
+
+    expect(selectedCells()).toEqual([["b104", TUE, "N345"]]);
+  });
+
   test("Escape fecha o painel de seleção e volta a legenda", async () => {
     await renderOverview();
     fireEvent.click(cellAt("b104", TUE, "M12"));

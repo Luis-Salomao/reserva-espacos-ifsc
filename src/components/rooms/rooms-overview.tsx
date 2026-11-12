@@ -138,7 +138,13 @@ export function RoomsOverview({
       if (sweep === null || sweep.from === sweep.to) return;
       const blocks = shownDays.find((day) => day.date === sweep.date)?.blocks ?? [];
       const range = spanOf(blocks, sweep.from, sweep.to);
-      if (range !== null) setPick({ date: sweep.date, ...range, suggested: sweep.spaceId });
+      if (range !== null) {
+        const origin = {
+          from: Math.min(sweep.from, sweep.to),
+          to: Math.max(sweep.from, sweep.to),
+        };
+        setPick({ date: sweep.date, ...range, suggested: sweep.spaceId, origin });
+      }
     }
     const cancel = () => setSweep(null);
     document.addEventListener("pointerup", finish);
@@ -180,13 +186,10 @@ export function RoomsOverview({
         index <= Math.max(sweep.from, sweep.to)
       );
     }
-    return (
-      active !== null &&
-      active.date === date &&
-      active.suggested === spaceId &&
-      block.start < active.end &&
-      block.end > active.start
-    );
+    if (active === null || active.date !== date || active.suggested !== spaceId) return false;
+    if (active.origin !== undefined)
+      return index >= active.origin.from && index <= active.origin.to;
+    return block.start < active.end && block.end > active.start;
   }
 
   function startSweep(event: { button: number; pointerType: string }, next: Sweep) {
@@ -272,7 +275,9 @@ export function RoomsOverview({
             now={week.now}
             canReserve={canReserve}
             showNotes={!isVisitor}
-            onRangeChange={(range) => setPick({ ...active, ...range })}
+            onRangeChange={({ start, end }) =>
+              setPick({ date: active.date, suggested: active.suggested, start, end })
+            }
             onClose={() => setPick(null)}
             onBook={onBook}
             className="max-h-96 overflow-y-auto"
@@ -519,6 +524,7 @@ export function RoomsOverview({
                                   start: cell.block.start,
                                   end: cell.block.end,
                                   suggested: room.space.id,
+                                  origin: { from: blockIndex, to: blockIndex },
                                 })
                               }
                               onPointerDown={(event) =>
