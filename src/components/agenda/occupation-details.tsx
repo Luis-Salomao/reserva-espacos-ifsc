@@ -3,6 +3,8 @@ import { Dialog } from "radix-ui";
 import type { AgendaItem } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
 import { Button } from "#/components/ui/button";
+import { hasSubjectTone, legendEntryOf } from "#/domain/occupation-tone";
+import { TONE, toneStyle } from "#/lib/tone-style";
 import { cn } from "#/lib/utils";
 
 const LONG_DATE = new Intl.DateTimeFormat("pt-BR", {
@@ -28,6 +30,8 @@ export function OccupationDetails({
 }: OccupationDetailsProps) {
   const item = occupation;
   const isImport = item?.source === "import";
+  const entry = item === null ? null : legendEntryOf(item);
+  const subjectColor = entry !== null && hasSubjectTone(entry);
   return (
     <Dialog.Root open={item !== null} onOpenChange={onOpenChange}>
       <Dialog.Portal>
@@ -40,16 +44,17 @@ export function OccupationDetails({
             <>
               <div className="grid gap-2 pr-8">
                 <span
+                  style={subjectColor && entry !== null ? toneStyle(entry.tone) : undefined}
                   className={cn(
                     "inline-flex w-fit items-center gap-1.5 rounded-md px-1.5 py-0.5 text-[11px] font-medium",
-                    isImport ? "bg-occ-imported" : "bg-occ-booked",
+                    subjectColor ? TONE.tint : "bg-occ-booked",
                   )}
                 >
                   <span
                     aria-hidden="true"
                     className={cn(
                       "size-1.5 rounded-full",
-                      isImport ? "bg-line-imported" : "bg-line-booked",
+                      subjectColor ? TONE.solid : "bg-line-booked",
                     )}
                   />
                   {isImport ? "Aula importada" : "Reserva"}

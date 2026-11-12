@@ -2,7 +2,7 @@ import { freeIntervals, type Hours, type TimeRange } from "./availability";
 import { addDays, weekdayOf } from "./calendar";
 
 /** Cor de uma matéria em cada tema: `light` sobre o fundo claro, `dark` sobre o escuro. */
-type Tone = { light: string; dark: string };
+export type Tone = { light: string; dark: string };
 
 const SEPARATOR = " — ";
 
@@ -10,16 +10,14 @@ const SEPARATOR = " — ";
 export const SUBJECT_PALETTE: readonly Tone[] = [
   { light: "#0369a1", dark: "#38bdf8" },
   { light: "#7c3aed", dark: "#a78bfa" },
-  { light: "#047857", dark: "#34d399" },
   { light: "#b45309", dark: "#fbbf24" },
-  { light: "#e11d48", dark: "#fb7185" },
   { light: "#0f766e", dark: "#2dd4bf" },
   { light: "#4f46e5", dark: "#818cf8" },
-  { light: "#4d7c0f", dark: "#a3e635" },
   { light: "#c026d3", dark: "#e879f9" },
-  { light: "#c2410c", dark: "#fb923c" },
   { light: "#0e7490", dark: "#22d3ee" },
   { light: "#be185d", dark: "#f472b6" },
+  { light: "#1d4ed8", dark: "#60a5fa" },
+  { light: "#6b21a8", dark: "#c084fc" },
 ];
 
 /** Cor neutra das reservas avulsas. */

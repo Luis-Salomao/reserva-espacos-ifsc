@@ -1,6 +1,6 @@
 import { Link } from "@tanstack/react-router";
 import { Wrench } from "lucide-react";
-import { type CSSProperties, type KeyboardEvent, type PointerEvent, useId, useState } from "react";
+import { type KeyboardEvent, type PointerEvent, useId, useState } from "react";
 import { createPortal } from "react-dom";
 import type { AgendaItem, RoomsWeek } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
@@ -10,13 +10,9 @@ import { freeIntervals, type TimeRange } from "#/domain/availability";
 import { isMaintenanceTitle, MAINTENANCE_PREFIX } from "#/domain/booking-kind";
 import { weekdayOf } from "#/domain/calendar";
 import type { SpaceEquipment } from "#/domain/equipment";
-import {
-  type Cell,
-  RESERVA_TONE,
-  SUBJECT_PALETTE,
-  subjectOf,
-  subjectTone,
-} from "#/domain/overview";
+import { legendEntryOf } from "#/domain/occupation-tone";
+import type { Cell } from "#/domain/overview";
+import { patternStyle, TONE, toneStyle } from "#/lib/tone-style";
 import { cn } from "#/lib/utils";
 
 type Block = RoomsWeek["days"][number]["blocks"][number];
@@ -28,54 +24,6 @@ const WEEKDAYS = ["segunda", "terça", "quarta", "quinta", "sexta", "sábado", "
 /** "sexta 13/11". */
 export function dayLabel(date: string): string {
   return `${WEEKDAYS[weekdayOf(date)] ?? ""} ${date.slice(8, 10)}/${date.slice(5, 7)}`;
-}
-
-type Tone = { light: string; dark: string };
-
-/** Item da legenda: a chave separa "Reserva" de uma matéria com o mesmo nome. */
-export type LegendEntry = { key: string; label: string; tone: Tone; pattern: number };
-
-/** Textura complementar à cor: reduz a ambiguidade quando duas matérias caem no mesmo tom. */
-export function patternStyle(pattern: number): CSSProperties {
-  const patterns = [
-    "repeating-linear-gradient(135deg, transparent 0 4px, rgb(255 255 255 / 55%) 4px 6px)",
-    "repeating-linear-gradient(45deg, transparent 0 4px, rgb(255 255 255 / 55%) 4px 6px)",
-    "repeating-linear-gradient(0deg, transparent 0 4px, rgb(255 255 255 / 55%) 4px 6px)",
-    "repeating-linear-gradient(90deg, transparent 0 4px, rgb(255 255 255 / 55%) 4px 6px)",
-  ];
-  return { backgroundImage: patterns[pattern % patterns.length] };
-}
-
-function subjectPattern(subject: string): number {
-  let hash = 0;
-  for (const char of subject) hash = (hash * 17 + (char.codePointAt(0) ?? 0)) >>> 0;
-  return hash % 4;
-}
-
-/**
- * Reserva avulsa mantém a cor neutra, exceto quando usa o título canônico da importação
- * `MATÉRIA — TURMA`; nesse caso, compartilha a cor da matéria para indicar o vínculo escolhido.
- */
-export function legendEntryOf(item: Pick<AgendaItem, "source" | "title">): LegendEntry {
-  const hasImportedSubjectTitle =
-    item.source === "manual" &&
-    !isMaintenanceTitle(item.title) &&
-    item.title.includes(" — ") &&
-    item.title.slice(0, item.title.indexOf(" — ")).trim() !== "";
-  if (item.source === "manual" && !hasImportedSubjectTitle)
-    return { key: "reserva", label: "Reserva", tone: RESERVA_TONE, pattern: 0 };
-  const subject = subjectOf(item.title);
-  return {
-    key: `materia:${subject}`,
-    label: subject,
-    tone: SUBJECT_PALETTE[subjectTone(subject)] ?? RESERVA_TONE,
-    pattern: subjectPattern(subject),
-  };
-}
-
-/** Cores claro/escuro em variáveis CSS, lidas por `bg-[var(--tone-light)]`/`dark:bg-[var(--tone-dark)]`. */
-export function toneStyle(tone: Tone): CSSProperties {
-  return { "--tone-light": tone.light, "--tone-dark": tone.dark } as CSSProperties;
 }
 
 type Props = {
@@ -165,7 +113,7 @@ function OverviewCard({
               <span
                 aria-hidden="true"
                 style={toneStyle(entry.tone)}
-                className="size-2.5 shrink-0 rounded-[2px] bg-[var(--tone-light)] dark:bg-[var(--tone-dark)]"
+                className={cn("size-2.5 shrink-0 rounded-[2px]", TONE.solid)}
               />
               {isMaintenance && <Wrench aria-hidden="true" className="size-3 shrink-0" />}
               {item.source === "manual" ? title : entry.label}
@@ -316,7 +264,8 @@ export function OverviewCell({
                 height: `${((end - start) / duration) * 100}%`,
               }}
               className={cn(
-                "absolute inset-x-0 bg-[var(--tone-light)] transition-opacity dark:bg-[var(--tone-dark)]",
+                "absolute inset-x-0 transition-opacity",
+                TONE.solid,
                 dimmed && "opacity-20",
               )}
             />

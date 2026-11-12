@@ -1,9 +1,10 @@
 import { Wrench } from "lucide-react";
+import { SUBJECT_PALETTE } from "#/domain/overview";
+import { TONE, toneStyle } from "#/lib/tone-style";
 import { cn } from "#/lib/utils";
 import { SubjectMark } from "./subject-mark";
 
 const STATES = [
-  { label: "Aula importada", swatch: "bg-occ-imported", bar: "bg-line-imported" },
   { label: "Reserva", swatch: "bg-occ-booked", bar: "bg-line-booked" },
   { label: "Conflito", swatch: "bg-occ-conflict", bar: "bg-line-conflict" },
 ] as const;
@@ -17,6 +18,18 @@ export function AgendaLegend({ className }: { className?: string }) {
         className,
       )}
     >
+      <span className="flex items-center gap-1.5">
+        <span aria-hidden="true" className="flex h-3 w-4 overflow-hidden rounded-[3px]">
+          {SUBJECT_PALETTE.slice(0, 4).map((tone) => (
+            <span
+              key={tone.light}
+              style={toneStyle(tone)}
+              className={cn("h-full flex-1", TONE.solid)}
+            />
+          ))}
+        </span>
+        Aula importada: cor por disciplina
+      </span>
       {STATES.map((state) => (
         <span key={state.label} className="flex items-center gap-1.5">
           <span
@@ -30,7 +43,7 @@ export function AgendaLegend({ className }: { className?: string }) {
       ))}
       <span className="flex items-center gap-1.5">
         <SubjectMark title="ALG" />
-        <span>Sigla da disciplina · consulte o título. As cores indicam o estado.</span>
+        <span>Sigla da disciplina · consulte o título.</span>
       </span>
       <span className="flex items-center gap-1.5">
         <span

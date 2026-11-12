@@ -6,8 +6,7 @@ describe("AgendaLegend", () => {
   test("inclui a legenda de manutenção", () => {
     render(<AgendaLegend />);
     expect(screen.getByText("Manutenção (reserva da equipe de manutenção)")).toBeDefined();
-    expect(
-      screen.getByText("Sigla da disciplina · consulte o título. As cores indicam o estado."),
-    ).toBeDefined();
+    expect(screen.getByText("Sigla da disciplina · consulte o título.")).toBeDefined();
+    expect(screen.getByText("Aula importada: cor por disciplina")).toBeDefined();
   });
 });

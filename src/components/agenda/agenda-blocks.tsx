@@ -3,6 +3,8 @@ import type { AgendaPerson } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
 import { Tag } from "#/components/ds";
 import { isMaintenanceTitle, MAINTENANCE_PREFIX } from "#/domain/booking-kind";
+import { hasSubjectTone, legendEntryOf } from "#/domain/occupation-tone";
+import { TONE, toneStyle } from "#/lib/tone-style";
 import { cn } from "#/lib/utils";
 import { formatHourAxis, type PositionedEvent, timeToMinutes } from "./layout-helpers";
 import { SubjectMark } from "./subject-mark";
@@ -138,6 +140,19 @@ function stateOf(ev: PositionedEvent): keyof typeof TONES {
   return ev.source === "import" ? "import" : "manual";
 }
 
+/**
+ * Cores do cartão: conflito em vermelho; aula importada (e reserva com título canônico) na cor da
+ * disciplina, a mesma da Visão geral; demais reservas na cor neutra.
+ */
+function cardTone(ev: PositionedEvent) {
+  const entry = legendEntryOf(ev);
+  if (ev.isConflict || !hasSubjectTone(entry)) {
+    const state = stateOf(ev);
+    return { fill: TONES[state], bar: BARS[state], style: undefined };
+  }
+  return { fill: TONE.tint, bar: TONE.solid, style: toneStyle(entry.tone) };
+}
+
 const TAGS = { conflict: "Conflito", import: "Aula importada", manual: "Reserva" } as const;
 
 function PersonLine({ person }: { person: AgendaPerson }) {
@@ -164,6 +179,7 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
   const height = Math.max(18, (ev.endMinutes - ev.startMinutes) * scale.pxPerMin - 2);
   const width = 100 / ev.lanes;
   const state = stateOf(ev);
+  const colors = cardTone(ev);
   const isMaintenance = isMaintenanceTitle(ev.title);
   const displayTitle = isMaintenance ? ev.title.slice(MAINTENANCE_PREFIX.length) : ev.title;
   const tag = `${TAGS[state]}${ev.mine ? " · sua" : ""}`;
@@ -183,9 +199,10 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
       className={cn(
         "absolute flex flex-col gap-0.5 overflow-hidden rounded-md py-1 pr-1.5 pl-2.5 text-left leading-tight",
         "ring-1 ring-border/80 ring-inset transition-shadow hover:z-10 hover:shadow-md hover:ring-border",
-        TONES[state],
+        colors.fill,
       )}
       style={{
+        ...colors.style,
         top,
         height,
         left: `calc(${ev.lane * width}% + 2px)`,
@@ -194,7 +211,7 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
     >
       <span
         aria-hidden="true"
-        className={cn("absolute inset-y-1 left-1 w-[3px] rounded-full", BARS[state])}
+        className={cn("absolute inset-y-1 left-1 w-[3px] rounded-full", colors.bar)}
       />
       <span className="flex min-w-0 items-start gap-1">
         {ev.source === "import" && !isMaintenance && <SubjectMark title={displayTitle} />}
