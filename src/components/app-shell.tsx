@@ -15,7 +15,8 @@ import {
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
-import ifscGaropabaLogo from "#/assets/ifsc-garopaba-horizontal.png";
+import ifscGaropabaLogoClaro from "#/assets/ifsc-garopaba-horizontal.png";
+import ifscGaropabaLogoEscuro from "#/assets/ifsc-garopaba-horizontal-escuro.png";
 import { Avatar } from "#/components/avatar";
 import { ThemeToggle } from "#/components/theme-toggle";
 import { Button } from "#/components/ui/button";
@@ -88,11 +89,18 @@ function Brand() {
       aria-label="IFSC Câmpus Garopaba — Reserva de espaços"
       className="flex min-w-0 items-center gap-2 rounded-md px-1 py-1.5 md:px-2"
     >
+      {/* Marca oficial com fundo transparente; no tema escuro as letras pretas viram brancas. */}
       <img
-        src={ifscGaropabaLogo}
+        src={ifscGaropabaLogoClaro}
         alt=""
         aria-hidden="true"
-        className="block h-auto w-[112px] shrink-0 rounded-sm bg-white px-1.5 py-1 sm:w-[128px]"
+        className="block h-auto w-[112px] shrink-0 sm:w-[128px] dark:hidden"
+      />
+      <img
+        src={ifscGaropabaLogoEscuro}
+        alt=""
+        aria-hidden="true"
+        className="hidden h-auto w-[112px] shrink-0 sm:w-[128px] dark:block"
       />
       <span className="min-w-0 truncate text-[11px] leading-tight font-medium text-foreground">
         Reserva de espaços

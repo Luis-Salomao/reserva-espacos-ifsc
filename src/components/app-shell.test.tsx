@@ -77,9 +77,17 @@ describe("AppShell", () => {
     expect(
       screen.getByRole("link", { name: "IFSC Câmpus Garopaba — Reserva de espaços" }),
     ).toBeDefined();
-    const logo = screen.getByRole("banner").querySelector("img[aria-hidden='true']");
-    expect(logo).not.toBeNull();
-    expect(logo?.className).toContain("bg-white");
+    const logos = screen.getByRole("banner").querySelectorAll("img[aria-hidden='true']");
+    expect(logos.length).toBe(2);
+    const clara = logos[0];
+    const escura = logos[1];
+    expect(clara?.getAttribute("src")).toContain("ifsc-garopaba-horizontal.png");
+    expect(escura?.getAttribute("src")).toContain("ifsc-garopaba-horizontal-escuro.png");
+    expect(clara?.className).toContain("dark:hidden");
+    expect(escura?.className).toContain("hidden");
+    expect(escura?.className).toContain("dark:block");
+    expect(clara?.className).not.toContain("bg-");
+    expect(escura?.className).not.toContain("bg-");
     expect(screen.getByRole("main").textContent).toBe("conteúdo");
   });
 

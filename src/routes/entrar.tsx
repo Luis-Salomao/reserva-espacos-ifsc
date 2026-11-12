@@ -3,6 +3,7 @@ import { ArrowRight, CalendarDays, LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import campusImage from "#/assets/campus-garopaba-login.webp";
 import { Field } from "#/components/ds";
+import { IFSCMark } from "#/components/ifsc-mark";
 import { Notice } from "#/components/page";
 import { Button } from "#/components/ui/button";
 import { Input } from "#/components/ui/input";
@@ -59,7 +60,10 @@ function LoginPage() {
         <div className="mx-auto flex w-full max-w-xl flex-col px-6 py-8 sm:px-10 lg:px-12 lg:py-10">
           <div className="my-auto w-full">
             <div className="mb-8">
-              <p className="mb-2 text-xs font-medium text-muted-foreground">IFSC Câmpus Garopaba</p>
+              <div className="mb-2 flex items-center gap-2.5">
+                <IFSCMark className="size-8 shrink-0 object-contain" />
+                <p className="text-xs font-medium text-foreground">IFSC Câmpus Garopaba</p>
+              </div>
               <h1 className="text-3xl font-semibold tracking-tight">Entrar</h1>
             </div>
             {erro !== undefined && (
