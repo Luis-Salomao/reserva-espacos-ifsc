@@ -32,7 +32,7 @@
   --sidebar: #32a041;
   --sidebar-text: #0b1a0f;
   --sidebar-text-muted: #0f2615;
-  --sidebar-active: #ffffff;
+  --sidebar-active: #7cc887;
 }
 
 :root[data-theme="dark"] {

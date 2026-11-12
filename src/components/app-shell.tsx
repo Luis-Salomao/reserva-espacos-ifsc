@@ -141,7 +141,9 @@ function BrandLogo() {
 
 const NAV_LINK =
   "flex h-8 items-center gap-2.5 rounded-md px-2 text-[13px] font-medium text-muted-foreground transition-colors hover:bg-background/60 hover:text-foreground";
-const NAV_LINK_ACTIVE = "bg-background text-foreground shadow-xs";
+/* Item ativo: pílula verde clara com um traço vermelho do IFSC à esquerda (o vermelho do logo). */
+const NAV_LINK_ACTIVE =
+  "relative bg-background font-semibold text-foreground before:absolute before:inset-y-1.5 before:left-0 before:w-[3px] before:rounded-full before:bg-brand-red";
 const NAV_ICON_SLOT = "grid size-5 shrink-0 place-items-center";
 const NAV_ICON = "block size-4 shrink-0";
 
@@ -332,7 +334,7 @@ function ScreenBar({ items }: { items: NavItem[] }) {
         <span className="font-semibold">{SYSTEM_NAME}</span>
         {current !== undefined && (
           <>
-            <ChevronRight className="size-4 shrink-0" aria-hidden="true" />
+            <ChevronRight className="size-4 shrink-0 text-brand-red" aria-hidden="true" />
             <span className="text-muted-foreground">{SCREEN_HINTS[current.to]}</span>
           </>
         )}
