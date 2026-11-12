@@ -6,7 +6,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import type { ReactNode } from "react";
 import { OverviewCell } from "./overview-cell";
 
@@ -57,7 +57,6 @@ describe("OverviewCell — manutenção", () => {
     fireEvent.mouseEnter(link);
     expect(await screen.findByText("Troca de lâmpada")).toBeDefined();
     expect(screen.queryByText(/^Manutenção: /)).toBeNull();
-    expect(within(screen.getByRole("tooltip")).getByText("Manutenção")).toBeDefined();
-    expect(link.textContent).toContain("Manutenção");
+    expect(screen.getByText("Manutenção")).toBeDefined();
   });
 });

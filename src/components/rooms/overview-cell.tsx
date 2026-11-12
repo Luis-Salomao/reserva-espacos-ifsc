@@ -12,7 +12,7 @@ import { weekdayOf } from "#/domain/calendar";
 import type { SpaceEquipment } from "#/domain/equipment";
 import { legendEntryOf } from "#/domain/occupation-tone";
 import type { Cell } from "#/domain/overview";
-import { TONE, toneStyle } from "#/lib/tone-style";
+import { patternStyle, TONE, toneStyle } from "#/lib/tone-style";
 import { cn } from "#/lib/utils";
 
 type Block = RoomsWeek["days"][number]["blocks"][number];
@@ -34,8 +34,9 @@ type Props = {
   highlight: string | null;
   /** Visitante nunca vê pessoas no cartão. */
   isVisitor: boolean;
-  /** Celular: o toque abre o cartão em vez de navegar. */
+  /** Celular: quadradinho de 32 px, e o toque abre o cartão em vez de navegar. */
   compact: boolean;
+  periodBreak?: boolean;
   /** Dentro do trecho selecionado (ou sendo arrastado). */
   selected: boolean;
   /** Seleciona só este bloco: clique no livre, Enter/Espaço no livre, Espaço no ocupado, toque. */
@@ -45,8 +46,9 @@ type Props = {
   onPointerEnter: () => void;
 };
 
+const SQUARE = "relative shrink-0 rounded-[3px]";
 const CARD_GAP = 8;
-/** Abaixo disso o cartão abre embaixo da célula, para não sair da tela. */
+/** Abaixo disso o cartão abre embaixo do quadradinho, para não sair da tela. */
 const CARD_ROOM = 160;
 /** Metade da largura do cartão (`w-64`) mais a margem até a borda da tela. */
 const CARD_HALF = 136;
@@ -150,10 +152,9 @@ function OverviewCard({
 }
 
 /**
- * Um bloco de uma sala num dia, preenchendo a coluna: livre com contorno; ocupado com o fundo e a
- * barra lateral na cor da matéria, o nome dela e, embaixo, uma barra com o trecho do bloco que a
- * ocupação usa (da esquerda, início, à direita, fim). Mouse ou foco num ocupado abre o cartão de
- * detalhes; o livre seleciona o bloco.
+ * Um bloco de uma sala num dia: vazio com contorno; ocupado com a cor da matéria, uma faixa por
+ * ocupação posicionada do início (topo) ao fim (base) do bloco. Mouse ou foco num ocupado
+ * aumenta o quadradinho e abre o cartão de detalhes; o livre seleciona o bloco.
  */
 export function OverviewCell({
   cell,
@@ -162,6 +163,7 @@ export function OverviewCell({
   highlight,
   isVisitor,
   compact,
+  periodBreak = false,
   selected,
   onSelect,
   onPointerDown,
@@ -169,6 +171,7 @@ export function OverviewCell({
 }: Props) {
   const cardId = useId();
   const [anchor, setAnchor] = useState<DOMRect | null>(null);
+  const size = cn(compact ? "size-8" : "size-7", periodBreak && "ml-2");
   const where = {
     "data-room": room.id,
     "data-date": date,
@@ -188,8 +191,10 @@ export function OverviewCell({
         aria-pressed={selected}
         onClick={onSelect}
         className={cn(
-          "block h-9 w-full rounded-md border border-divider outline-offset-2 hover:border-primary hover:bg-primary/10",
-          selected && "border-primary bg-primary/20 hover:bg-primary/20",
+          SQUARE,
+          size,
+          "block border border-divider outline-offset-2 hover:border-primary hover:bg-primary/15",
+          selected && "border-primary bg-primary/30 hover:bg-primary/30",
         )}
       />
     );
@@ -225,41 +230,44 @@ export function OverviewCell({
       }
     },
     className: cn(
-      "relative flex min-h-9 w-full min-w-0 flex-col gap-px overflow-hidden rounded-md border border-divider bg-background outline-offset-2",
-      anchor !== null && "z-10 shadow-md",
+      SQUARE,
+      size,
+      "flex gap-px overflow-hidden border border-divider bg-background outline-offset-2 transition-transform duration-120 motion-reduce:transition-none",
+      anchor !== null && "z-10 scale-160 motion-reduce:scale-100",
       selected && "ring-2 ring-primary",
     ),
   };
   const content = (
     <>
+      {cell.items.length > 1 && (
+        <span
+          aria-hidden="true"
+          className="pointer-events-none absolute top-0 right-0 z-10 grid size-3.5 place-items-center rounded-bl bg-background/90 text-[9px] font-bold text-foreground"
+        >
+          {cell.items.length}
+        </span>
+      )}
       {cell.items.map(({ item }) => {
         const entry = legendEntryOf(item);
         const dimmed = highlight !== null && entry.key !== highlight;
-        const maintenance = item.source === "manual" && isMaintenanceTitle(item.title);
         const start = Math.max(blockStart, minutes(item.start));
         const end = Math.min(minutes(cell.block.end), minutes(item.end));
         return (
-          <span
-            key={item.id}
-            aria-hidden="true"
-            data-stripe=""
-            data-dimmed={dimmed ? "" : undefined}
-            style={toneStyle(entry.tone)}
-            className={cn(
-              "relative flex min-h-[18px] min-w-0 flex-1 items-center gap-1 overflow-hidden border-l-[3px] border-l-[var(--tone-light)] px-1.5 pb-[3px] text-left text-[11px] leading-tight font-medium text-foreground transition-opacity dark:border-l-[var(--tone-dark)]",
-              TONE.tint,
-              dimmed && "opacity-20",
-            )}
-          >
-            {maintenance && <Wrench aria-hidden="true" className="size-3 shrink-0" />}
-            <span className="truncate">{maintenance ? "Manutenção" : entry.label}</span>
+          <span key={item.id} aria-hidden="true" className="relative h-full flex-1">
             <span
-              data-time-bar=""
+              data-stripe=""
+              data-dimmed={dimmed ? "" : undefined}
               style={{
-                left: `${((start - blockStart) / duration) * 100}%`,
-                width: `${((end - start) / duration) * 100}%`,
+                ...toneStyle(entry.tone),
+                ...patternStyle(entry.pattern),
+                top: `${((start - blockStart) / duration) * 100}%`,
+                height: `${((end - start) / duration) * 100}%`,
               }}
-              className={cn("absolute bottom-0 h-[3px]", TONE.solid)}
+              className={cn(
+                "absolute inset-x-0 transition-opacity",
+                TONE.solid,
+                dimmed && "opacity-20",
+              )}
             />
           </span>
         );

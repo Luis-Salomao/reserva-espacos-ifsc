@@ -185,15 +185,12 @@ describe("RoomsOverview", () => {
     fireEvent.click(within(periods).getByRole("button", { name: /Manh/ }));
     expect(document.querySelectorAll("[data-cell]").length).toBe(30);
     expect(screen.getAllByText("08:00–09:50").length).toBeGreaterThan(0);
-    const duas = cellAt("a202", WED, "M12");
-    expect(duas.textContent).toContain("Cálculo I");
-    expect(duas.textContent).toContain("Química");
+    expect(cellAt("a202", WED, "M12").textContent).toContain("2");
   });
 
   test("cada dia é uma seção própria e reservar vale para o dia da seção", async () => {
     const { onBook } = await renderOverview();
-    const sections = screen.getAllByRole("region", { name: /^Ocupação em / });
-    expect(sections).toHaveLength(5);
+    expect(document.querySelectorAll("tr[aria-label^='Ocupação em ']")).toHaveLength(5);
     fireEvent.click(cellAt("b104", THU, "M12"));
     fireEvent.click(within(selectionPanel()).getByRole("button", { name: /Reservar B-104/ }));
     expect(onBook).toHaveBeenCalledWith({
@@ -253,10 +250,10 @@ describe("RoomsOverview", () => {
   test("ocupações parciais ocupam sua posição temporal e informam os trechos livres", async () => {
     await renderOverview();
     const cell = cellAt("a202", WED, "M12");
-    const bars = cell.querySelectorAll<HTMLElement>("[data-time-bar]");
-    expect(bars[0]?.style.left).toBe("0%");
-    expect(Number.parseFloat(bars[0]?.style.width ?? "")).toBeCloseTo((50 / 110) * 100);
-    expect(Number.parseFloat(bars[1]?.style.left ?? "")).toBeCloseTo((60 / 110) * 100);
+    const stripes = cell.querySelectorAll<HTMLElement>("[data-stripe]");
+    expect(stripes[0]?.style.top).toBe("0%");
+    expect(Number.parseFloat(stripes[0]?.style.height ?? "")).toBeCloseTo((50 / 110) * 100);
+    expect(Number.parseFloat(stripes[1]?.style.top ?? "")).toBeCloseTo((60 / 110) * 100);
     expect(cell.getAttribute("aria-label")).toContain("Livre: 08:50–09:00");
     expect(cell.getAttribute("aria-label")).toContain("Cálculo I — 1A 08:00–08:50");
     fireEvent.focus(cell);
@@ -293,12 +290,12 @@ describe("RoomsOverview", () => {
     expect(first.getAttribute("aria-label")).toContain("Livre: 14:00–15:00");
     expect(first.querySelectorAll("[data-stripe]").length).toBe(1);
     const second = cellAt("a202", MON, "T34");
-    expect(second.querySelectorAll("[data-stripe]").length).toBe(2);
-    const bars = second.querySelectorAll<HTMLElement>("[data-time-bar]");
-    expect(bars[0]?.style.left).toBe("0%");
-    expect(bars[0]?.style.width).toBe("25%");
-    expect(bars[1]?.style.left).toBe("25%");
-    expect(bars[1]?.style.width).toBe("25%");
+    const stripes = second.querySelectorAll<HTMLElement>("[data-stripe]");
+    expect(stripes.length).toBe(2);
+    expect(stripes[0]?.style.top).toBe("0%");
+    expect(stripes[0]?.style.height).toBe("25%");
+    expect(stripes[1]?.style.top).toBe("25%");
+    expect(stripes[1]?.style.height).toBe("25%");
     expect(second.getAttribute("aria-label")).toContain("Livre: 16:30–17:30");
     expect(second.getAttribute("aria-label")).not.toContain("Livre: 16:00");
   });
@@ -393,16 +390,19 @@ describe("RoomsOverview", () => {
     expect(card.querySelector("[data-slot='avatar']") === null).toBe(true);
   });
 
-  test("a célula ocupada preenche a coluna e mostra o nome da disciplina, sem escalar ao focar", async () => {
+  test("o quadradinho cresce com transição de até 150 ms, sem escala com movimento reduzido", async () => {
     await renderOverview();
     const cell = cellAt("a202", MON, "M12");
     const classes = () => cell.className.split(" ");
-    expect(classes()).toContain("w-full");
+    const duration = classes()
+      .map((name) => /^duration-(\d+)$/.exec(name)?.[1])
+      .find((value) => value !== undefined);
+    expect(Number(duration)).toBeGreaterThan(0);
+    expect(Number(duration)).toBeLessThanOrEqual(150);
+    expect(classes()).toContain("motion-reduce:transition-none");
     expect(classes()).not.toContain("scale-160");
-    expect(cell.textContent).toContain("Cálculo I");
     fireEvent.focus(cell);
-    expect(screen.getByRole("tooltip")).toBeDefined();
-    expect(classes()).not.toContain("scale-160");
+    expect(classes()).toEqual(expect.arrayContaining(["scale-160", "motion-reduce:scale-100"]));
   });
 
   test("clicar num quadradinho livre seleciona o bloco, sugere a sala da linha e não abre a reserva", async () => {

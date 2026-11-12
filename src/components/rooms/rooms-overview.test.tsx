@@ -72,52 +72,62 @@ function Parent() {
   );
 }
 
-describe("RoomsOverview — dias empilhados", () => {
-  test("uma seção por dia, com salas nas linhas e só os blocos do dia nas colunas", async () => {
+describe("RoomsOverview — salas nas colunas, horários nas linhas", () => {
+  test("uma tabela só: salas como cabeçalhos de coluna e uma faixa por dia com os blocos nas linhas", async () => {
     const week = makeWeek();
     renderWithRouter(() => <RoomsOverview {...baseProps(week)} />);
-    const sections = await screen.findAllByRole("region", { name: /^Ocupação em / });
-    expect(sections).toHaveLength(5);
-    const tuesday = sections[1] as HTMLElement;
-    expect(tuesday.getAttribute("aria-label")).toBe("Ocupação em terça 10/11");
-    expect(within(tuesday).getByText("terça 10/11")).toBeDefined();
-    expect(within(tuesday).getAllByRole("columnheader")).toHaveLength(1 + BLOCKS.length);
-    const rooms = within(tuesday).getAllByRole("rowheader");
-    expect(rooms.map((room) => room.textContent)).toEqual(["A-202", "A-203"]);
-    expect(within(tuesday).getByText("Manhã 1")).toBeDefined();
-    expect(within(tuesday).getByText("08:00–09:50")).toBeDefined();
-    expect(within(tuesday).getAllByRole("button", { name: /^Selecionar / })).toHaveLength(
-      week.rooms.length * BLOCKS.length - 1,
+    const table = await screen.findByRole("table", { name: /salas nas colunas/i });
+    const colunas = within(table)
+      .getAllByRole("columnheader")
+      .map((header) => header.textContent ?? "");
+    expect(colunas.some((texto) => texto.includes("A-202"))).toBe(true);
+    expect(colunas.some((texto) => texto.includes("A-203"))).toBe(true);
+    const faixas = table.querySelectorAll("tr[aria-label^='Ocupação em ']");
+    expect(faixas).toHaveLength(5);
+    expect(faixas[1]?.getAttribute("aria-label")).toBe("Ocupação em terça 10/11");
+    // 5 dias x 3 blocos, cada um com cabeçalho de linha "bloco + horário".
+    expect(within(table).getAllByText("Manhã 1")).toHaveLength(5);
+    expect(within(table).getAllByText("08:00–09:50")).toHaveLength(5);
+    expect(table.querySelectorAll("[data-cell]")).toHaveLength(
+      DATES.length * BLOCKS.length * week.rooms.length,
     );
-    expect(tuesday.querySelectorAll("[data-cell='ocupado']")).toHaveLength(1);
+    expect(table.querySelectorAll("[data-cell='ocupado']")).toHaveLength(1);
   });
 
-  test("destaca o dia de hoje", async () => {
+  test("destaca o dia de hoje na faixa do dia", async () => {
     renderWithRouter(() => <RoomsOverview {...baseProps(makeWeek())} />);
-    const sections = await screen.findAllByRole("region", { name: /^Ocupação em / });
-    expect(sections[1]?.getAttribute("data-today")).toBe("");
-    expect(sections[0]?.getAttribute("data-today")).toBeNull();
+    const table = await screen.findByRole("table", { name: /salas nas colunas/i });
+    const faixas = table.querySelectorAll("tr[aria-label^='Ocupação em ']");
+    expect(faixas[1]?.getAttribute("data-today")).toBe("");
+    expect(faixas[0]?.getAttribute("data-today")).toBeNull();
+    expect(within(faixas[1] as HTMLElement).getByText("Hoje")).toBeDefined();
   });
 
   test("clicar num bloco livre abre o painel de seleção", async () => {
     renderWithRouter(() => <RoomsOverview {...baseProps(makeWeek())} />);
-    const sections = await screen.findAllByRole("region", { name: /^Ocupação em / });
-    const cell = within(sections[2] as HTMLElement).getByRole("button", {
+    const cell = await screen.findByRole("button", {
       name: "Selecionar A-203, quarta 11/11, Manhã 2 10:00–11:50",
     });
     fireEvent.click(cell);
     expect(cell.getAttribute("aria-pressed")).toBe("true");
   });
 
-  test("arrastar na mesma sala e dia seleciona blocos contíguos", async () => {
+  test("arrastar para baixo, na mesma sala e dia, seleciona blocos contíguos", async () => {
     renderWithRouter(() => <RoomsOverview {...baseProps(makeWeek())} />);
-    const sections = await screen.findAllByRole("region", { name: /^Ocupação em / });
-    const day = sections[2] as HTMLElement;
-    const cells = day.querySelectorAll("[data-room='r2']");
-    fireEvent.pointerDown(cells[0] as Element, { button: 0, pointerType: "mouse" });
-    fireEvent.pointerEnter(cells[2] as Element);
-    expect(day.querySelectorAll("[data-room='r2'][data-selected]")).toHaveLength(3);
-    expect(day.querySelectorAll("[data-room='r1'][data-selected]")).toHaveLength(0);
+    await screen.findByRole("table", { name: /salas nas colunas/i });
+    const quarta = Array.from(
+      document.querySelectorAll<HTMLElement>("[data-room='r2'][data-date='2026-11-11']"),
+    );
+    expect(quarta).toHaveLength(BLOCKS.length);
+    fireEvent.pointerDown(quarta[0] as Element, { button: 0, pointerType: "mouse" });
+    fireEvent.pointerEnter(quarta[2] as Element);
+    expect(
+      document.querySelectorAll("[data-room='r2'][data-date='2026-11-11'][data-selected]"),
+    ).toHaveLength(3);
+    expect(document.querySelectorAll("[data-room='r1'][data-selected]")).toHaveLength(0);
+    expect(
+      document.querySelectorAll("[data-room='r2'][data-date='2026-11-10'][data-selected]"),
+    ).toHaveLength(0);
   });
 
   test("nova semana equivalente a cada render não reinicia a aba nem estoura o limite de atualizações", async () => {
