@@ -679,6 +679,42 @@ describe("AgendaView — Suíte 5: Intervalos Livres Clicáveis", () => {
       end: "10:10",
     });
   });
+
+  test("um toque em um horário livre noturno abre somente uma reserva", async () => {
+    setViewportWidth(390);
+    const onSelectSlot = mock();
+    const week = createMockWeekAgenda({
+      days: createMockWeekAgenda().days.map((day) =>
+        day.date === MOCK_DATE_TUESDAY ? { ...day, free: [{ start: "20:10", end: "22:00" }] } : day,
+      ),
+    });
+    await renderAgenda({
+      spaces: MOCK_SPACES,
+      selectedSpaceId: "space-adm",
+      selectedDate: MOCK_DATE_TUESDAY,
+      weekAgenda: week,
+      session: createMockSession(),
+      onSelectDate: () => {},
+      onSelectSpace: () => {},
+      onSelectSlot,
+    });
+
+    const timelines = screen.getAllByTestId("timeline-day");
+    const mobileTimeline = timelines.at(-1);
+    expect(mobileTimeline).toBeDefined();
+    const nightSlot = within(mobileTimeline as HTMLElement).getByRole("button", {
+      name: /Livre.*20:10.*22:00.*Reservar/i,
+    });
+    fireEvent.click(nightSlot);
+
+    expect(onSelectSlot).toHaveBeenCalledTimes(1);
+    expect(onSelectSlot).toHaveBeenCalledWith({
+      spaceId: "space-adm",
+      date: MOCK_DATE_TUESDAY,
+      start: "20:10",
+      end: "22:00",
+    });
+  });
 });
 
 describe("AgendaView — Suíte 6: Modo Leitura Pública (PUBLIC_READ=true)", () => {

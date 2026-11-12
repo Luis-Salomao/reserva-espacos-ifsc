@@ -1,3 +1,4 @@
+import { Info } from "lucide-react";
 import { useState } from "react";
 import { SpaceDetails } from "#/components/spaces/space-details";
 import { Button } from "#/components/ui/button";
@@ -10,17 +11,23 @@ type Props = {
 };
 
 /**
- * Botão "Detalhes" que abre um popover acessível (rótulo com o nome da sala, Esc fecha, foco
- * volta ao botão) com `SpaceDetails` completo. Sem o espaço no índice, mostra aviso de
- * indisponibilidade em vez de travar a tela.
+ * Botão de informação que abre um popover acessível (nome da sala, Esc fecha, foco volta ao
+ * botão) com `SpaceDetails` completo. Sem o espaço no índice, mostra aviso de indisponibilidade.
  */
 export function RoomDetailsButton({ space, roomName }: Props) {
   const [open, setOpen] = useState(false);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button type="button" variant="ghost" size="sm" className="h-7 px-2 text-xs">
-          Detalhes
+        <Button
+          type="button"
+          variant="ghost"
+          size="icon"
+          aria-label={`Detalhes de ${roomName}`}
+          title={`Detalhes de ${roomName}`}
+          className="size-7 shrink-0 rounded-full"
+        >
+          <Info className="size-4" aria-hidden="true" />
         </Button>
       </PopoverTrigger>
       <PopoverContent

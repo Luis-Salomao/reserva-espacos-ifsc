@@ -1,6 +1,5 @@
 import { Link, useRouteContext } from "@tanstack/react-router";
 import {
-  Building2,
   CalendarDays,
   CalendarRange,
   ChevronsUpDown,
@@ -17,6 +16,7 @@ import {
   X,
 } from "lucide-react";
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import ifscGaropabaLogo from "#/assets/ifsc-garopaba-horizontal.png";
 import { Avatar } from "#/components/avatar";
 import { ThemeToggle } from "#/components/theme-toggle";
 import { Button } from "#/components/ui/button";
@@ -89,12 +89,14 @@ function Brand() {
       aria-label="IFSC Câmpus Garopaba — Reserva de espaços"
       className="flex min-w-0 items-center gap-2 rounded-md px-1 py-1.5 md:px-2"
     >
-      <Building2 className="block size-5 shrink-0 text-primary" aria-hidden="true" />
-      <span className="grid min-w-0 leading-tight">
-        <span className="truncate text-[13px] font-semibold tracking-tight">
-          IFSC Câmpus Garopaba
-        </span>
-        <span className="truncate text-[11px] text-muted-foreground">Reserva de espaços</span>
+      <img
+        src={ifscGaropabaLogo}
+        alt=""
+        aria-hidden="true"
+        className="block h-auto w-[112px] shrink-0 rounded-sm bg-white px-1.5 py-1 sm:w-[128px]"
+      />
+      <span className="min-w-0 truncate text-[11px] leading-tight font-medium text-foreground">
+        Reserva de espaços
       </span>
     </Link>
   );
