@@ -43,13 +43,13 @@ export function noticeText(kind: NoticeKind, data: NoticeData): string {
       const where = many
         ? `${data.spaceName} · ${data.count} datas a partir de ${when(data)} · ${data.start}–${data.end}`
         : slot;
-      return `A administração cancelou sua reserva “${data.title}” (${where}).${reason("Motivo:", data.note)}`;
+      return `A administração cancelou sua reserva “${data.title}” (${where}).${reason("Motivo", data.note)}`;
     }
     case "pedido_recebido":
-      return `${actor} pediu a sala ${slot} para “${data.title}”.${reason("Mensagem:", data.message)}`;
+      return `${actor} pediu a sala ${slot} para “${data.title}”.${reason("Mensagem", data.message)}`;
     case "pedido_aceito":
       return `${actor} aceitou seu pedido: a sala ${slot} agora é sua, reservada como “${data.title}”.`;
     case "pedido_recusado":
-      return `${actor} recusou seu pedido da sala ${slot}.${reason("Motivo:", data.note)}`;
+      return `${actor} recusou seu pedido da sala ${slot}.${reason("Motivo", data.note)}`;
   }
 }

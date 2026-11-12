@@ -22,6 +22,10 @@ coveragePathIgnorePatterns = [
   "src/server/booking-fns.ts",
   "src/server/booking-deps.ts",
   "src/server/auth-context.ts",
+  # Ligação dos avisos e pedidos de sala; lógica e acesso ficam em notification-actions.ts e nos serviços (testados).
+  "src/server/notification-fns.ts",
+  "src/server/notification-deps.ts",
+  "src/server/notices-context.ts",
   # Composição e wrappers do Start; regras de recuperação ficam em password-recovery/actions, testadas.
   "src/server/password-recovery-context.ts",
   "src/server/password-recovery-fns.ts",
