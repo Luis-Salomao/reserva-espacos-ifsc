@@ -29,10 +29,10 @@
   --warn: #fdf1c6;
   --warn-text: #7a4a00;
   --brand-red: #c8191e;
-  --sidebar: #32a041;
-  --sidebar-text: #0b1a0f;
-  --sidebar-text-muted: #0f2615;
-  --sidebar-active: #7cc887;
+  --sidebar: #237a2f;
+  --sidebar-text: #ffffff;
+  --sidebar-text-muted: #e4f3e6;
+  --sidebar-active: #1a5e24;
 }
 
 :root[data-theme="dark"] {

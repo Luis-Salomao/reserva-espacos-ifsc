@@ -18,6 +18,7 @@ import {
 import { type ReactNode, useEffect, useId, useRef, useState } from "react";
 import ifscGaropabaLogoClaro from "#/assets/ifsc-garopaba-horizontal.png";
 import ifscGaropabaLogoEscuro from "#/assets/ifsc-garopaba-horizontal-escuro.png";
+import ifscGaropabaLogoNegativo from "#/assets/ifsc-garopaba-horizontal-negativo.png";
 import { Avatar } from "#/components/avatar";
 import { ThemeToggle } from "#/components/theme-toggle";
 import { Button } from "#/components/ui/button";
@@ -105,7 +106,7 @@ function Brand({ stacked = false }: { stacked?: boolean }) {
         stacked && "md:flex-col md:items-start md:gap-1",
       )}
     >
-      <BrandLogo />
+      <BrandLogo onSidebar={stacked} />
       {/* Na lateral do computador o nome do sistema vai para a barra superior da área de conteúdo. */}
       <div className={cn("min-w-0 leading-tight", stacked && "md:hidden")}>
         <p className="text-[11px] font-semibold sm:text-sm">{SYSTEM_NAME}</p>
@@ -115,26 +116,40 @@ function Brand({ stacked = false }: { stacked?: boolean }) {
   );
 }
 
-function BrandLogo() {
+/**
+ * Marca oficial com fundo transparente. No tema escuro as letras pretas viram brancas; sobre a
+ * lateral verde do computador entra a versão negativa (quadrados e letras brancos, bolinha
+ * vermelha), sem placa branca.
+ */
+function BrandLogo({ onSidebar = false }: { onSidebar?: boolean }) {
+  const size = "h-auto w-[112px] shrink-0 sm:w-[128px]";
   return (
     <Link
       to="/"
       aria-label="IFSC Câmpus Garopaba — Reserva de espaços"
-      className="flex shrink-0 items-center rounded-md px-1 py-1.5 md:rounded-lg md:bg-white md:p-2"
+      className="flex shrink-0 items-center rounded-md px-1 py-1.5"
     >
-      {/* Marca oficial com fundo transparente; no tema escuro as letras pretas viram brancas. */}
       <img
         src={ifscGaropabaLogoClaro}
         alt=""
         aria-hidden="true"
-        className="block h-auto w-[112px] shrink-0 sm:w-[128px] dark:hidden md:dark:block"
+        className={cn("block dark:hidden", size, onSidebar && "md:hidden")}
       />
       <img
         src={ifscGaropabaLogoEscuro}
         alt=""
         aria-hidden="true"
-        className="hidden h-auto w-[112px] shrink-0 sm:w-[128px] dark:block md:hidden md:dark:hidden"
+        className={cn("hidden dark:block", size, onSidebar && "md:hidden md:dark:hidden")}
       />
+      {onSidebar && (
+        <img
+          src={ifscGaropabaLogoNegativo}
+          alt=""
+          aria-hidden="true"
+          data-logo="negativo"
+          className={cn("hidden md:block md:w-[150px]", size)}
+        />
+      )}
     </Link>
   );
 }

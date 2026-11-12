@@ -181,15 +181,21 @@ describe("AppShell", () => {
     expect(screen.getByRole("main").textContent).toBe("conteúdo");
   });
 
-  test("na lateral o logo fica numa placa branca e usa sempre a versão clara; o celular troca por tema", async () => {
+  test("na lateral o logo é a versão negativa direto no verde, sem placa; o celular troca por tema", async () => {
     await renderShell("x", { user: ana, publicRead: true, timeZone: "America/Sao_Paulo" });
     const link = screen.getByRole("link", { name: "IFSC Câmpus Garopaba — Reserva de espaços" });
-    expect(link.className).toContain("md:bg-white");
-    expect(link.className).toContain("md:rounded-lg");
-    const [clara, escura] = [...link.querySelectorAll("img")];
-    expect(clara?.className).toContain("md:dark:block");
+    expect(link.className).not.toContain("bg-white");
+    const [clara, escura, negativa] = [...link.querySelectorAll("img")];
+    expect(clara?.className).toContain("md:hidden");
     expect(escura?.className).toContain("md:dark:hidden");
-    expect(escura?.className).toContain("md:hidden");
+    expect(negativa?.dataset.logo).toBe("negativo");
+    expect(negativa?.className.split(" ")).toContain("md:block");
+  });
+
+  test("o visitante não recebe o logo negativo (o cabeçalho dele é neutro)", async () => {
+    await renderShell(<p>x</p>);
+    const link = screen.getByRole("link", { name: "IFSC Câmpus Garopaba — Reserva de espaços" });
+    expect(link.querySelector("[data-logo='negativo']")).toBeNull();
   });
 
   test("navegação leva à agenda, importação e semestres", async () => {
