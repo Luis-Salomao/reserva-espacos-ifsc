@@ -541,7 +541,7 @@ function AccountMenu({
         <button
           type="button"
           aria-label={`Conta de ${user.name}`}
-          className="flex min-h-11 min-w-11 items-center justify-center gap-2.5 rounded-full p-1.5 transition-colors hover:bg-surface-2 md:w-full md:justify-start md:rounded-lg"
+          className="flex min-h-11 min-w-11 items-center justify-center gap-2.5 rounded-full p-1.5 transition-colors hover:bg-accent data-[state=open]:bg-accent md:w-full md:justify-start md:rounded-lg"
         >
           <Avatar name={user.name} className="size-9 text-xs" />
           <span
