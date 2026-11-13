@@ -172,6 +172,17 @@ describe("Minhas Reservas — Suíte de Testes (Milestone 2 Task 4)", () => {
       expect(bookingLink).toBeDefined();
       expect(bookingLink?.label).toBe("Minhas reservas");
     });
+
+    test("docente e admin veem 'Minha agenda' logo após 'Minhas reservas'; visitante e manutenção não", () => {
+      for (const roles of [["docente"], ["admin"]] as const) {
+        const labels = navItems({ ...MOCK_USER, roles: [...roles] }).map((i) => i.label);
+        const idx = labels.indexOf("Minhas reservas");
+        expect(labels[idx + 1]).toBe("Minha agenda");
+      }
+      expect(navItems(null).some((i) => i.to === "/minha-agenda")).toBe(false);
+      const manut = navItems({ ...MOCK_USER, roles: ["manutencao"] });
+      expect(manut.some((i) => i.to === "/minha-agenda")).toBe(false);
+    });
   });
 
   describe("3. Renderização da Lista e Estados Visuais", () => {

@@ -1,5 +1,6 @@
 import { Link, useRouteContext, useRouterState } from "@tanstack/react-router";
 import {
+  CalendarClock,
   CalendarDays,
   CalendarRange,
   ChevronLeft,
@@ -38,6 +39,7 @@ type NavItem = {
   to:
     | "/"
     | "/minhas-reservas"
+    | "/minha-agenda"
     | "/importar"
     | "/semestres"
     | "/admin/contas"
@@ -49,6 +51,7 @@ type NavItem = {
 const NAV_ICONS: Record<NavItem["to"], LucideIcon> = {
   "/": CalendarDays,
   "/minhas-reservas": ListChecks,
+  "/minha-agenda": CalendarClock,
   "/importar": FileUp,
   "/semestres": CalendarRange,
   "/admin/contas": Users,
@@ -59,6 +62,7 @@ const NAV_ICONS: Record<NavItem["to"], LucideIcon> = {
 export const SCREEN_HINTS: Record<NavItem["to"], string> = {
   "/": "Veja os horários e a disponibilidade das salas",
   "/minhas-reservas": "Veja e gerencie as suas reservas",
+  "/minha-agenda": "Organize suas aulas e reservas por disciplina",
   "/importar": "Importe a grade de horários do aSc",
   "/semestres": "Configure semestres e durações",
   "/admin/contas": "Gerencie contas e espaços",
@@ -115,6 +119,7 @@ export function navItems(user: SessionInfo["user"]): NavItem[] {
     user?.roles.some((role) => roles.includes(role)) ?? false;
   const items: NavItem[] = [{ to: "/", label: "Agenda", exact: true }];
   if (has(MY_BOOKINGS_ROLES)) items.push({ to: "/minhas-reservas", label: "Minhas reservas" });
+  if (has(MY_BOOKINGS_ROLES)) items.push({ to: "/minha-agenda", label: "Minha agenda" });
   if (has(IMPORT_ROLES)) items.push({ to: "/importar", label: "Importar" });
   if (has(SEMESTER_ROLES)) items.push({ to: "/semestres", label: "Semestres" });
   if (has(ADMIN_ROLES)) items.push({ to: "/admin/contas", label: "Administração" });
