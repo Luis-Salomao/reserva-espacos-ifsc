@@ -9,9 +9,10 @@ import {
 import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import type { AgendaItem, DayAgenda, WeekAgenda } from "#/application/bookings";
 import { AgendaView, type AgendaViewProps } from "#/components/agenda/agenda-view";
+import { getWeekStart } from "#/domain/calendar";
 import type { Space } from "#/domain/space";
 import type { User } from "#/domain/user";
-import { getTodayDate, getWeekStart, Route, validateAgendaSearch } from "#/routes/index";
+import { getTodayDate, Route, validateAgendaSearch } from "#/routes/index";
 import type { SessionInfo } from "#/server/session";
 import { requireElement } from "../dom-values";
 

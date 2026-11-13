@@ -673,5 +673,8 @@ describe("minha agenda", () => {
     expect(week.response).toMatchObject({ ok: true, data: { items: [] } });
     const dates = await myDatesAction(deps, req("docb"), { subject: "Reunião" });
     expect(dates.response).toMatchObject({ ok: true, data: { items: [] } });
+    // Relógio do teste é 2026-11-03: 2026-11-10 é futura, então o dono a vê e B não.
+    const own = await myDatesAction(deps, req("doca"), { subject: "Reunião" });
+    expect(own.response.ok && own.response.data.items.map((x) => x.date)).toEqual(["2026-11-10"]);
   });
 });

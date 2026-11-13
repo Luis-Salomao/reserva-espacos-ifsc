@@ -49,13 +49,15 @@ describe("matchSubjects", () => {
   });
 });
 
-test("normalizeSubject junta variantes de caixa, espaços e traço", () => {
-  const keys = ["Cultura Digital - LAZ", "cultura  digital–LAZ", " CULTURA DIGITAL — laz "].map(
-    normalizeSubject,
-  );
-  expect(new Set(keys).size).toBe(1);
-  expect(keys[0]).toBe("cultura digital - laz");
-  expect(normalizeSubject("Física")).toBe("fisica");
-  expect(normalizeSubject("Cálculo I")).not.toBe(normalizeSubject("Cálculo II"));
-  expect(normalizeSubject("   ")).toBe("");
+describe("normalizeSubject", () => {
+  test("normalizeSubject junta variantes de caixa, espaços e traço", () => {
+    const keys = ["Cultura Digital - LAZ", "cultura  digital–LAZ", " CULTURA DIGITAL — laz "].map(
+      normalizeSubject,
+    );
+    expect(new Set(keys).size).toBe(1);
+    expect(keys[0]).toBe("cultura digital - laz");
+    expect(normalizeSubject("Física")).toBe("fisica");
+    expect(normalizeSubject("Cálculo I")).not.toBe(normalizeSubject("Cálculo II"));
+    expect(normalizeSubject("   ")).toBe("");
+  });
 });

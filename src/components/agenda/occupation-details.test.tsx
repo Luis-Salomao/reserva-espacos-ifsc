@@ -16,10 +16,10 @@ const item = (source: "import" | "manual"): AgendaItem => ({
   person: null,
 });
 
-function setup(source: "import" | "manual", onEdit?: (o: AgendaItem) => void) {
+function setup(source: "import" | "manual", onEdit?: (o: AgendaItem) => void, canCancel = true) {
   render(
     <OccupationDetails
-      occupation={item(source)}
+      occupation={{ ...item(source), canCancel }}
       spaceName="LAB 106A"
       onOpenChange={() => {}}
       onCancel={() => {}}
@@ -38,6 +38,16 @@ describe("OccupationDetails — Editar", () => {
 
   test("importada não mostra Editar…", () => {
     setup("import", () => {});
+    expect(screen.queryByRole("button", { name: "Editar…" })).toBeNull();
+  });
+
+  test("manual sem permissão de cancelar não mostra Editar…", () => {
+    setup("manual", () => {}, false);
+    expect(screen.queryByRole("button", { name: "Editar…" })).toBeNull();
+  });
+
+  test("manual sem onEdit não mostra Editar…", () => {
+    setup("manual");
     expect(screen.queryByRole("button", { name: "Editar…" })).toBeNull();
   });
 });

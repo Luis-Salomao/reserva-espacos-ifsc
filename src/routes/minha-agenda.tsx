@@ -8,9 +8,9 @@ import { OccupationDetails } from "#/components/agenda/occupation-details";
 import { AppShell } from "#/components/app-shell";
 import { Notice, PageHeader } from "#/components/page";
 import { localNow } from "#/domain/availability";
+import { getWeekStart } from "#/domain/calendar";
 import { isValidDate } from "#/domain/semester";
 import type { Space } from "#/domain/space";
-import { getWeekStart } from "#/routes/index";
 import { myDatesFn, mySubjectsFn, myWeekFn } from "#/server/booking-fns";
 import { listSpaces } from "#/server/spaces";
 
@@ -180,6 +180,7 @@ function MinhaAgendaPage() {
               withSearch({
                 ...prev,
                 disciplina: key,
+                semana: undefined,
                 modo: key === undefined ? undefined : prev.modo,
               }),
           })

@@ -186,7 +186,9 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
   const showPerson = ev.person !== null && height >= 54;
   const room = ev.spaceName;
   const showRoom = room !== undefined && height >= 54;
-  const showTag = height >= (showPerson ? 76 : 50);
+  const extraLines = (showPerson ? 1 : 0) + (showRoom ? 1 : 0);
+  const showTag = height >= 50 + extraLines * 26;
+  const clampTitle = height >= 76 + extraLines * 24;
   return (
     <button
       type="button"
@@ -222,7 +224,7 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
         <b
           className={cn(
             "block min-w-0 text-[12px] font-semibold text-foreground",
-            height >= (showPerson ? 100 : 76) ? "line-clamp-2 break-words" : "truncate",
+            clampTitle ? "line-clamp-2 break-words" : "truncate",
           )}
         >
           {displayTitle}

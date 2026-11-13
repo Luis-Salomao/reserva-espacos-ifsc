@@ -25,6 +25,14 @@ const columns = {
   seriesId: occupations.seriesId,
 };
 
+// Ocupações ativas criadas por ou sob responsabilidade do usuário.
+function ownedBy(userId: string) {
+  return and(
+    eq(occupations.status, "ativa"),
+    or(eq(occupations.createdBy, userId), eq(occupations.responsibleUserId, userId)),
+  );
+}
+
 /**
  * Série da âncora (a MESMA condição serve à prévia e ao cancelamento): ocupações ATIVAS da mesma
  * aula (`lesson_id`), lote, espaço, dia da semana e horário de início/fim, com `starts_at >= fromLocal`
@@ -34,13 +42,6 @@ const columns = {
  * avulsa (`series_id`): as ativas da mesma série com início igual ou posterior ao da âncora ("esta e
  * as próximas"); na avulsa o responsável é quem criou.
  */
-function ownedBy(userId: string) {
-  return and(
-    eq(occupations.status, "ativa"),
-    or(eq(occupations.createdBy, userId), eq(occupations.responsibleUserId, userId)),
-  );
-}
-
 function seriesCondition(
   anchor: OccupationRecord,
   fromLocal: string,

@@ -1252,6 +1252,22 @@ describe("minha agenda", () => {
     }
   });
 
+  test("myWeek com disciplina vazia não filtra", async () => {
+    const { db, s, svc } = await setup();
+    imp(db, s, "a", "Mat", "2026-11-04", s.docA.id);
+    imp(db, s, "b", "Fis", "2026-11-04", s.docA.id, { start: "10:00", end: "11:00" });
+    const all = await svc.myWeek(s.docA, { weekStart: "2026-11-02", subject: "   " });
+    expect(all.ok && all.value.items).toHaveLength(2);
+  });
+
+  test("myDates exclui ocorrência além de 190 dias e inclui a dentro", async () => {
+    const { db, s, svc } = await setup();
+    imp(db, s, "a", "Mat", "2027-05-10", s.docA.id);
+    imp(db, s, "b", "Mat", "2027-06-30", s.docA.id);
+    const result = await svc.myDates(s.docA, { subject: "Mat" });
+    expect(result.ok && result.value.items.map((x) => x.date)).toEqual(["2027-05-10"]);
+  });
+
   test("myDates lista futuras da disciplina, importada sem edição e manual editável", async () => {
     const { db, s, svc } = await setup();
     imp(db, s, "a", "Mat", "2026-11-20", s.docA.id);

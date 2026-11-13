@@ -58,3 +58,8 @@ export function datesOnWeekday(from: string, to: string, weekday: number): strin
   for (let day = first + offset; day <= last; day += 7) dates.push(fromDayNumber(day));
   return dates;
 }
+
+/** Normaliza qualquer data para a segunda-feira correspondente da semana. */
+export function getWeekStart(date: string): string {
+  return addDays(date, -weekdayOf(date));
+}

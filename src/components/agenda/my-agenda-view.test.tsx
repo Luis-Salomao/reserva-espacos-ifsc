@@ -79,4 +79,20 @@ describe("MyAgendaView", () => {
     fireEvent.click(screen.getByRole("button", { name: "Semana seguinte" }));
     expect(props.onWeekChange).toHaveBeenCalledWith("2026-11-23");
   });
+
+  test("disciplina da URL fora da lista aparece como opção extra", () => {
+    setup({ subject: "sumiu" });
+    expect(screen.getByRole("option", { name: "(sem datas futuras)" })).toBeDefined();
+    expect((screen.getByLabelText("Disciplina") as unknown as HTMLSelectElement).value).toBe(
+      "sumiu",
+    );
+  });
+
+  test("semana sem itens mostra mensagem; com itens não", () => {
+    setup();
+    expect(screen.getByText("Nenhuma ocupação nesta semana.")).toBeDefined();
+    cleanup();
+    setup({ week: { ...week(), items: [item] } });
+    expect(screen.queryByText("Nenhuma ocupação nesta semana.")).toBeNull();
+  });
 });

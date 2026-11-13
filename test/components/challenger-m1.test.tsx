@@ -12,8 +12,9 @@ import { AgendaView } from "#/components/agenda/agenda-view";
 import { formatHourAxis, layoutEvents, timeToMinutes } from "#/components/agenda/layout-helpers";
 import { RoomSelector } from "#/components/agenda/room-selector";
 import { TimelineDay, TimelineDayStrip } from "#/components/agenda/timeline-day";
+import { getWeekStart } from "#/domain/calendar";
 import type { Space } from "#/domain/space";
-import { getTodayDate, getWeekStart, validateAgendaSearch } from "#/routes/index";
+import { getTodayDate, validateAgendaSearch } from "#/routes/index";
 import type { SessionInfo } from "#/server/session";
 
 const MOCK_DATE = "2026-11-03";

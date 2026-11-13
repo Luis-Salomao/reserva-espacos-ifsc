@@ -1166,7 +1166,8 @@ export function createBookingsService(deps: BookingsDeps) {
         semesters.list(),
         peopleFor(user),
       ]);
-      const wanted = input.subject === undefined ? null : normalizeSubject(input.subject);
+      const normalized = input.subject === undefined ? "" : normalizeSubject(input.subject);
+      const wanted = normalized === "" ? null : normalized;
       const items = rows
         .map((row) => toMyBooking(row, user, now, people))
         .filter((item) => wanted === null || normalizeSubject(item.title) === wanted);

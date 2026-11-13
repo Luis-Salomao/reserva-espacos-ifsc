@@ -13,7 +13,7 @@ import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
 import { SystemIntro } from "#/components/system-intro";
 import type { PageView } from "#/components/view-switcher";
 import { localNow } from "#/domain/availability";
-import { addDays, weekdayOf } from "#/domain/calendar";
+import { getWeekStart } from "#/domain/calendar";
 import type { Space } from "#/domain/space";
 import { loadSalas, type SalasLoaderData, validateSalasSearch } from "#/routes/salas";
 import { getRoomsDayFn, getRoomsRangeFn, getWeekAgendaFn } from "#/server/booking-fns";
@@ -52,12 +52,6 @@ export function validateAgendaSearch(search: Record<string, unknown>): AgendaSea
 /** Obtém a data de hoje ("YYYY-MM-DD") no fuso horário configurado do sistema. */
 export function getTodayDate(timeZone: string, now: Date = new Date()): string {
   return localNow(now, timeZone).slice(0, 10);
-}
-
-/** Normaliza qualquer data para a segunda-feira correspondente da semana (weekdayOf === 0). */
-export function getWeekStart(date: string): string {
-  const weekday = weekdayOf(date);
-  return addDays(date, -weekday);
 }
 
 export type AgendaLoaderData = {

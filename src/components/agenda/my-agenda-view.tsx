@@ -55,6 +55,9 @@ export function MyAgendaView({
             onChange={(event) => onSubjectChange(event.target.value || undefined)}
           >
             <option value="">Todas</option>
+            {subject !== undefined && !subjects.some((entry) => entry.key === subject) && (
+              <option value={subject}>(sem datas futuras)</option>
+            )}
             {subjects.map((entry) => (
               <option key={entry.key} value={entry.key}>
                 {`${entry.label} (${entry.count})`}
@@ -122,6 +125,11 @@ export function MyAgendaView({
               />
             </div>
           </div>
+          {week.items.length === 0 && (
+            <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
+              Nenhuma ocupação nesta semana.
+            </p>
+          )}
         </div>
       ) : dates.items.length === 0 ? (
         <p className="rounded-2xl border border-dashed border-border p-8 text-center text-sm text-muted-foreground">
