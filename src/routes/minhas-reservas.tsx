@@ -142,7 +142,7 @@ function BookingOccurrence({
       id={`booking-${item.id}`}
       data-testid={`booking-card-${item.id}`}
       className={cn(
-        "grid grid-cols-[56px_1fr] sm:grid-cols-[64px_1fr_auto] gap-3.5 sm:gap-4 p-4 border rounded-2xl bg-surface items-start sm:items-center transition-all",
+        "grid min-w-0 grid-cols-[48px_minmax(0,1fr)] sm:grid-cols-[64px_minmax(0,1fr)_auto] gap-3 sm:gap-4 p-3 sm:p-4 border rounded-2xl bg-surface items-start sm:items-center transition-all",
         isNew
           ? "border-primary ring-3 ring-primary/25 shadow-sm item-new"
           : "border-border hover:border-border/80 hover:shadow-xs",
@@ -150,7 +150,7 @@ function BookingOccurrence({
     >
       <div
         aria-hidden="true"
-        className="grid w-14 sm:w-16 shrink-0 justify-items-center rounded-xl bg-surface-2 py-2 leading-none select-none"
+        className="grid w-12 sm:w-16 shrink-0 justify-items-center rounded-xl bg-surface-2 py-2 leading-none select-none"
       >
         <span className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground">
           {monthName}
@@ -164,8 +164,8 @@ function BookingOccurrence({
       </div>
 
       <div className="min-w-0 flex-1 grid gap-1">
-        <div className="flex items-center gap-2">
-          <h3 className="text-base font-semibold tracking-tight text-foreground truncate">
+        <div className="flex min-w-0 items-center gap-2">
+          <h3 className="min-w-0 text-base font-semibold tracking-tight text-foreground truncate">
             {item.title}
           </h3>
           {isNew && (
@@ -198,7 +198,7 @@ function BookingOccurrence({
         </div>
       </div>
 
-      <div className="col-span-full sm:col-span-1 flex justify-end gap-2 sm:self-center">
+      <div className="col-span-full sm:col-span-1 flex flex-wrap justify-end gap-2 sm:self-center">
         {item.canEdit && item.source === "manual" && (
           <Button type="button" variant="outline" size="sm" onClick={() => onSelectEdit?.(item)}>
             Editar
@@ -249,7 +249,7 @@ export function MinhasReservasList({
   }
 
   return (
-    <div className="grid max-w-[760px] gap-3">
+    <div className="grid min-w-0 max-w-[760px] gap-3">
       {[...groups].map(([monthKey, monthItems], groupIndex) => {
         const [year = "", month = "01"] = monthKey.split("-");
         const monthTitle = `${MONTH_SHORT[Number(month) - 1] ?? month} ${year}`;
@@ -267,7 +267,7 @@ export function MinhasReservasList({
                 {monthItems.length} {monthItems.length === 1 ? "ocorrência" : "ocorrências"}
               </span>
             </summary>
-            <div className="grid gap-2 border-t border-border p-2">
+            <div className="grid gap-2 border-t border-border p-1.5 sm:p-2">
               {bookingGroups.map((bookingGroup) => {
                 if (bookingGroup.seriesId === null) {
                   const item = bookingGroup.items[0];
@@ -299,10 +299,10 @@ export function MinhasReservasList({
                     data-testid={`booking-series-${bookingGroup.seriesId}`}
                     className="rounded-xl border border-border bg-surface-2"
                   >
-                    <div className="flex flex-wrap items-start gap-2 p-2">
+                    <div className="flex flex-col gap-2 p-1.5 sm:flex-row sm:items-start sm:p-2">
                       <details
                         open={bookingGroup.items.some((item) => item.id === newId)}
-                        className="min-w-0 flex-1"
+                        className="min-w-0 sm:flex-1"
                       >
                         <summary
                           data-testid={`booking-series-summary-${bookingGroup.seriesId}`}
@@ -325,7 +325,7 @@ export function MinhasReservasList({
                             {first.end} · {first.spaceName}
                           </span>
                         </summary>
-                        <div className="grid gap-2 border-t border-border p-2">
+                        <div className="grid gap-2 border-t border-border p-1 pt-2 sm:p-2">
                           {bookingGroup.items.map((item) => (
                             <BookingOccurrence
                               key={item.id}
@@ -337,7 +337,7 @@ export function MinhasReservasList({
                           ))}
                         </div>
                       </details>
-                      <div className="flex shrink-0 flex-wrap gap-2">
+                      <div className="flex flex-wrap gap-2 px-1 sm:shrink-0 sm:px-0">
                         {editable && (
                           <Button
                             type="button"

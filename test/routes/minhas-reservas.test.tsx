@@ -7,7 +7,7 @@ import {
   createRouter,
   RouterProvider,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import type { MyBooking } from "#/application/bookings";
 import { navItems } from "#/components/app-shell";
 import type { User } from "#/domain/user";
@@ -255,6 +255,31 @@ describe("Minhas Reservas — Suíte de Testes (Milestone 2 Task 4)", () => {
 
       expect(mockEditSelect).toHaveBeenCalledWith(MOCK_BOOKING_SERIES[0]);
       expect(mockCancelSelect).toHaveBeenCalledWith(MOCK_BOOKING_SERIES[0]);
+    });
+
+    test("layout mobile: ações da série empilham abaixo do texto e quebram linha", async () => {
+      await renderWithRouter(<MinhasReservasList items={[...MOCK_BOOKING_SERIES]} />);
+
+      const edit = screen.getByTestId("booking-series-edit-series-redes");
+      const actions = edit.parentElement as HTMLElement;
+      expect(actions.className).toContain("flex-wrap");
+      expect(actions.className).not.toContain(" shrink-0");
+      expect(actions.className).toContain("sm:shrink-0");
+      const wrapper = actions.parentElement as HTMLElement;
+      expect(wrapper.className).toContain("flex-col");
+      expect(wrapper.className).toContain("sm:flex-row");
+      const details = wrapper.querySelector("details") as HTMLElement;
+      expect(wrapper.children[0]).toBe(details);
+    });
+
+    test("layout mobile: ocorrência usa coluna minmax(0,1fr) e ações com quebra de linha", async () => {
+      await renderWithRouter(<MinhasReservasList items={[...MOCK_BOOKING_SERIES]} />);
+
+      const card = screen.getAllByTestId(/^booking-card-b-series-/)[0] as HTMLElement;
+      expect(card.className).toContain("grid-cols-[48px_minmax(0,1fr)]");
+      expect(card.className).toContain("sm:grid-cols-[64px_minmax(0,1fr)_auto]");
+      const actions = within(card).getByRole("button", { name: "Cancelar…" }).parentElement;
+      expect(actions?.className).toContain("flex-wrap");
     });
 
     test("destaca visualmente reserva recém-criada quando coincide com newId", async () => {
