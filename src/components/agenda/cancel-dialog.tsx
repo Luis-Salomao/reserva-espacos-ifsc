@@ -185,7 +185,8 @@ export function CancelDialog({
   if (!item) return null;
 
   const manualSeries = item.source === "manual" && item.inSeries === true;
-  const isManual = (item.source === "manual" && !manualSeries) || dateOnly;
+  const isManual = item.source === "manual" && !manualSeries;
+  const singleDate = isManual || dateOnly;
   const formattedShort = formatShortDate(item.date);
   const formattedLong = formatLongDate(item.date);
 
@@ -245,7 +246,7 @@ export function CancelDialog({
           </div>
 
           {/* Opções de Escopo */}
-          {isManual ? (
+          {singleDate ? (
             <p className="text-sm text-muted-foreground">
               {dateOnly ? "Desmarcar esta aula em " : "Cancelar esta reserva em "}
               <b>{formattedShort}</b>? Isso libera a sala para outras pessoas.

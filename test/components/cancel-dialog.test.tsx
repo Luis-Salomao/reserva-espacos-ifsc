@@ -451,6 +451,8 @@ describe("CancelDialog — dateOnly (aula importada, uma data só)", () => {
       />,
     );
 
+    expect(screen.queryByText(/Reserva feita por você/)).toBeNull();
+    expect(screen.getByText(/Aula importada/)).toBeDefined();
     expect(screen.queryByRole("radio")).toBeNull();
     expect(screen.queryByText(/série/i)).toBeNull();
     fireEvent.click(screen.getByRole("button", { name: "Desmarcar esta data" }));
