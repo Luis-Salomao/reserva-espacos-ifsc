@@ -72,6 +72,14 @@ export function DateRangePicker({
   const [draft, setDraft] = useState<DateRange | undefined>(undefined);
   const shown = draft ?? { from: fromDate, to: toDate };
   const waiting = draft?.from !== undefined && draft.to === undefined;
+  // Escolhido o início, o dia sob o mouse (ou o foco do teclado) mostra a prévia do intervalo.
+  const [hovered, setHovered] = useState<Date | undefined>(undefined);
+  const preview =
+    waiting && draft?.from !== undefined && hovered !== undefined
+      ? hovered < draft.from
+        ? { from: hovered, to: draft.from }
+        : { from: draft.from, to: hovered }
+      : undefined;
   const text = fromDate && toDate ? formatRangeLabel(from, to) : "Selecionar intervalo";
 
   const pick = (day: Date) => {
@@ -81,6 +89,7 @@ export function DateRangePicker({
     }
     const [first, last] = day < draft.from ? [day, draft.from] : [draft.from, day];
     setDraft(undefined);
+    setHovered(undefined);
     setOpen(false);
     onChange({ from: formatIsoDate(first), to: formatIsoDate(last) });
   };
@@ -113,6 +122,7 @@ export function DateRangePicker({
       onOpenChange={(next) => {
         setOpen(next);
         setDraft(undefined);
+        setHovered(undefined);
       }}
     >
       <PopoverTrigger asChild>
@@ -144,6 +154,15 @@ export function DateRangePicker({
           selected={shown}
           {...(limit === undefined ? {} : { disabled: limit })}
           onSelect={(_range, day) => pick(day)}
+          onDayMouseEnter={(day) => setHovered(day)}
+          onDayFocus={(day) => setHovered(day)}
+          onDayMouseLeave={() => setHovered(undefined)}
+          {...(preview === undefined
+            ? {}
+            : {
+                modifiers: { preview },
+                modifiersClassNames: { preview: "bg-primary/15" },
+              })}
         />
         <p className="border-t px-3 py-2 text-xs text-muted-foreground">
           {waiting

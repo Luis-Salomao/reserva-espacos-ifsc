@@ -117,6 +117,25 @@ describe("DateRangePicker", () => {
     expect(trigger().textContent).toContain("20/11 – 25/11/2026");
   });
 
+  test("escolhido o início, passar o mouse num dia pinta a prévia do intervalo; sair limpa", async () => {
+    render(<Harness />);
+    fireEvent.click(trigger());
+    fireEvent.click(await day(/, 20 de novembro de 2026/));
+    const previewed = () =>
+      Array.from(document.querySelectorAll("td.bg-primary\\/15")).map((cell) =>
+        cell.getAttribute("data-day"),
+      );
+    const fim = await day(/, 23 de novembro de 2026/);
+    fireEvent.mouseEnter(fim);
+    await waitFor(() => expect(previewed()).toHaveLength(4));
+    expect(previewed()).toContain("2026-11-21");
+    fireEvent.mouseLeave(fim);
+    await waitFor(() => expect(previewed()).toHaveLength(0));
+    // Antes do início também vale (a ordem se inverte).
+    fireEvent.mouseEnter(await day(/, 18 de novembro de 2026/));
+    await waitFor(() => expect(previewed()).toHaveLength(3));
+  });
+
   test("o segundo clique antes do primeiro inverte a ordem; o mesmo dia vale um dia só", async () => {
     const seen: Array<{ from: string; to: string }> = [];
     render(<Harness onRange={(range) => seen.push(range)} />);
