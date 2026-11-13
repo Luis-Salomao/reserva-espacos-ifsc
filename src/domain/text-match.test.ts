@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { matchSubjects, normalizeText } from "./text-match";
+import { matchSubjects, normalizeSubject, normalizeText } from "./text-match";
 
 const GROUPS = {
   mine: ["Álgebra — 1A", "Cálculo — 2B"],
@@ -47,4 +47,15 @@ describe("matchSubjects", () => {
   test("texto que não aparece em nenhum grupo esvazia os dois", () => {
     expect(matchSubjects(GROUPS, "reunião")).toEqual({ mine: [], all: [], exact: false });
   });
+});
+
+test("normalizeSubject junta variantes de caixa, espaços e traço", () => {
+  const keys = ["Cultura Digital - LAZ", "cultura  digital–LAZ", " CULTURA DIGITAL — laz "].map(
+    normalizeSubject,
+  );
+  expect(new Set(keys).size).toBe(1);
+  expect(keys[0]).toBe("cultura digital - laz");
+  expect(normalizeSubject("Física")).toBe("fisica");
+  expect(normalizeSubject("Cálculo I")).not.toBe(normalizeSubject("Cálculo II"));
+  expect(normalizeSubject("   ")).toBe("");
 });

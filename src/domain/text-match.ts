@@ -13,6 +13,15 @@ export function normalizeText(value: string): string {
     .trim();
 }
 
+/** Chave de agrupamento de disciplinas: normaliza texto, travessões e espaçamento em volta do traço. */
+export function normalizeSubject(title: string): string {
+  return normalizeText(title)
+    .replace(/[–—]/g, "-")
+    .replace(/\s+/g, " ")
+    .replace(/ ?- ?/g, " - ")
+    .trim();
+}
+
 /**
  * Filtra os dois grupos pelo texto (contém, sem acento nem caixa). `exact` só é verdadeiro quando
  * o texto, depois de normalizar, é igual a algum item — não basta ser um pedaço.
