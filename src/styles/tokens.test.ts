@@ -138,6 +138,24 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     expect(contrast(t["--sidebar-text"] as string, ativo)).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Chip da conta e botão de tema na lateral: o hover/aberto usa `--accent-soft` (55% de
+  // `--sidebar-active` sobre `--sidebar`), com nome (`--sidebar-text`) e papel (`--sidebar-text-muted`).
+  test("chip da conta: nome e papel legíveis sobre o fundo de hover/aberto da lateral", () => {
+    const mix = (fg: string, bg: string, alpha: number) =>
+      `#${[1, 3, 5]
+        .map((i) => {
+          const f = Number.parseInt(fg.slice(i, i + 2), 16);
+          const g = Number.parseInt(bg.slice(i, i + 2), 16);
+          return Math.round(f * alpha + g * (1 - alpha))
+            .toString(16)
+            .padStart(2, "0");
+        })
+        .join("")}`;
+    const hover = mix(t["--sidebar-active"] as string, t["--sidebar"] as string, 0.55);
+    expect(contrast(t["--sidebar-text"] as string, hover)).toBeGreaterThanOrEqual(4.5);
+    expect(contrast(t["--sidebar-text-muted"] as string, hover)).toBeGreaterThanOrEqual(4.5);
+  });
+
   // Botões, aba ativa e dia selecionado: verde do IFSC um pouco mais fechado (#26853A) com texto
   // branco (4,67); o #32A041 com texto branco daria só 3,1.
   test("texto branco sobre o verde das ações >= 4.5, e o verde das ações é verde", () => {
