@@ -87,3 +87,55 @@ describe("DatePicker", () => {
     await waitFor(() => expect(document.activeElement).toBe(trigger));
   });
 });
+
+function WithToday({ disablePast = false }: { disablePast?: boolean }) {
+  const [value, setValue] = useState("2026-03-15");
+  return (
+    <div>
+      <Label htmlFor="p">Dia</Label>
+      <DatePicker
+        id="p"
+        value={value}
+        onChange={setValue}
+        today="2026-03-12"
+        disablePast={disablePast}
+      />
+    </div>
+  );
+}
+
+describe("DatePicker: dias passados", () => {
+  const dayButton = async (label: RegExp) => {
+    const all = await screen.findAllByRole("button", { name: label });
+    return (all.find((b) => b.closest("td")?.getAttribute("data-outside") !== "true") ??
+      all[0]) as HTMLButtonElement;
+  };
+
+  test("com today, dias anteriores ficam apagados e anunciados, mas selecionáveis para consulta", async () => {
+    render(<WithToday />);
+    fireEvent.click(screen.getByLabelText("Dia"));
+    const past = await dayButton(/, 10 de março de 2026, já passou/);
+    expect(past.disabled).toBe(false);
+    expect(past.closest("td")?.className).toContain("text-muted-foreground");
+    const future = await dayButton(/, 20 de março de 2026/);
+    expect(future.getAttribute("aria-label")).not.toContain("já passou");
+    fireEvent.click(past);
+    await waitFor(() => expect(screen.getByLabelText("Dia").textContent).toContain("10/03/2026"));
+  });
+
+  test("com disablePast (fluxos de reserva), dias anteriores ficam desabilitados e hoje não", async () => {
+    render(<WithToday disablePast />);
+    fireEvent.click(screen.getByLabelText("Dia"));
+    expect((await dayButton(/, 11 de março de 2026, já passou/)).disabled).toBe(true);
+    expect((await dayButton(/, 12 de março de 2026/)).disabled).toBe(false);
+    expect((await dayButton(/, 13 de março de 2026/)).disabled).toBe(false);
+  });
+
+  test("sem today nada é apagado nem desabilitado", async () => {
+    render(<Harness initial="2026-03-09" />);
+    fireEvent.click(screen.getByLabelText("Início"));
+    const day = await dayButton(/, 2 de março de 2026/);
+    expect(day.disabled).toBe(false);
+    expect(day.getAttribute("aria-label")).not.toContain("já passou");
+  });
+});

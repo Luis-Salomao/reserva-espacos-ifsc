@@ -89,3 +89,18 @@ export function layoutEvents(items: readonly AgendaItem[]): PositionedEvent[] {
 
   return events;
 }
+
+/** Intervalos livres com o que já passou cortado: dia anterior a `now` fica sem nenhum; hoje começa no agora. */
+export function futureFree(
+  date: string,
+  free: ReadonlyArray<{ start: string; end: string }>,
+  now: string,
+): Array<{ start: string; end: string }> {
+  const today = now.slice(0, 10);
+  if (date < today) return [];
+  if (date > today) return [...free];
+  const time = now.slice(11, 16);
+  return free
+    .filter((gap) => gap.end > time)
+    .map((gap) => (gap.start < time ? { ...gap, start: time } : { ...gap }));
+}

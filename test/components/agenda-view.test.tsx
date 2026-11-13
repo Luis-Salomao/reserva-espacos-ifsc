@@ -73,7 +73,7 @@ export function createMockDayAgenda(overrides?: Partial<DayAgenda>): DayAgenda {
   return {
     spaceId: "space-adm",
     date,
-    now: `${date}T10:00`,
+    now: `${date}T00:00`,
     hours: { opens: "06:00", closes: "23:00" },
     occupations: [
       createMockAgendaItem({

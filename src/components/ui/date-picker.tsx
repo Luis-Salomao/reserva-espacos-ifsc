@@ -40,6 +40,10 @@ type Props = {
   placeholder?: string;
   disabled?: boolean;
   required?: boolean;
+  /** Hoje ("AAAA-MM-DD", no fuso do sistema): dias anteriores ficam apagados no calendário. */
+  today?: string;
+  /** Com `today`, dias anteriores ficam desabilitados (fluxos de reserva). */
+  disablePast?: boolean;
   className?: string;
   "aria-invalid"?: true | undefined;
   "aria-describedby"?: string | undefined;
@@ -53,12 +57,15 @@ export function DatePicker({
   placeholder = "Selecionar data",
   disabled,
   required,
+  today,
+  disablePast = false,
   className,
   "aria-invalid": ariaInvalid,
   "aria-describedby": ariaDescribedby,
 }: Props) {
   const [open, setOpen] = useState(false);
   const selected = parseIsoDate(value);
+  const todayDate = today === undefined ? undefined : parseIsoDate(today);
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
@@ -85,6 +92,7 @@ export function DatePicker({
           mode="single"
           locale={ptBR}
           weekStartsOn={1}
+          {...(todayDate === undefined ? {} : { today: todayDate, disablePast })}
           {...(selected === undefined ? {} : { defaultMonth: selected, selected })}
           onSelect={(date) => {
             if (date === undefined) return;

@@ -7,9 +7,10 @@ import {
   NowLine,
   OccupationCard,
   type Scale,
+  yOf,
 } from "./agenda-blocks";
 import { type Draft, DraftBlock, useDraftGesture } from "./draft-booking";
-import { layoutEvents } from "./layout-helpers";
+import { futureFree, layoutEvents, timeToMinutes } from "./layout-helpers";
 import { SlotContextMenu } from "./slot-context-menu";
 
 type Slot = { spaceId: string; date: string; start: string; end: string };
@@ -30,7 +31,31 @@ type Props = DraftProps & {
   onOpenOccupation?: ((occupation: AgendaItem) => void) | undefined;
 };
 
-/** Coluna de um dia: horários livres, ocupações, rascunho, linha do agora e menu do botão direito. */
+/**
+ * Véu sobre o que já passou: o dia inteiro (anterior a hoje) ou do início até o agora (hoje).
+ * Sem `pointer-events`: as ocupações continuam abrindo os detalhes.
+ */
+function PastShade({ scale, day }: { scale: Scale; day: DayAgenda }) {
+  const today = day.now.slice(0, 10);
+  if (day.date > today) return null;
+  const cutoff =
+    day.date < today ? scale.closes : Math.min(timeToMinutes(day.now.slice(11, 16)), scale.closes);
+  if (cutoff <= scale.opens) return null;
+  return (
+    <div
+      aria-hidden="true"
+      data-past-shade=""
+      className="pointer-events-none absolute inset-x-0 top-0 z-10 bg-background/60"
+      style={{ height: yOf(scale, cutoff) }}
+    />
+  );
+}
+
+/**
+ * Coluna de um dia: horários livres, ocupações, rascunho, linha do agora e menu do botão direito.
+ * O que já passou fica apagado e sem reserva: não há intervalo livre antes do agora, então
+ * clicar, arrastar ou abrir o menu ali não cria rascunho.
+ */
 export function DayColumn({
   day,
   scale,
@@ -42,9 +67,10 @@ export function DayColumn({
   canDraft = false,
   onDraftChange,
 }: Props) {
+  const live = { ...day, free: futureFree(day.date, day.free, day.now) };
   const toSlot = (d: Draft): Slot => ({ spaceId: day.spaceId, ...d });
   const gestures = useDraftGesture({
-    day,
+    day: live,
     scale,
     draft,
     enabled: canDraft && onDraftChange !== undefined,
@@ -54,7 +80,7 @@ export function DayColumn({
   const ownDraft = draft !== null && draft.date === day.date ? draft : null;
   return (
     <SlotContextMenu
-      day={day}
+      day={live}
       scale={scale}
       onSelectSlot={onSelectSlot}
       onOpenOccupation={onOpenOccupation}
@@ -65,7 +91,7 @@ export function DayColumn({
         {...gestures}
       >
         <HourLines scale={scale} />
-        {day.free.map((gap) => (
+        {live.free.map((gap) => (
           <FreeSlot
             key={`gap-${day.date}-${gap.start}-${gap.end}`}
             gap={gap}
@@ -90,6 +116,7 @@ export function DayColumn({
             onDiscard={() => onDraftChange?.(null)}
           />
         )}
+        <PastShade scale={scale} day={day} />
         {now !== null && <NowLine scale={scale} now={now} />}
       </div>
     </SlotContextMenu>

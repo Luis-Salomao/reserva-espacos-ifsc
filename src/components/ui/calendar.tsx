@@ -5,10 +5,33 @@ import {
   type DayButton,
   DayPicker,
   getDefaultClassNames,
+  labelDayButton,
+  type Matcher,
 } from "react-day-picker";
 
 import { Button, buttonVariants } from "#/components/ui/button";
 import { cn } from "#/lib/utils";
+
+/** Dia local sem horário, para comparar dias. */
+const startOfDay = (date: Date) => new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+/** `disabled` do DayPicker (um ou vários) mais um matcher extra. */
+function withMatcher(disabled: Matcher | Matcher[] | undefined, extra: Matcher): Matcher[] {
+  if (disabled === undefined) return [extra];
+  return Array.isArray(disabled) ? [...disabled, extra] : [disabled, extra];
+}
+
+type CalendarProps = React.ComponentProps<typeof DayPicker> & {
+  buttonVariant?: React.ComponentProps<typeof Button>["variant"];
+  /**
+   * Hoje, no fuso do sistema (não o relógio do navegador). Quando informado, os dias anteriores
+   * ganham o modificador `past` (aparência apagada e "já passou" no rótulo) e o DayPicker
+   * marca este dia como hoje.
+   */
+  today?: Date;
+  /** Com `today`, desabilita os dias anteriores (fluxos de reserva); sem isto, só ficam apagados. */
+  disablePast?: boolean;
+};
 
 function Calendar({
   className,
@@ -18,11 +41,17 @@ function Calendar({
   buttonVariant = "ghost",
   formatters,
   components,
+  today,
+  disablePast = false,
+  modifiers,
+  modifiersClassNames,
+  disabled,
+  labels,
   ...props
-}: React.ComponentProps<typeof DayPicker> & {
-  buttonVariant?: React.ComponentProps<typeof Button>["variant"];
-}) {
+}: CalendarProps) {
   const defaultClassNames = getDefaultClassNames();
+  const todayStart = today === undefined ? undefined : startOfDay(today);
+  const past = todayStart === undefined ? undefined : { before: todayStart };
 
   return (
     <DayPicker
@@ -34,6 +63,22 @@ function Calendar({
         className,
       )}
       captionLayout={captionLayout}
+      {...(today !== undefined ? { today } : {})}
+      modifiers={{ ...(past !== undefined ? { past } : {}), ...modifiers }}
+      modifiersClassNames={{
+        past: "text-muted-foreground not-data-[selected=true]:opacity-60",
+        ...modifiersClassNames,
+      }}
+      {...(past !== undefined && disablePast
+        ? { disabled: withMatcher(disabled, past) }
+        : disabled !== undefined
+          ? { disabled }
+          : {})}
+      labels={{
+        labelDayButton: (date, dayModifiers, options, dateLib) =>
+          `${labelDayButton(date, dayModifiers, options, dateLib)}${dayModifiers.past ? ", já passou" : ""}`,
+        ...labels,
+      }}
       formatters={{
         formatMonthDropdown: (date) => date.toLocaleString("pt-BR", { month: "short" }),
         ...formatters,

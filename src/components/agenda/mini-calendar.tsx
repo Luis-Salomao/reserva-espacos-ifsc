@@ -118,6 +118,8 @@ export function MiniCalendar({ selectedDate, todayDate, onSelectDate }: MiniCale
         {monthDays.map((cell) => {
           const isSelected = cell.dateStr === selectedDate;
           const isToday = cell.dateStr === todayDate;
+          // Dia anterior a hoje: apagado, mas selecionável para consulta.
+          const isPast = cell.dateStr < todayDate;
 
           return (
             <button
@@ -125,10 +127,11 @@ export function MiniCalendar({ selectedDate, todayDate, onSelectDate }: MiniCale
               type="button"
               onClick={() => onSelectDate(cell.dateStr)}
               aria-pressed={isSelected}
-              aria-label={`${cell.dayNum} de ${MONTH_NAMES[month - 1]}`}
+              aria-label={`${cell.dayNum} de ${MONTH_NAMES[month - 1]}${isPast ? " (já passou)" : ""}`}
               className={cn(
                 "flex aspect-square items-center justify-center rounded-md text-[12px] tabular-nums transition-colors",
-                cell.isWeekend ? "text-muted-foreground" : "text-foreground",
+                cell.isWeekend || isPast ? "text-muted-foreground" : "text-foreground",
+                isPast && !isSelected && "opacity-60",
                 !isSelected && "hover:bg-surface-2",
                 isToday && !isSelected && "font-semibold text-[var(--accent-text)]",
                 isSelected && "!bg-primary !text-primary-foreground font-semibold",
