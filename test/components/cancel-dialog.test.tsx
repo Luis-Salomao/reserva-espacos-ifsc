@@ -427,3 +427,38 @@ describe("CancelDialog — Suíte de Testes (Milestone 2 Task 4)", () => {
     expect(alert.textContent).toContain("Sem permissão para cancelar esta ocupação.");
   });
 });
+
+describe("CancelDialog — dateOnly (aula importada, uma data só)", () => {
+  test("não oferece série, não chama previewFn e cancela só a data", async () => {
+    const previewFn = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: { dates: ["2026-11-03"] },
+    }));
+    const cancelFn = mock(async (..._args: unknown[]) => ({
+      ok: true as const,
+      data: { cancelled: 1 },
+    }));
+    const onCancelled = mock((..._args: unknown[]) => {});
+    render(
+      <CancelDialog
+        open
+        onOpenChange={() => {}}
+        target={MOCK_IMPORTED_TARGET}
+        dateOnly
+        previewFn={previewFn}
+        cancelFn={cancelFn}
+        onCancelled={onCancelled}
+      />,
+    );
+
+    expect(screen.queryByRole("radio")).toBeNull();
+    expect(screen.queryByText(/série/i)).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Desmarcar esta data" }));
+
+    await waitFor(() => expect(onCancelled).toHaveBeenCalledTimes(1));
+    expect(previewFn).not.toHaveBeenCalled();
+    expect(cancelFn).toHaveBeenCalledWith({
+      data: { occupationId: "occ-import-2", scope: "data" },
+    });
+  });
+});

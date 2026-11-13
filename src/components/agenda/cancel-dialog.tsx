@@ -34,6 +34,8 @@ export type CancelDialogProps = {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   target?: CancelTarget | null;
+  /** Aula importada desmarcada uma data por vez: sem opção de série nem prévia. */
+  dateOnly?: boolean;
   occupation?: CancelTarget | null;
   onSuccess?: (result: { cancelled: number; scope: "data" | "serie" }) => void;
   onCancelled?: (result?: { cancelled: number; scope: "data" | "serie" }) => void;
@@ -89,6 +91,7 @@ export function CancelDialog({
   onOpenChange,
   target,
   occupation,
+  dateOnly = false,
   onSuccess,
   onCancelled,
   cancelFn,
@@ -182,7 +185,7 @@ export function CancelDialog({
   if (!item) return null;
 
   const manualSeries = item.source === "manual" && item.inSeries === true;
-  const isManual = item.source === "manual" && !manualSeries;
+  const isManual = (item.source === "manual" && !manualSeries) || dateOnly;
   const formattedShort = formatShortDate(item.date);
   const formattedLong = formatLongDate(item.date);
 
@@ -190,13 +193,15 @@ export function CancelDialog({
   const isSeriesDisabled = scope === "serie" && (isLoadingPreview || previewDates === null);
   const seriesLabel = manualSeries ? "Cancelar esta e as próximas" : "Cancelar toda a série";
 
-  const confirmLabel = isManual
-    ? "Cancelar reserva"
-    : scope === "data"
-      ? `Cancelar só ${formattedShort}`
-      : previewDates !== null
-        ? `${seriesLabel} (${seriesDatesCount})`
-        : seriesLabel;
+  const confirmLabel = dateOnly
+    ? "Desmarcar esta data"
+    : isManual
+      ? "Cancelar reserva"
+      : scope === "data"
+        ? `Cancelar só ${formattedShort}`
+        : previewDates !== null
+          ? `${seriesLabel} (${seriesDatesCount})`
+          : seriesLabel;
 
   return (
     <AlertDialog open={open} onOpenChange={onOpenChange}>
@@ -242,8 +247,8 @@ export function CancelDialog({
           {/* Opções de Escopo */}
           {isManual ? (
             <p className="text-sm text-muted-foreground">
-              Cancelar esta reserva em <b>{formattedShort}</b>? Isso libera a sala para outras
-              pessoas.
+              {dateOnly ? "Desmarcar esta aula em " : "Cancelar esta reserva em "}
+              <b>{formattedShort}</b>? Isso libera a sala para outras pessoas.
             </p>
           ) : (
             <fieldset className="grid gap-2 border-0 p-0 m-0 min-w-0">
