@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, spyOn, test } from "bun:test";
-import type { RoomsDay, RoomsWeek, WeekAgenda } from "#/application/bookings";
+import type { RoomsDay, RoomsRange, WeekAgenda } from "#/application/bookings";
 import type { User } from "#/domain/user";
 import { Route, validateAgendaSearch } from "#/routes/index";
 import * as bookingFns from "#/server/booking-fns";
@@ -38,11 +38,15 @@ describe("validateAgendaSearch", () => {
       fim: "16:00",
       livres: true as const,
     };
-    for (const visao of ["sala", "colunas", "livres", "geral"] as const) {
+    for (const visao of ["sala", "colunas", "livres"] as const) {
       expect(
         validateAgendaSearch({ data: "2026-11-10", espaco: "a202", visao, ...filters }),
       ).toEqual({ data: "2026-11-10", espaco: "a202", visao, ...filters });
     }
+    // Na visão geral, o dia vira o primeiro dia do intervalo.
+    expect(
+      validateAgendaSearch({ data: "2026-11-10", espaco: "a202", visao: "geral", ...filters }),
+    ).toEqual({ de: "2026-11-10", espaco: "a202", visao: "geral", ...filters });
   });
 
   test("'periodo' não existe mais: qualquer valor é descartado", () => {
@@ -50,7 +54,7 @@ describe("validateAgendaSearch", () => {
     expect(validateAgendaSearch({ visao: "geral", periodo: "semana" })).toEqual({ visao: "geral" });
     expect(validateAgendaSearch({ visao: "geral", periodo: "x" })).toEqual({ visao: "geral" });
     expect(validateAgendaSearch({ data: "2026-11-10", visao: "geral" })).toEqual({
-      data: "2026-11-10",
+      de: "2026-11-10",
       visao: "geral",
     });
   });
@@ -102,19 +106,24 @@ describe("Route.loaderDeps", () => {
   };
 
   test("sem visão vale 'Sala': a fonte é a agenda da sala", () => {
-    expect(deps(base)).toEqual({ data: "2026-11-10", espaco: "a202", fonte: "sala" });
+    expect(deps(base)).toMatchObject({ data: "2026-11-10", espaco: "a202", fonte: "sala" });
     expect(deps({ ...base, visao: "sala" })).toEqual(deps(base));
   });
 
   test("trocar 'Colunas' e 'Livres' (e filtros) não muda as deps; a visão geral muda", () => {
     const colunas = deps({ ...base, visao: "colunas" });
-    expect(colunas).toEqual({ data: "2026-11-10", espaco: "a202", fonte: "dia" });
+    expect(colunas).toMatchObject({ data: "2026-11-10", espaco: "a202", fonte: "dia" });
     expect(deps({ ...base, visao: "livres", ...filters })).toEqual(colunas);
     expect(deps({ ...base, visao: "geral" })).toEqual({
       data: "2026-11-10",
+      de: undefined,
+      ate: undefined,
       espaco: "a202",
-      fonte: "semana",
+      fonte: "intervalo",
     });
+    expect(deps({ ...base, visao: "geral", de: "2026-11-10", ate: "2026-11-12" })).not.toEqual(
+      deps({ ...base, visao: "geral" }),
+    );
     expect(deps({ ...base, visao: "geral", ...filters })).toEqual(
       deps({ ...base, visao: "geral" }),
     );
@@ -165,18 +174,19 @@ describe("Route.loader", () => {
         const data: RoomsDay = { date: args.data.date, now: "2026-11-03T09:00", rooms: [] };
         return { ok: true, data };
       }) as unknown as typeof bookingFns.getRoomsDayFn),
-      spyOn(bookingFns, "getRoomsWeekFn").mockImplementation((async (args: {
-        data: { weekStart: string };
+      spyOn(bookingFns, "getRoomsRangeFn").mockImplementation((async (args: {
+        data: { from: string; to: string };
       }) => {
         calls.rooms.push(args);
-        const data: RoomsWeek = {
-          weekStart: args.data.weekStart,
+        const data: RoomsRange = {
+          from: args.data.from,
+          to: args.data.to,
           now: "2026-11-03T09:00",
           days: [],
           rooms: [],
         };
         return { ok: true, data };
-      }) as unknown as typeof bookingFns.getRoomsWeekFn),
+      }) as unknown as typeof bookingFns.getRoomsRangeFn),
     );
     return calls;
   }
@@ -248,32 +258,45 @@ describe("Route.loader", () => {
     expect(calls.day).toEqual([{ data: { date: data.selectedDate } }]);
   });
 
-  test("a visão geral pede a semana de todas as salas (segunda da data) numa única chamada", async () => {
+  test("a visão geral pede o intervalo de todas as salas numa única chamada", async () => {
     const calls = record();
     const data = await loader({
-      deps: { data: "2026-11-12", fonte: "semana" },
+      deps: { de: "2026-11-12", ate: "2026-11-20", fonte: "intervalo" },
       context: { session: session(null) },
     });
-    expect(calls.rooms).toEqual([{ data: { weekStart: "2026-11-09" } }]);
+    expect(calls.rooms).toEqual([{ data: { from: "2026-11-12", to: "2026-11-20" } }]);
     expect(calls.day).toEqual([]);
     expect(calls.week).toEqual([]);
     expect(calls.spaces).toBe(1);
-    expect(data).toMatchObject({ fonte: "semana", selectedDate: "2026-11-12", error: null });
-    expect(data.roomsWeek).toMatchObject({ weekStart: "2026-11-09" });
+    expect(data).toMatchObject({ fonte: "intervalo", selectedDate: "2026-11-12", error: null });
+    expect(data.roomsRange).toMatchObject({ from: "2026-11-12", to: "2026-11-20" });
+  });
+
+  test("a visão geral sem de/ate pede de hoje até hoje + 6", async () => {
+    const calls = record();
+    const data = await loader({
+      deps: { fonte: "intervalo" },
+      context: { session: session(null) },
+    });
+    const asked = (calls.rooms[0] as { data: { from: string; to: string } }).data;
+    expect(asked.from).toBe(data.selectedDate as string);
+    const gap =
+      (Date.parse(`${asked.to}T00:00:00Z`) - Date.parse(`${asked.from}T00:00:00Z`)) / 86_400_000;
+    expect(gap).toBe(6);
   });
 
   test("falha ao carregar as salas vira mensagem", async () => {
     spies.push(
-      spyOn(bookingFns, "getRoomsWeekFn").mockImplementation((async () => ({
+      spyOn(bookingFns, "getRoomsRangeFn").mockImplementation((async () => ({
         ok: false,
         message: "Erro interno.",
-      })) as unknown as typeof bookingFns.getRoomsWeekFn),
+      })) as unknown as typeof bookingFns.getRoomsRangeFn),
     );
     const data = await loader({
-      deps: { data: "2026-11-12", fonte: "semana" },
+      deps: { de: "2026-11-12", fonte: "intervalo" },
       context: { session: session(DOCENTE) },
     });
     expect(data.error).toBe("Não foi possível carregar as salas");
-    expect(data.roomsWeek).toBeNull();
+    expect(data.roomsRange).toBeNull();
   });
 });

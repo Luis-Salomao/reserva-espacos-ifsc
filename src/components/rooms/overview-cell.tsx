@@ -2,7 +2,7 @@ import { Link } from "@tanstack/react-router";
 import { Wrench } from "lucide-react";
 import { type KeyboardEvent, type PointerEvent, useId, useState } from "react";
 import { createPortal } from "react-dom";
-import type { AgendaItem, RoomsWeek } from "#/application/bookings";
+import type { AgendaItem, RoomsRange } from "#/application/bookings";
 import { Avatar } from "#/components/avatar";
 import { Tag } from "#/components/ds";
 import { EquipmentMarks } from "#/components/equipment-marks";
@@ -15,7 +15,7 @@ import type { Cell } from "#/domain/overview";
 import { patternStyle, TONE, toneStyle } from "#/lib/tone-style";
 import { cn } from "#/lib/utils";
 
-type Block = RoomsWeek["days"][number]["blocks"][number];
+type Block = RoomsRange["days"][number]["blocks"][number];
 
 type OverviewCellData = Cell<AgendaItem, Block>;
 
@@ -37,6 +37,8 @@ type Props = {
   /** Celular: quadradinho de 32 px, e o toque abre o cartão em vez de navegar. */
   compact: boolean;
   periodBreak?: boolean;
+  /** O bloco já terminou: o livre vira um quadradinho estático e o ocupado não inicia seleção. */
+  past?: boolean;
   /** Dentro do trecho selecionado (ou sendo arrastado). */
   selected: boolean;
   /** Seleciona só este bloco: clique no livre, Enter/Espaço no livre, Espaço no ocupado, toque. */
@@ -164,6 +166,7 @@ export function OverviewCell({
   isVisitor,
   compact,
   periodBreak = false,
+  past = false,
   selected,
   onSelect,
   onPointerDown,
@@ -177,9 +180,22 @@ export function OverviewCell({
     "data-date": date,
     "data-block": cell.block.short,
     "data-selected": selected ? "" : undefined,
-    onPointerDown,
-    onPointerEnter,
+    "data-past": past ? "" : undefined,
+    // Passado não se reserva: sem começo nem passagem de arrasto.
+    ...(past ? {} : { onPointerDown, onPointerEnter }),
   };
+  if (cell.items.length === 0 && past) {
+    return (
+      <span
+        role="img"
+        {...where}
+        data-cell="livre"
+        title={`Livre · ${cell.block.start}–${cell.block.end} (já passou)`}
+        aria-label={`${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end} (já passou)`}
+        className={cn(SQUARE, size, "block border border-divider")}
+      />
+    );
+  }
   if (cell.items.length === 0) {
     return (
       <button
@@ -219,7 +235,7 @@ export function OverviewCell({
     ...where,
     "data-cell": "ocupado",
     "data-partial": partial ? "" : undefined,
-    "aria-label": `${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}: ${titles}${freeText}`,
+    "aria-label": `${room.name}, ${dayLabel(date)}, ${cell.block.label} ${cell.block.start}–${cell.block.end}: ${titles}${freeText}${past ? " (já passou)" : ""}`,
     "aria-describedby": anchor === null ? undefined : cardId,
     onBlur: hide,
     onKeyDown: (event: KeyboardEvent) => {

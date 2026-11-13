@@ -16,19 +16,19 @@ import { localNow } from "#/domain/availability";
 import { addDays, weekdayOf } from "#/domain/calendar";
 import type { Space } from "#/domain/space";
 import { loadSalas, type SalasLoaderData, validateSalasSearch } from "#/routes/salas";
-import { getRoomsDayFn, getRoomsWeekFn, getWeekAgendaFn } from "#/server/booking-fns";
+import { getRoomsDayFn, getRoomsRangeFn, getWeekAgendaFn } from "#/server/booking-fns";
 import { BOOKING_ROLES, canViewHome, type SessionInfo } from "#/server/session";
 import { listSpaces } from "#/server/spaces";
 
 /** Estado de `/` na URL: dia, sala, visualização e os filtros das visualizações de salas. */
 export type AgendaSearch = SalasSearch & { espaco?: string };
 
-/** De onde vêm os dados: semana de uma sala, dia de todas as salas ou semana de todas. */
-type Source = "sala" | "dia" | "semana";
+/** De onde vêm os dados: semana de uma sala, dia de todas as salas ou intervalo de todas. */
+type Source = "sala" | "dia" | "intervalo";
 
 function sourceOf(visao: PageView | undefined): Source {
   if (visao === undefined || visao === "sala") return "sala";
-  return visao === "geral" ? "semana" : "dia";
+  return visao === "geral" ? "intervalo" : "dia";
 }
 
 /**
@@ -74,7 +74,7 @@ export type AgendaLoaderData = {
 
 type HomeLoaderData =
   | ({ fonte: "sala" } & AgendaLoaderData)
-  | ({ fonte: "dia" | "semana" } & SalasLoaderData);
+  | ({ fonte: "dia" | "intervalo" } & SalasLoaderData);
 
 async function loadAgenda(
   deps: { data?: string | undefined; espaco?: string | undefined },
@@ -156,8 +156,10 @@ export const Route = createFileRoute("/")({
     }
   },
   // Só a fonte vai ao servidor: trocar "Colunas" e "Livres", filtros e janela ficam no cliente.
-  loaderDeps: ({ search: { data, espaco, visao } }) => ({
+  loaderDeps: ({ search: { data, de, ate, espaco, visao } }) => ({
     data,
+    de,
+    ate,
     espaco,
     fonte: sourceOf(visao),
   }),
@@ -166,8 +168,10 @@ export const Route = createFileRoute("/")({
     if (deps.fonte === "sala") return { fonte: "sala", ...(await loadAgenda(deps, session)) };
     const [salas, spacesIndex] = await Promise.all([
       loadSalas(deps.data, session, (date) => getRoomsDayFn({ data: { date } }), new Date(), {
-        geral: deps.fonte === "semana",
-        fetchWeek: (weekStart) => getRoomsWeekFn({ data: { weekStart } }),
+        geral: deps.fonte === "intervalo",
+        de: deps.de,
+        ate: deps.ate,
+        fetchRange: (range) => getRoomsRangeFn({ data: range }),
       }),
       listSpaces()
         .then((list) => Object.fromEntries(list.map((s) => [s.id, s] as const)))
@@ -192,7 +196,7 @@ function RoomsPage({ data }: { data: SalasLoaderData }) {
     <AppShell wide>
       <RoomsView
         roomsDay={data.roomsDay}
-        roomsWeek={data.roomsWeek}
+        roomsRange={data.roomsRange}
         error={data.error}
         selectedDate={data.selectedDate}
         search={search}

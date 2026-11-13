@@ -900,9 +900,10 @@ describe("roomsDay", () => {
   });
 });
 
-describe("roomsWeek", () => {
+describe("roomsRange", () => {
   /** Segunda-feira da semana usada nos testes. */
   const MONDAY = "2026-11-09";
+  const FRIDAY = "2026-11-13";
 
   async function withRooms() {
     const ctx = await setup();
@@ -914,9 +915,9 @@ describe("roomsWeek", () => {
 
   test("segunda a sexta de todas as salas, em ordem natural de nome, com nome e capacidade", async () => {
     const { s, svc } = await withRooms();
-    const result = await svc.roomsWeek(s.docA, { weekStart: MONDAY });
+    const result = await svc.roomsRange(s.docA, { from: MONDAY, to: FRIDAY });
     if (!result.ok) throw new Error(result.message);
-    expect(result.value.weekStart).toBe(MONDAY);
+    expect([result.value.from, result.value.to]).toEqual([MONDAY, FRIDAY]);
     expect(result.value.now).toBe("2026-11-03T09:00");
     expect(result.value.days.map((day) => day.date)).toEqual([
       "2026-11-09",
@@ -944,7 +945,7 @@ describe("roomsWeek", () => {
     occupy("qua-adm", s.sala1.id, "2026-11-11", "18:50", "19:35");
     occupy("sab", a202.id, "2026-11-14", "08:00", "09:00");
     occupy("dom-depois", s.sala1.id, "2026-11-15", "08:00", "09:00");
-    const result = await svc.roomsWeek(s.docA, { weekStart: MONDAY });
+    const result = await svc.roomsRange(s.docA, { from: MONDAY, to: FRIDAY });
     if (!result.ok) throw new Error(result.message);
     const room = (name: string) => result.value.rooms.find((item) => item.space.name === name);
     expect(room("A-202")?.occupations.map((item) => [item.title, item.date, item.start])).toEqual([
@@ -966,7 +967,7 @@ describe("roomsWeek", () => {
       terms: [],
       blocks: [{ number: 1, name: "Manhã 1", short: "M1", start: "07:30", end: "08:20" }],
     });
-    const result = await svc.roomsWeek(s.docA, { weekStart: "2027-02-01" });
+    const result = await svc.roomsRange(s.docA, { from: "2027-02-01", to: "2027-02-05" });
     if (!result.ok) throw new Error(result.message);
     expect(result.value.days.map((day) => [day.date, day.blocks.map((b) => b.short)])).toEqual([
       ["2027-02-01", []],
@@ -975,7 +976,7 @@ describe("roomsWeek", () => {
       ["2027-02-04", ["M1"]],
       ["2027-02-05", ["M1"]],
     ]);
-    const inside = await svc.roomsWeek(s.docA, { weekStart: MONDAY });
+    const inside = await svc.roomsRange(s.docA, { from: MONDAY, to: FRIDAY });
     if (!inside.ok) throw new Error(inside.message);
     expect(inside.value.days[0]?.blocks).toEqual([
       { label: "Noite 1", short: "N1", start: "18:50", end: "19:35" },
@@ -995,7 +996,7 @@ describe("roomsWeek", () => {
       responsibleUserId: s.docA.id,
     });
     await svc.createBooking(s.docB, book(s, { purpose: "Minha" }));
-    const logged = await svc.roomsWeek(s.horarios, { weekStart: MONDAY });
+    const logged = await svc.roomsRange(s.horarios, { from: MONDAY, to: FRIDAY });
     if (!logged.ok) throw new Error(logged.message);
     expect(
       logged.value.rooms.flatMap((room) => room.occupations.map((item) => item.person)),
@@ -1004,7 +1005,7 @@ describe("roomsWeek", () => {
       { name: "Pessoa docb", code: "DOCB", placeholder: false },
     ]);
 
-    const visitor = await svc.roomsWeek(null, { weekStart: MONDAY });
+    const visitor = await svc.roomsRange(null, { from: MONDAY, to: FRIDAY });
     if (!visitor.ok) throw new Error(visitor.message);
     expect(
       visitor.value.rooms.flatMap((room) => room.occupations.map((item) => item.person)),
@@ -1023,8 +1024,8 @@ describe("roomsWeek", () => {
       capacity: 25,
       equipment: { items: { som: 1 }, notes: "Caixa no fundo" },
     });
-    const logged = await ctx.svc.roomsWeek(ctx.s.horarios, { weekStart: MONDAY });
-    const visitor = await ctx.svc.roomsWeek(null, { weekStart: MONDAY });
+    const logged = await ctx.svc.roomsRange(ctx.s.horarios, { from: MONDAY, to: FRIDAY });
+    const visitor = await ctx.svc.roomsRange(null, { from: MONDAY, to: FRIDAY });
     if (!logged.ok || !visitor.ok) throw new Error("consulta falhou");
     const of = (result: typeof logged) =>
       result.value.rooms.find((room) => room.space.name === "B-104")?.space.equipment;
@@ -1053,23 +1054,59 @@ describe("roomsWeek", () => {
         },
       },
     });
-    const result = await svc.roomsWeek(s.docA, { weekStart: MONDAY });
+    const result = await svc.roomsRange(s.docA, { from: MONDAY, to: FRIDAY });
     expect(result.ok && result.value.rooms).toHaveLength(4);
     expect(all).toEqual([["2026-11-09T00:00", "2026-11-14T00:00"]]);
     expect(one).toBe(0);
   });
 
-  test("semana que não começa numa segunda ou data inválida falha com o campo", async () => {
-    const { s, svc } = await setup();
-    expect(await svc.roomsWeek(s.docA, { weekStart: "2026-11-10" })).toMatchObject({
-      ok: false,
-      kind: "validation",
-      field: "weekStart",
+  test("fim de semana no intervalo vem sem blocos e o intervalo pode ter um dia só", async () => {
+    const { db, s, svc, a202 } = await withRooms();
+    insertImported(db, {
+      id: "sab",
+      spaceId: a202.id,
+      date: "2026-11-14",
+      start: "08:00",
+      end: "09:00",
+      title: "sab",
+      responsibleUserId: null,
     });
-    expect(await svc.roomsWeek(null, { weekStart: "2026-02-30" })).toMatchObject({
+    const result = await svc.roomsRange(s.docA, { from: "2026-11-13", to: "2026-11-15" });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.value.days.map((day) => [day.date, day.blocks.length > 0])).toEqual([
+      ["2026-11-13", true],
+      ["2026-11-14", false],
+      ["2026-11-15", false],
+    ]);
+    const room = result.value.rooms.find((item) => item.space.name === "A-202");
+    expect(room?.occupations.map((item) => item.title)).toEqual(["sab"]);
+    const single = await svc.roomsRange(s.docA, { from: MONDAY, to: MONDAY });
+    expect(single.ok && single.value.days.map((day) => day.date)).toEqual([MONDAY]);
+  });
+
+  test("aceita 31 dias, recusa 32, fim antes do início e data inválida, apontando o campo", async () => {
+    const { s, svc } = await setup();
+    const thirtyOne = await svc.roomsRange(s.docA, { from: "2026-11-01", to: "2026-12-01" });
+    expect(thirtyOne.ok && thirtyOne.value.days).toHaveLength(31);
+    expect(await svc.roomsRange(s.docA, { from: "2026-11-01", to: "2026-12-02" })).toMatchObject({
       ok: false,
       kind: "validation",
-      field: "weekStart",
+      field: "to",
+    });
+    expect(await svc.roomsRange(s.docA, { from: "2026-11-10", to: "2026-11-09" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "to",
+    });
+    expect(await svc.roomsRange(null, { from: "2026-02-30", to: "2026-03-02" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "from",
+    });
+    expect(await svc.roomsRange(null, { from: "2026-03-01", to: "x" })).toMatchObject({
+      ok: false,
+      kind: "validation",
+      field: "to",
     });
   });
 });

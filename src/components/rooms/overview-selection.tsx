@@ -1,6 +1,6 @@
 import { Plus, X } from "lucide-react";
 import { type Ref, useState } from "react";
-import type { RoomsWeek } from "#/application/bookings";
+import type { RoomsRange } from "#/application/bookings";
 import { EquipmentMarks } from "#/components/equipment-marks";
 import { Button } from "#/components/ui/button";
 import type { TimeRange } from "#/domain/availability";
@@ -31,7 +31,7 @@ export type OverviewPick = TimeRange & {
 type Props = {
   selection: OverviewPick;
   /** Salas que passaram nos filtros da página. */
-  rooms: RoomsWeek["rooms"];
+  rooms: RoomsRange["rooms"];
   now: string;
   /** Pode reservar ou é visitante (que recebe o convite para entrar). */
   canReserve: boolean;

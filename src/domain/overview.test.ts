@@ -2,13 +2,17 @@ import { describe, expect, test } from "bun:test";
 import {
   cellsFor,
   contrastRatio,
+  defaultRange,
   RESERVA_TONE,
+  rangeIssue,
+  rangeLength,
+  resolveRange,
   roomsOnDay,
   SUBJECT_PALETTE,
+  shiftRange,
   spanOf,
   subjectOf,
   subjectTone,
-  weekOf,
 } from "./overview";
 import { availabilityIn } from "./room-filter";
 
@@ -191,36 +195,44 @@ describe("cellsFor", () => {
   });
 });
 
-describe("weekOf", () => {
-  test("de uma quarta devolve segunda a sexta da mesma semana", () => {
-    expect(weekOf("2026-11-04")).toEqual([
-      "2026-11-02",
-      "2026-11-03",
-      "2026-11-04",
-      "2026-11-05",
-      "2026-11-06",
-    ]);
+describe("intervalo da visão geral", () => {
+  test("o padrão é hoje até hoje + 6, atravessando o mês", () => {
+    expect(defaultRange("2026-11-12")).toEqual({ from: "2026-11-12", to: "2026-11-18" });
+    expect(defaultRange("2026-12-28")).toEqual({ from: "2026-12-28", to: "2027-01-03" });
   });
 
-  test("de uma segunda começa nela e de um domingo volta à segunda anterior", () => {
-    expect(weekOf("2026-11-02")[0]).toBe("2026-11-02");
-    expect(weekOf("2026-11-08")).toEqual([
-      "2026-11-02",
-      "2026-11-03",
-      "2026-11-04",
-      "2026-11-05",
-      "2026-11-06",
-    ]);
+  test("resolveRange: de e ate; só de vira de + 6; sem de, o padrão de hoje", () => {
+    expect(resolveRange("2026-11-02", "2026-11-04", "2026-11-12")).toEqual({
+      from: "2026-11-02",
+      to: "2026-11-04",
+    });
+    expect(resolveRange("2026-11-02", undefined, "2026-11-12")).toEqual({
+      from: "2026-11-02",
+      to: "2026-11-08",
+    });
+    expect(resolveRange(undefined, undefined, "2026-11-12")).toEqual(defaultRange("2026-11-12"));
   });
 
-  test("atravessa a virada de mês", () => {
-    expect(weekOf("2026-12-31")).toEqual([
-      "2026-12-28",
-      "2026-12-29",
-      "2026-12-30",
-      "2026-12-31",
-      "2027-01-01",
-    ]);
+  test("conta as duas pontas e limita a 31 dias", () => {
+    expect(rangeLength("2026-11-12", "2026-11-12")).toBe(1);
+    expect(rangeIssue("2026-11-01", "2026-12-01")).toBeNull();
+    expect(rangeIssue("2026-11-01", "2026-12-02")).toContain("31 dias");
+    expect(rangeIssue("2026-11-13", "2026-11-12")).toContain("anterior ou igual");
+  });
+
+  test("desloca pelo tamanho do intervalo, para trás e para a frente", () => {
+    expect(shiftRange("2026-11-12", "2026-11-18", 1)).toEqual({
+      from: "2026-11-19",
+      to: "2026-11-25",
+    });
+    expect(shiftRange("2026-11-12", "2026-11-18", -1)).toEqual({
+      from: "2026-11-05",
+      to: "2026-11-11",
+    });
+    expect(shiftRange("2026-11-12", "2026-11-13", 1)).toEqual({
+      from: "2026-11-14",
+      to: "2026-11-15",
+    });
   });
 });
 

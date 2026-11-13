@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import type { RoomsDay, RoomsWeek } from "#/application/bookings";
+import type { RoomsDay, RoomsRange } from "#/application/bookings";
 import type { User } from "#/domain/user";
 import { loadSalas, Route, validateSalasSearch } from "#/routes/salas";
 import type { SessionInfo } from "#/server/session";
@@ -49,9 +49,10 @@ describe("validateSalasSearch", () => {
       livres: true,
     });
     expect(validateSalasSearch({ visao: "livres" })).toEqual({ visao: "livres" });
-    expect(validateSalasSearch({ visao: "geral", data: "2026-11-10" })).toEqual({
+    expect(validateSalasSearch({ visao: "geral", de: "2026-11-10", ate: "2026-11-16" })).toEqual({
       visao: "geral",
-      data: "2026-11-10",
+      de: "2026-11-10",
+      ate: "2026-11-16",
     });
     expect(validateSalasSearch({})).toEqual({});
   });
@@ -94,6 +95,57 @@ describe("validateSalasSearch", () => {
       pcs: 8,
     });
     expect(validateSalasSearch({ projetor: "x", pcs: 0 })).toEqual({});
+  });
+});
+
+describe("validateSalasSearch: intervalo da visão geral", () => {
+  const geral = (extra: Record<string, unknown>) =>
+    validateSalasSearch({ visao: "geral", ...extra });
+
+  test("de e ate válidos ficam; só de também (o fim é de + 6, resolvido depois)", () => {
+    expect(geral({ de: "2026-11-12", ate: "2026-11-12" })).toEqual({
+      visao: "geral",
+      de: "2026-11-12",
+      ate: "2026-11-12",
+    });
+    expect(geral({ de: "2026-11-12" })).toEqual({ visao: "geral", de: "2026-11-12" });
+  });
+
+  test("data= antigo vira de=; com de= explícito, o data= é descartado", () => {
+    expect(geral({ data: "2026-11-12" })).toEqual({ visao: "geral", de: "2026-11-12" });
+    expect(geral({ data: "2026-11-12", de: "2026-11-20" })).toEqual({
+      visao: "geral",
+      de: "2026-11-20",
+    });
+  });
+
+  test("limite de 31 dias: 31 passa, 32 cai no padrão (nada na URL)", () => {
+    expect(geral({ de: "2026-11-01", ate: "2026-12-01" })).toEqual({
+      visao: "geral",
+      de: "2026-11-01",
+      ate: "2026-12-01",
+    });
+    expect(geral({ de: "2026-11-01", ate: "2026-12-02" })).toEqual({ visao: "geral" });
+  });
+
+  test("de depois de ate, datas inexistentes, ate sozinho ou tipos errados caem no padrão", () => {
+    expect(geral({ de: "2026-11-12", ate: "2026-11-11" })).toEqual({ visao: "geral" });
+    expect(geral({ de: "2026-02-30", ate: "2026-03-02" })).toEqual({ visao: "geral" });
+    expect(geral({ ate: "2026-11-12" })).toEqual({ visao: "geral" });
+    expect(geral({ de: 20261112, ate: null })).toEqual({ visao: "geral" });
+    expect(geral({ de: "2026-11-12", ate: "x" })).toEqual({ visao: "geral", de: "2026-11-12" });
+  });
+
+  test("fora da visão geral, de e ate são ignorados e data vale", () => {
+    expect(
+      validateSalasSearch({
+        visao: "colunas",
+        de: "2026-11-12",
+        ate: "2026-11-13",
+        data: "2026-11-10",
+      }),
+    ).toEqual({ visao: "colunas", data: "2026-11-10" });
+    expect(validateSalasSearch({ de: "2026-11-12" })).toEqual({});
   });
 });
 
@@ -164,8 +216,9 @@ describe("loadSalas", () => {
 });
 
 describe("loadSalas na visão geral", () => {
-  const week = (weekStart: string): RoomsWeek => ({
-    weekStart,
+  const range = (from: string, to: string): RoomsRange => ({
+    from,
+    to,
     now: "2026-11-03T09:00",
     days: [],
     rooms: [],
@@ -173,51 +226,53 @@ describe("loadSalas na visão geral", () => {
 
   function recorder() {
     const days: string[] = [];
-    const weeks: string[] = [];
+    const ranges: Array<{ from: string; to: string }> = [];
     return {
       days,
-      weeks,
+      ranges,
       fetchDay: async (date: string) => {
         days.push(date);
         return { ok: true as const, data: day(date) };
       },
-      fetchWeek: async (weekStart: string) => {
-        weeks.push(weekStart);
-        return { ok: true as const, data: week(weekStart) };
+      fetchRange: async (asked: { from: string; to: string }) => {
+        ranges.push(asked);
+        return { ok: true as const, data: range(asked.from, asked.to) };
       },
     };
   }
 
-  test("pede a semana da data da URL (a segunda-feira) numa única chamada, sem pedir o dia", async () => {
+  test("pede o intervalo da URL numa única chamada, sem pedir o dia", async () => {
     const r = recorder();
-    const data = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+    const data = await loadSalas(undefined, session(DOCENTE), r.fetchDay, NOW, {
       geral: true,
-      fetchWeek: r.fetchWeek,
+      de: "2026-11-12",
+      ate: "2026-11-20",
+      fetchRange: r.fetchRange,
     });
-    expect(r.weeks).toEqual(["2026-11-09"]);
+    expect(r.ranges).toEqual([{ from: "2026-11-12", to: "2026-11-20" }]);
     expect(r.days).toEqual([]);
     expect(data.selectedDate).toBe("2026-11-12");
-    expect(data.roomsWeek).toEqual(week("2026-11-09"));
+    expect(data.roomsRange).toEqual(range("2026-11-12", "2026-11-20"));
     expect(data.roomsDay).toBeNull();
     expect(data.error).toBeNull();
   });
 
-  test("sem data, pede a semana de hoje no fuso configurado; domingo volta à segunda anterior", async () => {
+  test("sem de/ate, pede de hoje (no fuso configurado) até hoje + 6; só de, de até de + 6", async () => {
     const r = recorder();
     const today = await loadSalas(undefined, session(DOCENTE), r.fetchDay, NOW, {
       geral: true,
-      fetchWeek: r.fetchWeek,
+      fetchRange: r.fetchRange,
     });
     expect(today.selectedDate).toBe("2026-11-03");
-    await loadSalas("2026-11-08", session(null), r.fetchDay, NOW, {
+    await loadSalas(undefined, session(null), r.fetchDay, NOW, {
       geral: true,
-      fetchWeek: r.fetchWeek,
+      de: "2026-12-29",
+      fetchRange: r.fetchRange,
     });
-    await loadSalas("2026-11-09", session(null), r.fetchDay, NOW, {
-      geral: true,
-      fetchWeek: r.fetchWeek,
-    });
-    expect(r.weeks).toEqual(["2026-11-02", "2026-11-02", "2026-11-09"]);
+    expect(r.ranges).toEqual([
+      { from: "2026-11-03", to: "2026-11-09" },
+      { from: "2026-12-29", to: "2027-01-04" },
+    ]);
     expect(r.days).toEqual([]);
   });
 
@@ -225,29 +280,29 @@ describe("loadSalas na visão geral", () => {
     const r = recorder();
     const data = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
       geral: false,
-      fetchWeek: r.fetchWeek,
+      fetchRange: r.fetchRange,
     });
     expect(r.days).toEqual(["2026-11-12"]);
-    expect(r.weeks).toEqual([]);
+    expect(r.ranges).toEqual([]);
     expect(data.roomsDay).toEqual(day("2026-11-12"));
-    expect(data.roomsWeek).toBeNull();
+    expect(data.roomsRange).toBeNull();
   });
 
-  test("falha do servidor na semana vira mensagem, sem dados", async () => {
+  test("falha do servidor no intervalo vira mensagem, sem dados", async () => {
     const r = recorder();
-    const failed = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+    const failed = await loadSalas(undefined, session(DOCENTE), r.fetchDay, NOW, {
       geral: true,
-      fetchWeek: async () => ({ ok: false, message: "Erro interno." }),
+      fetchRange: async () => ({ ok: false, message: "Erro interno." }),
     });
-    expect(failed.roomsWeek).toBeNull();
+    expect(failed.roomsRange).toBeNull();
     expect(failed.error).toBe("Não foi possível carregar as salas");
-    const thrown = await loadSalas("2026-11-12", session(DOCENTE), r.fetchDay, NOW, {
+    const thrown = await loadSalas(undefined, session(DOCENTE), r.fetchDay, NOW, {
       geral: true,
-      fetchWeek: async () => {
+      fetchRange: async () => {
         throw new Error("rede");
       },
     });
-    expect(thrown.roomsWeek).toBeNull();
+    expect(thrown.roomsRange).toBeNull();
     expect(thrown.error).toBe("Não foi possível carregar as salas");
   });
 });
@@ -278,7 +333,12 @@ describe("Route.beforeLoad (redirecionamento)", () => {
   });
 
   test("a visão que já está na URL é mantida", () => {
-    for (const visao of ["colunas", "livres", "geral"]) {
+    // Na visão geral o dia vira o primeiro dia do intervalo (`de`).
+    expect(target({ data: "2026-11-10", visao: "geral" })?.search).toEqual({
+      de: "2026-11-10",
+      visao: "geral",
+    });
+    for (const visao of ["colunas", "livres"]) {
       expect(target({ data: "2026-11-10", visao })?.search).toEqual({ data: "2026-11-10", visao });
     }
   });

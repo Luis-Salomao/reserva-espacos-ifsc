@@ -18,9 +18,10 @@ import {
   type TimeRange,
   validateBookingWhen,
 } from "#/domain/availability";
-import { addDays, weekdayOf } from "#/domain/calendar";
+import { addDays, datesBetween, weekdayOf } from "#/domain/calendar";
 import { CANCEL_REASONS } from "#/domain/cancel-reasons";
 import { equipmentForViewer, type SpaceEquipment } from "#/domain/equipment";
+import { rangeIssue } from "#/domain/overview";
 import {
   expandRecurrence,
   MAX_OCCURRENCES,
@@ -36,8 +37,6 @@ const BOOKING_ROLES = ["admin", "horarios", "docente", "manutencao"] as const;
 
 /** Tamanho máximo da finalidade (título) de uma reserva. */
 export const MAX_PURPOSE = 120;
-/** Dias da visão geral: segunda a sexta. */
-const WORKDAYS = 5;
 const DEFAULT_PAGE = 50;
 const MAX_PAGE = 100;
 const SERIES_ON_MANUAL = "Esta reserva não faz parte de uma série; cancele apenas esta data.";
@@ -108,9 +107,10 @@ export type RoomDay = DayAgenda & {
 
 export type RoomsDay = { date: string; now: string; rooms: RoomDay[] };
 
-/** Segunda a sexta de todas as salas: blocos de cada dia e as ocupações da semana de cada sala. */
-export type RoomsWeek = {
-  weekStart: string;
+/** Todas as salas num intervalo de datas: blocos de cada dia e as ocupações do intervalo de cada sala. */
+export type RoomsRange = {
+  from: string;
+  to: string;
   now: string;
   days: Array<{ date: string; blocks: AgendaBlock[] }>;
   rooms: Array<{
@@ -831,31 +831,28 @@ export function createBookingsService(deps: BookingsDeps) {
     },
 
     /**
-     * Segunda a sexta de todas as salas a partir de `weekStart` (obrigatoriamente uma
-     * segunda-feira), com uma única consulta de ocupações. Cada dia traz os blocos só do semestre
-     * que o cobre; fora de semestre, nenhum.
+     * Todas as salas nos dias de `from` a `to` (inclusive, no máximo `MAX_RANGE_DAYS`), com uma
+     * única consulta de ocupações. Cada dia traz os blocos só do semestre que o cobre; fora de
+     * semestre e em sábado e domingo, nenhum (as ocupações desses dias aparecem como "fora dos blocos").
      */
-    async roomsWeek(viewer: User | null, input: { weekStart: string }): Promise<Result<RoomsWeek>> {
-      if (!isValidDate(input.weekStart)) {
-        return fail("validation", "Informe uma data válida.", "weekStart");
-      }
-      if (weekdayOf(input.weekStart) !== 0) {
-        return fail("validation", "A semana deve começar numa segunda-feira.", "weekStart");
-      }
+    async roomsRange(
+      viewer: User | null,
+      input: { from: string; to: string },
+    ): Promise<Result<RoomsRange>> {
+      if (!isValidDate(input.from)) return fail("validation", "Informe uma data válida.", "from");
+      if (!isValidDate(input.to)) return fail("validation", "Informe uma data válida.", "to");
+      const issue = rangeIssue(input.from, input.to);
+      if (issue !== null) return fail("validation", issue, "to");
       const now = nowLocal();
       const [list, found, all, people] = await Promise.all([
         spaces.listWithEquipment(),
-        occupations.listActiveInRangeAll(
-          `${input.weekStart}T00:00`,
-          `${addDays(input.weekStart, WORKDAYS)}T00:00`,
-        ),
+        occupations.listActiveInRangeAll(`${input.from}T00:00`, `${addDays(input.to, 1)}T00:00`),
         semesters.list(),
         peopleFor(viewer),
       ]);
-      const days = Array.from({ length: WORKDAYS }, (_, offset) => {
-        const date = addDays(input.weekStart, offset);
+      const days = datesBetween(input.from, input.to).map((date) => {
         const covering = all.filter((semester) => semester.start <= date && date <= semester.end);
-        return { date, blocks: blocksFor(date, covering) };
+        return { date, blocks: weekdayOf(date) > 4 ? [] : blocksFor(date, covering) };
       });
       const bySpace = new Map<string, AgendaItem[]>();
       for (const item of found) {
@@ -875,7 +872,7 @@ export function createBookingsService(deps: BookingsDeps) {
           },
           occupations: bySpace.get(space.id) ?? [],
         }));
-      return ok({ weekStart: input.weekStart, now, days, rooms });
+      return ok({ from: input.from, to: input.to, now, days, rooms });
     },
 
     /**

@@ -7,7 +7,7 @@ import {
   createBookingAction,
   getDayAgenda,
   getRoomsDay,
-  getRoomsWeek,
+  getRoomsRange,
   getSubjects,
   getWeekAgenda,
   myBookingsAction,
@@ -279,9 +279,9 @@ describe("semana de todas as salas: leitura", () => {
       title: "MAT1",
       responsibleUserId: s.docA.id,
     });
-    const visitor = await getRoomsWeek(deps, req(null), { weekStart: "2026-11-09" });
+    const visitor = await getRoomsRange(deps, req(null), { from: "2026-11-09", to: "2026-11-13" });
     if (!visitor.response.ok) throw new Error(visitor.response.message);
-    expect(visitor.response.data.weekStart).toBe("2026-11-09");
+    expect(visitor.response.data.from).toBe("2026-11-09");
     expect(visitor.response.data.days.map((day) => day.date)).toEqual([
       "2026-11-09",
       "2026-11-10",
@@ -304,7 +304,7 @@ describe("semana de todas as salas: leitura", () => {
     expect(json).not.toContain("DOCA");
     expect(visitor.setCookie).toBeNull();
 
-    const logged = await getRoomsWeek(deps, req("doca"), { weekStart: "2026-11-09" });
+    const logged = await getRoomsRange(deps, req("doca"), { from: "2026-11-09", to: "2026-11-13" });
     if (!logged.response.ok) throw new Error(logged.response.message);
     expect(logged.response.data.rooms[1]?.occupations[0]?.person).toEqual({
       name: "Pessoa doca",
@@ -317,23 +317,34 @@ describe("semana de todas as salas: leitura", () => {
   test("PUBLIC_READ=false: visitante recebe 401", async () => {
     const { deps, req } = await setup(false);
     expect(
-      (await getRoomsWeek(deps, req(null), { weekStart: "2026-11-09" })).response,
+      (await getRoomsRange(deps, req(null), { from: "2026-11-09", to: "2026-11-13" })).response,
     ).toMatchObject({ ok: false, status: 401 });
   });
 
-  test("semana inválida vira 400; data que não é segunda aponta o campo", async () => {
+  test("intervalo inválido vira 400; datas ruins ou longas demais apontam o campo", async () => {
     const { deps, req } = await setup();
-    for (const data of [null, "x", {}, { weekStart: 20261109 }, { date: "2026-11-09" }]) {
-      expect((await getRoomsWeek(deps, req(null), data)).response).toMatchObject({
+    for (const data of [
+      null,
+      "x",
+      {},
+      { from: 20261109, to: "2026-11-10" },
+      { date: "2026-11-09" },
+    ]) {
+      expect((await getRoomsRange(deps, req(null), data)).response).toMatchObject({
         ok: false,
         status: 400,
       });
     }
-    for (const weekStart of ["2026-11-10", "09/11/2026"]) {
-      expect((await getRoomsWeek(deps, req(null), { weekStart })).response).toMatchObject({
+    const cases: Array<[{ from: string; to: string }, string]> = [
+      [{ from: "09/11/2026", to: "2026-11-10" }, "from"],
+      [{ from: "2026-11-10", to: "2026-11-09" }, "to"],
+      [{ from: "2026-11-01", to: "2026-12-02" }, "to"],
+    ];
+    for (const [data, field] of cases) {
+      expect((await getRoomsRange(deps, req(null), data)).response).toMatchObject({
         ok: false,
         status: 400,
-        field: "weekStart",
+        field,
       });
     }
   });

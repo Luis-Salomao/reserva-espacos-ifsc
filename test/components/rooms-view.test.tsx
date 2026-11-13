@@ -7,8 +7,14 @@ import {
   useNavigate,
   useSearch,
 } from "@tanstack/react-router";
-import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { AgendaItem, BookingView, RoomDay, RoomsDay, RoomsWeek } from "#/application/bookings";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import type {
+  AgendaItem,
+  BookingView,
+  RoomDay,
+  RoomsDay,
+  RoomsRange,
+} from "#/application/bookings";
 import type { BookingSheetProps } from "#/components/agenda/booking-sheet";
 import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
 import { validateAgendaSearch } from "#/routes/index";
@@ -71,8 +77,9 @@ const BLOCKS = [
   { label: "Manhã 34", short: "M34", start: "10:10", end: "12:00" },
 ];
 
-const WEEK: RoomsWeek = {
-  weekStart: "2030-11-11",
+const WEEK: RoomsRange = {
+  from: "2030-11-11",
+  to: "2030-11-15",
   now: NOW,
   days: WEEK_DAYS.map((date) => ({ date, blocks: BLOCKS })),
   rooms: [
@@ -103,7 +110,7 @@ function setViewportWidth(width: number) {
 
 type Options = {
   roomsDay?: RoomsDay | null;
-  roomsWeek?: RoomsWeek | null;
+  roomsRange?: RoomsRange | null;
   error?: string | null;
   canBook?: boolean;
   isVisitor?: boolean;
@@ -132,7 +139,7 @@ async function setup(options: Options = {}) {
       return (
         <RoomsView
           roomsDay={options.roomsDay === undefined ? DAY : options.roomsDay}
-          roomsWeek={options.roomsWeek === undefined ? WEEK : options.roomsWeek}
+          roomsRange={options.roomsRange === undefined ? WEEK : options.roomsRange}
           error={options.error ?? null}
           selectedDate={DATE}
           search={search}
@@ -275,8 +282,8 @@ describe("RoomsView", () => {
 
   test("na visão geral, 'andar' da URL filtra as linhas", async () => {
     await setup({ url: "/?visao=geral&andar=1" });
-    // A grade começa hoje (terça): 4 dias x 2 blocos.
-    expect(document.querySelectorAll("[data-cell][data-room='b104']").length).toBe(8);
+    // Os 5 dias dos dados x 2 blocos.
+    expect(document.querySelectorAll("[data-cell][data-room='b104']").length).toBe(10);
     expect(document.querySelectorAll("[data-cell][data-room='a202']").length).toBe(0);
     expect(document.querySelectorAll("[data-cell][data-room='lab']").length).toBe(0);
   });
@@ -318,7 +325,7 @@ describe("RoomsView", () => {
     ]);
     fireEvent.click(within(views).getByRole("button", { name: "Visão geral" }));
     await waitFor(() =>
-      expect(router.state.location.search).toEqual({ visao: "geral", data: DATE, espaco: "b104" }),
+      expect(router.state.location.search).toEqual({ visao: "geral", de: DATE, espaco: "b104" }),
     );
     fireEvent.click(within(views).getByRole("button", { name: "Uma sala" }));
     await waitFor(() =>
@@ -514,11 +521,11 @@ describe("RoomsView", () => {
     );
   });
 
-  test("na visão geral, nova reserva abre o formulário na data selecionada", async () => {
+  test("na visão geral, nova reserva abre o formulário em hoje (ou no primeiro dia, se for futuro)", async () => {
     await setup({ url: "/?visao=geral" });
     fireEvent.click(screen.getByRole("button", { name: "Nova reserva" }));
     const dialog = await screen.findByRole("dialog", { name: "Nova reserva" });
-    expect((within(dialog).getByLabelText("Data") as HTMLInputElement).value).toBe(DATE);
+    expect((within(dialog).getByLabelText("Data") as HTMLInputElement).value).toBe("2030-11-11");
   });
 
   test("na visão geral, nova reserva convida visitantes a entrar", async () => {
@@ -527,42 +534,98 @@ describe("RoomsView", () => {
     expect(await screen.findByText("Entre para reservar")).toBeDefined();
   });
 
-  test("na visão geral, a grade mostra a semana com o título e o contador", async () => {
-    await setup({ url: "/?visao=geral" });
+  test("na visão geral, a grade mostra os dias do intervalo da URL, o seletor de intervalo e o contador", async () => {
+    await setup({ url: "/?visao=geral&de=2030-11-11&ate=2030-11-15" });
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Agenda de salas");
-    // A grade começa hoje (terça); segunda fica atrás de "Mostrar dias anteriores".
-    expect(document.querySelectorAll("[data-cell]").length).toBe(3 * 4 * 2);
-    fireEvent.click(screen.getByRole("button", { name: /Mostrar dias anteriores/ }));
     expect(document.querySelectorAll("[data-cell]").length).toBe(3 * 5 * 2);
+    expect(screen.queryByRole("button", { name: /dias anteriores/ })).toBeNull();
+    const picker = screen.getByRole("button", { name: /Intervalo de datas/ });
+    expect(picker.textContent).toContain("11/11 – 15/11/2030");
     expect(screen.getByText("3 de 3 salas")).toBeDefined();
   });
 
-  test("na visão geral, as setas trocam a semana (±7 dias) na URL", async () => {
-    const { router } = await setup({ url: "/?visao=geral" });
-    fireEvent.click(screen.getByRole("button", { name: "Próxima semana" }));
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ data: "2030-11-19" }));
-    fireEvent.click(screen.getByRole("button", { name: "Semana anterior" }));
-    await waitFor(() => expect(router.state.location.search).toMatchObject({ data: "2030-11-05" }));
-    expect(router.state.location.search).toMatchObject({ visao: "geral" });
+  test("sem de/ate na URL, o intervalo é de hoje até hoje + 6", async () => {
+    await setup({ url: "/?visao=geral" });
+    expect(screen.getByRole("button", { name: /Intervalo de datas/ }).textContent).toContain(
+      "11/11 – 17/11/2030",
+    );
   });
 
-  test("visão geral não tem 'Dia | Semana': navega só por semana e ignora periodo=dia da URL", async () => {
+  test("data= antigo vira de= e o intervalo começa nesse dia", async () => {
+    await setup({ url: "/?visao=geral&data=2030-11-12" });
+    expect(screen.getByRole("button", { name: /Intervalo de datas/ }).textContent).toContain(
+      "12/11 – 18/11/2030",
+    );
+  });
+
+  test("as setas deslocam o intervalo pelo próprio tamanho e 'Hoje' volta ao padrão", async () => {
+    const { router } = await setup({ url: "/?visao=geral&de=2030-11-11&ate=2030-11-13" });
+    fireEvent.click(screen.getByRole("button", { name: "Próximo intervalo" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ de: "2030-11-14", ate: "2030-11-16" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Intervalo anterior" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ de: "2030-11-11", ate: "2030-11-13" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Intervalo anterior" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ de: "2030-11-08", ate: "2030-11-10" }),
+    );
+    expect(router.state.location.search).toMatchObject({ visao: "geral" });
+    fireEvent.click(screen.getByRole("button", { name: "Hoje" }));
+    await waitFor(() => expect(router.state.location.search).toEqual({ visao: "geral" }));
+  });
+
+  test("escolher um intervalo no seletor grava de e ate na URL", async () => {
+    const { router } = await setup({ url: "/?visao=geral&de=2030-11-11&ate=2030-11-15" });
+    fireEvent.click(screen.getByRole("button", { name: /Intervalo de datas/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /20 de novembro de 2030/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /18 de novembro de 2030/ }));
+    await waitFor(() =>
+      expect(router.state.location.search).toMatchObject({ de: "2030-11-18", ate: "2030-11-20" }),
+    );
+  });
+
+  test("trocar a visão leva o dia junto: geral para Colunas usa o primeiro dia; Colunas para geral começa nele", async () => {
+    const { router } = await setup({ url: "/?visao=geral&de=2030-11-13&ate=2030-11-15" });
+    fireEvent.click(screen.getByRole("button", { name: "Salas por horário" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ visao: "colunas", data: "2030-11-13" }),
+    );
+    fireEvent.click(screen.getByRole("button", { name: "Visão geral" }));
+    await waitFor(() =>
+      expect(router.state.location.search).toEqual({ visao: "geral", de: "2030-11-13" }),
+    );
+  });
+
+  test("Colunas, Livres e Salas por horário seguem com data única", async () => {
+    for (const url of ["/?visao=colunas", "/?visao=livres"]) {
+      cleanup();
+      await setup({ url });
+      expect(screen.queryByRole("button", { name: /Intervalo de datas/ })).toBeNull();
+      expect(screen.getByRole("button", { name: "Dia anterior" })).toBeDefined();
+      expect(document.getElementById("salas-data")?.textContent).toContain("12/11/2030");
+    }
+  });
+
+  test("visão geral não tem 'Dia | Semana': navega só por intervalo e ignora periodo=dia da URL", async () => {
     await setup({ url: "/?visao=geral&periodo=dia" });
     expect(screen.queryByRole("group", { name: "Dia ou semana" }) === null).toBe(true);
     expect(screen.queryByRole("button", { name: "Dia" }) === null).toBe(true);
     expect(screen.getByRole("heading", { level: 1 }).textContent).toBe("Agenda de salas");
-    expect(screen.getByRole("button", { name: "Próxima semana" })).toBeDefined();
+    expect(screen.getByRole("button", { name: "Próximo intervalo" })).toBeDefined();
     expect(screen.queryByRole("region", { name: /Disponibilidade por sala em/ }) === null).toBe(
       true,
     );
   });
 
-  test("semana sem blocos avisa e oferece o atalho para 'Colunas'", async () => {
+  test("intervalo sem blocos avisa e oferece o atalho para 'Colunas'", async () => {
     const { router } = await setup({
       url: "/?visao=geral",
-      roomsWeek: { ...WEEK, days: WEEK_DAYS.map((date) => ({ date, blocks: [] })) },
+      roomsRange: { ...WEEK, days: WEEK_DAYS.map((date) => ({ date, blocks: [] })) },
     });
-    expect(screen.getByText("Esta semana não tem blocos de horário")).toBeDefined();
+    expect(screen.getByText("Este intervalo não tem blocos de horário")).toBeDefined();
     expect(document.querySelectorAll("[data-cell]").length).toBe(0);
     fireEvent.click(screen.getByRole("button", { name: "Ver em Colunas" }));
     await waitFor(() => expect(router.state.location.search).toMatchObject({ visao: "colunas" }));
@@ -573,13 +636,13 @@ describe("RoomsView", () => {
     expect(screen.getByText("Nenhuma sala com esses filtros")).toBeDefined();
     fireEvent.click(screen.getByRole("button", { name: "Limpar filtros" }));
     await waitFor(() => expect(router.state.location.search).toEqual({ visao: "geral" }));
-    expect(document.querySelectorAll("[data-cell]").length).toBe(24);
+    expect(document.querySelectorAll("[data-cell]").length).toBe(30);
   });
 
-  test("na visão geral, falha ao carregar a semana mostra o aviso e 'Tentar de novo'", async () => {
+  test("na visão geral, falha ao carregar o intervalo mostra o aviso e 'Tentar de novo'", async () => {
     await setup({
       url: "/?visao=geral",
-      roomsWeek: null,
+      roomsRange: null,
       error: "Não foi possível carregar as salas",
     });
     expect(screen.getByRole("alert").textContent).toContain("Não foi possível carregar as salas");
@@ -591,10 +654,10 @@ describe("RoomsView", () => {
     await setup({ url: "/?visao=geral" });
     const tabs = screen.getAllByRole("tab");
     expect(tabs).toHaveLength(WEEK_DAYS.length);
-    expect(tabs[1]?.getAttribute("aria-selected")).toBe("true");
+    expect(tabs[0]?.getAttribute("aria-selected")).toBe("true");
     expect(
       within(
-        screen.getByRole("region", { name: "Disponibilidade por sala em terça 12/11" }),
+        screen.getByRole("region", { name: "Disponibilidade por sala em segunda 11/11" }),
       ).getAllByRole("button", { name: /08:00–09:50|10:10–12:00/ }),
     ).toHaveLength(6);
 
@@ -698,13 +761,13 @@ describe("RoomsView", () => {
 
   test("o cartão da visão geral mostra os equipamentos e as observações", async () => {
     const equipment = { items: { projetor: 1 }, notes: "Lousa da A-202" };
-    const roomsWeek: RoomsWeek = {
+    const roomsRange: RoomsRange = {
       ...WEEK,
       rooms: WEEK.rooms.map((room) =>
         room.space.id === "a202" ? { ...room, space: { ...room.space, equipment } } : room,
       ),
     };
-    await setup({ url: "/?visao=geral", roomsWeek });
+    await setup({ url: "/?visao=geral", roomsRange });
     fireEvent.focus(screen.getByRole("link", { name: /A-202, terça 12\/11, Manhã 12/ }));
     const card = screen.getByRole("tooltip");
     expect(within(card).getByText("Projetor")).toBeDefined();

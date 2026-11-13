@@ -1,5 +1,5 @@
 import { freeIntervals, type Hours, type TimeRange } from "./availability";
-import { addDays, weekdayOf } from "./calendar";
+import { addDays, datesBetween } from "./calendar";
 
 /** Cor de uma matéria em cada tema: `light` sobre o fundo claro, `dark` sobre o escuro. */
 export type Tone = { light: string; dark: string };
@@ -72,10 +72,52 @@ export function cellsFor<I extends TimeRange, B extends TimeRange>(
   return { cells, outside };
 }
 
-/** Segunda a sexta da semana da data. */
-export function weekOf(date: string): string[] {
-  const monday = addDays(date, -weekdayOf(date));
-  return [0, 1, 2, 3, 4].map((offset) => addDays(monday, offset));
+/** Tamanho máximo do intervalo da visão geral, em dias (inclusive as duas pontas). */
+export const MAX_RANGE_DAYS = 31;
+
+/** Dias do intervalo padrão: de hoje até hoje + 6. */
+const DEFAULT_RANGE_DAYS = 7;
+
+/** Intervalo padrão da visão geral: `today` e os seis dias seguintes. */
+export function defaultRange(today: string): { from: string; to: string } {
+  return { from: today, to: addDays(today, DEFAULT_RANGE_DAYS - 1) };
+}
+
+/**
+ * Intervalo mostrado: `de` e `ate` da URL; só `de`, até `de` + 6; sem `de`, o padrão a partir de
+ * `today`. Espera o que `rangeIssue` já aprovou.
+ */
+export function resolveRange(
+  de: string | undefined,
+  ate: string | undefined,
+  today: string,
+): { from: string; to: string } {
+  if (de === undefined) return defaultRange(today);
+  return { from: de, to: ate ?? defaultRange(de).to };
+}
+
+/** Quantos dias o intervalo tem, contando as duas pontas. Espera datas válidas e `from <= to`. */
+export function rangeLength(from: string, to: string): number {
+  return datesBetween(from, to).length;
+}
+
+/** Mensagem do problema do intervalo (datas já válidas): início depois do fim ou longo demais. */
+export function rangeIssue(from: string, to: string): string | null {
+  if (from > to) return "A data inicial deve ser anterior ou igual à final.";
+  if (rangeLength(from, to) > MAX_RANGE_DAYS) {
+    return `O intervalo pode ter no máximo ${MAX_RANGE_DAYS} dias.`;
+  }
+  return null;
+}
+
+/** Desloca o intervalo pelo próprio tamanho: `direction` -1 (anterior) ou 1 (próximo). */
+export function shiftRange(
+  from: string,
+  to: string,
+  direction: -1 | 1,
+): { from: string; to: string } {
+  const length = rangeLength(from, to) * direction;
+  return { from: addDays(from, length), to: addDays(to, length) };
 }
 
 /** Do início do bloco `from` ao fim do bloco `to`, em qualquer ordem; `null` se algum não existe. */

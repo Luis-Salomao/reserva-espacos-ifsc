@@ -1,7 +1,7 @@
 import { Link } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, DoorOpen } from "lucide-react";
 import { useEffect, useState, useSyncExternalStore } from "react";
-import type { RoomsDay, RoomsWeek } from "#/application/bookings";
+import type { RoomsDay, RoomsRange } from "#/application/bookings";
 import {
   BookingSheet,
   type BookingSheetProps,
@@ -12,9 +12,11 @@ import { Notice } from "#/components/page";
 import { SpaceDetailsLegend } from "#/components/spaces/space-details";
 import { Button } from "#/components/ui/button";
 import { DatePicker } from "#/components/ui/date-picker";
+import { DateRangePicker } from "#/components/ui/date-range-picker";
 import { type PageView, ViewTabsBar } from "#/components/view-switcher";
 import { localNow, type TimeRange } from "#/domain/availability";
 import { addDays } from "#/domain/calendar";
+import { resolveRange, shiftRange } from "#/domain/overview";
 import {
   blocksOf,
   defaultWindow,
@@ -34,11 +36,15 @@ import { RoomsOverview } from "./rooms-overview";
 
 type SalasView = Exclude<PageView, "sala">;
 
-/** Estado das visualizações de salas na URL: dia, visualização, filtros e janela de horário. */
+/** Estado das visualizações de salas na URL: dia (ou intervalo), visualização, filtros e janela de horário. */
 export type SalasSearch = {
+  /** Dia das visualizações Colunas e Livres. */
   data?: string;
+  /** Só na visão geral: primeiro e último dia ("AAAA-MM-DD"); ausentes, de hoje até hoje + 6. */
+  de?: string;
+  ate?: string;
   visao?: PageView;
-  /** Só na visão geral: `dia` mostra um dia por vez; ausente é a semana. */
+  /** Só na visão geral: blocos de horário escolhidos. */
   bloco?: string[];
   andar?: number[];
   cap?: number;
@@ -52,8 +58,8 @@ export type SalasSearch = {
 
 type Props = {
   roomsDay: RoomsDay | null;
-  /** Semana de todas as salas; só vem na visão geral. */
-  roomsWeek: RoomsWeek | null;
+  /** Intervalo de todas as salas; só vem na visão geral. */
+  roomsRange: RoomsRange | null;
   error: string | null;
   selectedDate: string;
   search: SalasSearch;
@@ -146,17 +152,17 @@ const dayTitle = new Intl.DateTimeFormat("pt-BR", {
 });
 
 /** O que a visão geral filtra: só bloco, capacidade e busca (sem janela nem "Só livres"). */
-function asFilterable(week: RoomsWeek | null, date: string) {
-  return (week?.rooms ?? []).map((room) => ({ ...room, date, free: [] }));
+function asFilterable(schedule: RoomsRange | null, date: string) {
+  return (schedule?.rooms ?? []).map((room) => ({ ...room, date, free: [] }));
 }
 
 /**
  * Todas as salas: filtros, visão "Colunas" (uma por sala num dia, com rascunho único), "Livres"
- * (salas inteiramente livres na janela) ou "Visão geral" (a semana, bloco a bloco), e a reserva.
+ * (salas inteiramente livres na janela) ou "Visão geral" (o intervalo de datas, bloco a bloco), e a reserva.
  */
 export function RoomsView({
   roomsDay,
-  roomsWeek,
+  roomsRange,
   error,
   selectedDate,
   search,
@@ -182,13 +188,14 @@ export function RoomsView({
           : "colunas"
         : search.visao;
   const geral = view === "geral";
-  const now = (geral ? roomsWeek?.now : roomsDay?.now) ?? localNow(new Date(), timeZone);
+  const now = (geral ? roomsRange?.now : roomsDay?.now) ?? localNow(new Date(), timeZone);
   const today = now.slice(0, 10);
+  const span = resolveRange(search.de, search.ate, today);
   const rooms = roomsDay?.rooms ?? [];
-  const weekRooms = asFilterable(roomsWeek, selectedDate);
-  const loaded = geral ? roomsWeek !== null : roomsDay !== null;
+  const weekRooms = asFilterable(roomsRange, selectedDate);
+  const loaded = geral ? roomsRange !== null : roomsDay !== null;
   const total = geral ? weekRooms.length : rooms.length;
-  const noBlocks = roomsWeek?.days.every((day) => day.blocks.length === 0) ?? false;
+  const noBlocks = roomsRange?.days.every((day) => day.blocks.length === 0) ?? false;
 
   const fallback = defaultWindow(now);
   const requested = { start: search.ini ?? fallback.start, end: search.fim ?? fallback.end };
@@ -241,9 +248,23 @@ export function RoomsView({
   const goTo = (data: string) => {
     onSearchChange((prev) => ({ ...prev, data }), false);
   };
-  const setView = (visao: PageView) => onSearchChange((prev) => ({ ...prev, visao }), true);
+  const goToRange = (next: { from: string; to: string }) =>
+    onSearchChange((prev) => ({ ...prev, de: next.from, ate: next.to }), false);
+  /** "Hoje": volta ao intervalo padrão, sem `de`/`ate` na URL. */
+  const resetRange = () =>
+    onSearchChange(({ de: _de, ate: _ate, ...prev }) => ({ ...prev }), false);
+  // `data` vale para um dia; `de`/`ate`, para a visão geral: a troca leva o primeiro dia junto.
+  const setView = (visao: PageView) =>
+    onSearchChange((prev) => {
+      const { de, ate: _ate, data, ...rest } = prev;
+      if (visao === "geral") return { ...rest, visao, ...(data !== undefined ? { de: data } : {}) };
+      return {
+        ...rest,
+        visao,
+        ...(de !== undefined ? { data: de } : data !== undefined ? { data } : {}),
+      };
+    }, true);
   const clearFilters = () => onSearchChange(withoutFilters, true);
-  const step = geral ? 7 : 1;
   const noRooms = (
     <div className="grid justify-items-center gap-3 rounded-2xl border border-dashed border-border p-10 text-center">
       <DoorOpen className="size-10 text-muted-foreground/60" aria-hidden="true" />
@@ -262,15 +283,19 @@ export function RoomsView({
           {geral ? "Agenda de salas" : dayTitle.format(new Date(`${selectedDate}T12:00:00Z`))}
         </h1>
         <div className="flex flex-wrap items-center gap-1">
-          <Button variant="outline" size="sm" onClick={() => goTo(today)}>
+          <Button variant="outline" size="sm" onClick={() => (geral ? resetRange() : goTo(today))}>
             Hoje
           </Button>
           <Button
             variant="ghost"
             size="icon"
             className="size-8"
-            aria-label={geral ? "Semana anterior" : "Dia anterior"}
-            onClick={() => goTo(addDays(selectedDate, -step))}
+            aria-label={geral ? "Intervalo anterior" : "Dia anterior"}
+            onClick={() =>
+              geral
+                ? goToRange(shiftRange(span.from, span.to, -1))
+                : goTo(addDays(selectedDate, -1))
+            }
           >
             <ChevronLeft className="size-4" />
           </Button>
@@ -278,17 +303,31 @@ export function RoomsView({
             variant="ghost"
             size="icon"
             className="size-8"
-            aria-label={geral ? "Próxima semana" : "Próximo dia"}
-            onClick={() => goTo(addDays(selectedDate, step))}
+            aria-label={geral ? "Próximo intervalo" : "Próximo dia"}
+            onClick={() =>
+              geral ? goToRange(shiftRange(span.from, span.to, 1)) : goTo(addDays(selectedDate, 1))
+            }
           >
             <ChevronRight className="size-4" />
           </Button>
-          <DatePicker
-            id="salas-data"
-            value={selectedDate}
-            onChange={(value) => value !== "" && goTo(value)}
-            className="w-36"
-          />
+          {geral ? (
+            <DateRangePicker
+              id="salas-intervalo"
+              from={span.from}
+              to={span.to}
+              today={today}
+              onChange={goToRange}
+              className="w-56"
+            />
+          ) : (
+            <DatePicker
+              id="salas-data"
+              value={selectedDate}
+              today={today}
+              onChange={(value) => value !== "" && goTo(value)}
+              className="w-36"
+            />
+          )}
         </div>
       </div>
 
@@ -311,7 +350,7 @@ export function RoomsView({
         </div>
       ) : geral && noBlocks ? (
         <div className="grid justify-items-center gap-3 rounded-2xl border border-dashed border-border p-10 text-center">
-          <p className="font-semibold text-foreground">Esta semana não tem blocos de horário</p>
+          <p className="font-semibold text-foreground">Este intervalo não tem blocos de horário</p>
           <Button type="button" variant="outline" onClick={() => setView("colunas")}>
             Ver em Colunas
           </Button>
@@ -340,19 +379,18 @@ export function RoomsView({
               showNotes={!isVisitor}
             />
           ) : geral ? (
-            weekResult.rooms.length === 0 || roomsWeek === null ? (
+            weekResult.rooms.length === 0 || roomsRange === null ? (
               noRooms
             ) : (
               <RoomsOverview
-                week={roomsWeek}
+                schedule={roomsRange}
                 selectedPeriod={period}
                 rooms={weekResult.rooms}
                 isVisitor={isVisitor}
                 compact={compact}
-                selectedDate={selectedDate}
                 canReserve={canBook || isVisitor}
                 onBook={book}
-                onNewBooking={() => book({ date: selectedDate })}
+                onNewBooking={() => book({ date: [span.from, today].sort()[1] ?? today })}
                 spacesIndex={spacesIndex}
               />
             )

@@ -6,7 +6,7 @@ import {
   RouterProvider,
 } from "@tanstack/react-router";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
-import type { AgendaItem, RoomsWeek } from "#/application/bookings";
+import type { AgendaItem, RoomsRange } from "#/application/bookings";
 import { RoomsOverview } from "#/components/rooms/rooms-overview";
 import { RESERVA_TONE, SUBJECT_PALETTE, subjectTone } from "#/domain/overview";
 import type { Space } from "#/domain/space";
@@ -34,8 +34,9 @@ function item(over: Partial<AgendaItem> & Pick<AgendaItem, "id" | "date" | "star
   } satisfies AgendaItem;
 }
 
-const WEEK: RoomsWeek = {
-  weekStart: MON,
+const WEEK: RoomsRange = {
+  from: MON,
+  to: FRI,
   now: "2026-11-03T09:00",
   days: [MON, TUE, WED, THU, FRI].map((date) => ({ date, blocks: BLOCKS })),
   rooms: [
@@ -80,7 +81,7 @@ const WEEK: RoomsWeek = {
 };
 
 type RenderOptions = {
-  week?: RoomsWeek;
+  week?: RoomsRange;
   isVisitor?: boolean;
   canReserve?: boolean;
   now?: string;
@@ -94,11 +95,10 @@ async function renderOverview(options: RenderOptions = {}) {
   const root = createRootRoute({
     component: () => (
       <RoomsOverview
-        week={week}
+        schedule={week}
         rooms={week.rooms}
         isVisitor={options.isVisitor ?? false}
         compact={options.compact ?? false}
-        selectedDate={MON}
         canReserve={options.canReserve ?? true}
         onBook={onBook}
         spacesIndex={options.spacesIndex ?? {}}
@@ -264,7 +264,7 @@ describe("RoomsOverview", () => {
   });
 
   test("ocupação que cruza blocos sobrepostos é recortada em cada bloco sem esconder tempo livre", async () => {
-    const week: RoomsWeek = {
+    const week: RoomsRange = {
       ...WEEK,
       days: [
         {
@@ -538,12 +538,13 @@ describe("RoomsOverview", () => {
     expect(within(busy).queryByRole("button", { name: /^Reservar/ }) === null).toBe(true);
   });
 
-  test("trecho que já terminou não oferece reserva no painel", async () => {
+  test("bloco que já terminou não abre o painel nem oferece reserva; o seguinte, sim", async () => {
     await renderOverview({ now: `${TUE}T10:00` });
-    fireEvent.click(cellAt("b104", TUE, "M12"));
-    const panel = selectionPanel();
-    expect(within(panel).getByText("Esse horário já terminou")).toBeDefined();
-    expect(within(panel).queryByRole("button", { name: /^Reservar/ }) === null).toBe(true);
+    const ended = cellAt("b104", TUE, "M12");
+    expect(ended.tagName).toBe("SPAN");
+    expect(ended.getAttribute("aria-label")).toContain("(já passou)");
+    fireEvent.click(ended);
+    expect(screen.queryByRole("region", { name: "Horário selecionado" }) === null).toBe(true);
     fireEvent.click(cellAt("b104", TUE, "M34"));
     expect(
       screen.getByRole("button", { name: "Reservar B-104, terça 10/11, 10:10–12:00" }),

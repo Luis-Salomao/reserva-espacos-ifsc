@@ -1,8 +1,8 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import type { RoomsDay, RoomsWeek } from "#/application/bookings";
+import type { RoomsDay, RoomsRange } from "#/application/bookings";
 import type { SalasSearch } from "#/components/rooms/rooms-view";
 import { localNow } from "#/domain/availability";
-import { weekOf } from "#/domain/overview";
+import { rangeIssue, resolveRange } from "#/domain/overview";
 import { isValidDate, isValidTime } from "#/domain/semester";
 import type { Space } from "#/domain/space";
 import { ADMIN_ROLES, BOOKING_ROLES, type SessionInfo } from "#/server/session";
@@ -45,18 +45,36 @@ function queryFrom(value: unknown): string | undefined {
 const timeFrom = (value: unknown) =>
   typeof value === "string" && isValidTime(value) ? value : undefined;
 
+const dateFrom = (value: unknown) =>
+  typeof value === "string" && isValidDate(value) ? value : undefined;
+
+/**
+ * Intervalo da visão geral na URL: `de` e `ate` válidos, `de <= ate` e até 31 dias. Só `de` vale
+ * (o fim é `de` + 6); o `data` antigo vira `de`. Qualquer inconsistência cai no padrão (nada na URL).
+ */
+function rangeParams(search: Record<string, unknown>): { de?: string; ate?: string } {
+  const ate = dateFrom(search.ate);
+  const de = dateFrom(search.de) ?? (ate === undefined ? dateFrom(search.data) : undefined);
+  if (de === undefined) return {};
+  const range = resolveRange(de, ate, de);
+  return rangeIssue(range.from, range.to) === null
+    ? { de, ...(ate !== undefined ? { ate } : {}) }
+    : {};
+}
+
 /**
  * Parâmetros das visualizações de salas: data, visão, blocos, andares (0–9), capacidade mínima
  * (1–999), busca, janela e "só livres". Valores inválidos são descartados; blocos e andares sem
  * nenhuma sala são ignorados no filtro.
  */
 export function validateSalasSearch(search: Record<string, unknown>): SalasSearch {
-  const data =
-    typeof search.data === "string" && isValidDate(search.data) ? search.data : undefined;
   const visao =
     search.visao === "colunas" || search.visao === "livres" || search.visao === "geral"
       ? search.visao
       : undefined;
+  // `de`/`ate` só existem na visão geral; nas demais vale o `data` de um dia.
+  const range = visao === "geral" ? rangeParams(search) : {};
+  const data = visao === "geral" ? undefined : dateFrom(search.data);
   const bloco = blocksFrom(search.bloco);
   const andar = floorsFrom(search.andar);
   const cap = capacityFrom(search.cap);
@@ -68,6 +86,7 @@ export function validateSalasSearch(search: Record<string, unknown>): SalasSearc
   const pcs = capacityFrom(search.pcs);
   return {
     ...(data !== undefined ? { data } : {}),
+    ...range,
     ...(visao !== undefined ? { visao } : {}),
     ...(bloco.length > 0 ? { bloco } : {}),
     ...(andar.length > 0 ? { andar } : {}),
@@ -86,7 +105,7 @@ type Response<T> = { ok: true; data: T } | { ok: false; message: string };
 export type SalasLoaderData = {
   selectedDate: string;
   roomsDay: RoomsDay | null;
-  roomsWeek: RoomsWeek | null;
+  roomsRange: RoomsRange | null;
   error: string | null;
   isVisitor: boolean;
   canBook: boolean;
@@ -96,10 +115,12 @@ export type SalasLoaderData = {
   spacesIndex: Record<string, Space>;
 };
 
-/** Visão geral: em vez do dia, pede a semana (segunda a sexta) da data. */
-type WeekOptions = {
+/** Visão geral: em vez do dia, pede o intervalo `de`–`ate` (padrão: hoje até hoje + 6). */
+type RangeOptions = {
   geral: boolean;
-  fetchWeek: (weekStart: string) => Promise<Response<RoomsWeek>>;
+  de?: string | undefined;
+  ate?: string | undefined;
+  fetchRange: (range: { from: string; to: string }) => Promise<Response<RoomsRange>>;
 };
 
 async function dataOf<T>(request: () => Promise<Response<T>>): Promise<T | null> {
@@ -112,30 +133,30 @@ async function dataOf<T>(request: () => Promise<Response<T>>): Promise<T | null>
 }
 
 /**
- * Carrega o dia (hoje, sem data válida) numa única chamada; na visão geral, só a semana desse
- * dia, também numa chamada. Falha vira mensagem sem dados.
+ * Carrega o dia (hoje, sem data válida) numa única chamada; na visão geral, só o intervalo
+ * pedido (`selectedDate` é o primeiro dia), também numa chamada. Falha vira mensagem sem dados.
  */
 export async function loadSalas(
   date: string | undefined,
   session: SessionInfo,
   fetchDay: (date: string) => Promise<Response<RoomsDay>>,
   now: Date = new Date(),
-  week?: WeekOptions,
+  range?: RangeOptions,
 ): Promise<SalasLoaderData> {
   const { user } = session;
   const has = (roles: readonly string[]) =>
     user?.roles.some((role) => roles.includes(role)) ?? false;
-  const selectedDate = date ?? localNow(now, session.timeZone).slice(0, 10);
-  const geral = week?.geral === true;
-  const roomsWeek = geral
-    ? await dataOf(() => week.fetchWeek(weekOf(selectedDate)[0] ?? selectedDate))
-    : null;
+  const today = localNow(now, session.timeZone).slice(0, 10);
+  const geral = range?.geral === true;
+  const shown = resolveRange(range?.de, range?.ate, today);
+  const selectedDate = geral ? shown.from : (date ?? today);
+  const roomsRange = geral ? await dataOf(() => range.fetchRange(shown)) : null;
   const roomsDay = geral ? null : await dataOf(() => fetchDay(selectedDate));
   return {
     selectedDate,
     roomsDay,
-    roomsWeek,
-    error: (geral ? roomsWeek : roomsDay) === null ? LOAD_ERROR : null,
+    roomsRange,
+    error: (geral ? roomsRange : roomsDay) === null ? LOAD_ERROR : null,
     isVisitor: user === null,
     canBook: has(BOOKING_ROLES),
     isAdmin: has(ADMIN_ROLES),

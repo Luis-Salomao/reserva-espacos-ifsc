@@ -6,7 +6,7 @@ import type {
   RecurringOutcome,
   RecurringPreview,
   RoomsDay,
-  RoomsWeek,
+  RoomsRange,
   SeriesUpdateInput,
   SeriesUpdatePreview,
   WeekAgenda,
@@ -121,13 +121,14 @@ export function getRoomsDay(deps: BookingDeps, request: RequestLike, data: unkno
   });
 }
 
-/** Segunda a sexta de todas as salas (`{ weekStart }`, uma segunda-feira); pública conforme `PUBLIC_READ`. */
-export function getRoomsWeek(deps: BookingDeps, request: RequestLike, data: unknown) {
-  return asReader<RoomsWeek>(deps, request, async (viewer) => {
+/** Todas as salas de `from` a `to` (`{ from, to }`, até 31 dias); pública conforme `PUBLIC_READ`. */
+export function getRoomsRange(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asReader<RoomsRange>(deps, request, async (viewer) => {
     const body = record(data);
-    const weekStart = body && text(body, "weekStart");
-    if (weekStart == null) return reject(400, BAD_REQUEST);
-    return fromResult(await deps.bookings.roomsWeek(viewer, { weekStart }));
+    const from = body && text(body, "from");
+    const to = body && text(body, "to");
+    if (from == null || to == null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.bookings.roomsRange(viewer, { from, to }));
   });
 }
 
