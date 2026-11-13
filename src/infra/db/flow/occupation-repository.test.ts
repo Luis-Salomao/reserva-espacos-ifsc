@@ -434,4 +434,33 @@ describe("occupation repository", () => {
     const page = await repo.listMine(s.docA.id, "2026-11-03T09:00", 1, 1);
     expect(page.map((item) => item.title)).toEqual(["Reunião"]);
   });
+
+  test("listMineInRange e listMineTitles: só ativas do usuário, limites do intervalo", async () => {
+    const { db, s, repo } = await setup();
+    const row = (id: string, over: Partial<Parameters<typeof insertImported>[1]>) =>
+      insertImported(db, {
+        id,
+        spaceId: s.sala1.id,
+        date: "2026-11-12",
+        start: "08:00",
+        end: "09:00",
+        title: id,
+        responsibleUserId: s.docA.id,
+        ...over,
+      });
+    row("Importada", { date: "2026-11-10" });
+    row("Cancelada", { date: "2026-11-10", start: "10:00", end: "11:00", status: "cancelada" });
+    row("DeB", { date: "2026-11-10", start: "12:00", end: "13:00", responsibleUserId: s.docB.id });
+    row("TerminaEmFrom", { spaceId: s.sala2.id, date: "2026-11-09", start: "08:00", end: "09:00" });
+    row("ComecaEmTo", { spaceId: s.sala2.id, date: "2026-11-20", start: "08:00", end: "09:00" });
+    row("Passada", { spaceId: s.sala2.id, date: "2026-11-01" });
+    await repo.insertManualIfFree(
+      manual(s, { startsAt: "2026-11-11T10:00", endsAt: "2026-11-11T11:00" }),
+    );
+    const range = await repo.listMineInRange(s.docA.id, "2026-11-09T09:00", "2026-11-20T08:00");
+    expect(range.map((item) => item.title)).toEqual(["Importada", "Reunião"]);
+    expect(range[0]?.spaceName).toBe("ADM 2");
+    const titles = await repo.listMineTitles(s.docA.id, "2026-11-09T09:00");
+    expect(titles.sort()).toEqual(["ComecaEmTo", "Importada", "Reunião"]);
+  });
 });

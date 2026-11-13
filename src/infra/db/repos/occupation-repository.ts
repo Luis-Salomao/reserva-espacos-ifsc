@@ -34,6 +34,13 @@ const columns = {
  * avulsa (`series_id`): as ativas da mesma série com início igual ou posterior ao da âncora ("esta e
  * as próximas"); na avulsa o responsável é quem criou.
  */
+function ownedBy(userId: string) {
+  return and(
+    eq(occupations.status, "ativa"),
+    or(eq(occupations.createdBy, userId), eq(occupations.responsibleUserId, userId)),
+  );
+}
+
 function seriesCondition(
   anchor: OccupationRecord,
   fromLocal: string,
@@ -511,16 +518,33 @@ export function createOccupationRepository(
         .select({ ...columns, spaceName: spaces.name })
         .from(occupations)
         .innerJoin(spaces, eq(spaces.id, occupations.spaceId))
-        .where(
-          and(
-            eq(occupations.status, "ativa"),
-            gt(occupations.endsAt, fromLocal),
-            or(eq(occupations.createdBy, userId), eq(occupations.responsibleUserId, userId)),
-          ),
-        )
+        .where(and(ownedBy(userId), gt(occupations.endsAt, fromLocal)))
         .orderBy(asc(occupations.startsAt), asc(occupations.id))
         .limit(limit)
         .offset(offset);
+    },
+
+    async listMineInRange(userId, fromLocal, toLocal) {
+      return db
+        .select({ ...columns, spaceName: spaces.name })
+        .from(occupations)
+        .innerJoin(spaces, eq(spaces.id, occupations.spaceId))
+        .where(
+          and(
+            ownedBy(userId),
+            gt(occupations.endsAt, fromLocal),
+            lt(occupations.startsAt, toLocal),
+          ),
+        )
+        .orderBy(asc(occupations.startsAt), asc(occupations.id));
+    },
+
+    async listMineTitles(userId, fromLocal) {
+      const rows = await db
+        .select({ title: occupations.title })
+        .from(occupations)
+        .where(and(ownedBy(userId), gt(occupations.endsAt, fromLocal)));
+      return rows.map((row) => row.title);
     },
   };
 }

@@ -471,6 +471,14 @@ export interface OccupationRepository {
     limit: number,
     offset: number,
   ): Promise<OccupationWithSpace[]>;
+  /** Ocupações ativas do usuário que intersectam [`fromLocal`, `toLocal`), ordenadas, sem limite. */
+  listMineInRange(
+    userId: string,
+    fromLocal: string,
+    toLocal: string,
+  ): Promise<OccupationWithSpace[]>;
+  /** Um título por ocupação ativa do usuário que termina depois de `fromLocal` (com repetição). */
+  listMineTitles(userId: string, fromLocal: string): Promise<string[]>;
 }
 
 /** Aviso a gravar; `data` vira `data_json`. */
