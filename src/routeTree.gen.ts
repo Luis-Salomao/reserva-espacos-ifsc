@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as EntrarRouteImport } from './routes/entrar'
 import { Route as ImportarRouteImport } from './routes/importar'
+import { Route as MinhaAgendaRouteImport } from './routes/minha-agenda'
 import { Route as MinhasReservasRouteImport } from './routes/minhas-reservas'
 import { Route as RecuperarSenhaRouteImport } from './routes/recuperar-senha'
 import { Route as RedefinirSenhaRouteImport } from './routes/redefinir-senha'
@@ -45,6 +46,11 @@ const EntrarRoute = EntrarRouteImport.update({
 const ImportarRoute = ImportarRouteImport.update({
   id: '/importar',
   path: '/importar',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const MinhaAgendaRoute = MinhaAgendaRouteImport.update({
+  id: '/minha-agenda',
+  path: '/minha-agenda',
   getParentRoute: () => rootRouteImport,
 } as any)
 const MinhasReservasRoute = MinhasReservasRouteImport.update({
@@ -147,6 +153,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRouteWithChildren
+  '/minha-agenda': typeof MinhaAgendaRoute
   '/minhas-reservas': typeof MinhasReservasRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -170,6 +177,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
+  '/minha-agenda': typeof MinhaAgendaRoute
   '/minhas-reservas': typeof MinhasReservasRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -195,6 +203,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/entrar': typeof EntrarRoute
   '/importar': typeof ImportarRouteWithChildren
+  '/minha-agenda': typeof MinhaAgendaRoute
   '/minhas-reservas': typeof MinhasReservasRoute
   '/recuperar-senha': typeof RecuperarSenhaRoute
   '/redefinir-senha': typeof RedefinirSenhaRoute
@@ -221,6 +230,7 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/importar'
+    | '/minha-agenda'
     | '/minhas-reservas'
     | '/recuperar-senha'
     | '/redefinir-senha'
@@ -244,6 +254,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/entrar'
+    | '/minha-agenda'
     | '/minhas-reservas'
     | '/recuperar-senha'
     | '/redefinir-senha'
@@ -268,6 +279,7 @@ export interface FileRouteTypes {
     | '/'
     | '/entrar'
     | '/importar'
+    | '/minha-agenda'
     | '/minhas-reservas'
     | '/recuperar-senha'
     | '/redefinir-senha'
@@ -293,6 +305,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   EntrarRoute: typeof EntrarRoute
   ImportarRoute: typeof ImportarRouteWithChildren
+  MinhaAgendaRoute: typeof MinhaAgendaRoute
   MinhasReservasRoute: typeof MinhasReservasRoute
   RecuperarSenhaRoute: typeof RecuperarSenhaRoute
   RedefinirSenhaRoute: typeof RedefinirSenhaRoute
@@ -332,6 +345,13 @@ declare module '@tanstack/react-router' {
       path: '/importar'
       fullPath: '/importar'
       preLoaderRoute: typeof ImportarRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/minha-agenda': {
+      id: '/minha-agenda'
+      path: '/minha-agenda'
+      fullPath: '/minha-agenda'
+      preLoaderRoute: typeof MinhaAgendaRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/minhas-reservas': {
@@ -490,6 +510,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   EntrarRoute: EntrarRoute,
   ImportarRoute: ImportarRouteWithChildren,
+  MinhaAgendaRoute: MinhaAgendaRoute,
   MinhasReservasRoute: MinhasReservasRoute,
   RecuperarSenhaRoute: RecuperarSenhaRoute,
   RedefinirSenhaRoute: RedefinirSenhaRoute,
