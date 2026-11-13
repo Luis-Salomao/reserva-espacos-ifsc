@@ -11,6 +11,9 @@ import {
   getSubjects,
   getWeekAgenda,
   myBookingsAction,
+  myDatesAction,
+  mySubjectsAction,
+  myWeekAction,
   previewSeriesAction,
   previewSeriesUpdateAction,
   updateBookingAction,
@@ -619,5 +622,51 @@ describe("matérias", () => {
       ok: true,
       data: { mine: ["Cálculo — 1A"], all: [] },
     });
+  });
+});
+
+describe("minha agenda", () => {
+  test("401 sem token ou conta inativa", async () => {
+    const { deps, req } = await setup();
+    for (const token of [null, "off"]) {
+      const r = req(token);
+      expect((await mySubjectsAction(deps, r, {})).response).toMatchObject({
+        ok: false,
+        status: 401,
+      });
+      expect((await myWeekAction(deps, r, { weekStart: "2026-11-09" })).response).toMatchObject({
+        ok: false,
+        status: 401,
+      });
+      expect((await myDatesAction(deps, r, { subject: "x" })).response).toMatchObject({
+        ok: false,
+        status: 401,
+      });
+    }
+  });
+
+  test("corpo inválido dá 400", async () => {
+    const { deps, req } = await setup();
+    for (const data of [{}, { weekStart: 5 }, { weekStart: "2026-11-09", subject: 5 }, []]) {
+      expect((await myWeekAction(deps, req("doca"), data)).response).toMatchObject({
+        ok: false,
+        status: 400,
+      });
+    }
+    for (const data of [{}, { subject: 5 }, undefined]) {
+      expect((await myDatesAction(deps, req("doca"), data)).response).toMatchObject({
+        ok: false,
+        status: 400,
+      });
+    }
+  });
+
+  test("docente só vê as próprias", async () => {
+    const { s, deps, req } = await setup();
+    await createBookingAction(deps, req("doca"), body(s));
+    const a = await mySubjectsAction(deps, req("doca"), undefined);
+    const b = await mySubjectsAction(deps, req("docb"), undefined);
+    expect(a.response.ok).toBe(true);
+    expect(b.response).toMatchObject({ ok: true, data: { subjects: [] } });
   });
 });

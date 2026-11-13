@@ -3,6 +3,9 @@ import type {
   BookingView,
   DayAgenda,
   MyBooking,
+  MyDates,
+  MySubject,
+  MyWeek,
   RecurringOutcome,
   RecurringPreview,
   RoomsDay,
@@ -366,5 +369,40 @@ export function myBookingsAction(deps: BookingDeps, request: RequestLike, data: 
         ...(offset === undefined ? {} : { offset }),
       }),
     );
+  });
+}
+
+/** Matérias das ocupações do usuário. */
+export function mySubjectsAction(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asAccount<{ subjects: MySubject[] }>(deps, request, async (user) => {
+    if (data !== undefined && record(data) === null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.bookings.mySubjects(user));
+  });
+}
+
+/** Semana do usuário (`{ weekStart, subject? }`). */
+export function myWeekAction(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asAccount<MyWeek>(deps, request, async (user) => {
+    const body = record(data);
+    const weekStart = body && text(body, "weekStart");
+    if (body == null || weekStart == null) return reject(400, BAD_REQUEST);
+    const subject = body.subject;
+    if (subject !== undefined && typeof subject !== "string") return reject(400, BAD_REQUEST);
+    return fromResult(
+      await deps.bookings.myWeek(user, {
+        weekStart,
+        ...(subject === undefined ? {} : { subject }),
+      }),
+    );
+  });
+}
+
+/** Datas do usuário numa matéria (`{ subject }`). */
+export function myDatesAction(deps: BookingDeps, request: RequestLike, data: unknown) {
+  return asAccount<MyDates>(deps, request, async (user) => {
+    const body = record(data);
+    const subject = body && text(body, "subject");
+    if (subject == null) return reject(400, BAD_REQUEST);
+    return fromResult(await deps.bookings.myDates(user, { subject }));
   });
 }

@@ -10,6 +10,9 @@ import {
   getSubjects,
   getWeekAgenda,
   myBookingsAction,
+  myDatesAction,
+  mySubjectsAction,
+  myWeekAction,
   previewRecurringAction,
   previewSeriesAction,
   previewSeriesUpdateAction,
@@ -90,3 +93,17 @@ export const myBookingsFn = createServerFn({ method: "POST" })
   .handler(async ({ data }) =>
     finish(await myBookingsAction(getBookingDeps(), getRequest(), data)),
   );
+
+export const mySubjectsFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) =>
+    finish(await mySubjectsAction(getBookingDeps(), getRequest(), data)),
+  );
+
+export const myWeekFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await myWeekAction(getBookingDeps(), getRequest(), data)));
+
+export const myDatesFn = createServerFn({ method: "POST" })
+  .validator(passthrough)
+  .handler(async ({ data }) => finish(await myDatesAction(getBookingDeps(), getRequest(), data)));
