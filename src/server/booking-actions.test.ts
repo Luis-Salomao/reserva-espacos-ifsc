@@ -666,7 +666,12 @@ describe("minha agenda", () => {
     await createBookingAction(deps, req("doca"), body(s));
     const a = await mySubjectsAction(deps, req("doca"), undefined);
     const b = await mySubjectsAction(deps, req("docb"), undefined);
-    expect(a.response.ok).toBe(true);
+    expect(a.response.ok && a.response.data.subjects.length).toBeGreaterThan(0);
+    expect(a.response.ok && a.response.data.subjects.map((x) => x.label)).toContain("Reunião");
     expect(b.response).toMatchObject({ ok: true, data: { subjects: [] } });
+    const week = await myWeekAction(deps, req("docb"), { weekStart: "2026-11-09" });
+    expect(week.response).toMatchObject({ ok: true, data: { items: [] } });
+    const dates = await myDatesAction(deps, req("docb"), { subject: "Reunião" });
+    expect(dates.response).toMatchObject({ ok: true, data: { items: [] } });
   });
 });
