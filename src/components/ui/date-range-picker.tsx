@@ -137,6 +137,8 @@ export function DateRangePicker({
           locale={ptBR}
           weekStartsOn={1}
           numberOfMonths={wide ? 2 : 1}
+          // Sem dias de outros meses: com dois meses lado a lado, o mesmo dia apareceria marcado duas vezes.
+          showOutsideDays={false}
           {...(todayDate === undefined ? {} : { today: todayDate })}
           {...(shown.from === undefined ? {} : { defaultMonth: shown.from })}
           selected={shown}
