@@ -1,6 +1,8 @@
 import type { AgendaItem } from "#/application/bookings";
 
 export type PositionedEvent = AgendaItem & {
+  /** Sala do item (visão "Minha agenda"); ausente na agenda de uma sala. */
+  spaceName?: string;
   startMinutes: number;
   endMinutes: number;
   lane: number;

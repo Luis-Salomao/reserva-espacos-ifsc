@@ -21,6 +21,8 @@ export type OccupationDetailsProps = {
   onCancel: (occupation: AgendaItem) => void;
   /** Abre o pedido da sala (só aparece se a ocupação aceita pedidos de quem consulta). */
   onRequest?: (occupation: AgendaItem) => void;
+  /** Abre a edição; só aparece em reserva manual cancelável. A regra fina fica com o chamador. */
+  onEdit?: (occupation: AgendaItem) => void;
 };
 
 /** Detalhes de uma ocupação da agenda; o nome da pessoa só chega aqui para quem está logado. */
@@ -30,6 +32,7 @@ export function OccupationDetails({
   onOpenChange,
   onCancel,
   onRequest,
+  onEdit,
 }: OccupationDetailsProps) {
   const item = occupation;
   const isImport = item?.source === "import";
@@ -121,6 +124,11 @@ export function OccupationDetails({
                 {item.canRequest === true && onRequest !== undefined && (
                   <Button variant="outline" size="sm" onClick={() => onRequest(item)}>
                     Pedir esta sala…
+                  </Button>
+                )}
+                {onEdit !== undefined && item.source === "manual" && item.canCancel && (
+                  <Button variant="outline" size="sm" onClick={() => onEdit(item)}>
+                    Editar…
                   </Button>
                 )}
                 {item.canCancel && (

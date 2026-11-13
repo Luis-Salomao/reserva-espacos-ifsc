@@ -184,16 +184,18 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
   const displayTitle = isMaintenance ? ev.title.slice(MAINTENANCE_PREFIX.length) : ev.title;
   const tag = `${TAGS[state]}${ev.mine ? " · sua" : ""}`;
   const showPerson = ev.person !== null && height >= 54;
+  const room = ev.spaceName;
+  const showRoom = room !== undefined && height >= 54;
   const showTag = height >= (showPerson ? 76 : 50);
   return (
     <button
       type="button"
       data-occupation
       onClick={onOpen}
-      aria-label={[displayTitle, `${ev.start}–${ev.end}`, ev.person?.name, tag]
+      aria-label={[displayTitle, `${ev.start}–${ev.end}`, room, ev.person?.name, tag]
         .filter(Boolean)
         .join(" · ")}
-      title={[displayTitle, `${ev.start}–${ev.end}`, ev.person?.name, tag]
+      title={[displayTitle, `${ev.start}–${ev.end}`, room, ev.person?.name, tag]
         .filter(Boolean)
         .join(" · ")}
       className={cn(
@@ -229,6 +231,7 @@ export function OccupationCard({ ev, scale, onOpen }: OccupationCardProps) {
       <span className="block text-[11px] tabular-nums text-muted-foreground">
         {ev.start}–{ev.end}
       </span>
+      {showRoom && <span className="block truncate text-[11px] text-foreground/85">{room}</span>}
       {showPerson && ev.person !== null && <PersonLine person={ev.person} />}
       {!showPerson && ev.person !== null && <span className="sr-only">{ev.person.name}</span>}
       {isMaintenance && (
