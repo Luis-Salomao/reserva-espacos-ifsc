@@ -30,6 +30,7 @@ import {
 } from "#/domain/recurrence";
 import { canAskForRoom, MAX_NOTE, occupationOwnerId, requestIssue } from "#/domain/room-request";
 import { isValidDate, type Semester } from "#/domain/semester";
+import { normalizeSubject } from "#/domain/text-match";
 import type { User } from "#/domain/user";
 
 /** Papéis que podem reservar. */
@@ -196,6 +197,11 @@ export type MyBooking = AgendaItem & {
   seriesId?: string | null;
   canEdit?: boolean;
 };
+
+/** Disciplina agrupada por `key` (título normalizado); `label` é a grafia mais frequente. */
+export type MySubject = { key: string; label: string; count: number };
+export type MyWeek = WeekAgenda & { items: MyBooking[] };
+export type MyDates = { now: string; items: MyBooking[] };
 
 /** Data da série na prévia: livre, ou com o motivo do conflito (título e horário, sem pessoas). */
 export type RecurringDate =
@@ -378,6 +384,19 @@ function buildDay(
     occupations: [...items],
     free: freeIntervals(hours, items),
     blocks: blocksFor(date, semesters),
+  };
+}
+
+function toMyBooking(row: OccupationWithSpace, user: User, now: string, people: People): MyBooking {
+  return {
+    ...toItem(row, user, now, people),
+    spaceId: row.spaceId,
+    spaceName: row.spaceName,
+    inSeries: row.seriesId !== null,
+    seriesId: row.seriesId,
+    responsible: row.source === "import" && row.responsibleUserId === user.id,
+    canEdit:
+      canBook(user) && row.source === "manual" && row.createdBy === user.id && row.startsAt > now,
   };
 }
 
@@ -1093,20 +1112,88 @@ export function createBookingsService(deps: BookingsDeps) {
         occupations.listMine(user.id, fromLocal, limit + 1, offset),
         peopleFor(user),
       ]);
-      const items = rows.slice(0, limit).map((row) => ({
-        ...toItem(row, user, now, people),
-        spaceId: row.spaceId,
-        spaceName: row.spaceName,
-        inSeries: row.seriesId !== null,
-        seriesId: row.seriesId,
-        responsible: row.source === "import" && row.responsibleUserId === user.id,
-        canEdit:
-          canBook(user) &&
-          row.source === "manual" &&
-          row.createdBy === user.id &&
-          row.startsAt > now,
-      }));
+      const items = rows.slice(0, limit).map((row) => toMyBooking(row, user, now, people));
       return ok({ items, hasMore: rows.length > limit });
+    },
+
+    /** Disciplinas futuras do usuário, agrupadas por título normalizado. */
+    async mySubjects(user: User): Promise<Result<{ subjects: MySubject[] }>> {
+      const titles = await occupations.listMineTitles(user.id, nowLocal());
+      const groups = new Map<string, Map<string, number>>();
+      for (const title of titles) {
+        const key = normalizeSubject(title);
+        const variants = groups.get(key) ?? new Map<string, number>();
+        variants.set(title, (variants.get(title) ?? 0) + 1);
+        groups.set(key, variants);
+      }
+      const subjects: MySubject[] = [];
+      for (const [key, variants] of groups) {
+        let label = "";
+        let best = 0;
+        let count = 0;
+        for (const title of [...variants.keys()].sort((x, y) => byTitle.compare(x, y))) {
+          const n = variants.get(title) ?? 0;
+          count += n;
+          if (n > best) {
+            best = n;
+            label = title;
+          }
+        }
+        subjects.push({ key, label, count });
+      }
+      subjects.sort((x, y) => byTitle.compare(x.label, y.label));
+      return ok({ subjects });
+    },
+
+    /** Semana (segunda a domingo) com as ocupações do usuário em todas as salas. */
+    async myWeek(
+      user: User,
+      input: { weekStart: string; subject?: string },
+    ): Promise<Result<MyWeek>> {
+      if (!isValidDate(input.weekStart)) {
+        return fail("validation", "Informe uma data válida.", "weekStart");
+      }
+      if (weekdayOf(input.weekStart) !== 0) {
+        return fail("validation", "A semana deve começar numa segunda-feira.", "weekStart");
+      }
+      const now = nowLocal();
+      const [rows, all, people] = await Promise.all([
+        occupations.listMineInRange(
+          user.id,
+          `${input.weekStart}T00:00`,
+          `${addDays(input.weekStart, 7)}T00:00`,
+        ),
+        semesters.list(),
+        peopleFor(user),
+      ]);
+      const wanted = input.subject === undefined ? null : normalizeSubject(input.subject);
+      const items = rows
+        .map((row) => toMyBooking(row, user, now, people))
+        .filter((item) => wanted === null || normalizeSubject(item.title) === wanted);
+      const days: DayAgenda[] = [];
+      for (let offset = 0; offset < 7; offset++) {
+        const date = addDays(input.weekStart, offset);
+        const day = items.filter((item) => item.date === date);
+        days.push({ ...buildDay("", date, now, hours, day, all), free: [] });
+      }
+      return ok({ spaceId: "", weekStart: input.weekStart, now, days, items });
+    },
+
+    /** Datas futuras (até 190 dias) de uma disciplina do usuário. */
+    async myDates(user: User, input: { subject: string }): Promise<Result<MyDates>> {
+      const wanted = normalizeSubject(input.subject);
+      if (wanted === "") return fail("validation", "Escolha uma disciplina.", "subject");
+      const now = nowLocal();
+      const end = `${addDays(now.slice(0, 10), 190)}${now.slice(10)}`;
+      const [rows, people] = await Promise.all([
+        occupations.listMineInRange(user.id, now, end),
+        peopleFor(user),
+      ]);
+      const items = rows
+        .filter((row) => normalizeSubject(row.title) === wanted)
+        .map((row) => toMyBooking(row, user, now, people))
+        .sort((x, y) => `${x.date}T${x.start}`.localeCompare(`${y.date}T${y.start}`));
+      return ok({ now, items });
     },
   };
 }

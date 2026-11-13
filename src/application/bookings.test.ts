@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { createBookingsService } from "#/application/bookings";
+import { createBookingsService, type MyBooking } from "#/application/bookings";
 import type { Role, User } from "#/domain/user";
 import {
   bookingDeps,
@@ -1178,6 +1178,101 @@ describe("myBookings", () => {
     expect(await svc.myBookings(s.docA, { offset: -1 })).toMatchObject({
       ok: false,
       field: "offset",
+    });
+  });
+});
+
+describe("minha agenda", () => {
+  const imp = (
+    db: Parameters<typeof insertImported>[0],
+    s: Seed,
+    id: string,
+    title: string,
+    date: string,
+    owner: string | null,
+    over: Partial<Parameters<typeof insertImported>[1]> = {},
+  ) =>
+    insertImported(db, {
+      id,
+      spaceId: s.sala1.id,
+      date,
+      start: "08:00",
+      end: "09:00",
+      title,
+      responsibleUserId: owner,
+      ...over,
+    });
+
+  test("mySubjects agrupa variações, ignora passadas, canceladas e de outro docente", async () => {
+    const { db, s, svc } = await setup();
+    imp(db, s, "a", "Cultura Digital - LAZ", "2026-11-10", s.docA.id);
+    imp(db, s, "b", "Cultura Digital – LAZ", "2026-11-11", s.docA.id);
+    imp(db, s, "c", "Passada", "2026-11-02", s.docA.id);
+    imp(db, s, "d", "Cancelada", "2026-11-12", s.docA.id, { status: "cancelada" });
+    imp(db, s, "e", "De B", "2026-11-12", s.docB.id);
+    const result = await svc.mySubjects(s.docA);
+    if (!result.ok) throw new Error(result.message);
+    expect(result.value.subjects).toHaveLength(1);
+    expect(result.value.subjects[0]).toMatchObject({ key: "cultura digital - laz", count: 2 });
+    const empty = await svc.mySubjects(s.docB);
+    expect(empty.ok && empty.value.subjects.map((x) => x.label)).toEqual(["De B"]);
+    const none = await svc.mySubjects(s.admin);
+    expect(none).toEqual({ ok: true, value: { subjects: [] } });
+  });
+
+  test("myWeek reúne salas, exclui outras pessoas, passada sem ações e filtra disciplina", async () => {
+    const { db, s, svc } = await setup();
+    imp(db, s, "a", "Mat", "2026-11-04", s.docA.id);
+    imp(db, s, "b", "Fis", "2026-11-04", s.docA.id, {
+      spaceId: s.sala2.id,
+      start: "10:00",
+      end: "11:00",
+    });
+    imp(db, s, "c", "Mat", "2026-11-02", s.docA.id);
+    imp(db, s, "d", "Mat", "2026-11-05", s.docB.id);
+    const week = await svc.myWeek(s.docA, { weekStart: "2026-11-02" });
+    if (!week.ok) throw new Error(week.message);
+    expect(week.value.days).toHaveLength(7);
+    const day = week.value.days[2];
+    expect(day?.occupations.map((o) => (o as MyBooking).spaceName).sort()).toEqual(
+      ["LAB 1", "ADM 2"].sort(),
+    );
+    expect(day?.free).toEqual([]);
+    expect(week.value.items.map((i) => i.title)).not.toContain("De B");
+    expect(week.value.items).toHaveLength(3);
+    const past = week.value.items.find((i) => i.date === "2026-11-02");
+    expect(past?.canCancel).toBe(false);
+    const only = await svc.myWeek(s.docA, { weekStart: "2026-11-02", subject: "MAT" });
+    expect(only.ok && only.value.items.map((i) => i.title)).toEqual(["Mat", "Mat"]);
+    for (const weekStart of ["2026-11-03", "x"]) {
+      expect(await svc.myWeek(s.docA, { weekStart })).toMatchObject({
+        ok: false,
+        field: "weekStart",
+      });
+    }
+  });
+
+  test("myDates lista futuras da disciplina, importada sem edição e manual editável", async () => {
+    const { db, s, svc } = await setup();
+    imp(db, s, "a", "Mat", "2026-11-20", s.docA.id);
+    imp(db, s, "b", "Mat", "2026-11-10", s.docA.id);
+    imp(db, s, "c", "Mat", "2026-11-02", s.docA.id);
+    imp(db, s, "d", "Fis", "2026-11-11", s.docA.id);
+    const manual = await svc.createBooking(s.docA, book(s, { date: "2026-11-15", purpose: "Mat" }));
+    expect(manual.ok).toBe(true);
+    const result = await svc.myDates(s.docA, { subject: "Mat" });
+    if (!result.ok) throw new Error(result.message);
+    expect(result.value.items.map((i) => i.date)).toEqual([
+      "2026-11-10",
+      "2026-11-15",
+      "2026-11-20",
+    ]);
+    expect(result.value.items.map((i) => i.canEdit)).toEqual([false, true, false]);
+    const byKey = await svc.myDates(s.docA, { subject: "mat" });
+    expect(byKey).toEqual(result);
+    expect(await svc.myDates(s.docA, { subject: "  " })).toMatchObject({
+      ok: false,
+      field: "subject",
     });
   });
 });
