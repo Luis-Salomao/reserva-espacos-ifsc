@@ -32,7 +32,7 @@
   --card-foreground: var(--text);
   --popover: var(--surface);
   --popover-foreground: var(--text);
-  --primary: var(--accent);
+  --primary: var(--accent-strong);
   --primary-foreground: var(--accent-contrast);
   --secondary: var(--surface-2);
   --secondary-foreground: var(--text);

@@ -63,6 +63,7 @@ const REQUIRED = [
   "--text",
   "--text-muted",
   "--accent",
+  "--accent-strong",
   "--accent-contrast",
   "--accent-text",
   "--occ-free",
@@ -137,9 +138,20 @@ describe.each(themes)("tokens do tema %s", (_name, t) => {
     expect(contrast(t["--sidebar-text"] as string, ativo)).toBeGreaterThanOrEqual(4.5);
   });
 
+  // Botões, aba ativa e dia selecionado: verde do IFSC um pouco mais fechado (#26853A) com texto
+  // branco (4,67); o #32A041 com texto branco daria só 3,1.
+  test("texto branco sobre o verde das ações >= 4.5, e o verde das ações é verde", () => {
+    expect((t["--accent-contrast"] as string).toLowerCase()).toBe("#ffffff");
+    const [r, g, b] = [1, 3, 5].map((i) =>
+      Number.parseInt((t["--accent-strong"] as string).slice(i, i + 2), 16),
+    ) as [number, number, number];
+    expect(g).toBeGreaterThan(r);
+    expect(g).toBeGreaterThan(b);
+  });
+
   test("texto sobre o destaque >= 4.5", () => {
     expect(
-      contrast(t["--accent-contrast"] as string, t["--accent"] as string),
+      contrast(t["--accent-contrast"] as string, t["--accent-strong"] as string),
     ).toBeGreaterThanOrEqual(4.5);
   });
 
