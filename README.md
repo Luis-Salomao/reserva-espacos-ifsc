@@ -309,4 +309,4 @@ Antes de ativar o processamento da outbox, execute `bun run cli email:check`. O 
 
 ## Licença
 
-[MIT](LICENSE)
+[0BSD](LICENSE) (BSD Zero Clause): uso, cópia, modificação e distribuição livres, sem exigir atribuição.
