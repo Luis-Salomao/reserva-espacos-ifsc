@@ -301,6 +301,22 @@ O **resultado por linha** (cada aula/ocorrência com estado, motivo, conflito e 
 
 Em **Minhas reservas**, o botão **Editar** permite alterar sala, data, início, fim e finalidade de uma reserva manual própria que ainda não começou. A edição preserva o identificador e, quando houver, o vínculo com a série; somente a ocorrência escolhida muda. Aulas importadas e reservas de outras pessoas não são editáveis por esse fluxo. Se o horário entrar em conflito, a reserva anterior permanece intacta.
 
+Em **Minhas reservas** (celular), o texto ocupa a largura do card e as ações ficam abaixo dele. Uma série que atravessa meses aparece em cada mês, com contagem e "Próxima" próprias.
+
+## Minha agenda
+
+**Minha agenda** (`/minha-agenda`, para docentes e administradores) mostra numa grade semanal as ocupações da pessoa em todas as salas: aulas importadas em que ela é responsável e reservas que ela criou. O cartão mostra a sala.
+
+- **Filtro "Disciplina":** agrupa as reservas futuras pelo título, sem diferenciar maiúsculas, acentos, espaços e tipos de traço (`-`, `–`, `—`). Escolhe-se, por exemplo, só "Cultura Digital - LAZ" para ver as datas daquela unidade curricular.
+- **Semana / Todas as datas:** com uma disciplina escolhida, "Todas as datas" lista as ocorrências futuras (até cerca de seis meses) com **Desmarcar** em cada uma, para liberar os dias em que a sala ou o laboratório não será usado.
+- **Clique numa ocorrência:** abre os detalhes. Reserva manual própria e futura pode ser editada (só esta data ou esta e as próximas, quando é série) ou cancelada. Aula importada só pode ser desmarcada naquela data; não é movida nem editada. Ocorrências passadas aparecem sem ações.
+- Filtro, semana e modo ficam na URL (`semana`, `disciplina`, `modo`), então o link pode ser guardado.
+- No celular a grade rola dentro do próprio quadro; a página não rola na horizontal.
+
+Ainda não é possível arrastar ou redimensionar uma reserva na grade.
+
+## Reservas recorrentes e visão geral
+
 Na confirmação de uma reserva recorrente, as datas livres começam marcadas. Desmarque as datas que não deseja reservar; o botão mostra a quantidade escolhida. Um conflito em qualquer data escolhida impede a gravação de toda a seleção e atualiza a prévia.
 
 Na visão geral, clicar ou arrastar destaca somente a sala em que a seleção começou. O painel lista alternativas para aquele intervalo. A cor de cada célula representa o horário realmente ocupado, do início no topo ao fim na base; os detalhes informam os horários ocupados e livres. Os blocos de aula são referências visuais: uma reserva das 15h às 16h permite outra a partir das 16h se não houver outra ocupação conflitante.
