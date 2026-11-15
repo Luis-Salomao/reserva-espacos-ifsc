@@ -18,8 +18,8 @@ import {
   rawAll,
   type Seed,
   seed,
-} from "../booking-env";
-import { requireElement } from "../dom-values";
+} from "#test/booking-env";
+import { requireElement } from "#test/dom-values";
 
 afterEach(() => {
   cleanup();
@@ -61,7 +61,7 @@ async function setupEnv() {
   return { db, s, svc, deps, req };
 }
 
-describe("Challenger M2 — Suite 1: Overlapping Collisions & Half-Open Boundaries", () => {
+describe("sobreposição e intervalos semiabertos", () => {
   test("1.1 Baseline booking collision matrix (exact, left, right, subset, superset)", async () => {
     const { s, svc } = await setupEnv();
     const date = "2026-11-10";
@@ -280,7 +280,7 @@ describe("Challenger M2 — Suite 1: Overlapping Collisions & Half-Open Boundari
   });
 });
 
-describe("Challenger M2 — Suite 2: Concurrency Race on Booking Creation", () => {
+describe("corrida entre reservas simultâneas", () => {
   test("2.1 High-concurrency race: 20 simultaneous requests for the exact same slot", async () => {
     const { db, s, svc } = await setupEnv();
     const date = "2026-11-12";
@@ -435,7 +435,7 @@ describe("Challenger M2 — Suite 2: Concurrency Race on Booking Creation", () =
   });
 });
 
-describe("Challenger M2 — Suite 3: Series Cancellation Concurrency Guard (expectedCount)", () => {
+describe("cancelamento de série concorrente (expectedCount)", () => {
   async function seedImportedSeries(db: AppDb, s: Seed, count = 5) {
     const dates = [
       "2026-11-10",
@@ -600,7 +600,7 @@ describe("Challenger M2 — Suite 3: Series Cancellation Concurrency Guard (expe
   });
 });
 
-describe("Challenger M2 — Suite 4: Authorization & Scope Validation", () => {
+describe("autorização e escopo", () => {
   test("4.1 Unauthorized users cannot cancel single or series occupations (403)", async () => {
     const { db, s, svc, deps, req } = await setupEnv();
     insertImported(db, {
@@ -764,7 +764,7 @@ describe("Challenger M2 — Suite 4: Authorization & Scope Validation", () => {
   });
 });
 
-describe("Challenger M2 — Suite 5: UI Resilience & State Preservation", () => {
+describe("interface: resiliência e preservação do estado", () => {
   test("5.1 BookingSheet retains form values and renders conflict banner when 409 collision happens", async () => {
     const spaces = [{ id: "s-1", name: "Laboratório 10", capacity: 20 }];
     const mockCreate = mock(async (..._args: unknown[]) => ({

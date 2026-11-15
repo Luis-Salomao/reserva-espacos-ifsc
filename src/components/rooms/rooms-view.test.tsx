@@ -18,7 +18,7 @@ import type {
 import type { BookingSheetProps } from "#/components/agenda/booking-sheet";
 import { RoomsView, type SalasSearch } from "#/components/rooms/rooms-view";
 import { validateAgendaSearch } from "#/routes/index";
-import { requireSelect } from "../dom-values";
+import { requireSelect } from "#test/dom-values";
 
 const DATE = "2030-11-12";
 const NOW = "2030-11-11T09:00";

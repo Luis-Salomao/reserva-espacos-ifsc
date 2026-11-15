@@ -113,11 +113,11 @@ async function renderBookingSheet(props: Partial<BookingSheetProps> = {}) {
   return { ...renderResult, router, onOpenChange };
 }
 
-describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
+describe("formulário de reserva: casos-limite", () => {
   /* ==========================================================================
      Suite 1: Mobile Viewport Responsiveness (RNF-01: 360px viewport width)
      ========================================================================== */
-  describe("Suite 1: Mobile Viewport Responsiveness (RNF-01 360px)", () => {
+  describe("RNF-01: celular de 360 px", () => {
     beforeEach(() => {
       Object.defineProperty(window, "innerWidth", {
         writable: true,
@@ -264,7 +264,7 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
   /* ==========================================================================
      Suite 2: Route Guard Edge Cases (/minhas-reservas)
      ========================================================================== */
-  describe("Suite 2: Route Guard & Search Edge Cases (/minhas-reservas)", () => {
+  describe("/minhas-reservas: guarda da rota e busca", () => {
     test("2.1 validateMinhasReservasSearch: trata entradas malformadas, vazias e não-string", () => {
       // Empty string or whitespace
       expect(validateMinhasReservasSearch({ newId: "" })).toEqual({});
@@ -386,7 +386,7 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
   /* ==========================================================================
      Suite 3: Timetable Block Shortcuts & Boundary Conditions
      ========================================================================== */
-  describe("Suite 3: Timetable Block Shortcuts & Boundary Conditions", () => {
+  describe("atalhos de bloco de horário e limites", () => {
     test("3.1 Atalhos padrão IFSC cobrem exatamente os 7 blocos esperados dentro do expediente", () => {
       expect(TIMETABLE_SHORTCUTS).toHaveLength(7);
 
@@ -522,7 +522,7 @@ describe("Challenger M2: UI Responsiveness & Edge Cases", () => {
   /* ==========================================================================
      Suite 4: Input Sanitization & Purpose Field Stress
      ========================================================================== */
-  describe("Suite 4: Input Sanitization & Purpose Field Stress", () => {
+  describe("campo de finalidade com entradas hostis", () => {
     test("4.1 Rejeita strings com somente espaços ou quebras de linha", async () => {
       const mockCreate = mock(async (..._args: unknown[]) => ({
         ok: true as const,

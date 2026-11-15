@@ -33,3 +33,9 @@ test("login apresenta a marca IFSC com nome acessível", async () => {
   expect(screen.getByText("Sistema de Reserva de Espaços")).toBeDefined();
   expect(document.querySelector("[data-faixa-ifsc]")).toBeNull();
 });
+
+test("login restaura referrer same-origin ao voltar da recuperação por navegação SPA", async () => {
+  type HeadArgs = Parameters<NonNullable<typeof EntrarRoute.options.head>>[0];
+  const head = await EntrarRoute.options.head?.({} as HeadArgs);
+  expect(head?.meta).toContainEqual({ name: "referrer", content: "same-origin" });
+});

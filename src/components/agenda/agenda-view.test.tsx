@@ -14,7 +14,7 @@ import type { Space } from "#/domain/space";
 import type { User } from "#/domain/user";
 import { getTodayDate, Route, validateAgendaSearch } from "#/routes/index";
 import type { SessionInfo } from "#/server/session";
-import { requireElement } from "../dom-values";
+import { requireElement } from "#test/dom-values";
 
 // Fixtures
 export const MOCK_DATE_TUESDAY = "2026-11-03";

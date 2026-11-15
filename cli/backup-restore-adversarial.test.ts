@@ -11,12 +11,12 @@ import {
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
-import { executeBackup, runBackup } from "../../cli/backup.ts";
-import { planBackup } from "../../cli/backup-plan.ts";
-import { runRestore } from "../../cli/restore.ts";
-import { planRestore } from "../../cli/restore-plan.ts";
+import { executeBackup, runBackup } from "./backup.ts";
+import { planBackup } from "./backup-plan.ts";
+import { runRestore } from "./restore.ts";
+import { planRestore } from "./restore-plan.ts";
 
-describe("Milestone 3 Challenger: Adversarial Stress Tests (Task 5: Cópia e Restauração, RO-01)", () => {
+describe("cópia e restauração sob estresse (RO-01)", () => {
   let tempDir: string;
   let activeDbPath: string;
   let validBackupPath: string;
@@ -75,7 +75,7 @@ describe("Milestone 3 Challenger: Adversarial Stress Tests (Task 5: Cópia e Res
   // =========================================================================
   // SUITE 1: Corrupted Backups & Zero-Byte Files (Scenarios a & b)
   // =========================================================================
-  describe("Suite 1: Arquivos corrompidos, vazios e cabeçalhos truncados", () => {
+  describe("Arquivos corrompidos, vazios e cabeçalhos truncados", () => {
     test("Scenario a1: Restauração de arquivo com bytes aleatórios (ruído) é rejeitada e preserva banco ativo", async () => {
       const corruptFile = join(tempDir, "random-noise.sqlite");
       const randomBytes = Buffer.alloc(2048);
@@ -159,7 +159,7 @@ describe("Milestone 3 Challenger: Adversarial Stress Tests (Task 5: Cópia e Res
   // =========================================================================
   // SUITE 2: Nested Paths, Missing Directories & Special Filenames (Scenario c)
   // =========================================================================
-  describe("Suite 2: Diretórios aninhados, nomes especiais e controle de sobrescrita", () => {
+  describe("Diretórios aninhados, nomes especiais e controle de sobrescrita", () => {
     test("Scenario c1: Backup para diretório inexistente com níveis aninhados cria a hierarquia automaticamente", async () => {
       const nestedTarget = join(tempDir, "deeply", "nested", "dir", "sub", "snapshot.sqlite");
       expect(existsSync(dirname(nestedTarget))).toBe(false);
@@ -229,7 +229,7 @@ describe("Milestone 3 Challenger: Adversarial Stress Tests (Task 5: Cópia e Res
   // =========================================================================
   // SUITE 3: Identical Paths & Parameter Stress (Scenario d)
   // =========================================================================
-  describe("Suite 3: Validação de caminhos idênticos e parâmetros", () => {
+  describe("Validação de caminhos idênticos e parâmetros", () => {
     test("Scenario d1: Restauração com origem exatamente igual ao destino é rejeitada", async () => {
       const exitCode = await runRestore([
         "--from",
@@ -305,7 +305,7 @@ describe("Milestone 3 Challenger: Adversarial Stress Tests (Task 5: Cópia e Res
   // =========================================================================
   // SUITE 4: Active WAL Mode Concurrency Stress (Scenario e)
   // =========================================================================
-  describe("Suite 4: Concorrência sob modo WAL ativo", () => {
+  describe("Concorrência sob modo WAL ativo", () => {
     test("Scenario e: Leitores e escritores concorrentes em modo WAL operam sem bloqueio durante o VACUUM INTO", async () => {
       const stressDbPath = join(tempDir, "stress-wal.sqlite");
       const stressDb = new Database(stressDbPath);
@@ -402,7 +402,7 @@ describe("Milestone 3 Challenger: Adversarial Stress Tests (Task 5: Cópia e Res
   // =========================================================================
   // SUITE 5: Post-Restore Integrity Failure & Safety Rollback (Scenario f)
   // =========================================================================
-  describe("Suite 5: Falha pós-restauração e rollback para cópia de segurança", () => {
+  describe("Falha pós-restauração e rollback para cópia de segurança", () => {
     test("Scenario f1: Falha no PRAGMA integrity_check pós-restauração reverte banco ativo para a cópia de segurança", async () => {
       // 1. Cria banco alvo com dados da versão 1
       const rollbackTarget = join(tempDir, "rollback-target.sqlite");

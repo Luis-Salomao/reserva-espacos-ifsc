@@ -18,7 +18,7 @@ import type {
 import { BookingSheet, type BookingSheetProps } from "#/components/agenda/booking-sheet";
 import type { SubjectsLoad } from "#/components/agenda/subject-combobox";
 import type { AdminResponse } from "#/server/admin-actions";
-import { requireSelect } from "../dom-values";
+import { requireSelect } from "#test/dom-values";
 
 const SPACES = [
   { id: "space-adm", name: "ADM 2", capacity: 30 },

@@ -15,7 +15,7 @@ import {
 } from "#/components/agenda/booking-sheet";
 import type { SubjectsLoad } from "#/components/agenda/subject-combobox";
 import type { Space } from "#/domain/space";
-import { requireSelect } from "../dom-values";
+import { requireSelect } from "#test/dom-values";
 
 const MOCK_SPACES: Space[] = [
   { id: "space-adm", name: "ADM 2", capacity: 30 },

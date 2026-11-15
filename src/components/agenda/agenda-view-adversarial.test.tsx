@@ -54,7 +54,7 @@ afterEach(() => {
   cleanup();
 });
 
-describe("Empirical Challenger — Suite 1: RNF-01 360px Viewport & Layout Stress", () => {
+describe("RNF-01: tela de 360 px e layout sob estresse", () => {
   beforeEach(() => {
     Object.defineProperty(window, "innerWidth", {
       writable: true,
@@ -277,7 +277,7 @@ describe("Empirical Challenger — Suite 1: RNF-01 360px Viewport & Layout Stres
   });
 });
 
-describe("Empirical Challenger — Suite 2: Public Read Mode Privacy Leak Probe", () => {
+describe("leitura pública: nenhuma pessoa exposta", () => {
   const SENSITIVE_PROFESSOR_NAME = "Prof. Dra. Maria Antônia Vasconcellos";
   const SENSITIVE_PROFESSOR_EMAIL = "maria.vasconcellos@ifsc.edu.br";
   const SENSITIVE_USER_ID = "usr-secret-998877";
@@ -543,7 +543,7 @@ describe("Empirical Challenger — Suite 2: Public Read Mode Privacy Leak Probe"
   });
 });
 
-describe("Empirical Challenger — Suite 3: Layout Packing & Time Boundary Invariant Oracle", () => {
+describe("empacotamento das colunas e limites de horário", () => {
   test("layoutEvents: empty array yields empty array", () => {
     expect(layoutEvents([])).toEqual([]);
   });
@@ -699,7 +699,7 @@ describe("Empirical Challenger — Suite 3: Layout Packing & Time Boundary Invar
   });
 });
 
-describe("Empirical Challenger — Suite 4: Route Helpers & Adversarial Search Parameter Validation", () => {
+describe("parâmetros de busca da rota com valores hostis", () => {
   test("validateAgendaSearch strictly rejects calendar anomalies, invalid dates, and script injections", () => {
     // Ano não bissexto 2026: 29 de fevereiro não existe
     expect(validateAgendaSearch({ data: "2026-02-29" })).toEqual({});

@@ -12,6 +12,7 @@
   },
   "imports": {
     "#/*": "./src/*",
+    "#test/*": "./test/*",
     "#db-client": "./src/infra/db/client.local.ts"
   },
   "scripts": {
