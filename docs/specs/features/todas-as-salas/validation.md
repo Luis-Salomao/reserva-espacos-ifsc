@@ -5,7 +5,7 @@
 **Result**: FAIL ❌ (rodada 3 de 3: os três gaps da rodada 2 fecharam e o eixo fica fixo no navegador; um mutante novo do `loader` sobreviveu à suíte inteira. Só falta teste, o código de produção está certo. Escalar ao usuário.)
 
 **Date**: 2026-11-04
-**Spec**: `.specs/features/todas-as-salas/spec.md`
+**Spec**: `docs/specs/features/todas-as-salas/spec.md`
 **Diff range**: `6181b01..a26bec0` (branch `feat/todas-as-salas`, 14 commits; correção da rodada 2 em `a26bec0`)
 **Verifier**: subagente independente (autor ≠ verificador); evidência re-derivada do zero, medidas novas no navegador e sensor próprio.
 

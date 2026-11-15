@@ -1,8 +1,8 @@
 # Docentes do XML: desenho
 
-**Spec**: `.specs/features/docentes-do-xml/spec.md`
+**Spec**: `docs/specs/features/docentes-do-xml/spec.md`
 **Status**: Approved (escolha delegada pelo usuário em 2026-11-04)
-**Decisões de projeto**: AD-001 e AD-002 em `.specs/STATE.md`
+**Decisões de projeto**: AD-001 e AD-002 em `docs/specs/STATE.md`
 
 ---
 

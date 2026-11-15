@@ -3,7 +3,7 @@
 ## Validation: admin-espacos - PASS
 
 **Date**: 2026-11-04 (rodada 2 de até 3)
-**Spec**: `.specs/features/admin-espacos/spec.md`
+**Spec**: `docs/specs/features/admin-espacos/spec.md`
 **Diff range**: `9bf1fc1..a88e041` (branch `feat/admin-espacos`); correções da rodada 1 em `b150a56..a88e041`
 **Verifier**: subagente independente (autor ≠ verificador). Cobertura re-derivada da spec, do diff e dos testes; o relatório da rodada 1 e a seção "Correções" de `tasks.md` serviram só como lista de pontos a reconferir, não como evidência.
 

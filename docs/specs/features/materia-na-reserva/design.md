@@ -1,6 +1,6 @@
 # Matéria na reserva: desenho
 
-**Spec**: `.specs/features/materia-na-reserva/spec.md`
+**Spec**: `docs/specs/features/materia-na-reserva/spec.md`
 **Status**: Approved (escolha delegada pelo usuário em 2026-11-04). Reconciliado em 2026-11-05 com a página `/`, a seção "Repetir" e os atalhos: ver desvios em `tasks.md`. A lista ficou inline (`w-full`) em vez do Popover, e a recarga acompanha a data.
 
 ---

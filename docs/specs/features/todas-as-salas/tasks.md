@@ -8,7 +8,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 ---
 
-**Design**: `.specs/features/todas-as-salas/design.md`
+**Design**: `docs/specs/features/todas-as-salas/design.md`
 **Status**: Done
 
 ---

@@ -8,14 +8,14 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 ---
 
-**Design**: `.specs/features/materia-na-reserva/design.md`
+**Design**: `docs/specs/features/materia-na-reserva/design.md`
 **Status**: Em execução
 
 ## Desvios (reconciliação com o código de 2026-11-05)
 
 A spec foi escrita antes da página única `/`, da seção "Repetir" e da administração de espaços. Ajustes, sem mudar a ordem T1–T6:
 
-- A habilidade `tlc-spec-driven` citada no protocolo não está disponível neste ambiente. As tarefas seguem o fluxo do repositório: spec, testes, um commit por tarefa e as lições de `.specs/LESSONS.md`.
+- A habilidade `tlc-spec-driven` citada no protocolo não está disponível neste ambiente. As tarefas seguem o fluxo do repositório: spec, testes, um commit por tarefa e as lições de `docs/specs/LESSONS.md`.
 - O campo continua depois de "Repetir" (onde estava "Finalidade"). A ordem entre "Repetir" e "Matéria ou título", e entre os dois grupos, se afirma com `compareDocumentPosition`.
 - A lista é inline (`w-full`, `min-h-11`), não um Popover de largura fixa: o AC pede a lista logo abaixo do campo, na largura da folha. O desenho citava Popover.
 - A recarga é por mudança de data, não só por mudança de semestre: o cliente não conhece os limites do semestre. O servidor continua escolhendo o semestre como `blocksFor`.

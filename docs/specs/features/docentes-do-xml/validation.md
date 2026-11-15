@@ -1,7 +1,7 @@
 # Docentes do XML: validação
 
 **Date**: 2026-11-04
-**Spec**: `.specs/features/docentes-do-xml/spec.md`
+**Spec**: `docs/specs/features/docentes-do-xml/spec.md`
 **Diff range**: `6181b01..5b42004` (branch `feat/docentes-do-xml`, 17 commits, 63 arquivos)
 **Verifier**: subagente independente (autor ≠ verificador); evidência rederivada do código e dos testes, sem usar o relatório do autor
 
@@ -216,4 +216,4 @@ Nota de método: a primeira execução de M5 e M10 rodou antes de a edição che
 
 - DOC-11 (M14): `user-repository.test.ts` ganhou "falha na última instrução desfaz responsáveis, vínculos e sessões já movidos"; um trigger `BEFORE DELETE ON users` aborta a fusão e o estado fica igual ao anterior. M14 reaplicado: 1 fail.
 - DOC-06 (M11): `Avatar` passou a ter `data-slot="avatar"`; os dois testes de visitante afirmam que não há nenhum avatar no cartão e o de fantasma afirma que há. As asserções comparam com `null` em booleano para a falha não despejar o DOM inteiro. M11 reaplicado: 2 fail.
-- `.specs/lessons.json` excluído do biome, como no ramo `feat/todas-as-salas`, para as lições entrarem no Git.
+- `docs/specs/lessons.json` excluído do biome, como no ramo `feat/todas-as-salas`, para as lições entrarem no Git.

@@ -1,7 +1,7 @@
 # LESSONS - auto-maintained by scripts/lessons.py
 
 > Machine-owned. Do NOT hand-edit. Changes are overwritten on the next `lessons.py` write.
-> Canonical state lives in `.specs/lessons.json`. Edit lessons only via the script.
+> Canonical state lives in `docs/specs/lessons.json`. Edit lessons only via the script.
 > promote_threshold=2 distinct features · window_days=45 · quarantine_threshold=2
 
 ## Confirmed (load these at Specify/Design)

@@ -8,7 +8,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 ---
 
-**Design**: `.specs/features/docentes-do-xml/design.md`
+**Design**: `docs/specs/features/docentes-do-xml/design.md`
 **Status**: Draft
 
 ---

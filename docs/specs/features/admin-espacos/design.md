@@ -1,6 +1,6 @@
 # Administração de espaços: design
 
-**Spec**: `.specs/features/admin-espacos/spec.md`
+**Spec**: `docs/specs/features/admin-espacos/spec.md`
 **Status**: Approved
 
 ---
@@ -204,4 +204,4 @@ CREATE TABLE space_equipment (
 | Diálogo no celular | Encostado na base da tela, `max-h-[90svh]`, rolagem interna e rodapé fixo | Cabe em 360 px com teclado aberto |
 | Testes da tela | Em `admin-managers.test.tsx` | Evita dois `mock.module` do mesmo módulo |
 
-Decisão de projeto registrada em `.specs/STATE.md` como AD-003 (equipamentos como linhas tipo + quantidade, catálogo no domínio).
+Decisão de projeto registrada em `docs/specs/STATE.md` como AD-003 (equipamentos como linhas tipo + quantidade, catálogo no domínio).

@@ -1,7 +1,7 @@
 # Visão geral: validação
 
 **Date**: 2026-11-04
-**Spec**: `.specs/features/visao-geral/spec.md`
+**Spec**: `docs/specs/features/visao-geral/spec.md`
 **Diff range**: `9bf1fc1..2ad56af` (branch `feat/visao-geral`, 20 commits, 34 arquivos)
 **Verifier**: subagente independente (autor ≠ verificador); evidência rederivada do código e dos testes, sem usar o relatório do autor
 
@@ -325,11 +325,11 @@ Não houve UAT com o usuário. Verificação no navegador feita pelo verificador
 **Issues found** (ranqueadas):
 1. Arrasto entre dias sem teste discriminante (M20) - GERAL-13 AC1 - `test/components/rooms-overview.test.tsx:341`
 2. Ordem livres → ocupadas no painel não afirmada (M30) - GERAL-13 AC3 - `test/components/rooms-overview.test.tsx:352`
-3. Spec contraditória: GERAL-10 AC1/AC3 × GERAL-13 AC2 - `.specs/features/visao-geral/spec.md:146,148`
-4. "Só livres" fora da visão geral decidido só no design - GERAL-08 AC2 - `.specs/features/visao-geral/spec.md:114`
+3. Spec contraditória: GERAL-10 AC1/AC3 × GERAL-13 AC2 - `docs/specs/features/visao-geral/spec.md:146,148`
+4. "Só livres" fora da visão geral decidido só no design - GERAL-08 AC2 - `docs/specs/features/visao-geral/spec.md:114`
 5. Escape (painel e cartão) sem teste nem AC (M21, M22) - `src/components/rooms/rooms-overview.tsx:96`, `src/components/rooms/overview-cell.tsx:201`
 6. Trecho em andamento sem AC nem teste (M27) - GERAL-13 AC6 - `src/components/rooms/overview-selection.tsx:78`
-7. GERAL-01 AC1 ainda cita `/salas?visao=geral` - `.specs/features/visao-geral/spec.md:57`
+7. GERAL-01 AC1 ainda cita `/salas?visao=geral` - `docs/specs/features/visao-geral/spec.md:57`
 8. `/salas?espaco=…` perde `espaco` no redirecionamento (`validateSalasSearch` não conhece o parâmetro); a spec diz "mantendo os parâmetros" - `src/routes/salas.tsx:143` (baixa: `/salas` nunca usou `espaco`)
 
 **Next steps**: implementar os Fixes 1–5 (testes e spec; nenhum código de produção precisa mudar) e redespachar o verificador.

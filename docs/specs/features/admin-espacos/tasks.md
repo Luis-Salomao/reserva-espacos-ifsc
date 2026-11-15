@@ -8,7 +8,7 @@ Implement these tasks with the `tlc-spec-driven` skill: **activate it by name an
 
 ---
 
-**Design**: `.specs/features/admin-espacos/design.md`
+**Design**: `docs/specs/features/admin-espacos/design.md`
 **Status**: In Progress
 
 ---

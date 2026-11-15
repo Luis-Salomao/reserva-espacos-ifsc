@@ -145,7 +145,7 @@ Parser em duas camadas:
 
 Do docente entram no DTO só `id`, `short` (sigla) e o nome (`name`, senão `firstname` + `lastname`, senão a
 sigla), usados para sugerir vínculo e criar a conta fantasma do docente sem conta. E-mail, celular, gênero e cor
-**não entram no DTO**. O nome só aparece para quem está logado. [AD-001 em `.specs/STATE.md`, 2026-11-04, que
+**não entram no DTO**. O nome só aparece para quem está logado. [AD-001 em `docs/specs/STATE.md`, 2026-11-04, que
 substitui a regra anterior de usar apenas `id` e `short`]
 
 ### 7.3 Fluxo na UI (quem importa: admin e responsável por horários)

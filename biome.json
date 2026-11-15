@@ -11,7 +11,7 @@
       "!**/src/styles.css",
       "!**/docs/design/prototipo-agenda-a",
       "!**/bun.lock",
-      "!**/.specs/lessons.json",
+      "!**/docs/specs/lessons.json",
       "!**/*.md"
     ]
   },

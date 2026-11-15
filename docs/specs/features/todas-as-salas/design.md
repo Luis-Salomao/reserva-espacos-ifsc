@@ -1,6 +1,6 @@
 # Todas as salas: desenho
 
-**Spec**: `.specs/features/todas-as-salas/spec.md`
+**Spec**: `docs/specs/features/todas-as-salas/spec.md`
 **Status**: Approved (escolha delegada pelo usuário em 2026-11-04)
 
 ---

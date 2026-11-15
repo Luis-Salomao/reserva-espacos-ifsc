@@ -1,6 +1,6 @@
 # Visão geral: design
 
-**Spec**: `.specs/features/visao-geral/spec.md`
+**Spec**: `docs/specs/features/visao-geral/spec.md`
 **Status**: Approved (o usuário pediu a implementação em 2026-11-04 e delegou as escolhas)
 
 ---
