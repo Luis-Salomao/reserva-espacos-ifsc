@@ -228,6 +228,36 @@ Para executar a demonstração e toda a suíte de testes do CLI:
 bun test cli/
 ```
 
+## Arquitetura
+
+Um só projeto TanStack Start com interface e servidor. As pastas de `src/` seguem camadas
+(arquitetura hexagonal); o `dependency-cruiser` (`bun run check`) impede que uma camada importe outra
+fora da ordem, por exemplo que o domínio dependa do banco ou que a interface fale direto com ele.
+
+```
+src/
+├── domain/        regras puras (horários, disponibilidade, papéis, pedidos); não importa nada de fora
+├── application/   casos de uso (reservas, importação, contas, avisos) e as portas que a infra implementa
+├── infra/         banco (Drizzle: SQLite local e D1), e-mail, autenticação, configuração
+├── import-asc/    leitura e normalização do XML do aSc Horários
+├── server/        funções de servidor: sessão, controle de acesso e ligação com os casos de uso
+├── routes/        páginas (roteamento por arquivo do TanStack Router)
+├── components/    interface em React (agenda, salas, administração, componentes base em ui/)
+├── styles/        tokens de cor e tema
+├── lib/           utilitários da interface
+├── integrations/  provedor e devtools do TanStack Query
+├── start.ts       entrada do servidor (alvo local)
+└── worker.ts      entrada do Cloudflare Worker
+cli/               comandos de linha (criar admin, cópia e restauração, prévia de importação, e-mail)
+scripts/           apoio ao build e aos testes
+drizzle/           migrações do banco
+docs/              especificações, decisões e planos (índice em docs/README.md)
+test/              apoio compartilhado dos testes: setup do DOM, fixtures do aSc, utilitários e e2e
+```
+
+Os testes ficam ao lado do arquivo testado (`booking-sheet.tsx` e `booking-sheet.test.tsx`). A pasta
+`test/` guarda só o que vários testes usam; os utilitários dela são importados como `#test/...`.
+
 ## Desenvolvimento
 
 ```bash
