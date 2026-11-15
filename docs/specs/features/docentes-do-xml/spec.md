@@ -55,7 +55,7 @@ Das 2945 ocupações importadas, só 80 têm responsável, porque só 2 dos 45 d
 5. IF o mesmo XML for importado de novo THEN o sistema SHALL reutilizar as fantasmas já vinculadas e SHALL NOT criar duplicatas.
 6. IF salvar os vínculos falhar THEN o sistema SHALL NOT deixar nenhuma conta fantasma nem vínculo gravado daquele envio.
 
-**Independent Test**: Importar o XML do 2º semestre numa base com só Ryan e Fabiana e conferir 43 contas fantasmas e todas as aulas com docente no XML com responsável.
+**Independent Test**: Importar o XML do 2º semestre numa base com só Testador A e Docente B e conferir 43 contas fantasmas e todas as aulas com docente no XML com responsável.
 
 ---
 
@@ -111,7 +111,7 @@ Das 2945 ocupações importadas, só 80 têm responsável, porque só 2 dos 45 d
 5. IF a conta escolhida para a fusão for outra fantasma ou estiver inativa THEN o sistema SHALL recusar a fusão.
 6. WHILE uma conta for fantasma, IF alguém tentar entrar com o e-mail dela THEN o sistema SHALL responder com a mesma mensagem de credencial inválida.
 
-**Independent Test**: Fundir a fantasma "RYAN" na conta do Ryan e ver as aulas dele mantidas com Ryan como responsável.
+**Independent Test**: Fundir a fantasma "TESTA" na conta do testador A e ver as aulas dele mantidas com Testador A como responsável.
 
 ---
 

@@ -63,7 +63,7 @@ Na "Nova reserva" o docente digita o título à mão, embora as matérias e turm
 9. WHEN a lista está aberta e o docente pressiona Esc THEN o sistema SHALL fechar a lista e manter o título já escolhido.
 10. WHEN o docente escolhe um item ou a opção de título livre e pede a série recorrente THEN o sistema SHALL enviar esse mesmo texto como finalidade da prévia e da confirmação.
 
-**Independent Test**: Logado como Fabiana, abrir "Nova reserva" e ver as matérias dela no topo; escolher uma e criar a reserva com esse título.
+**Independent Test**: Logado como Docente B, abrir "Nova reserva" e ver as matérias dela no topo; escolher uma e criar a reserva com esse título.
 
 ---
 

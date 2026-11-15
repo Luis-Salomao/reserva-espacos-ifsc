@@ -1,4 +1,4 @@
-# Feedback do Ryan para a PR de reservas
+# Feedback do testador A para a PR de reservas
 
 Repositório: `Luis-Salomao/reserva-espacos-ifsc`
 
@@ -13,7 +13,7 @@ Domínio final: https://reservas-ifsc.luissalomao.dev/
 | 1 | Identificar claramente o IFSC Câmpus Garopaba na tela inicial | **Implementado:** cabeçalho usa a marca oficial horizontal do IFSC Câmpus Garopaba em base branca no tema escuro; o nome do sistema usa cor adaptada ao tema. |
 | 2 | Explicar as visualizações e melhorar a navegação | **Implementado:** cada visualização mostra orientação contextual e mantém dica no controle. |
 | 3 | Dar retorno visível ao enviar o login | **Implementado:** botão muda para “Entrando…”, bloqueia duplo envio e anuncia o estado. |
-| 4 | Validar envio de e-mail para `ryan.fragnani@ifsc.edu.br` | **Pendente de ambiente:** configuração/diagnóstico local existe; entrega real depende de secrets e execução do provedor. Nenhum e-mail foi enviado. |
+| 4 | Validar envio de e-mail para `e-mail institucional do testador` | **Pendente de ambiente:** configuração/diagnóstico local existe; entrega real depende de secrets e execução do provedor. Nenhum e-mail foi enviado. |
 | 5 | Corrigir “origem não permitida” após recuperação de senha | **Corrigido no código local:** `PUBLIC_ORIGIN` é a origem upstream reescrita pelo proxy; `PUBLIC_LINK_ORIGIN` aponta os links de e-mail para o domínio oficial. Produção não foi verificada. |
 | 6 | Diferenciar disciplinas cujas cores se repetem | **Implementado:** padrões visuais acompanham as cores na agenda e legenda. |
 | 7 | Corrigir seletor de sala no tema escuro e pedir data antes da sala | **Implementado:** data vem antes da sala e o seletor tem cores explícitas no tema escuro. |

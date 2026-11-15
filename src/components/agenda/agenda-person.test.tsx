@@ -16,7 +16,7 @@ const item = (overrides: Partial<AgendaItem> = {}): AgendaItem => ({
   status: "ativa",
   canCancel: false,
   mine: false,
-  person: { name: "Fabiana Lima", code: "FLIMA", placeholder: false },
+  person: { name: "Carla Mendes", code: "CMEND", placeholder: false },
   ...overrides,
 });
 
@@ -34,8 +34,8 @@ describe("responsável na grade", () => {
   test("mostra nome do responsável no cartão quando a ocupação traz pessoa", () => {
     render(<TimelineDay dayAgenda={day([item()])} onSelectSlot={() => {}} isVisitor={false} />);
     const card = screen.getByRole("button", { name: /Cálculo I/ });
-    expect(within(card).getByText("Fabiana Lima")).toBeTruthy();
-    expect(within(card).getByText("FL")).toBeTruthy();
+    expect(within(card).getByText("Carla Mendes")).toBeTruthy();
+    expect(within(card).getByText("CM")).toBeTruthy();
   });
 
   test("ocupação curta guarda o nome só para leitores de tela", () => {
@@ -46,7 +46,7 @@ describe("responsável na grade", () => {
         isVisitor={false}
       />,
     );
-    expect(screen.getByText("Fabiana Lima").className).toContain("sr-only");
+    expect(screen.getByText("Carla Mendes").className).toContain("sr-only");
   });
 
   test("cartão abaixo de 54 px mostra só o avatar, com o nome completo no rótulo acessível", () => {
@@ -57,10 +57,10 @@ describe("responsável na grade", () => {
         isVisitor={false}
       />,
     );
-    const card = screen.getByRole("button", { name: /Fabiana Lima/ });
-    const avatar = within(card).getByText("FL");
+    const card = screen.getByRole("button", { name: /Carla Mendes/ });
+    const avatar = within(card).getByText("CM");
     expect(avatar.getAttribute("aria-hidden")).toBe("true");
-    expect(within(card).getByText("Fabiana Lima").className).toContain("sr-only");
+    expect(within(card).getByText("Carla Mendes").className).toContain("sr-only");
   });
 
   test("reserva avulsa curta ou longa mostra o avatar de quem reservou", () => {
@@ -73,7 +73,7 @@ describe("responsável na grade", () => {
             title: "Reunião",
             start: "10:00",
             end: "10:30",
-            person: { name: "Ryan Costa", code: null, placeholder: false },
+            person: { name: "Paulo Costa", code: null, placeholder: false },
           }),
           item({ id: "m2", source: "manual", title: "Banca", start: "14:00", end: "16:00" }),
         ])}
@@ -81,8 +81,8 @@ describe("responsável na grade", () => {
         isVisitor={false}
       />,
     );
-    expect(within(screen.getByRole("button", { name: /Reunião/ })).getByText("RC")).toBeTruthy();
-    expect(within(screen.getByRole("button", { name: /Banca/ })).getByText("FL")).toBeTruthy();
+    expect(within(screen.getByRole("button", { name: /Reunião/ })).getByText("PC")).toBeTruthy();
+    expect(within(screen.getByRole("button", { name: /Banca/ })).getByText("CM")).toBeTruthy();
   });
 
   test("conta fantasma aparece com avatar como qualquer responsável", () => {
@@ -108,8 +108,8 @@ describe("responsável na grade", () => {
       />,
     );
     const card = screen.getByRole("button", { name: /Cálculo I/ });
-    expect(card.textContent).not.toContain("Fabiana");
-    expect(within(card).queryByText("FL")).toBeNull();
+    expect(card.textContent).not.toContain("Carla");
+    expect(within(card).queryByText("CM")).toBeNull();
     expect(card.querySelector('[data-slot="avatar"]') === null).toBe(true);
   });
 
@@ -122,8 +122,8 @@ describe("responsável na grade", () => {
       />,
     );
     const card = screen.getByRole("button", { name: /Cálculo I/ });
-    expect(card.textContent).not.toContain("Fabiana");
-    expect(within(card).queryByText("FL") === null).toBe(true);
+    expect(card.textContent).not.toContain("Carla");
+    expect(within(card).queryByText("CM") === null).toBe(true);
     expect(card.querySelector('[data-slot="avatar"]') === null).toBe(true);
   });
 
@@ -178,8 +178,8 @@ describe("detalhes da ocupação", () => {
     );
     const dialog = screen.getByRole("dialog", { name: "Cálculo I" });
     expect(within(dialog).getByText("Responsável")).toBeTruthy();
-    expect(within(dialog).getByText(/Fabiana Lima/)).toBeTruthy();
-    expect(within(dialog).getByText("FLIMA")).toBeTruthy();
+    expect(within(dialog).getByText(/Carla Mendes/)).toBeTruthy();
+    expect(within(dialog).getByText("CMEND")).toBeTruthy();
     expect(within(dialog).getByText("ADM 2")).toBeTruthy();
     expect(within(dialog).getByText("08:00–09:40")).toBeTruthy();
     expect(within(dialog).queryByRole("button", { name: "Cancelar…" })).toBeNull();
@@ -194,7 +194,7 @@ describe("detalhes da ocupação", () => {
           title: "Reunião",
           canCancel: true,
           mine: true,
-          person: { name: "Ryan Costa", code: null, placeholder: false },
+          person: { name: "Paulo Costa", code: null, placeholder: false },
         })}
         spaceName="LAB 1"
         onOpenChange={() => {}}
@@ -242,7 +242,7 @@ describe("detalhes da ocupação", () => {
     );
     const dialog = screen.getByRole("dialog");
     expect(within(dialog).queryByText("Responsável")).toBeNull();
-    expect(dialog.textContent).not.toContain("Fabiana");
+    expect(dialog.textContent).not.toContain("Carla");
   });
 
   test("fechado quando não há ocupação; fechar avisa o pai", () => {

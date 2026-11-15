@@ -41,9 +41,9 @@ Motivo: dois mutantes não equivalentes sobreviveram (M11 e M14). O código de p
 | Criterion | Spec-defined outcome | `file:line` + assertion | Result |
 | --------- | -------------------- | ----------------------- | ------ |
 | AC1: avatar logado | avatar com iniciais no cartão | `test/components/agenda-person.test.tsx:34` - `getByText("FL")`; `:88` fantasma → `getByText("ZQ")` | ✅ PASS |
-| AC2: cartão < 54 px | só avatar; nome no rótulo acessível | `agenda-person.test.tsx:52` - avatar `"FL"` com `aria-hidden="true"` e nome com classe `sr-only` | ✅ PASS (M12 morto) |
-| AC3: visitante sem avatar, iniciais nem nome | nenhum avatar | Dados: `src/application/bookings.test.ts:545` - visitante `person` `toBeNull()` e JSON sem `placeholder` (M10b morto). Componente: `agenda-person.test.tsx:101` e `:114` só verificam ausência de `"FL"` e de `"Fabiana"` | ❌ GAP (M11 sobreviveu: avatar genérico para visitante passa) |
-| AC4: avulsa | avatar de quem reservou | `agenda-person.test.tsx:66` - `getByText("RC")` em avulsa curta e `"FL"` em longa | ✅ PASS |
+| AC2: cartão < 54 px | só avatar; nome no rótulo acessível | `agenda-person.test.tsx:52` - avatar `"CM"` com `aria-hidden="true"` e nome com classe `sr-only` | ✅ PASS (M12 morto) |
+| AC3: visitante sem avatar, iniciais nem nome | nenhum avatar | Dados: `src/application/bookings.test.ts:545` - visitante `person` `toBeNull()` e JSON sem `placeholder` (M10b morto). Componente: `agenda-person.test.tsx:101` e `:114` só verificam ausência de `"CM"` e de `"Carla"` | ❌ GAP (M11 sobreviveu: avatar genérico para visitante passa) |
+| AC4: avulsa | avatar de quem reservou | `agenda-person.test.tsx:66` - `getByText("RC")` em avulsa curta e `"CM"` em longa | ✅ PASS |
 | AC5: fantasma | avatar normal e selo "conta não ativada" nos detalhes | `agenda-person.test.tsx:88` (avatar) e `:208` - `getByText(/conta não ativada/i)` na fantasma, `queryByText(...)` nulo na conta comum; `bookings.test.ts:545` - `placeholder: true` para logado | ✅ PASS |
 
 ### P1: Atualizar responsáveis das aulas já importadas
