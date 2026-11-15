@@ -52,4 +52,4 @@ Mobile-first: conteúdo em coluna única, margens de 16 px, largura máxima de `
 
 ## Lighthouse
 
-`bun run build:local && bun run lighthouse` mede a página inicial em modo móvel (padrão do Lighthouse CI) contra `bun run start:local`. Metas: acessibilidade e boas práticas >= 0.95, desempenho >= 0.9. Se o Chrome não for encontrado, defina `CHROME_PATH` (no Windows: `C:\Program Files\Google\Chrome\Application\chrome.exe`). Relatórios ficam em `.lighthouseci/` (ignorado pelo Git).
+Não faz parte do gate. Para medir acessibilidade e desempenho, rode `bun run build:local && bun run start:local` e use o painel Lighthouse do Chrome DevTools na página inicial, em modo móvel. Metas: acessibilidade e boas práticas >= 0.95, desempenho >= 0.9.
